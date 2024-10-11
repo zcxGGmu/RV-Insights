@@ -14,6 +14,3 @@ class VectorDB:
         Get the vector database store.
         """
         raise NotImplementedError("Subclasses should implement this method")
-
-
-
