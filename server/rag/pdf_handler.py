@@ -45,7 +45,12 @@ class PDFHandler:
             raise ValueError("db_type must be either `vector/es`!")
 
     def load_pdf_files(self):
-
+        pdf_files = []
+        for file in os.listdir(self.dir):
+            if file.lower().endswith('.pdf'):
+                pdf_files.append(os.path.join(self.dir, file))
+        logging.info(f"Found {len(pdf_files)} PDF files.")
+        return pdf_files
 
     def load_pdf_content(self):
 
