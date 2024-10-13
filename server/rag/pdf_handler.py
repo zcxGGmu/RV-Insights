@@ -44,7 +44,7 @@ class PDFHandler:
         else:
             raise ValueError("db_type must be either `vector/es`!")
 
-    def load_pdf_files(self):
+    def get_pdf_files(self):
         pdf_files = []
         for file in os.listdir(self.dir):
             if file.lower().endswith('.pdf'):
@@ -52,14 +52,33 @@ class PDFHandler:
         logging.info(f"Found {len(pdf_files)} PDF files.")
         return pdf_files
 
-    def load_pdf_content(self):
-
+    def load_pdf_content(self, pdf_path):
+        pdf_loader = PyMuPDFLoader(pdf_path)
+        docs = pdf_loader.load()
+        logging.info(f"Loading content from {pdf_path}.")
+        return docs
 
     def split_text(self, docs):
-
+        # Break the text into smaller sections
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size = self.chunksize,
+            chunk_overlap = self.overlap,
+            length_function = len,
+            add_start_index = True,
+        )
+        docs = text_splitter.split_documents(docs)
+        logging.info("Split text into smaller chunks with RecurseCharacterTextSplitter.")
+        return docs
 
     def insert_docs2db(self, docs, insert_function, batch_size=None):
-
+        """
+        Insert documents into the specified database and display the progress.
+        - params
+            - docs: List of documents to be inserted.
+            - insert_function: The function used to insert the documents.
+            - batch_size: The size of each batch for insertion.
+        """
+        
 
     def insert_2vectordb(self, docs):
 
