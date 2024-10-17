@@ -78,7 +78,25 @@ class PDFHandler:
             - insert_function: The function used to insert the documents.
             - batch_size: The size of each batch for insertion.
         """
-        
+        if batch_size is None:
+            batch_size = self.batch_num
+        logging.info(f"Inserting {len(docs)} docs.")
+
+        start_time = time.time()
+        total_docs_inserted = 0
+
+        total_batches = (len(docs) + batch_size - 1 ) // batch_size
+        with tqdm(total=total_batches, desc="Inserting batches", unit="batch") as pbar:
+            for i in range(0, len(docs), batch_size):
+                batch = docs[i:i + batch_size]
+                insert_function(batch)
+                total_docs_inserted += len(batch)
+                # current tpm
+                elapsed_time = time.time() - start_time
+                if elapsed_time > 0:
+                    tpm = (total_docs_inserted / elapsed_time) * 60
+                    pbar.set_postfix({"TPM": f"{tpm: .2f}"})
+                pbar.update(1)
 
     def insert_2vectordb(self, docs):
 
