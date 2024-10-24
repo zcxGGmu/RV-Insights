@@ -99,12 +99,40 @@ class PDFHandler:
                 pbar.update(1)
 
     def insert_2vectordb(self, docs):
-
+        """
+        Insert docs to VectorDB
+        """
+        self.vector_db.add_with_langchain(docs)
 
     def insert_2elasticsearch(self, docs):
-
+        """
+        Insert docs to Elasticsearch
+        """
+        self.es_client.add_documents(docs)
 
     def handle_pdfs_group(self, pdf_files_group):
+        # Read pdf contents
+        pdf_contents = []
+        for pdf_path in pdf_files_group:
+            docs = self.load_pdf_content(pdf_path)
+            pdf_contents.extend(docs)
 
+        # Split pdf_contents
+        docs_small_chunk = self.split_text(pdf_contents)
+
+        if self.db_type == 'vector':
+            self.insert_docs2db(docs_small_chunk, self.insert_2vectordb)
+        elif self.db_type == 'es':
+            self.insert_docs2db(docs_small_chunk, self.insert_2elasticsearch)
+        else:
+            raise ValueError("db_type must be 'vector/es'.")
 
     def handle_pdfs(self):
+        pdf_files = self.get_pdf_files()
+        file_num_g = self.file_num_group
+
+        for i in range(0, len(pdf_files), file_num_g):
+            pdf_files_g = pdf_files[i:i + file_num_g]
+            self.handle_pdfs_group(pdf_files_g)
+
+        print("PDFs handle successfully.")
