@@ -16,9 +16,9 @@ from utils.util import load_ernie_embeddings
 #   Model usage - Input: 0.0005/text_token (per thousand)
 #   Model usage - Output: 0.002/text_token (per thousand)
 """
-# LLM = load_qwen_models(model="qwen-max")[0]
-# CHAT = load_qwen_models(model="qwen-max")[1]
-# EMBED = load_qwen_embeddings()
+LLM = load_qwen_models(model="qwen-max")[0]
+CHAT = load_qwen_models(model="qwen-max")[1]
+EMBED = load_qwen_embeddings()
 
 """
 # Baidu ERNIE Bot Series Models
@@ -52,6 +52,17 @@ from utils.util import load_ernie_embeddings
 """
 Chroma
 """
+# 默认的ChromaDB的服务器类别
+CHROMA_SERVER_TYPE = "http"
+# 默认本地数据库的持久化目录
+CHROMA_PERSIST_DB_PATH = "chroma_db"
+
+CHROMA_HOST = os.getenv("CHROMA_HOST", "sy-direct.virtaicloud.com")
+CHROMA_PORT = int(os.getenv("CHROMA_PORT", 41502))
+CHROMA_COLLECTION_NAME = "langchain"
+
+# 默认导入PDF时使用local方式导入
+CHROMA_SERVER_TYPE_IMPORT = "local"
 
 """
 Milvus
