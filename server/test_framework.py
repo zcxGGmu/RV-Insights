@@ -25,5 +25,30 @@ def test_import_vector_db():
 
     pdf_handler.handle_pdfs()
 
+def test_rag():
+    from rag.rag import RagManager
+    from rag.vector_db import ChromaDB
+    from rag.retrievers import SimpleRetrieverWrapper
+
+    llm, chat, embed = settings.LLM, settings.CHAT, settings.EMBED
+    # Chroma
+    db_config = {
+        "chroma_server_type": "http",
+        "host": "localhost",
+        "port": 8000,
+        "persist_path": "chroma_db",
+        "collection_name": "langchaintest",
+    }
+    # RAG
+    rag_manager = RagManager(vector_db_class = ChromaDB,
+                             db_config = db_config,
+                             llm = llm, embed = embed,
+                             retriever_cls = SimpleRetrieverWrapper)
+    # example
+    query = "先介绍一下 Ssctr 指令集，该特性对虚拟化的影响？"
+    result = rag_manager.get_results(query)
+    print(result)
+
 if __name__ == "__main__":
     test_import_vector_db()
+    test_rag()
