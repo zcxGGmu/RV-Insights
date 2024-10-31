@@ -67,6 +67,10 @@ CHROMA_SERVER_TYPE_IMPORT = "local"
 """
 Milvus
 """
+MILVUS_SERVER_TYPE = "http"
+MILVUS_HOST = "localhost"
+MILVUS_PORT = 19530
+MILVUS_COLLECTION_NAME = "langchain"
 
 """
 ESDB
