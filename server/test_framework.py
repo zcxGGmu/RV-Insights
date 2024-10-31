@@ -49,6 +49,14 @@ def test_rag():
     result = rag_manager.get_results(query)
     print(result)
 
+def test_agent():
+    # llm, chat, embed = settings.LLM, settings.CHAT, settings.EMBED
+    from rv_agent import RVAgent
+    agent = RVAgent()
+    query = "请介绍一下RISC-V NACL扩展，并以列表形式呈现其关联的所有SBI函数."
+    agent.handle_query(query)
+
 if __name__ == "__main__":
     test_import_vector_db()
     test_rag()
+    test_agent()
