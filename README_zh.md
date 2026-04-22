@@ -4,8 +4,19 @@
   <span>中文 | <a href="./README.md">English</a></span>
 </div>
 
+## 🌐 网站访问
 
+公网访问地址：
 
+- [https://zcxggmu.github.io/RV-Insights/](https://zcxggmu.github.io/RV-Insights/)
+
+如需在本地访问产品网站，请在仓库根目录执行：
+
+```bash
+python -m http.server 8000 -d web
+```
+
+然后打开 [http://localhost:8000/](http://localhost:8000/)。
 
 ## ⚡ 项目简介
 
@@ -132,4 +143,3 @@ conda create --name rv-chat python=3.10
 conda activate rv-chat
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
-
