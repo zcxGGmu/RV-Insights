@@ -4,8 +4,19 @@
   <span> English | <a href="README_zh.md">中文</a></span>
 </div>
 
+## 🌐 Website Access
 
+Public site:
 
+- [https://zcxggmu.github.io/RV-Insights/](https://zcxggmu.github.io/RV-Insights/)
+
+If you want to preview the product website locally from the repository root, run:
+
+```bash
+python -m http.server 8000 -d web
+```
+
+Then open [http://localhost:8000/](http://localhost:8000/).
 
 ## ⚡ Project Overview
 
@@ -140,4 +151,3 @@ conda create --name rv-chat python=3.10
 conda activate rv-chat
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
-

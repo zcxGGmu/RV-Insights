@@ -14,7 +14,11 @@ Run the homepage locally from the repository root:
 python -m http.server 8000 -d web
 ```
 
-Then open `http://localhost:8000`.
+Then open [http://localhost:8000/](http://localhost:8000/).
+
+## Public URL
+
+- [https://zcxggmu.github.io/RV-Insights/](https://zcxggmu.github.io/RV-Insights/)
 
 ## Files
 
