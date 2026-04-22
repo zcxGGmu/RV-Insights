@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="RV-Insights is a bilingual product homepage for a RISC-V Q&A and retrieval system with private RAG, web retrieval, and code-backed architecture diagrams."
+    />
+    <title>RV-Insights | RISC-V Q&amp;A and Retrieval</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-lang="zh">
+    <header class="site-header">
+      <a class="site-header__brand" href="#hero">
+        <img src="./assets/brand/logo.webp" alt="RV-Insights logo" />
+        <span>RV-Insights</span>
+      </a>
+      <nav class="site-header__nav" aria-label="Primary">
+        <a href="#proof">
+          <span class="lang lang-zh">优势</span>
+          <span class="lang lang-en">Value</span>
+        </a>
+        <a href="#architecture">
+          <span class="lang lang-zh">架构</span>
+          <span class="lang lang-en">Architecture</span>
+        </a>
+        <a href="#workflow">
+          <span class="lang lang-zh">流程</span>
+          <span class="lang lang-en">Workflow</span>
+        </a>
+        <a href="#capabilities">
+          <span class="lang lang-zh">能力</span>
+          <span class="lang lang-en">Capabilities</span>
+        </a>
+        <a href="#quickstart">Quick Start</a>
+      </nav>
+      <button id="lang-toggle" class="lang-toggle" data-lang-toggle="header" type="button" aria-label="Toggle language">EN</button>
+    </header>
+    <main>
+      <section id="hero" class="hero">
+        <div class="hero__copy" data-reveal>
+          <p class="eyebrow">
+            <span class="lang lang-zh">面向开发者与研究者的 RISC-V 智能问答系统</span>
+            <span class="lang lang-en">A focused RISC-V Q&amp;A system for developers and researchers</span>
+          </p>
+          <h1>
+            <span class="lang lang-zh">面向 <span class="accent">RISC-V</span> 的智能问答与检索系统</span>
+            <span class="lang lang-en">An intelligent Q&amp;A and retrieval system for <span class="accent">RISC-V</span></span>
+          </h1>
+          <p class="hero__lead">
+            <span class="lang lang-zh">
+              聚焦 RISC-V 专业知识问答、私有知识库检索与实时联网检索，帮助开发者更快获得可追溯、可扩展的答案。
+            </span>
+            <span class="lang lang-en">
+              Built for RISC-V knowledge Q&amp;A, private retrieval, and web-assisted answers with a code-backed architecture and flexible model stack.
+            </span>
+          </p>
+          <div class="hero__actions">
+            <a class="button button-primary" href="https://github.com/zcxGGmu/RV-Insights" target="_blank" rel="noreferrer noopener">
+              View on GitHub
+            </a>
+            <a class="button button-secondary" href="#quickstart">Quick Start</a>
+            <a class="button button-secondary" href="#demo-preview">Demo Preview</a>
+          </div>
+          <ul class="hero__signals">
+            <li>RISC-V Expert QA</li>
+            <li>Private RAG Workflow</li>
+            <li>Real-Time Web Retrieval</li>
+            <li>Chroma / Milvus</li>
+          </ul>
+        </div>
+        <div class="hero__media" data-reveal>
+          <article class="preview-card preview-card--primary">
+            <img src="./assets/previews/preview-qa.svg" alt="RISC-V Expert Q&A preview" />
+          </article>
+          <article class="preview-card preview-card--secondary">
+            <img src="./assets/previews/preview-rag.svg" alt="Private knowledge retrieval preview" />
+          </article>
+          <article class="preview-card preview-card--accent">
+            <img src="./assets/previews/preview-system.svg" alt="Model and stack overview preview" />
+          </article>
+        </div>
+      </section>
+
+      <section id="proof" class="section-block section-block--tight">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow">
+            <span class="lang lang-zh">可信度来自仓库文档与代码结构</span>
+            <span class="lang lang-en">Proof built from repository docs and code paths</span>
+          </p>
+          <h2>
+            <span class="lang lang-zh">当前项目已经具备的核心信号</span>
+            <span class="lang lang-en">What the current repository already proves</span>
+          </h2>
+        </div>
+        <div class="proof-strip" data-reveal>
+          <span class="proof-chip">RISC-V Expert QA</span>
+          <span class="proof-chip">Private RAG Workflow</span>
+          <span class="proof-chip">Real-Time Web Retrieval</span>
+          <span class="proof-chip">Chroma / Milvus</span>
+          <span class="proof-chip">Multi-LLM Integration</span>
+          <span class="proof-chip">Docker Deployment Support</span>
+        </div>
+        <div class="card-grid card-grid--four">
+          <article class="info-card" data-reveal>
+            <p class="info-card__index">01</p>
+            <h3>
+              <span class="lang lang-zh">RISC-V 专家问答</span>
+              <span class="lang lang-en">RISC-V Expert Q&amp;A</span>
+            </h3>
+            <p>
+              <span class="lang lang-zh">覆盖 ISA 解释、技术问题解答、排障分析与环境搭建指导。</span>
+              <span class="lang lang-en">Covers ISA explanation, technical issue resolution, debugging, and environment guidance.</span>
+            </p>
+          </article>
+          <article class="info-card" data-reveal>
+            <p class="info-card__index">02</p>
+            <h3>
+              <span class="lang lang-zh">私有知识库检索</span>
+              <span class="lang lang-en">Private Knowledge Retrieval</span>
+            </h3>
+            <p>
+              <span class="lang lang-zh">支持 Markdown 与 PDF 等资料接入，并通过 RAG 提升回答相关性。</span>
+              <span class="lang lang-en">Supports private Markdown and PDF ingestion with RAG-enhanced answer quality.</span>
+            </p>
+          </article>
+          <article class="info-card" data-reveal>
+            <p class="info-card__index">03</p>
+            <h3>
+              <span class="lang lang-zh">联网增强回答</span>
+              <span class="lang lang-en">Web-Enhanced Answers</span>
+            </h3>
+            <p>
+              <span class="lang lang-zh">结合实时联网检索与向量召回，补足静态知识边界。</span>
+              <span class="lang lang-en">Combines live web retrieval and vector recall to extend beyond static project knowledge.</span>
+            </p>
+          </article>
+          <article class="info-card" data-reveal>
+            <p class="info-card__index">04</p>
+            <h3>
+              <span class="lang lang-zh">灵活基础设施栈</span>
+              <span class="lang lang-en">Flexible Infra Stack</span>
+            </h3>
+            <p>
+              <span class="lang lang-zh">当前代码已体现多模型接入与 Chroma / Milvus 双向量库选择。</span>
+              <span class="lang lang-en">The current code already exposes multi-model support and a Chroma / Milvus vector-store choice.</span>
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="architecture" class="section-block">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow">
+            <span class="lang lang-zh">真实代码驱动的系统架构</span>
+            <span class="lang lang-en">A code-backed system architecture</span>
+          </p>
+          <h2>
+            <span class="lang lang-zh">围绕 RVAgent、RAG 检索与向量数据库的当前实现</span>
+            <span class="lang lang-en">The current implementation centers on RVAgent, RAG retrieval, and vector stores</span>
+          </h2>
+          <p class="section-copy">
+            <span class="lang lang-zh">图中只保留仓库里已经能被 README 与 server 代码支撑的节点，不引入未落地的 Web 控制台或额外服务层。</span>
+            <span class="lang lang-en">Only repository-backed components are shown here, without inventing a finished web console or API layer.</span>
+          </p>
+        </div>
+        <article class="diagram-card" data-reveal>
+          <img src="./assets/diagrams/architecture.svg" alt="RV-Insights architecture diagram" />
+        </article>
+      </section>
+
+      <section id="workflow" class="section-block section-block--alt">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow">
+            <span class="lang lang-zh">一次回答如何生成</span>
+            <span class="lang lang-en">How an answer is produced</span>
+          </p>
+          <h2>
+            <span class="lang lang-zh">从用户问题到精简回答的工作流</span>
+            <span class="lang lang-en">From user query to a concise grounded answer</span>
+          </h2>
+        </div>
+        <div class="workflow-layout">
+          <article class="diagram-card" data-reveal>
+            <img src="./assets/diagrams/workflow.svg" alt="RV-Insights workflow diagram" />
+          </article>
+          <div class="workflow-notes" data-reveal>
+            <article class="note-card">
+              <h3>User Query</h3>
+              <p>
+                <span class="lang lang-zh">问题从 RISC-V 语义场景出发，而不是泛化聊天。</span>
+                <span class="lang lang-en">Questions begin in a RISC-V-specific problem space, not a generic chat flow.</span>
+              </p>
+            </article>
+            <article class="note-card">
+              <h3>Agent Decision</h3>
+              <p>
+                <span class="lang lang-zh">由 RVAgent 决定是否调用 `rag_search` 工具并触发检索。</span>
+                <span class="lang lang-en">RVAgent decides when to call `rag_search` and pull supporting context.</span>
+              </p>
+            </article>
+            <article class="note-card">
+              <h3>Context Assembly</h3>
+              <p>
+                <span class="lang lang-zh">上下文拼装后交给模型生成简洁结果，保持答案可控且聚焦。</span>
+                <span class="lang lang-en">Context is assembled before the model generates a concise, focused response.</span>
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="capabilities" class="section-block">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow">
+            <span class="lang lang-zh">能力拆解</span>
+            <span class="lang lang-en">Capability map</span>
+          </p>
+          <h2>
+            <span class="lang lang-zh">首页应该强调的不是“什么都能做”，而是“这些能力已经有根基”</span>
+            <span class="lang lang-en">The goal is not to claim everything, but to show what already has technical footing</span>
+          </h2>
+        </div>
+        <div class="card-grid card-grid--three">
+          <article class="capability-card" data-reveal>
+            <h3>ISA Explanation</h3>
+            <p>
+              <span class="lang lang-zh">帮助理解 RISC-V 指令集、用法与最佳实践。</span>
+              <span class="lang lang-en">Explains RISC-V ISA usage, semantics, and best practices.</span>
+            </p>
+          </article>
+          <article class="capability-card" data-reveal>
+            <h3>Debugging Support</h3>
+            <p>
+              <span class="lang lang-zh">面向技术问题、错误排查与调试分析的问答支持。</span>
+              <span class="lang lang-en">Supports troubleshooting, debugging, and technical issue analysis.</span>
+            </p>
+          </article>
+          <article class="capability-card" data-reveal>
+            <h3>Environment Guidance</h3>
+            <p>
+              <span class="lang lang-zh">覆盖 Linux、QEMU、KVM 等常见环境搭建指引。</span>
+              <span class="lang lang-en">Covers setup guidance across Linux, QEMU, KVM, and related environments.</span>
+            </p>
+          </article>
+          <article class="capability-card" data-reveal>
+            <h3>Markdown / PDF Ingestion</h3>
+            <p>
+              <span class="lang lang-zh">支持将 Markdown 与 PDF 资料纳入后续检索增强流程。</span>
+              <span class="lang lang-en">Brings Markdown and PDF sources into the retrieval pipeline.</span>
+            </p>
+          </article>
+          <article class="capability-card" data-reveal>
+            <h3>RAG Pipeline</h3>
+            <p>
+              <span class="lang lang-zh">以检索器、向量库、嵌入模型与提示拼装构成完整链路。</span>
+              <span class="lang lang-en">Combines retrievers, vector stores, embeddings, and prompt assembly into a retrieval stack.</span>
+            </p>
+          </article>
+          <article class="capability-card" data-reveal>
+            <h3>Evaluation &amp; Deployment</h3>
+            <p>
+              <span class="lang lang-zh">README 已明确评测链路与 Docker 部署方向。</span>
+              <span class="lang lang-en">README-backed positioning already includes evaluation flow and Docker deployment support.</span>
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="quickstart" class="section-block section-block--alt">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow">Quick Start</p>
+          <h2>
+            <span class="lang lang-zh">从仓库拉取代码并安装依赖，即可开始本地验证</span>
+            <span class="lang lang-en">Clone the repository and install dependencies to explore the current stack locally</span>
+          </h2>
+        </div>
+        <div class="quickstart-layout">
+          <div class="quickstart-steps" data-reveal>
+            <article class="step-card">
+              <p class="step-card__index">01</p>
+              <h3>
+                <span class="lang lang-zh">获取代码</span>
+                <span class="lang lang-en">Clone the repo</span>
+              </h3>
+              <p>
+                <span class="lang lang-zh">直接从 GitHub 拉取 `RV-Insights` 仓库。</span>
+                <span class="lang lang-en">Pull the repository directly from GitHub.</span>
+              </p>
+            </article>
+            <article class="step-card">
+              <p class="step-card__index">02</p>
+              <h3>
+                <span class="lang lang-zh">安装 Python 依赖</span>
+                <span class="lang lang-en">Install Python dependencies</span>
+              </h3>
+              <p>
+                <span class="lang lang-zh">当前后端能力主要落在 Python `server/` 模块。</span>
+                <span class="lang lang-en">The current runtime center is the Python `server/` module.</span>
+              </p>
+            </article>
+            <article class="step-card">
+              <p class="step-card__index">03</p>
+              <h3>
+                <span class="lang lang-zh">验证首页结构</span>
+                <span class="lang lang-en">Verify the homepage shell</span>
+              </h3>
+              <p>
+                <span class="lang lang-zh">本页作为独立静态官网落在 `web/`，可直接本地预览。</span>
+                <span class="lang lang-en">The homepage lives as a standalone static site inside `web/` and can be previewed locally.</span>
+              </p>
+            </article>
+          </div>
+          <div class="code-shell" data-reveal>
+            <div class="code-shell__tabs">
+              <span>bash</span>
+              <a href="https://github.com/zcxGGmu/RV-Insights" target="_blank" rel="noreferrer noopener">GitHub</a>
+            </div>
+            <pre><code>git clone https://github.com/zcxGGmu/RV-Insights.git
+cd RV-Insights
+python -m pip install -r requirements.txt
+python -m unittest web.tests.test_homepage_structure -v</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="demo-preview" class="section-block">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow">
+            <span class="lang lang-zh">演示预览</span>
+            <span class="lang lang-en">Demo preview</span>
+          </p>
+          <h2>
+            <span class="lang lang-zh">当前使用概念预览图占位，后续可替换为真实录屏或产品演示视频</span>
+            <span class="lang lang-en">Placeholder visuals stand in for future demos and can later be replaced with recordings or product walkthroughs</span>
+          </h2>
+        </div>
+        <div class="preview-gallery">
+          <article class="gallery-card" data-reveal>
+            <img src="./assets/previews/preview-qa.svg" alt="RISC-V Q&A concept preview" />
+            <h3>RISC-V Expert Q&amp;A</h3>
+          </article>
+          <article class="gallery-card" data-reveal>
+            <img src="./assets/previews/preview-rag.svg" alt="Private retrieval concept preview" />
+            <h3>Private Knowledge Retrieval</h3>
+          </article>
+          <article class="gallery-card" data-reveal>
+            <img src="./assets/previews/preview-system.svg" alt="Model and stack overview concept preview" />
+            <h3>Model and Stack Overview</h3>
+          </article>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div>
+        <strong>RV-Insights</strong>
+        <p>
+          <span class="lang lang-zh">一个聚焦 RISC-V 问答、检索与知识增强的开源项目首页。</span>
+          <span class="lang lang-en">A product landing page for an open-source RISC-V Q&amp;A and retrieval project.</span>
+        </p>
+      </div>
+      <div class="site-footer__links">
+        <a href="https://github.com/zcxGGmu/RV-Insights" target="_blank" rel="noreferrer noopener">GitHub</a>
+        <a href="https://github.com/zcxGGmu/RV-Insights/blob/main/LICENSE" target="_blank" rel="noreferrer noopener">MIT License</a>
+        <button class="lang-toggle lang-toggle--footer" data-lang-toggle="footer" type="button">EN</button>
+      </div>
+    </footer>
+    <script src="./app.js"></script>
+  </body>
+</html>
