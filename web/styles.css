@@ -166,11 +166,11 @@ body[data-lang="en"] .lang-zh {
 }
 
 .hero {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  display: grid;
-  gap: 40px;
-  grid-template-columns: 1.05fr 0.95fr;
   padding: 28px 0 44px;
+  text-align: center;
 }
 
 .hero__copy,
@@ -192,6 +192,9 @@ body[data-lang="en"] .lang-zh {
 .hero__copy {
   border-radius: var(--radius-xl);
   padding: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .hero__media {
@@ -257,12 +260,10 @@ h3 {
 
 h1 {
   font-size: clamp(2.8rem, 5vw, 5rem);
-  max-width: 14ch;
 }
 
 h2 {
   font-size: clamp(2rem, 3vw, 3.1rem);
-  max-width: 18ch;
 }
 
 h3 {
@@ -277,7 +278,7 @@ h3 {
 .section-copy {
   color: var(--muted);
   font-size: 1.05rem;
-  margin: 22px 0 0;
+  margin: 22px auto 0;
   max-width: 58ch;
 }
 
@@ -285,7 +286,16 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
+  justify-content: center;
   margin: 28px 0 24px;
+}
+
+.hero__logo {
+  border-radius: 28px;
+  box-shadow: 0 18px 40px rgba(119, 139, 164, 0.2);
+  height: 96px;
+  margin-bottom: 24px;
+  width: 96px;
 }
 
 .button {
@@ -316,6 +326,7 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: center;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -349,12 +360,14 @@ h3 {
 
 .section-block__header {
   margin-bottom: 24px;
+  text-align: center;
 }
 
 .proof-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: center;
   margin-bottom: 26px;
 }
 
@@ -542,10 +555,11 @@ h3 {
   border-top: 1px solid var(--line);
   color: var(--muted);
   display: flex;
+  flex-direction: column;
   gap: 20px;
-  justify-content: space-between;
   margin-top: 24px;
   padding: 28px 0 8px;
+  text-align: center;
 }
 
 .site-footer strong {
@@ -600,26 +614,6 @@ h3 {
   .card-grid--two {
     grid-template-columns: 1fr;
   }
-
-  .hero__media {
-    min-height: 760px;
-  }
-
-  .preview-card--primary {
-    inset: 28px 30px 330px;
-  }
-
-  .preview-card--secondary {
-    bottom: 160px;
-    left: 84px;
-    right: 30px;
-  }
-
-  .preview-card--accent {
-    bottom: 28px;
-    left: 30px;
-    right: 110px;
-  }
 }
 
 @media (max-width: 720px) {
@@ -640,7 +634,6 @@ h3 {
   }
 
   .hero__copy,
-  .hero__media,
   .diagram-card,
   .info-card,
   .capability-card,
@@ -650,37 +643,11 @@ h3 {
     padding: 20px;
   }
 
-  .hero__media {
-    min-height: 560px;
-    padding: 20px;
-  }
-
-  .preview-card--primary {
-    inset: 20px 24px 238px;
-  }
-
-  .preview-card--secondary {
-    bottom: 114px;
-    left: 58px;
-    right: 24px;
-  }
-
-  .preview-card--accent {
-    bottom: 20px;
-    left: 20px;
-    right: 96px;
-  }
-
   h1 {
     font-size: 2.45rem;
   }
 
   h2 {
     font-size: 1.9rem;
-  }
-
-  .site-footer {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
