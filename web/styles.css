@@ -259,7 +259,7 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(2.8rem, 5vw, 5rem);
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
 }
 
 h2 {
@@ -470,14 +470,25 @@ h3 {
 .diagram-card {
   border-radius: var(--radius-xl);
   overflow: hidden;
-  padding: 18px;
+  padding: 0;
 }
 
-.workflow-layout,
+.diagram-card img {
+  display: block;
+  width: 100%;
+}
+
+.workflow-layout {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+}
+
 .quickstart-layout {
   display: grid;
   gap: 20px;
-  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
 }
 
 .workflow-notes,
@@ -508,6 +519,8 @@ h3 {
 
 .code-shell {
   border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -529,6 +542,7 @@ h3 {
 .code-shell pre {
   background: #142236;
   color: #f3f7fb;
+  flex: 1;
   margin: 0;
   overflow-x: auto;
   padding: 22px 18px 24px;
@@ -644,7 +658,7 @@ h3 {
   }
 
   h1 {
-    font-size: 2.45rem;
+    font-size: 1.8rem;
   }
 
   h2 {
