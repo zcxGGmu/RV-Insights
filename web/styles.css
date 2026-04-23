@@ -480,18 +480,22 @@ h3 {
 }
 
 .workflow-layout {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: 20px;
   grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
 }
 
 .workflow-layout .diagram-card {
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 
 .workflow-layout .diagram-card img {
+  flex: 1;
   width: 100%;
+  object-fit: cover;
+  object-position: top center;
 }
 
 .quickstart-layout {
