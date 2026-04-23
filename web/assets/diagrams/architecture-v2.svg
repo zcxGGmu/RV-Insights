@@ -24,63 +24,63 @@
   <rect width="1400" height="920" rx="28" fill="url(#aglow2)"/>
   <g filter="url(#ashadow)"><rect x="30" y="20" width="1340" height="880" rx="26" fill="url(#apanel)" stroke="#DCE7F4"/></g>
 
-  <text x="70" y="66" fill="#0F172A" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="700">System Architecture / 系统架构</text>
-  <text x="70" y="94" fill="#506178" font-family="Arial,Helvetica,sans-serif" font-size="17">Four-layer architecture with dual SDK agent capabilities and human review gates</text>
+  <text x="700" y="66" fill="#0F172A" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="700" text-anchor="middle">System Architecture / 系统架构</text>
+  <text x="700" y="94" fill="#506178" font-family="Arial,Helvetica,sans-serif" font-size="17" text-anchor="middle">Four-layer architecture with dual SDK agent capabilities and human review gates</text>
 
   <!-- LAYER 1: User Interface -->
   <rect x="56" y="118" width="1288" height="100" rx="20" fill="#F0FDF4" stroke="#86EFAC" stroke-width="1.5"/>
   <rect x="56" y="118" width="1288" height="6" rx="3" fill="url(#agreen)"/>
-  <text x="80" y="148" fill="#059669" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700">LAYER 1: USER INTERFACE / 用户交互层</text>
+  <text x="700" y="148" fill="#059669" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" text-anchor="middle">LAYER 1: USER INTERFACE / 用户交互层</text>
 
-  <rect x="80" y="160" width="280" height="44" rx="12" fill="#FFF" stroke="#BBF7D0"/>
-  <text x="100" y="187" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="600">Web Console (审核/干预)</text>
+  <rect x="250" y="160" width="280" height="44" rx="12" fill="#FFF" stroke="#BBF7D0"/>
+  <text x="390" y="187" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="600" text-anchor="middle">Web Console (审核/干预)</text>
 
-  <rect x="380" y="160" width="220" height="44" rx="12" fill="#FFF" stroke="#BBF7D0"/>
-  <text x="400" y="187" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="600">CLI 入口 (开发者)</text>
+  <rect x="560" y="160" width="220" height="44" rx="12" fill="#FFF" stroke="#BBF7D0"/>
+  <text x="670" y="187" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="600" text-anchor="middle">CLI 入口 (开发者)</text>
 
-  <rect x="620" y="160" width="340" height="44" rx="12" fill="#FFF" stroke="#BBF7D0"/>
-  <text x="640" y="187" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="600">API Gateway (FastAPI + SSE 事件流)</text>
+  <rect x="810" y="160" width="340" height="44" rx="12" fill="#FFF" stroke="#BBF7D0"/>
+  <text x="980" y="187" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="600" text-anchor="middle">API Gateway (FastAPI + SSE 事件流)</text>
 
   <!-- LAYER 2: Orchestration -->
   <rect x="56" y="234" width="1288" height="200" rx="20" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="1.5"/>
   <rect x="56" y="234" width="1288" height="6" rx="3" fill="url(#apurple)"/>
-  <text x="80" y="264" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700">LAYER 2: ORCHESTRATION / 编排与状态管理层</text>
+  <text x="700" y="264" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" text-anchor="middle">LAYER 2: ORCHESTRATION / 编排与状态管理层</text>
 
   <!-- Pipeline State Machine -->
   <rect x="80" y="280" width="920" height="60" rx="14" fill="#FFF" stroke="#DDD6FE"/>
-  <text x="100" y="306" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700">Pipeline State Machine</text>
+  <text x="540" y="306" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" text-anchor="middle">Pipeline State Machine</text>
 
   <!-- State flow inside -->
-  <rect x="260" y="288" width="90" height="28" rx="8" fill="#EEF5FF" stroke="#D0E2FF"/>
-  <text x="280" y="307" fill="#2563EB" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">EXPLORING</text>
-  <text x="354" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">→</text>
-  <rect x="370" y="288" width="86" height="28" rx="8" fill="#EEF5FF" stroke="#D0E2FF"/>
-  <text x="388" y="307" fill="#2563EB" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">PLANNING</text>
-  <text x="460" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">→</text>
-  <rect x="476" y="288" width="106" height="28" rx="8" fill="#FFF1EF" stroke="#FFD6D1"/>
-  <text x="488" y="307" fill="#D9483B" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">DEVELOPING</text>
-  <text x="586" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">⇄</text>
-  <rect x="600" y="288" width="96" height="28" rx="8" fill="#EEF5FF" stroke="#D0E2FF"/>
-  <text x="614" y="307" fill="#2563EB" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">REVIEWING</text>
-  <text x="700" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">→</text>
-  <rect x="716" y="288" width="80" height="28" rx="8" fill="#FFF1EF" stroke="#FFD6D1"/>
-  <text x="732" y="307" fill="#D9483B" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">TESTING</text>
+  <rect x="272" y="288" width="90" height="28" rx="8" fill="#EEF5FF" stroke="#D0E2FF"/>
+  <text x="292" y="307" fill="#2563EB" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">EXPLORING</text>
+  <text x="366" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">→</text>
+  <rect x="382" y="288" width="86" height="28" rx="8" fill="#EEF5FF" stroke="#D0E2FF"/>
+  <text x="400" y="307" fill="#2563EB" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">PLANNING</text>
+  <text x="472" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">→</text>
+  <rect x="488" y="288" width="106" height="28" rx="8" fill="#FFF1EF" stroke="#FFD6D1"/>
+  <text x="500" y="307" fill="#D9483B" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">DEVELOPING</text>
+  <text x="598" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">⇄</text>
+  <rect x="612" y="288" width="96" height="28" rx="8" fill="#EEF5FF" stroke="#D0E2FF"/>
+  <text x="626" y="307" fill="#2563EB" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">REVIEWING</text>
+  <text x="712" y="307" fill="#A78BFA" font-family="Arial,Helvetica,sans-serif" font-size="14">→</text>
+  <rect x="728" y="288" width="80" height="28" rx="8" fill="#FFF1EF" stroke="#FFD6D1"/>
+  <text x="744" y="307" fill="#D9483B" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="600">TESTING</text>
 
   <!-- Human review gates -->
-  <text x="100" y="330" fill="#6D28D9" font-family="Arial,Helvetica,sans-serif" font-size="11">每阶段间设有 [人工审核] 门禁 / Human Review Gates between each phase</text>
+  <text x="540" y="330" fill="#6D28D9" font-family="Arial,Helvetica,sans-serif" font-size="11" text-anchor="middle">每阶段间设有 [人工审核] 门禁 / Human Review Gates between each phase</text>
 
   <!-- Orchestration services -->
-  <rect x="80" y="352" width="240" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
-  <text x="100" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600">Human Gate Service (审批/驳回)</text>
+  <rect x="200" y="352" width="240" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
+  <text x="320" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600" text-anchor="middle">Human Gate Service (审批/驳回)</text>
 
-  <rect x="340" y="352" width="220" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
-  <text x="360" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600">Audit Logger (全链路审计)</text>
+  <rect x="460" y="352" width="220" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
+  <text x="570" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600" text-anchor="middle">Audit Logger (全链路审计)</text>
 
-  <rect x="580" y="352" width="240" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
-  <text x="600" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600">Session Store (PostgreSQL/Redis)</text>
+  <rect x="700" y="352" width="240" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
+  <text x="820" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600" text-anchor="middle">Session Store (PostgreSQL/Redis)</text>
 
-  <rect x="840" y="352" width="240" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
-  <text x="860" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600">Resource Scheduler (并发控制)</text>
+  <rect x="960" y="352" width="240" height="44" rx="12" fill="#FFF" stroke="#DDD6FE"/>
+  <text x="1080" y="379" fill="#5B21B6" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="600" text-anchor="middle">Resource Scheduler (并发控制)</text>
 
   <!-- Pydantic contracts -->
   <rect x="1020" y="280" width="310" height="60" rx="14" fill="#EDE9FE" stroke="#C4B5FD"/>
@@ -90,7 +90,7 @@
 
   <!-- LAYER 3: Agent Capabilities -->
   <rect x="56" y="450" width="1288" height="240" rx="20" fill="#FAFBFF" stroke="#DCE7F4" stroke-width="1.5"/>
-  <text x="80" y="478" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700">LAYER 3: AGENT CAPABILITIES / Agent 能力层</text>
+  <text x="700" y="478" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" text-anchor="middle">LAYER 3: AGENT CAPABILITIES / Agent 能力层</text>
 
   <!-- OpenAI Agents SDK panel -->
   <rect x="80" y="494" width="580" height="180" rx="18" fill="#F0F7FF" stroke="#BFDBFE"/>
@@ -148,34 +148,34 @@
   <!-- LAYER 4: Tools & Infrastructure -->
   <rect x="56" y="706" width="1288" height="180" rx="20" fill="#FFF7ED" stroke="#FED7AA" stroke-width="1.5"/>
   <rect x="56" y="706" width="1288" height="6" rx="3" fill="url(#aorange)"/>
-  <text x="80" y="736" fill="#C2410C" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700">LAYER 4: TOOLS &amp; INFRASTRUCTURE / 工具与基础设施层</text>
+  <text x="700" y="736" fill="#C2410C" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" text-anchor="middle">LAYER 4: TOOLS &amp; INFRASTRUCTURE / 工具与基础设施层</text>
 
   <!-- MCP Servers row -->
-  <text x="80" y="764" fill="#EA580C" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="600">MCP Servers</text>
-  <rect x="80" y="774" width="200" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
-  <text x="100" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12">邮件列表检索 / Mail List</text>
-  <rect x="294" y="774" width="200" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
-  <text x="314" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12">代码库工具 / Code Tools</text>
-  <rect x="508" y="774" width="220" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
-  <text x="528" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12">RISC-V 知识库 / Knowledge</text>
-  <rect x="742" y="774" width="200" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
-  <text x="762" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12">测试框架 / Test Framework</text>
+  <text x="700" y="764" fill="#EA580C" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="600" text-anchor="middle">MCP Servers</text>
+  <rect x="254" y="774" width="200" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
+  <text x="354" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">邮件列表检索 / Mail List</text>
+  <rect x="478" y="774" width="200" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
+  <text x="578" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">代码库工具 / Code Tools</text>
+  <rect x="702" y="774" width="220" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
+  <text x="812" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">RISC-V 知识库 / Knowledge</text>
+  <rect x="946" y="774" width="200" height="38" rx="10" fill="#FFF" stroke="#FED7AA"/>
+  <text x="1046" y="798" fill="#1E2F47" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">测试框架 / Test Framework</text>
 
   <!-- Infrastructure row -->
-  <text x="80" y="836" fill="#EA580C" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="600">Infrastructure</text>
-  <rect x="80" y="846" width="200" height="38" rx="10" fill="#172338" stroke="#31425F"/>
-  <text x="100" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12">PostgreSQL (状态/审计)</text>
-  <rect x="294" y="846" width="200" height="38" rx="10" fill="#172338" stroke="#31425F"/>
-  <text x="314" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12">Redis (缓存/队列)</text>
-  <rect x="508" y="846" width="220" height="38" rx="10" fill="#172338" stroke="#31425F"/>
-  <text x="528" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12">MinIO/S3 (产物存储)</text>
-  <rect x="742" y="846" width="200" height="38" rx="10" fill="#172338" stroke="#31425F"/>
-  <text x="762" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12">Vector DB (RAG 检索)</text>
+  <text x="700" y="836" fill="#EA580C" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="600" text-anchor="middle">Infrastructure</text>
+  <rect x="254" y="846" width="200" height="38" rx="10" fill="#172338" stroke="#31425F"/>
+  <text x="354" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">PostgreSQL (状态/审计)</text>
+  <rect x="478" y="846" width="200" height="38" rx="10" fill="#172338" stroke="#31425F"/>
+  <text x="578" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">Redis (缓存/队列)</text>
+  <rect x="702" y="846" width="220" height="38" rx="10" fill="#172338" stroke="#31425F"/>
+  <text x="812" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">MinIO/S3 (产物存储)</text>
+  <rect x="946" y="846" width="200" height="38" rx="10" fill="#172338" stroke="#31425F"/>
+  <text x="1046" y="870" fill="#F3F7FB" font-family="Arial,Helvetica,sans-serif" font-size="12" text-anchor="middle">Vector DB (RAG 检索)</text>
 
   <!-- Vertical connection arrows between layers -->
-  <path d="M400 218V234" stroke="#86EFAC" stroke-width="2" stroke-dasharray="4 3"/>
-  <path d="M400 434V450" stroke="#C4B5FD" stroke-width="2" stroke-dasharray="4 3"/>
-  <path d="M400 690V706" stroke="#FED7AA" stroke-width="2" stroke-dasharray="4 3"/>
+  <path d="M500 218V234" stroke="#86EFAC" stroke-width="2" stroke-dasharray="4 3"/>
+  <path d="M500 434V450" stroke="#C4B5FD" stroke-width="2" stroke-dasharray="4 3"/>
+  <path d="M500 690V706" stroke="#FED7AA" stroke-width="2" stroke-dasharray="4 3"/>
   <path d="M900 218V234" stroke="#86EFAC" stroke-width="2" stroke-dasharray="4 3"/>
   <path d="M900 434V450" stroke="#C4B5FD" stroke-width="2" stroke-dasharray="4 3"/>
   <path d="M900 690V706" stroke="#FED7AA" stroke-width="2" stroke-dasharray="4 3"/>
