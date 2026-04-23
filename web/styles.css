@@ -489,13 +489,11 @@ h3 {
 .workflow-layout .diagram-card {
   display: flex;
   flex-direction: column;
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(244, 247, 252, 0.95) 100%);
 }
 
 .workflow-layout .diagram-card img {
-  flex: 1;
   width: 100%;
-  height: 100%;
-  object-fit: fill;
 }
 
 .quickstart-layout {
