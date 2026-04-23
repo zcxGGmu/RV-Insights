@@ -15,10 +15,12 @@ class HomepageStructureTest(unittest.TestCase):
             "hero",
             "proof",
             "architecture",
-            "workflow",
+            "pipeline",
+            "sdk-hybrid",
             "capabilities",
+            "comparison",
             "quickstart",
-            "demo-preview",
+            "dataflow",
         ]:
             self.assertIn(f'id="{section_id}"', html)
 
@@ -33,8 +35,10 @@ class HomepageStructureTest(unittest.TestCase):
 
     def test_diagram_assets_exist(self):
         root = Path(__file__).resolve().parents[1]
-        self.assertTrue((root / "assets/diagrams/architecture.svg").exists())
-        self.assertTrue((root / "assets/diagrams/workflow.svg").exists())
+        self.assertTrue((root / "assets/diagrams/architecture-v2.svg").exists())
+        self.assertTrue((root / "assets/diagrams/pipeline.svg").exists())
+        self.assertTrue((root / "assets/diagrams/sdk-hybrid.svg").exists())
+        self.assertTrue((root / "assets/diagrams/dataflow.svg").exists())
 
     def test_preview_assets_exist(self):
         root = Path(__file__).resolve().parents[1]
@@ -46,10 +50,14 @@ class HomepageStructureTest(unittest.TestCase):
         for text in [
             "View on GitHub",
             "Quick Start",
-            "Demo Preview",
             "RISC-V",
-            "Private RAG Workflow",
-            "assets/diagrams/architecture.svg",
+            "Claude Agent SDK",
+            "OpenAI Agents SDK",
+            "Human-in-the-Loop",
+            "assets/diagrams/architecture-v2.svg",
+            "assets/diagrams/pipeline.svg",
+            "assets/diagrams/sdk-hybrid.svg",
+            "assets/diagrams/dataflow.svg",
             "assets/previews/preview-qa.svg",
         ]:
             self.assertIn(text, html)

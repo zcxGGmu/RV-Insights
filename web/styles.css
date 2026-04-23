@@ -371,6 +371,62 @@ h3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.card-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.info-card--blue {
+  border-left: 4px solid var(--blue);
+}
+
+.info-card--red {
+  border-left: 4px solid var(--accent);
+}
+
+.comparison-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.comparison-table {
+  backdrop-filter: blur(18px);
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-collapse: separate;
+  border-radius: var(--radius-lg);
+  border-spacing: 0;
+  box-shadow: var(--shadow);
+  font-size: 0.92rem;
+  min-width: 700px;
+  width: 100%;
+}
+
+.comparison-table th,
+.comparison-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.comparison-table thead th {
+  background: rgba(240, 245, 252, 0.7);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.comparison-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.comparison-table__highlight {
+  background: rgba(163, 40, 42, 0.04);
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .info-card,
 .capability-card,
 .note-card,
@@ -540,7 +596,8 @@ h3 {
   .quickstart-layout,
   .preview-gallery,
   .card-grid--four,
-  .card-grid--three {
+  .card-grid--three,
+  .card-grid--two {
     grid-template-columns: 1fr;
   }
 
