@@ -493,7 +493,7 @@ h3 {
 
 .workflow-layout .diagram-card img {
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .quickstart-layout {
