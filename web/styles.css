@@ -195,6 +195,7 @@ body[data-lang="en"] .lang-zh {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
 }
 
 .hero__media {
@@ -479,10 +480,20 @@ h3 {
 }
 
 .workflow-layout {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: 20px;
   grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+}
+
+.workflow-layout .diagram-card {
+  display: flex;
+  align-items: center;
+}
+
+.workflow-layout .diagram-card img {
+  height: 100%;
+  object-fit: contain;
 }
 
 .quickstart-layout {
