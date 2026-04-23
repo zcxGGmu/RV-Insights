@@ -496,6 +496,13 @@ h3 {
   width: 100%;
 }
 
+.workflow-layout .diagram-card .pipeline-detail {
+  flex: 1;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
 .quickstart-layout {
   display: grid;
   gap: 20px;
