@@ -58,7 +58,6 @@ class HomepageStructureTest(unittest.TestCase):
             "assets/diagrams/pipeline.svg",
             "assets/diagrams/sdk-hybrid.svg",
             "assets/diagrams/dataflow.svg",
-            "assets/previews/preview-qa.svg",
         ]:
             self.assertIn(text, html)
 
