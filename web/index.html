@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="RV-Insights is a bilingual product homepage for a RISC-V Q&A and retrieval system with private RAG, web retrieval, and code-backed architecture diagrams."
+      content="RV-Insights is a multi-agent RISC-V open-source contribution platform powered by dual SDK architecture (Claude Agent SDK + OpenAI Agents SDK) with human-in-the-loop review gates."
     />
-    <title>RV-Insights | RISC-V Q&amp;A and Retrieval</title>
+    <title>RV-Insights | Multi-Agent RISC-V Contribution Platform</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -31,9 +31,13 @@
           <span class="lang lang-zh">架构</span>
           <span class="lang lang-en">Architecture</span>
         </a>
-        <a href="#workflow">
-          <span class="lang lang-zh">流程</span>
-          <span class="lang lang-en">Workflow</span>
+        <a href="#pipeline">
+          <span class="lang lang-zh">流水线</span>
+          <span class="lang lang-en">Pipeline</span>
+        </a>
+        <a href="#sdk-hybrid">
+          <span class="lang lang-zh">双 SDK</span>
+          <span class="lang lang-en">Dual SDK</span>
         </a>
         <a href="#capabilities">
           <span class="lang lang-zh">能力</span>
@@ -47,33 +51,37 @@
       <section id="hero" class="hero">
         <div class="hero__copy" data-reveal>
           <p class="eyebrow">
-            <span class="lang lang-zh">面向开发者与研究者的 RISC-V 智能问答系统</span>
-            <span class="lang lang-en">A focused RISC-V Q&amp;A system for developers and researchers</span>
+            <span class="lang lang-zh">面向 RISC-V 开源贡献的多 Agent 平台</span>
+            <span class="lang lang-en">A Multi-Agent Platform for RISC-V Open-Source Contributions</span>
           </p>
           <h1>
-            <span class="lang lang-zh">面向 <span class="accent">RISC-V</span> 的智能问答与检索系统</span>
-            <span class="lang lang-en">An intelligent Q&amp;A and retrieval system for <span class="accent">RISC-V</span></span>
+            <span class="lang lang-zh">用 <span class="accent">AI Agent</span> 驱动 RISC-V 开源贡献</span>
+            <span class="lang lang-en"><span class="accent">AI Agent</span>-Driven RISC-V Open-Source Contributions</span>
           </h1>
           <p class="hero__lead">
             <span class="lang lang-zh">
-              聚焦 RISC-V 专业知识问答、私有知识库检索与实时联网检索，帮助开发者更快获得可追溯、可扩展的答案。
+              编排五个专业化 Agent 节点——探索、规划、开发、审核、测试——形成从"发现贡献机会"到"输出可验证补丁"的完整闭环。采用 Claude Agent SDK + OpenAI Agents SDK 双架构，每阶段设有人工审核门禁。
             </span>
             <span class="lang lang-en">
-              Built for RISC-V knowledge Q&amp;A, private retrieval, and web-assisted answers with a code-backed architecture and flexible model stack.
+              Orchestrates five specialized agents — Explorer, Planner, Developer, Reviewer, Tester — forming a complete pipeline from discovering contribution opportunities to producing verified patches. Powered by Claude Agent SDK + OpenAI Agents SDK with human review gates at every stage.
             </span>
           </p>
           <div class="hero__actions">
             <a class="button button-primary" href="https://github.com/zcxGGmu/RV-Insights" target="_blank" rel="noreferrer noopener">
               View on GitHub
             </a>
+            <a class="button button-secondary" href="#architecture">
+              <span class="lang lang-zh">查看架构</span>
+              <span class="lang lang-en">View Architecture</span>
+            </a>
             <a class="button button-secondary" href="#quickstart">Quick Start</a>
-            <a class="button button-secondary" href="#demo-preview">Demo Preview</a>
           </div>
           <ul class="hero__signals">
-            <li>RISC-V Expert QA</li>
-            <li>Private RAG Workflow</li>
-            <li>Real-Time Web Retrieval</li>
-            <li>Chroma / Milvus</li>
+            <li>5-Agent Pipeline</li>
+            <li>Human-in-the-Loop</li>
+            <li>Dual SDK Architecture</li>
+            <li>Claude + OpenAI</li>
+            <li>RISC-V Domain RAG</li>
           </ul>
         </div>
         <div class="hero__media" data-reveal>
@@ -92,65 +100,65 @@
       <section id="proof" class="section-block section-block--tight">
         <div class="section-block__header" data-reveal>
           <p class="eyebrow">
-            <span class="lang lang-zh">可信度来自仓库文档与代码结构</span>
-            <span class="lang lang-en">Proof built from repository docs and code paths</span>
+            <span class="lang lang-zh">核心优势</span>
+            <span class="lang lang-en">Core advantages</span>
           </p>
           <h2>
-            <span class="lang lang-zh">当前项目已经具备的核心信号</span>
-            <span class="lang lang-en">What the current repository already proves</span>
+            <span class="lang lang-zh">为什么选择 RV-Insights</span>
+            <span class="lang lang-en">Why RV-Insights</span>
           </h2>
         </div>
         <div class="proof-strip" data-reveal>
-          <span class="proof-chip">RISC-V Expert QA</span>
-          <span class="proof-chip">Private RAG Workflow</span>
-          <span class="proof-chip">Real-Time Web Retrieval</span>
-          <span class="proof-chip">Chroma / Milvus</span>
-          <span class="proof-chip">Multi-LLM Integration</span>
-          <span class="proof-chip">Docker Deployment Support</span>
+          <span class="proof-chip">5-Agent Pipeline</span>
+          <span class="proof-chip">Human-in-the-Loop</span>
+          <span class="proof-chip">Dual SDK (Claude + OpenAI)</span>
+          <span class="proof-chip">Evidence-First</span>
+          <span class="proof-chip">RISC-V Domain RAG</span>
+          <span class="proof-chip">Auditable Workflow</span>
         </div>
         <div class="card-grid card-grid--four">
           <article class="info-card" data-reveal>
             <p class="info-card__index">01</p>
             <h3>
-              <span class="lang lang-zh">RISC-V 专家问答</span>
-              <span class="lang lang-en">RISC-V Expert Q&amp;A</span>
+              <span class="lang lang-zh">多 Agent 流水线</span>
+              <span class="lang lang-en">Multi-Agent Pipeline</span>
             </h3>
             <p>
-              <span class="lang lang-zh">覆盖 ISA 解释、技术问题解答、排障分析与环境搭建指导。</span>
-              <span class="lang lang-en">Covers ISA explanation, technical issue resolution, debugging, and environment guidance.</span>
+              <span class="lang lang-zh">五个专业化 Agent（探索、规划、开发、审核、测试）形成完整的贡献闭环，从发现机会到输出可验证补丁。</span>
+              <span class="lang lang-en">Five specialized agents (Explorer, Planner, Developer, Reviewer, Tester) form a complete contribution pipeline from opportunity discovery to verified patches.</span>
             </p>
           </article>
           <article class="info-card" data-reveal>
             <p class="info-card__index">02</p>
             <h3>
-              <span class="lang lang-zh">私有知识库检索</span>
-              <span class="lang lang-en">Private Knowledge Retrieval</span>
+              <span class="lang lang-zh">人工审核门禁</span>
+              <span class="lang lang-en">Human Review Gates</span>
             </h3>
             <p>
-              <span class="lang lang-zh">支持 Markdown 与 PDF 等资料接入，并通过 RAG 提升回答相关性。</span>
-              <span class="lang lang-en">Supports private Markdown and PDF ingestion with RAG-enhanced answer quality.</span>
+              <span class="lang lang-zh">每个阶段完成后必须暂停等待人工审批，高风险操作绝不自动执行。支持驳回、回流和修改意见。</span>
+              <span class="lang lang-en">Every phase pauses for human approval before proceeding. High-risk operations are never automated. Supports rejection, rollback, and modification feedback.</span>
             </p>
           </article>
           <article class="info-card" data-reveal>
             <p class="info-card__index">03</p>
             <h3>
-              <span class="lang lang-zh">联网增强回答</span>
-              <span class="lang lang-en">Web-Enhanced Answers</span>
+              <span class="lang lang-zh">双 SDK 混合架构</span>
+              <span class="lang lang-en">Dual SDK Hybrid</span>
             </h3>
             <p>
-              <span class="lang lang-zh">结合实时联网检索与向量召回，补足静态知识边界。</span>
-              <span class="lang lang-en">Combines live web retrieval and vector recall to extend beyond static project knowledge.</span>
+              <span class="lang lang-zh">Claude Agent SDK 负责代码操作（开发/测试），OpenAI Agents SDK 负责编排与审核。各取所长，不是折中。</span>
+              <span class="lang lang-en">Claude Agent SDK handles code operations (dev/test), OpenAI Agents SDK handles orchestration and review. Best-of-both, not a compromise.</span>
             </p>
           </article>
           <article class="info-card" data-reveal>
             <p class="info-card__index">04</p>
             <h3>
-              <span class="lang lang-zh">灵活基础设施栈</span>
-              <span class="lang lang-en">Flexible Infra Stack</span>
+              <span class="lang lang-zh">领域知识增强</span>
+              <span class="lang lang-en">Domain Knowledge</span>
             </h3>
             <p>
-              <span class="lang lang-zh">当前代码已体现多模型接入与 Chroma / Milvus 双向量库选择。</span>
-              <span class="lang lang-en">The current code already exposes multi-model support and a Chroma / Milvus vector-store choice.</span>
+              <span class="lang lang-zh">RISC-V ISA 规范、内核文档、邮件列表归档通过 RAG 知识库增强 Agent 的领域理解能力。</span>
+              <span class="lang lang-en">RISC-V ISA specs, kernel docs, and mailing list archives enhance agent domain understanding through a RAG knowledge base.</span>
             </p>
           </article>
         </div>
@@ -159,212 +167,262 @@
       <section id="architecture" class="section-block">
         <div class="section-block__header" data-reveal>
           <p class="eyebrow">
-            <span class="lang lang-zh">真实代码驱动的系统架构</span>
-            <span class="lang lang-en">A code-backed system architecture</span>
+            <span class="lang lang-zh">四层系统架构</span>
+            <span class="lang lang-en">Four-layer system architecture</span>
           </p>
           <h2>
-            <span class="lang lang-zh">围绕 RVAgent、RAG 检索与向量数据库的当前实现</span>
-            <span class="lang lang-en">The current implementation centers on RVAgent, RAG retrieval, and vector stores</span>
+            <span class="lang lang-zh">用户交互、编排、Agent 能力、工具基础设施</span>
+            <span class="lang lang-en">User interface, orchestration, agent capabilities, and tools infrastructure</span>
           </h2>
           <p class="section-copy">
-            <span class="lang lang-zh">图中只保留仓库里已经能被 README 与 server 代码支撑的节点，不引入未落地的 Web 控制台或额外服务层。</span>
-            <span class="lang lang-en">Only repository-backed components are shown here, without inventing a finished web console or API layer.</span>
+            <span class="lang lang-zh">编排层通过 Python asyncio 状态机驱动五阶段流水线，Agent 能力层分为 OpenAI Agents SDK（探索/规划/审核）和 Claude Agent SDK（开发/测试）两侧。</span>
+            <span class="lang lang-en">The orchestration layer drives a five-phase pipeline via Python asyncio state machine. The agent layer splits into OpenAI Agents SDK (explore/plan/review) and Claude Agent SDK (develop/test).</span>
           </p>
         </div>
         <article class="diagram-card" data-reveal>
-          <img src="./assets/diagrams/architecture.svg" alt="RV-Insights architecture diagram" />
+          <img src="./assets/diagrams/architecture-v2.svg" alt="RV-Insights v2.2 system architecture diagram" />
         </article>
       </section>
 
-      <section id="workflow" class="section-block section-block--alt">
+      <section id="pipeline" class="section-block section-block--alt">
         <div class="section-block__header" data-reveal>
           <p class="eyebrow">
-            <span class="lang lang-zh">一次回答如何生成</span>
-            <span class="lang lang-en">How an answer is produced</span>
+            <span class="lang lang-zh">五阶段 Agent 流水线</span>
+            <span class="lang lang-en">Five-stage agent pipeline</span>
           </p>
           <h2>
-            <span class="lang lang-zh">从用户问题到精简回答的工作流</span>
-            <span class="lang lang-en">From user query to a concise grounded answer</span>
+            <span class="lang lang-zh">从发现贡献机会到输出可验证补丁</span>
+            <span class="lang lang-en">From discovering opportunities to producing verified patches</span>
           </h2>
         </div>
         <div class="workflow-layout">
           <article class="diagram-card" data-reveal>
-            <img src="./assets/diagrams/workflow.svg" alt="RV-Insights workflow diagram" />
+            <img src="./assets/diagrams/pipeline.svg" alt="RV-Insights 5-agent pipeline diagram" />
           </article>
           <div class="workflow-notes" data-reveal>
             <article class="note-card">
-              <h3>User Query</h3>
+              <h3>Explorer + Planner</h3>
               <p>
-                <span class="lang lang-zh">问题从 RISC-V 语义场景出发，而不是泛化聊天。</span>
-                <span class="lang lang-en">Questions begin in a RISC-V-specific problem space, not a generic chat flow.</span>
+                <span class="lang lang-zh">探索 Agent 通过 Handoff 编排子 Agent（邮件列表爬取、代码分析、可行性验证），规划 Agent 输出结构化开发方案和测试方案。</span>
+                <span class="lang lang-en">Explorer orchestrates sub-agents via Handoff (mail scanning, code analysis, feasibility check). Planner outputs structured dev and test plans.</span>
               </p>
             </article>
             <article class="note-card">
-              <h3>Agent Decision</h3>
+              <h3>Developer (Claude Code)</h3>
               <p>
-                <span class="lang lang-zh">由 RVAgent 决定是否调用 `rag_search` 工具并触发检索。</span>
-                <span class="lang lang-en">RVAgent decides when to call `rag_search` and pull supporting context.</span>
+                <span class="lang lang-zh">使用 Claude Opus 4.6 的内置工具集（Read/Write/Edit/Bash/Grep）进行代码开发，通过 can_use_tool 回调实现细粒度操作审批。</span>
+                <span class="lang lang-en">Uses Claude Opus 4.6 built-in tools (Read/Write/Edit/Bash/Grep) for code development, with fine-grained operation approval via can_use_tool callback.</span>
               </p>
             </article>
             <article class="note-card">
-              <h3>Context Assembly</h3>
+              <h3>Reviewer (Codex)</h3>
               <p>
-                <span class="lang lang-zh">上下文拼装后交给模型生成简洁结果，保持答案可控且聚焦。</span>
-                <span class="lang lang-en">Context is assembled before the model generates a concise, focused response.</span>
+                <span class="lang lang-zh">审核 Agent 通过 Handoff 分发给安全、正确性、风格三个专业审核子 Agent，汇总后做出通过/驳回判定。</span>
+                <span class="lang lang-en">Reviewer distributes via Handoff to security, correctness, and style sub-agents, then aggregates findings into an approve/reject verdict.</span>
+              </p>
+            </article>
+            <article class="note-card">
+              <h3>Tester (QEMU)</h3>
+              <p>
+                <span class="lang lang-zh">测试 Agent 在沙箱中搭建 QEMU RISC-V 仿真环境，执行交叉编译、启动测试和集成测试。</span>
+                <span class="lang lang-en">Tester sets up QEMU RISC-V emulation in a sandbox, running cross-compilation, boot tests, and integration tests.</span>
               </p>
             </article>
           </div>
         </div>
       </section>
 
-      <section id="capabilities" class="section-block">
+      <section id="sdk-hybrid" class="section-block">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow">
+            <span class="lang lang-zh">双 SDK 混合架构</span>
+            <span class="lang lang-en">Dual SDK hybrid architecture</span>
+          </p>
+          <h2>
+            <span class="lang lang-zh">Claude 负责代码操作，OpenAI 负责编排与审核</span>
+            <span class="lang lang-en">Claude for code operations, OpenAI for orchestration and review</span>
+          </h2>
+          <p class="section-copy">
+            <span class="lang lang-zh">需要操作文件系统和执行代码的 Agent 用 Claude Agent SDK，纯推理和结构化决策的 Agent 用 OpenAI Agents SDK。这不是折中，而是各取所长。</span>
+            <span class="lang lang-en">Agents that need file system access and code execution use Claude Agent SDK. Pure reasoning and structured decision agents use OpenAI Agents SDK. Best-of-both, not a compromise.</span>
+          </p>
+        </div>
+        <article class="diagram-card" data-reveal>
+          <img src="./assets/diagrams/sdk-hybrid.svg" alt="Dual SDK hybrid architecture diagram" />
+        </article>
+        <div class="card-grid card-grid--two" data-reveal>
+          <article class="info-card info-card--blue">
+            <h3>OpenAI Agents SDK</h3>
+            <p>
+              <span class="lang lang-zh">库原生模型，Python 进程内直接调用 API。Handoff 编排多 Agent 协作，Guardrails 校验输入输出，内置 Tracing 追踪系统。适合信息检索、结构化分析、多维度审查。</span>
+              <span class="lang lang-en">Library-native model, direct API calls within Python process. Handoff for multi-agent orchestration, Guardrails for I/O validation, built-in Tracing. Ideal for information retrieval, structured analysis, and multi-dimensional review.</span>
+            </p>
+          </article>
+          <article class="info-card info-card--red">
+            <h3>Claude Agent SDK</h3>
+            <p>
+              <span class="lang lang-zh">子进程模型，通过 stdin/stdout JSON 协议与 Claude Code CLI 通信。内置完整工具集（Read/Write/Edit/Bash/Grep/Glob），MCP 原生支持，沙箱隔离。适合文件操作、代码生成、终端执行。</span>
+              <span class="lang lang-en">Subprocess model, communicating with Claude Code CLI via stdin/stdout JSON. Complete built-in toolset (Read/Write/Edit/Bash/Grep/Glob), native MCP support, sandbox isolation. Ideal for file operations, code generation, and terminal execution.</span>
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="capabilities" class="section-block section-block--alt">
         <div class="section-block__header" data-reveal>
           <p class="eyebrow">
             <span class="lang lang-zh">能力拆解</span>
             <span class="lang lang-en">Capability map</span>
           </p>
           <h2>
-            <span class="lang lang-zh">首页应该强调的不是“什么都能做”，而是“这些能力已经有根基”</span>
-            <span class="lang lang-en">The goal is not to claim everything, but to show what already has technical footing</span>
+            <span class="lang lang-zh">平台的六大核心能力</span>
+            <span class="lang lang-en">Six core platform capabilities</span>
           </h2>
         </div>
         <div class="card-grid card-grid--three">
           <article class="capability-card" data-reveal>
-            <h3>ISA Explanation</h3>
-            <p>
-              <span class="lang lang-zh">帮助理解 RISC-V 指令集、用法与最佳实践。</span>
-              <span class="lang lang-en">Explains RISC-V ISA usage, semantics, and best practices.</span>
-            </p>
+            <h3><span class="lang lang-zh">邮件列表监控</span><span class="lang lang-en">Mailing List Monitoring</span></h3>
+            <p><span class="lang lang-zh">自动扫描 linux-riscv、qemu-devel 等邮件列表，识别未解决的 bug 报告、功能请求和架构适配讨论。</span><span class="lang lang-en">Automatically scans linux-riscv, qemu-devel mailing lists to identify unresolved bugs, feature requests, and architecture adaptation discussions.</span></p>
           </article>
           <article class="capability-card" data-reveal>
-            <h3>Debugging Support</h3>
-            <p>
-              <span class="lang lang-zh">面向技术问题、错误排查与调试分析的问答支持。</span>
-              <span class="lang lang-en">Supports troubleshooting, debugging, and technical issue analysis.</span>
-            </p>
+            <h3><span class="lang lang-zh">代码库分析</span><span class="lang lang-en">Codebase Analysis</span></h3>
+            <p><span class="lang lang-zh">分析 RISC-V 架构代码中的 TODO/FIXME 注释、与 ARM/x86 的实现差距、缺失的测试覆盖和编译警告。</span><span class="lang lang-en">Analyzes RISC-V architecture code for TODO/FIXME comments, gaps vs ARM/x86 implementations, missing test coverage, and compiler warnings.</span></p>
           </article>
           <article class="capability-card" data-reveal>
-            <h3>Environment Guidance</h3>
-            <p>
-              <span class="lang lang-zh">覆盖 Linux、QEMU、KVM 等常见环境搭建指引。</span>
-              <span class="lang lang-en">Covers setup guidance across Linux, QEMU, KVM, and related environments.</span>
-            </p>
+            <h3><span class="lang lang-zh">自动化开发</span><span class="lang lang-en">Automated Development</span></h3>
+            <p><span class="lang lang-zh">Claude Code 的内置工具集提供完整的代码操作能力——文件读写、代码编辑、终端执行、Git 操作一体化。</span><span class="lang lang-en">Claude Code's built-in toolset provides complete code operation capabilities — file I/O, code editing, terminal execution, and Git operations in one.</span></p>
           </article>
           <article class="capability-card" data-reveal>
-            <h3>Markdown / PDF Ingestion</h3>
-            <p>
-              <span class="lang lang-zh">支持将 Markdown 与 PDF 资料纳入后续检索增强流程。</span>
-              <span class="lang lang-en">Brings Markdown and PDF sources into the retrieval pipeline.</span>
-            </p>
+            <h3><span class="lang lang-zh">多维度审核</span><span class="lang lang-en">Multi-Dimensional Review</span></h3>
+            <p><span class="lang lang-zh">安全审查（缓冲区溢出、权限提升）、正确性审查（ISA 规范符合性）、风格审查（编码规范）三维并行。</span><span class="lang lang-en">Security review (buffer overflow, privilege escalation), correctness review (ISA compliance), and style review (coding standards) in parallel.</span></p>
           </article>
           <article class="capability-card" data-reveal>
-            <h3>RAG Pipeline</h3>
-            <p>
-              <span class="lang lang-zh">以检索器、向量库、嵌入模型与提示拼装构成完整链路。</span>
-              <span class="lang lang-en">Combines retrievers, vector stores, embeddings, and prompt assembly into a retrieval stack.</span>
-            </p>
+            <h3><span class="lang lang-zh">QEMU 交叉验证</span><span class="lang lang-en">QEMU Cross-Verification</span></h3>
+            <p><span class="lang lang-zh">在沙箱中搭建 QEMU RISC-V 仿真环境，执行交叉编译验证、启动测试和集成测试，确保补丁可靠。</span><span class="lang lang-en">Sets up QEMU RISC-V emulation in a sandbox for cross-compilation verification, boot tests, and integration tests to ensure patch reliability.</span></p>
           </article>
           <article class="capability-card" data-reveal>
-            <h3>Evaluation &amp; Deployment</h3>
-            <p>
-              <span class="lang lang-zh">README 已明确评测链路与 Docker 部署方向。</span>
-              <span class="lang lang-en">README-backed positioning already includes evaluation flow and Docker deployment support.</span>
-            </p>
+            <h3><span class="lang lang-zh">知识库检索</span><span class="lang lang-en">Knowledge Base Retrieval</span></h3>
+            <p><span class="lang lang-zh">RISC-V ISA 规范、内核文档、邮件列表归档通过 RAG 管道（Chroma/Milvus 向量库）增强 Agent 理解。</span><span class="lang lang-en">RISC-V ISA specs, kernel docs, and mailing list archives enhance agent understanding through a RAG pipeline (Chroma/Milvus vector stores).</span></p>
           </article>
+        </div>
+      </section>
+
+      <section id="comparison" class="section-block">
+        <div class="section-block__header" data-reveal>
+          <p class="eyebrow"><span class="lang lang-zh">对比分析</span><span class="lang lang-en">Comparison</span></p>
+          <h2><span class="lang lang-zh">与现有工具的对比</span><span class="lang lang-en">How RV-Insights compares</span></h2>
+        </div>
+        <div class="comparison-table-wrap" data-reveal>
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th><span class="lang lang-zh">维度</span><span class="lang lang-en">Dimension</span></th>
+                <th>SWE-Agent</th><th>Aider</th><th>OpenDevin</th>
+                <th class="comparison-table__highlight">RV-Insights</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="lang lang-zh">定位</span><span class="lang lang-en">Focus</span></td>
+                <td><span class="lang lang-zh">通用 SWE</span><span class="lang lang-en">General SWE</span></td>
+                <td><span class="lang lang-zh">结对编程</span><span class="lang lang-en">Pair programming</span></td>
+                <td><span class="lang lang-zh">通用 AI 开发</span><span class="lang lang-en">General AI dev</span></td>
+                <td class="comparison-table__highlight"><span class="lang lang-zh">RISC-V 领域贡献</span><span class="lang lang-en">RISC-V domain</span></td>
+              </tr>
+              <tr>
+                <td>Agent</td>
+                <td><span class="lang lang-zh">单 Agent</span><span class="lang lang-en">Single</span></td>
+                <td><span class="lang lang-zh">单 Agent</span><span class="lang lang-en">Single</span></td>
+                <td><span class="lang lang-zh">多 Agent</span><span class="lang lang-en">Multi</span></td>
+                <td class="comparison-table__highlight"><span class="lang lang-zh">5 Agent + 人工门禁</span><span class="lang lang-en">5 agents + human gates</span></td>
+              </tr>
+              <tr>
+                <td><span class="lang lang-zh">模型</span><span class="lang lang-en">Models</span></td>
+                <td><span class="lang lang-zh">单模型</span><span class="lang lang-en">Single</span></td>
+                <td><span class="lang lang-zh">单模型</span><span class="lang lang-en">Single</span></td>
+                <td><span class="lang lang-zh">单模型</span><span class="lang lang-en">Single</span></td>
+                <td class="comparison-table__highlight"><span class="lang lang-zh">双 SDK 混合</span><span class="lang lang-en">Dual SDK hybrid</span></td>
+              </tr>
+              <tr>
+                <td><span class="lang lang-zh">人工介入</span><span class="lang lang-en">Human review</span></td>
+                <td><span class="lang lang-zh">无</span><span class="lang lang-en">None</span></td>
+                <td><span class="lang lang-zh">实时交互</span><span class="lang lang-en">Real-time</span></td>
+                <td><span class="lang lang-zh">有限</span><span class="lang lang-en">Limited</span></td>
+                <td class="comparison-table__highlight"><span class="lang lang-zh">每阶段强制审核</span><span class="lang lang-en">Mandatory per-phase</span></td>
+              </tr>
+              <tr>
+                <td><span class="lang lang-zh">领域知识</span><span class="lang lang-en">Domain knowledge</span></td>
+                <td><span class="lang lang-zh">无</span><span class="lang lang-en">None</span></td>
+                <td><span class="lang lang-zh">无</span><span class="lang lang-en">None</span></td>
+                <td><span class="lang lang-zh">无</span><span class="lang lang-en">None</span></td>
+                <td class="comparison-table__highlight"><span class="lang lang-zh">RAG 知识库</span><span class="lang lang-en">RAG knowledge base</span></td>
+              </tr>
+              <tr>
+                <td><span class="lang lang-zh">测试验证</span><span class="lang lang-en">Testing</span></td>
+                <td><span class="lang lang-zh">运行已有测试</span><span class="lang lang-en">Existing tests</span></td>
+                <td><span class="lang lang-zh">无</span><span class="lang lang-en">None</span></td>
+                <td><span class="lang lang-zh">运行已有测试</span><span class="lang lang-en">Existing tests</span></td>
+                <td class="comparison-table__highlight"><span class="lang lang-zh">专用 Agent + QEMU</span><span class="lang lang-en">Dedicated + QEMU</span></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
       <section id="quickstart" class="section-block section-block--alt">
         <div class="section-block__header" data-reveal>
           <p class="eyebrow">Quick Start</p>
-          <h2>
-            <span class="lang lang-zh">从仓库拉取代码并安装依赖，即可开始本地验证</span>
-            <span class="lang lang-en">Clone the repository and install dependencies to explore the current stack locally</span>
-          </h2>
+          <h2><span class="lang lang-zh">快速开始</span><span class="lang lang-en">Get started in minutes</span></h2>
         </div>
         <div class="quickstart-layout">
           <div class="quickstart-steps" data-reveal>
             <article class="step-card">
               <p class="step-card__index">01</p>
-              <h3>
-                <span class="lang lang-zh">获取代码</span>
-                <span class="lang lang-en">Clone the repo</span>
-              </h3>
-              <p>
-                <span class="lang lang-zh">直接从 GitHub 拉取 `RV-Insights` 仓库。</span>
-                <span class="lang lang-en">Pull the repository directly from GitHub.</span>
-              </p>
+              <h3><span class="lang lang-zh">获取代码</span><span class="lang lang-en">Clone the repo</span></h3>
+              <p><span class="lang lang-zh">从 GitHub 拉取 RV-Insights 仓库。</span><span class="lang lang-en">Pull the repository from GitHub.</span></p>
             </article>
             <article class="step-card">
               <p class="step-card__index">02</p>
-              <h3>
-                <span class="lang lang-zh">安装 Python 依赖</span>
-                <span class="lang lang-en">Install Python dependencies</span>
-              </h3>
-              <p>
-                <span class="lang lang-zh">当前后端能力主要落在 Python `server/` 模块。</span>
-                <span class="lang lang-en">The current runtime center is the Python `server/` module.</span>
-              </p>
+              <h3><span class="lang lang-zh">安装依赖</span><span class="lang lang-en">Install dependencies</span></h3>
+              <p><span class="lang lang-zh">安装 Python 依赖，包括 Claude Agent SDK 和 OpenAI Agents SDK。</span><span class="lang lang-en">Install Python dependencies including both SDKs.</span></p>
             </article>
             <article class="step-card">
               <p class="step-card__index">03</p>
-              <h3>
-                <span class="lang lang-zh">验证首页结构</span>
-                <span class="lang lang-en">Verify the homepage shell</span>
-              </h3>
-              <p>
-                <span class="lang lang-zh">本页作为独立静态官网落在 `web/`，可直接本地预览。</span>
-                <span class="lang lang-en">The homepage lives as a standalone static site inside `web/` and can be previewed locally.</span>
-              </p>
+              <h3><span class="lang lang-zh">配置并运行</span><span class="lang lang-en">Configure and run</span></h3>
+              <p><span class="lang lang-zh">配置 API 密钥，启动平台。</span><span class="lang lang-en">Set up API keys and launch the platform.</span></p>
             </article>
           </div>
           <div class="code-shell" data-reveal>
-            <div class="code-shell__tabs">
-              <span>bash</span>
-              <a href="https://github.com/zcxGGmu/RV-Insights" target="_blank" rel="noreferrer noopener">GitHub</a>
-            </div>
+            <div class="code-shell__tabs"><span>bash</span><a href="https://github.com/zcxGGmu/RV-Insights" target="_blank" rel="noreferrer noopener">GitHub</a></div>
             <pre><code>git clone https://github.com/zcxGGmu/RV-Insights.git
 cd RV-Insights
 python -m pip install -r requirements.txt
-python -m unittest web.tests.test_homepage_structure -v</code></pre>
+
+# Configure API keys
+cp .env.example .env
+# Edit .env with your ANTHROPIC_API_KEY and OPENAI_API_KEY
+
+# Run the platform
+python -m rv_insights --help</code></pre>
           </div>
         </div>
       </section>
 
-      <section id="demo-preview" class="section-block">
+      <section id="dataflow" class="section-block">
         <div class="section-block__header" data-reveal>
-          <p class="eyebrow">
-            <span class="lang lang-zh">演示预览</span>
-            <span class="lang lang-en">Demo preview</span>
-          </p>
-          <h2>
-            <span class="lang lang-zh">当前使用概念预览图占位，后续可替换为真实录屏或产品演示视频</span>
-            <span class="lang lang-en">Placeholder visuals stand in for future demos and can later be replaced with recordings or product walkthroughs</span>
-          </h2>
+          <p class="eyebrow"><span class="lang lang-zh">数据流</span><span class="lang lang-en">Data flow</span></p>
+          <h2><span class="lang lang-zh">跨 Agent 数据契约</span><span class="lang lang-en">Cross-agent data contracts</span></h2>
+          <p class="section-copy"><span class="lang lang-zh">所有 Agent 之间通过 Pydantic 模型的 JSON 序列化形式传递数据，无需额外协议。</span><span class="lang lang-en">All inter-agent communication uses JSON-serialized Pydantic models as the sole data contract.</span></p>
         </div>
-        <div class="preview-gallery">
-          <article class="gallery-card" data-reveal>
-            <img src="./assets/previews/preview-qa.svg" alt="RISC-V Q&A concept preview" />
-            <h3>RISC-V Expert Q&amp;A</h3>
-          </article>
-          <article class="gallery-card" data-reveal>
-            <img src="./assets/previews/preview-rag.svg" alt="Private retrieval concept preview" />
-            <h3>Private Knowledge Retrieval</h3>
-          </article>
-          <article class="gallery-card" data-reveal>
-            <img src="./assets/previews/preview-system.svg" alt="Model and stack overview concept preview" />
-            <h3>Model and Stack Overview</h3>
-          </article>
-        </div>
+        <article class="diagram-card" data-reveal>
+          <img src="./assets/diagrams/dataflow.svg" alt="Cross-agent data flow diagram" />
+        </article>
       </section>
     </main>
     <footer class="site-footer">
       <div>
         <strong>RV-Insights</strong>
-        <p>
-          <span class="lang lang-zh">一个聚焦 RISC-V 问答、检索与知识增强的开源项目首页。</span>
-          <span class="lang lang-en">A product landing page for an open-source RISC-V Q&amp;A and retrieval project.</span>
-        </p>
+        <p><span class="lang lang-zh">面向 RISC-V 开源软件贡献的多 Agent 平台，采用 Claude Agent SDK + OpenAI Agents SDK 混合架构。</span><span class="lang lang-en">A multi-agent platform for RISC-V open-source contributions, powered by Claude Agent SDK + OpenAI Agents SDK hybrid architecture.</span></p>
       </div>
       <div class="site-footer__links">
         <a href="https://github.com/zcxGGmu/RV-Insights" target="_blank" rel="noreferrer noopener">GitHub</a>
