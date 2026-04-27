@@ -115,20 +115,26 @@ export function setupMockApi() {
 export async function mockLoginUser(data: { email: string; password: string }) {
   await delay(MOCK_DELAY, null)
   if (data.email.includes('@')) {
-    return {
+    const payload = {
       access_token: 'mock_access_token',
       refresh_token: 'mock_refresh_token',
       token_type: 'bearer'
     }
+    localStorage.setItem('rv_access_token', payload.access_token)
+    localStorage.setItem('rv_refresh_token', payload.refresh_token)
+    return payload
   }
   throw new Error('Invalid credentials')
 }
 
 export async function mockRegisterUser(data: { username: string; email: string; password: string }) {
   await delay(MOCK_DELAY, null)
-  return {
+  const payload = {
     access_token: 'mock_access_token',
     refresh_token: 'mock_refresh_token',
     token_type: 'bearer'
   }
+  localStorage.setItem('rv_access_token', payload.access_token)
+  localStorage.setItem('rv_refresh_token', payload.refresh_token)
+  return payload
 }
