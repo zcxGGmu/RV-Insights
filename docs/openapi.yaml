@@ -1,0 +1,752 @@
+openapi: 3.1.0
+info:
+  title: RV-Insights API (MVP)
+  version: 1.0.0
+  description: OpenAPI 3.1.0 schema for the RV-Insights MVP endpoints (Auth, Cases, Pipeline, Health).
+servers:
+  - url: /
+tags:
+  - name: Authentication
+    description: Authentication endpoints (no auth required)
+  - name: Cases
+    description: Auth required: manage and query RV-Insights cases
+  - name: Pipeline
+    description: Pipeline control and events for cases
+  - name: Health
+    description: Health checks for backend services
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Token response on successful registration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Token response on successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout user (invalidate refresh token)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Logout acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases:
+    post:
+      tags: [Cases]
+      summary: Create a new case
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseCreate'
+      responses:
+        '201':
+          description: Case created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases:
+    get:
+      tags: [Cases]
+      summary: List cases
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          required: false
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            default: 20
+          required: false
+        - in: query
+          name: status
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: target_repo
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: ["created_at", "updated_at"]
+          required: false
+      responses:
+        '200':
+          description: A list of cases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{case_id}:
+    get:
+      tags: [Cases]
+      summary: Get case detail
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: case_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Case detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Cases]
+      summary: Delete case (admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: case_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{case_id}/start:
+    post:
+      tags: [Pipeline]
+      summary: Start pipeline for a case
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: case_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pipeline started; returns updated case state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{case_id}/review:
+    post:
+      tags: [Pipeline]
+      summary: Submit human review decision
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewDecision'
+      parameters:
+        - in: path
+          name: case_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewVerdict'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{case_id}/events:
+    get:
+      tags: [Pipeline]
+      summary: Stream pipeline events (SSE)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: case_id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Last-Event-ID
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{case_id}/artifacts/{stage}:
+    get:
+      tags: [Pipeline]
+      summary: Get stage artifacts
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: case_id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: stage
+          required: true
+          schema:
+            type: string
+            enum: [explore, plan, develop, review, test]
+        - in: query
+          name: round
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Artifacts for stage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactsResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{case_id}/history:
+    get:
+      tags: [Pipeline]
+      summary: Get review history for a case
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: case_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Case history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseHistoryResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    # Auth schemas
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          enum: [bearer, Bearer]
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    GenericResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        status_code:
+          type: integer
+    # Case schemas
+    CaseCreate:
+      type: object
+      required:
+        - title
+        - target_repo
+        - input_context
+      properties:
+        title:
+          type: string
+        target_repo:
+          type: string
+        input_context:
+          type: string
+        contribution_type:
+          type: string
+    Case:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [created, exploring, pending_explore_review, planning, pending_plan_review, developing, reviewing, pending_code_review, testing, pending_test_review, completed, abandoned]
+        target_repo:
+          type: string
+        input_context:
+          type: string
+        exploration_result:
+          $ref: '#/components/schemas/ExplorationResult'
+        execution_plan:
+          $ref: '#/components/schemas/ExecutionPlan'
+        development_result:
+          $ref: '#/components/schemas/DevelopmentResult'
+        review_verdict:
+          $ref: '#/components/schemas/ReviewVerdict'
+        test_result:
+          $ref: '#/components/schemas/TestResult'
+        review_iterations:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        cost:
+          $ref: '#/components/schemas/CostSummary'
+    CaseListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Case'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+    CostSummary:
+      type: object
+      properties:
+        total_input_tokens:
+          type: integer
+        total_output_tokens:
+          type: integer
+        estimated_cost_usd:
+          type: number
+    # Case-related sub-schemas
+    ExplorationResult:
+      type: object
+      properties:
+        contribution_type:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        target_repo:
+          type: string
+        target_files:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+        feasibility_score:
+          type: number
+        estimated_complexity:
+          type: string
+        upstream_status:
+          type: string
+    Evidence:
+      type: object
+      properties:
+        source:
+          type: string
+        url:
+          type: string
+          format: uri
+        content:
+          type: string
+        relevance:
+          type: number
+    ExecutionPlan:
+      type: object
+      properties:
+        dev_steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/DevStep'
+        test_cases:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestCase'
+        qemu_config:
+          type: string
+        estimated_tokens:
+          type: integer
+        risk_assessment:
+          type: string
+    DevStep:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        target_files:
+          type: array
+          items:
+            type: string
+        expected_changes:
+          type: string
+        risk_level:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+    TestCase:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        expected_result:
+          type: string
+        qemu_required:
+          type: boolean
+    DevelopmentResult:
+      type: object
+      properties:
+        patch_files:
+          type: array
+          items:
+            type: string
+        changed_files:
+          type: array
+          items:
+            type: string
+        commit_message:
+          type: string
+        change_summary:
+          type: string
+        lines_added:
+          type: integer
+        lines_removed:
+          type: integer
+    ReviewVerdict:
+      type: object
+      properties:
+        approved:
+          type: boolean
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewFinding'
+        iteration:
+          type: integer
+        reviewer_model:
+          type: string
+        summary:
+          type: string
+    ReviewFinding:
+      type: object
+      properties:
+        severity:
+          type: string
+        category:
+          type: string
+        file:
+          type: string
+        line:
+          type: integer
+        description:
+          type: string
+        suggestion:
+          type: string
+    TestResult:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        total_tests:
+          type: integer
+        passed_tests:
+          type: integer
+        failed_tests:
+          type: integer
+        test_log_path:
+          type: string
+        coverage_percent:
+          type: number
+        qemu_version:
+          type: string
+        failure_details:
+          type: array
+          items:
+            type: string
+    # History and artifacts
+    CaseHistoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseHistoryItem'
+        total:
+          type: integer
+    CaseHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        verdict:
+          $ref: '#/components/schemas/ReviewVerdict'
+        summary:
+          type: string
+    ArtifactsResponse:
+      type: object
+      properties:
+        stage:
+          type: string
+        artifacts:
+          type: array
+          items:
+            type: string
+    PipelineEvent:
+      type: object
+      properties:
+        seq:
+          type: integer
+        case_id:
+          type: string
+        event_type:
+          type: string
+        data:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+  # Health schema
+  HealthStatus:
+    type: object
+    properties:
+      mongodb:
+        type: string
+      postgres:
+        type: string
+      redis:
+        type: string

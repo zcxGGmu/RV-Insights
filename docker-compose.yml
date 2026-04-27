@@ -1,0 +1,111 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: rv_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - rv_mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=rv_insights
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand(\"ping\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - rv_network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: rv_postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - rv_pg_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rv_insights
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rv_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: rv_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - rv_redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rv_network
+
+  backend:
+    build:
+      context: ./backend
+    container_name: rv_backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DB=rv_insights
+      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/rv_insights
+      - REDIS_URI=redis://redis:6379/0
+      - JWT_SECRET=dev-secret-change-in-production
+      - DEBUG=true
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rv_network
+    restart: unless-stopped
+    tty: true
+
+  nginx:
+    image: nginx:alpine
+    container_name: rv_nginx
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/health"]
+    networks:
+      - rv_network
+
+networks:
+  rv_network:
+    driver: bridge
+
+volumes:
+  rv_mongo_data:
+  rv_pg_data:
+  rv_redis_data:
