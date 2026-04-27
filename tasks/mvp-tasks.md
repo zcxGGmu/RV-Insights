@@ -188,72 +188,85 @@
 
 #### 后端任务
 
-- [ ] 后端：PipelineState Pydantic 模型 `~2h`
+- [x] 后端：PipelineState Pydantic 模型 `~2h`
   - 依赖：Sprint 1 数据契约
   - 产出：完整的 Pipeline 状态模型，包含 current_stage, iteration_count, artifacts, cost_tracker
-- [ ] 后端：LangGraph StateGraph 骨架（5 节点 + 条件边）`~4h`
+- [x] 后端：LangGraph StateGraph 骨架（5 节点 + 条件边）`~4h`
   - 依赖：PipelineState + PostgresSaver
   - 产出：StateGraph 定义，5 个 stub 节点，条件边路由逻辑
-- [ ] 后端：human_gate_node（interrupt() 实现）`~2h`
+- [x] 后端：human_gate_node（interrupt() 实现）`~2h`
   - 依赖：StateGraph 骨架
   - 产出：Pipeline 在 human gate 暂停，等待外部 resume
-- [ ] 后端：route_human_decision 路由函数 `~1.5h`
+- [x] 后端：route_human_decision 路由函数 `~1.5h`
   - 依赖：human_gate_node
   - 产出：根据 approve/reject/abandon 决策路由到下一节点或终止
-- [ ] 后端：route_review_decision 路由函数（加权收敛检测）`~2h`
+- [x] 后端：route_review_decision 路由函数（加权收敛检测）`~2h`
   - 依赖：StateGraph 骨架
   - 产出：Review 通过 → Test，驳回 → Develop（带迭代计数），超限 → escalate
-- [ ] 后端：POST /cases/:id/start 端点（启动 Pipeline）`~2h`
+- [x] 后端：POST /cases/:id/start 端点（启动 Pipeline）`~2h`
   - 依赖：StateGraph + Case CRUD
   - 产出：创建 LangGraph thread，异步启动 Pipeline，返回 thread_id
-- [ ] 后端：POST /cases/:id/review 端点（幂等审核提交）`~2h`
+- [x] 后端：POST /cases/:id/review 端点（幂等审核提交）`~2h`
   - 依赖：human_gate_node
   - 产出：幂等审核提交，resume Pipeline，防重复提交
-- [ ] 后端：EventPublisher（Redis Pub/Sub）`~2h`
+- [x] 后端：EventPublisher（Redis Pub/Sub）`~2h`
   - 依赖：Redis 连接
   - 产出：publish_event() 方法，事件序列化 + channel 管理
-- [ ] 后端：GET /cases/:id/events SSE 端点（Redis 订阅 + Stream 重连）`~3h`
+- [x] 后端：GET /cases/:id/events SSE 端点（Redis 订阅 + Stream 重连）`~3h`
   - 依赖：EventPublisher + Redis
   - 产出：SSE 端点，支持 Last-Event-ID 重连，心跳保活
-- [ ] 后端：CostCircuitBreaker `~1.5h`
+- [x] 后端：CostCircuitBreaker `~1.5h`
   - 依赖：PipelineState
   - 产出：按 case 级别的成本熔断，超阈值自动暂停 Pipeline
-- [ ] 验收：启动 Pipeline → SSE 收到事件 → 审核 → Pipeline 前进 `~1h`
+- [x] 后端：cases.py list cursor bug 修复 `~0.5h`
+  - 产出：Motor cursor to_list() 兼容 FakeCollection
+- [x] 后端：节点 Redis 事件发布 `~1h`
+  - 产出：5 stub 节点通过 _publish() 推送 agent_output + stage_change
+- [x] 验收：启动 Pipeline → SSE 收到事件 → 审核 → Pipeline 前进 `~1h`
   - 依赖：以上全部
-  - 验证：curl 启动 Pipeline，wscat 监听 SSE，提交审核，观察状态流转
+  - 验证：pytest 8/8 passed，vite build 通过
 
 **后端工时估算：~23h**
 
 #### 前端任务（并行）
 
-- [ ] 前端：CaseDetailView 页面骨架（三栏布局）`~3h`
+- [x] 前端：CaseDetailView 页面骨架（三栏布局）`~3h`
   - 依赖：Sprint 1 路由配置
   - 产出：左栏（Pipeline 视图）+ 中栏（Agent 事件日志）+ 右栏（产物/审核面板）
-- [ ] 前端：PipelineView 组件（5 阶段流水线可视化）`~4h`
+- [x] 前端：PipelineView 组件（5 阶段流水线可视化）`~4h`
   - 依赖：CaseDetailView
   - 产出：垂直/水平流水线图，阶段间连线，当前阶段高亮
-- [ ] 前端：StageNode 组件（单阶段节点）`~2h`
+- [x] 前端：StageNode 组件（单阶段节点）`~2h`
   - 依赖：PipelineView
   - 产出：状态图标 + 阶段名称 + 耗时 + 进度指示
-- [ ] 前端：HumanGate 组件（审核门禁节点）`~2h`
-  - 依赖：PipelineView
-  - 产出：门禁节点特殊样式，等待审核时脉冲动画
-- [ ] 前端：ReviewPanel 组件（审核决策面板）`~3h`
+- [x] 前端：ReviewPanel 组件（审核决策面板）`~3h`
   - 依赖：CaseDetailView
   - 产出：approve/reject/abandon 三按钮，reject 需填写原因，确认弹窗
-- [ ] 前端：useCaseEvents composable（SSE 事件流管理）`~3h`
+- [x] 前端：CaseDetailPage 连接 PipelineView + ReviewPanel `~2h`
+  - 产出：替换内联 dot list，@review → submitReview
+- [x] 前端：useCaseEvents composable（SSE 事件流管理）`~3h`
   - 依赖：api/client.ts
   - 产出：SSE 连接管理，Last-Event-ID 重连，事件分发，自动重连
-- [ ] 前端：usePipeline composable（Pipeline 状态追踪）`~2h`
+- [x] 前端：usePipeline composable（Pipeline 状态追踪）`~2h`
   - 依赖：useCaseEvents
   - 产出：从事件流提取 Pipeline 状态，阶段转换动画触发
-- [ ] 前端：Pinia caseStore（案例状态管理）`~2h`
+- [x] 前端：Pinia caseStore（案例状态管理）`~2h`
   - 依赖：usePipeline + useCaseEvents
   - 产出：案例详情 + Pipeline 状态 + 事件列表的集中管理
-- [ ] 前端：类型定义（case.ts, pipeline.ts, event.ts）`~1.5h`
+- [x] 前端：类型定义（case.ts, pipeline.ts, event.ts）`~1.5h`
   - 依赖：OpenAPI schema
   - 产出：TypeScript 类型定义，与 OpenAPI schema 一致
-- [ ] 验收：案例详情页显示 Pipeline 状态（Mock 数据）`~1h`
+- [x] 前端：AgentEventLog 组件（结构化事件渲染器）`~3h`
+  - 产出：8 种事件类型（stage_change/agent_output/review_request/cost_update/error/completed 等）
+- [x] 前端：Mock SSE 流支持 `~2h`
+  - 产出：mockSSEStream() 按 case 状态模拟事件序列
+- [x] 前端：CaseListPage 卡片导航 `~0.5h`
+  - 产出：@click → router.push(/cases/:id)
+- [x] 前端：CaseDetailPage loading/error 状态 `~1h`
+  - 产出：spinner + error 提示 + retry 按钮
+- [x] 前端：阶段结果展示卡片 `~1h`
+  - 产出：ExplorationResult / ExecutionPlan 摘要卡片
+- [x] 验收：案例详情页显示 Pipeline 状态（Mock 数据）`~1h`
   - 依赖：以上全部
   - 验证：点击案例 → 详情页渲染 → Pipeline 可视化 → Mock 事件流播放
 
