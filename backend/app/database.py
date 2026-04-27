@@ -2,8 +2,11 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from psycopg_pool import AsyncConnectionPool
 import redis.asyncio as aioredis
 import os
+import structlog
 
 from .config import settings
+
+logger = structlog.get_logger()
 
 
 class DatabaseManager:
@@ -14,28 +17,68 @@ class DatabaseManager:
         self.redis: aioredis.Redis | None = None
 
     async def connect_all(self) -> None:
-        # In testing, skip real connections to keep unit tests fast and hermetic
+        # In testing, skip real connections
         if os.environ.get("RV_INSIGHTS_TESTING") == "1":
-            self.mongo_client = None
-            self.mongo_db = None
-            self.pg_pool = None
-            self.redis = None
             return
 
-        # MongoDB
-        if not self.mongo_client:
-            self.mongo_client = AsyncIOMotorClient(settings.MONGODB_URI)
-        if not self.mongo_db and self.mongo_client:
+        # MongoDB — best-effort, don't block startup
+        try:
+            self.mongo_client = AsyncIOMotorClient(
+                settings.MONGODB_URI,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+            )
             self.mongo_db = self.mongo_client[settings.MONGODB_DB]
+            # Verify connection with a fast ping
+            await self.mongo_db.command("ping")
+            # Create indexes (best-effort)
+            try:
+                users_col = self.mongo_db["users"]
+                await users_col.create_index([("email", 1)], unique=True)
+                await users_col.create_index([("created_at", 1)])
+                cases_col = self.mongo_db["cases"]
+                await cases_col.create_index([("owner_id", 1), ("created_at", 1)])
+                await cases_col.create_index([("status", 1)])
+                await cases_col.create_index([("target_repo", 1)])
+            except Exception:
+                logger.warning("mongodb_index_creation_failed")
+            logger.info("mongodb_connected", uri=settings.MONGODB_URI)
+        except Exception as e:
+            logger.warning("mongodb_connection_failed", error=str(e))
+            self.mongo_client = None
+            self.mongo_db = None
 
-        # PostgreSQL
-        if not self.pg_pool:
-            # AsyncConnectionPool handles pooling for async psycopg connections
-            self.pg_pool = AsyncConnectionPool(settings.POSTGRES_URI)
+        # PostgreSQL — best-effort
+        try:
+            self.pg_pool = AsyncConnectionPool(
+                settings.POSTGRES_URI,
+                min_size=0,
+                max_size=10,
+                open=False,
+                timeout=5.0,
+            )
+            await self.pg_pool.open(wait=False)
+            # Quick connectivity test
+            async with self.pg_pool.connection(timeout=3.0) as conn:
+                await conn.execute("SELECT 1")
+            logger.info("postgres_connected", uri=settings.POSTGRES_URI)
+        except Exception as e:
+            logger.warning("postgres_connection_failed", error=str(e))
+            if self.pg_pool:
+                try:
+                    await self.pg_pool.close()
+                except Exception:
+                    pass
+            self.pg_pool = None
 
-        # Redis
-        if not self.redis:
+        # Redis — best-effort
+        try:
             self.redis = aioredis.from_url(settings.REDIS_URI, decode_responses=True)
+            await self.redis.ping()
+            logger.info("redis_connected", uri=settings.REDIS_URI)
+        except Exception as e:
+            logger.warning("redis_connection_failed", error=str(e))
+            self.redis = None
 
     async def disconnect_all(self) -> None:
         if self.mongo_client:
@@ -79,11 +122,9 @@ class DatabaseManager:
         # Postgres ping/check
         try:
             if self.pg_pool:
-                # Acquire a connection and execute a simple query
-                async with self.pg_pool.acquire() as conn:
-                    async with conn.cursor() as cur:
-                        await cur.execute("SELECT 1")
-                        status["postgres"] = "connected"
+                async with self.pg_pool.connection() as conn:
+                    await conn.execute("SELECT 1")
+                    status["postgres"] = "connected"
         except Exception:
             status["postgres"] = "disconnected"
 
