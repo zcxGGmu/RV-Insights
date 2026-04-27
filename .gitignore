@@ -124,7 +124,8 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-# .env
+.env
+.env.local
 .venv
 env/
 venv/
@@ -166,6 +167,14 @@ cython_debug/
 # Node.js (web-console)
 node_modules/
 web-console/dist/
+*.tsbuildinfo
+
+# Vue/TS build artifacts
+web-console/src/**/*.js
+web-console/src/**/*.js.map
+
+# Sisyphus plans (local orchestration)
+.sisyphus/
 
 # Docker data
 /data/

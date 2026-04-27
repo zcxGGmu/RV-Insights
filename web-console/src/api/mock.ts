@@ -1,6 +1,4 @@
-import type { Case } from '@/types'
-
-type CaseStatus = Case['status']
+import type { Case, ReviewDecision, CaseStatus } from '@/types'
 
 const MOCK_DELAY = 200
 
@@ -77,6 +75,39 @@ export function setupMockApi() {
       const found = mockCases.find(c => c.id === id)
       if (!found) throw new Error('Not Found')
       return found
+    },
+    // Start pipeline mock: move status to 'exploring'
+    startPipeline: async (caseId: string) => {
+      const c = mockCases.find(x => x.id === caseId)
+      if (!c) throw new Error('Not Found')
+      c.status = 'exploring' as any
+      return { ...c }
+    },
+    // Submit a review mock: advance status or abandon
+    submitReview: async (caseId: string, decision: ReviewDecision) => {
+      const c = mockCases.find(x => x.id === caseId)
+      if (!c) throw new Error('Not Found')
+      if (decision.action === 'approve') {
+        // advance to next logical phase based on current status
+        const transitions: Record<string, CaseStatus> = {
+          'created': 'exploring' as CaseStatus,
+          'exploring': 'pending_explore_review' as CaseStatus,
+          'pending_explore_review': 'planning' as CaseStatus,
+          'planning': 'pending_plan_review' as CaseStatus,
+          'pending_plan_review': 'developing' as CaseStatus,
+          'developing': 'reviewing' as CaseStatus,
+          'reviewing': 'pending_code_review' as CaseStatus,
+          'pending_code_review': 'testing' as CaseStatus,
+          'testing': 'pending_test_review' as CaseStatus,
+          'pending_test_review': 'completed' as CaseStatus,
+          'completed': 'completed' as CaseStatus,
+          'abandoned': 'abandoned' as CaseStatus,
+        }
+        c.status = (transitions[c.status as string] ?? c.status) as CaseStatus
+      } else if (decision.action === 'abandon') {
+        c.status = ('abandoned' as CaseStatus)
+      }
+      return { ...c }
     },
   }
 }

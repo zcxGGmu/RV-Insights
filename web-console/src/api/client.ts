@@ -71,8 +71,10 @@ export function connectSSE(
   }
 ): AbortController {
   const controller = new AbortController()
+  const token = typeof getToken === 'function' ? getToken() : null
   fetchEventSource(url, {
     signal: controller.signal,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     onmessage: (ev: any) => handlers.onMessage(ev as FetchEventMessage),
     onerror: handlers.onError as any,
     onopen: handlers.onOpen as any

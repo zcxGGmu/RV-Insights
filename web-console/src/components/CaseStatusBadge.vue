@@ -12,11 +12,14 @@ const status = computed(() => props.status)
 const statusToColor: Record<CaseStatus, string> = {
   created: 'bg-gray-200 text-gray-800',
   exploring: 'bg-blue-500 text-white',
+  pending_explore_review: 'bg-yellow-300 text-yellow-800',
   planning: 'bg-blue-500 text-white',
+  pending_plan_review: 'bg-yellow-300 text-yellow-800',
   developing: 'bg-blue-500 text-white',
   reviewing: 'bg-blue-500 text-white',
+  pending_code_review: 'bg-yellow-300 text-yellow-800',
   testing: 'bg-blue-500 text-white',
-  pending: 'bg-yellow-300 text-yellow-800',
+  pending_test_review: 'bg-yellow-300 text-yellow-800',
   completed: 'bg-green-500 text-white',
   abandoned: 'bg-red-600 text-white',
 }
