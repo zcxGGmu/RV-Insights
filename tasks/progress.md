@@ -11,15 +11,37 @@
 - **任务清单**: `tasks/mvp-tasks.md`
 - **API 契约**: `docs/openapi.yaml`
 
-## 当前 Sprint: Sprint 3（Explorer Agent + 前后端联调）
+## 当前 Sprint: Sprint 3（ScienceClaw 前端迁移 + Explorer Agent）
 
 ## 当前状态: 待开始
 
-### 下一步行动
-1. 后端：ClaudeAgentAdapter 实现（子进程模型 + 超时 + 取消）
-2. 后端：Explorer Agent System Prompt + explore_node 真实 LLM 调用
-3. 前端：移除 Mock API，接入真实后端（首次联调）
-4. 前端：基于 ScienceClaw ActivityPanel 美化 AgentEventLog
+### 架构对标决策（v2 — 基于 Oracle 分析）
+- 前端状态管理：保留 Pinia，ScienceClaw 组件适配到 Pinia
+- SSE 后端：保留 Redis Pub/Sub + Stream（优于 ScienceClaw 的 asyncio.Queue）
+- SSE 客户端：升级为 ScienceClaw 的 `@microsoft/fetch-event-source`
+- 后端框架：保持 raw LangGraph + 双 SDK（不采用 deepagents）
+- UI 组件库：引入 reka-ui 对标 ScienceClaw
+- 前端迁移：组件级迁移，保留 CaseDetailPage 三栏布局
+
+### 下一步行动（Sprint 3 优先级排序）
+
+**前端（Day 1-3）— ScienceClaw 组件迁移：**
+1. 引入 reka-ui + lucide-vue-next 依赖
+2. 迁移 UI 原语（dialog/popover/select/toast）
+3. 升级 SSE 客户端为 fetch-event-source
+4. 迁移 MarkdownEnhancements + ActivityPanel + ProcessMessage/StepMessage
+5. 迁移 ToolUse + toolViews 系统 + MonacoEditor
+6. 重构 AgentEventLog 基于迁移组件
+7. 移除 Mock API 层
+
+**后端（Day 2-5）— Explorer Agent：**
+1. ClaudeAgentAdapter 实现（子进程模型 + 超时 + 取消）
+2. Explorer Agent System Prompt + explore_node 真实 LLM 调用
+3. parse_agent_output 三层解析 + verify_exploration_claims 幻觉验证
+4. PatchworkClient + 事件发布 + 统一 API 响应格式
+
+**联调（Day 5）：**
+- 首次真实 E2E：启动 Pipeline → Explorer 运行 → 前端实时渲染 → 审核
 
 ---
 
