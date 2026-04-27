@@ -83,6 +83,12 @@ export function setupMockApi() {
       c.status = 'exploring' as any
       return { ...c }
     },
+    deleteCase: async (caseId: string) => {
+      const idx = mockCases.findIndex(x => x.id === caseId)
+      if (idx === -1) throw new Error('Not Found')
+      mockCases.splice(idx, 1)
+      return { detail: 'Deleted' }
+    },
     // Submit a review mock: advance status or abandon
     submitReview: async (caseId: string, decision: ReviewDecision) => {
       const c = mockCases.find(x => x.id === caseId)
@@ -125,6 +131,91 @@ export async function mockLoginUser(data: { email: string; password: string }) {
     return payload
   }
   throw new Error('Invalid credentials')
+}
+
+export async function mockSSEStream(
+  caseId: string,
+  handlers: {
+    onMessage: (event: { data: string }) => void
+    onOpen?: () => void
+    onError?: (err: any) => void
+  }
+): Promise<() => void> {
+  const c = mockCases.find(x => x.id === caseId)
+  if (!c) {
+    handlers.onError?.(new Error('Case not found'))
+    return () => {}
+  }
+
+  const events: Array<{ event_type: string; data: any }> = []
+  let seq = 1
+
+  const push = (event_type: string, data: any) => {
+    events.push({ event_type, data })
+  }
+
+  if (c.status === 'exploring' || c.status === 'pending_explore_review') {
+    push('stage_change', { stage: 'explore', status: 'started' })
+    push('agent_output', { type: 'thinking', content: 'Scanning target repository for contribution opportunities...' })
+    push('agent_output', { type: 'tool_call', tool_name: 'Grep', args: { pattern: 'TODO|FIXME', path: 'arch/riscv' } })
+    push('agent_output', { type: 'tool_result', tool_name: 'Grep', result: ['arch/riscv/kernel/time.c: TODO: optimize timer init', 'arch/riscv/mm/init.c: FIXME: memory alignment'] })
+    push('agent_output', { type: 'thinking', content: 'Found 2 potential targets. Evaluating feasibility...' })
+    push('stage_change', { stage: 'explore', status: 'completed' })
+    push('review_request', { stage: 'explore' })
+  }
+
+  if (c.status === 'planning' || c.status === 'pending_plan_review') {
+    push('stage_change', { stage: 'plan', status: 'started' })
+    push('agent_output', { type: 'thinking', content: 'Designing development and test plan...' })
+    push('stage_change', { stage: 'plan', status: 'completed' })
+    push('review_request', { stage: 'plan' })
+  }
+
+  if (c.status === 'developing' || c.status === 'reviewing' || c.status === 'pending_code_review') {
+    push('stage_change', { stage: 'develop', status: 'started' })
+    push('agent_output', { type: 'thinking', content: 'Generating patch for timer optimization...' })
+    push('agent_output', { type: 'tool_call', tool_name: 'Edit', args: { file: 'arch/riscv/kernel/time.c', old_string: '// TODO', new_string: '/* Optimized timer init */' } })
+    push('agent_output', { type: 'tool_result', tool_name: 'Edit', result: 'Successfully edited arch/riscv/kernel/time.c' })
+    push('stage_change', { stage: 'develop', status: 'completed' })
+    push('stage_change', { stage: 'review', status: 'started' })
+    push('agent_output', { type: 'thinking', content: 'Reviewing patch for correctness and style...' })
+    push('stage_change', { stage: 'review', status: 'completed' })
+    push('review_request', { stage: 'code' })
+  }
+
+  if (c.status === 'testing' || c.status === 'pending_test_review') {
+    push('stage_change', { stage: 'test', status: 'started' })
+    push('agent_output', { type: 'thinking', content: 'Running compilation tests...' })
+    push('agent_output', { type: 'tool_call', tool_name: 'Bash', args: { command: 'make ARCH=riscv defconfig && make -j$(nproc)' } })
+    push('agent_output', { type: 'tool_result', tool_name: 'Bash', result: 'Build succeeded. vmlinux generated.' })
+    push('stage_change', { stage: 'test', status: 'completed' })
+    push('review_request', { stage: 'test' })
+  }
+
+  if (c.status === 'completed') {
+    push('completed', { message: 'Pipeline finished successfully' })
+  }
+
+  handlers.onOpen?.()
+
+  let i = 0
+  const interval = setInterval(() => {
+    if (i >= events.length) {
+      clearInterval(interval)
+      return
+    }
+    const evt = events[i++]
+    const payload: any = {
+      seq: seq++,
+      case_id: caseId,
+      event_type: evt.event_type,
+      data: evt.data,
+      timestamp: new Date().toISOString(),
+    }
+    handlers.onMessage({ data: JSON.stringify(payload) })
+  }, 800)
+
+  return () => clearInterval(interval)
 }
 
 export async function mockRegisterUser(data: { username: string; email: string; password: string }) {

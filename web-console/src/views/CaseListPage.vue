@@ -1,17 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import CaseStatusBadge from '@/components/CaseStatusBadge.vue'
 import { listCases, createCase as apiCreateCase } from '@/api/cases'
 import type { Case } from '@/types'
 
+const router = useRouter()
 const showNewCase = ref(false)
 const cases = ref<Case[]>([])
 const loading = ref(false)
 const page = ref(1)
 const perPage = 6
-  const filters = ref({ status: '', target_repo: '', sort: 'created_desc' })
+const filters = ref({ status: '', target_repo: '', sort: 'created_desc' })
 
-  const newCase = ref({ title: '', target_repo: '', input_context: '' })
+const newCase = ref({ title: '', target_repo: '', input_context: '' })
+
+function goToDetail(caseId: string) {
+  router.push(`/cases/${caseId}`)
+}
 
 async function loadCases() {
   loading.value = true
@@ -61,13 +67,18 @@ onMounted(loadCases)
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div v-for="c in cases" :key="c.id" class="bg-white rounded-lg shadow p-4 flex flex-col">
+      <div
+        v-for="c in cases"
+        :key="c.id"
+        class="bg-white rounded-lg shadow p-4 flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+        @click="goToDetail(c.id)"
+      >
         <div class="flex items-start justify-between">
           <h3 class="font-semibold text-lg">{{ c.title }}</h3>
           <CaseStatusBadge :status="c.status" />
         </div>
         <div class="text-sm text-gray-600 mt-2">Target: {{ c.target_repo }}</div>
-        <div class="mt-2 text-xs text-gray-500">Created: {{ c.created_at }}</div>
+        <div class="mt-2 text-xs text-gray-500">Created: {{ new Date(c.created_at || '').toLocaleString() }}</div>
       </div>
     </div>
 

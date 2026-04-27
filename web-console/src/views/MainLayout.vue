@@ -8,7 +8,7 @@
       <div class="p-3 border-t mt-auto flex items-center gap-2">
         <div class="h-8 w-8 rounded-full bg-gray-200" aria-label="avatar" />
         <div class="flex-1 text-sm">
-          <div>{{ user?.name ?? 'Guest' }}</div>
+          <div>{{ user?.username ?? 'Guest' }}</div>
           <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800" v-if="user?.role">{{ user?.role }}</span>
         </div>
         <button @click="logout" class="text-xs text-red-600">Logout</button>

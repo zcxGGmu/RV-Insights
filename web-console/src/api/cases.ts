@@ -30,6 +30,10 @@ export async function getCase(caseId: string) {
 }
 
 export async function deleteCase(caseId: string) {
+  if (USE_MOCK) {
+    const m = await import('./mock')
+    return m.setupMockApi().deleteCase(caseId)
+  }
   const res = await apiClient.delete(`/api/v1/cases/${caseId}`)
   return res.data
 }
