@@ -10,7 +10,6 @@
   --muted: #64748b;
   --border: #e2e8f0;
   --radius: 0.75rem;
-  --shadow: 0 8px 24px rgba(0,0,0,0.05);
 }
 
 @layer base {

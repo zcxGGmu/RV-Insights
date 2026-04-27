@@ -11,9 +11,9 @@
 - **任务清单**: `tasks/mvp-tasks.md`
 - **API 契约**: `docs/openapi.yaml`
 
-## 当前 Sprint: Sprint 0（项目初始化）
+## 当前 Sprint: Sprint 1（认证 + 数据层）
 
-## 当前状态: Sprint 0 完成
+## 当前状态: 完成
 
 ---
 
@@ -30,9 +30,9 @@
 | 0.5 | PostgreSQL + AsyncConnectionPool | ✅ 完成 | Sprint 0 commit | psycopg_pool |
 | 0.6 | Redis 连接 | ✅ 完成 | Sprint 0 commit | redis.asyncio |
 | 0.7 | 前端 Vite + TailwindCSS 配置 | ✅ 完成 | Sprint 0 commit | Vue 3 + TS + Tailwind, build 通过 |
-| 0.8 | shadcn-vue UI 原语复制 | 🔲 待开始 | - | Sprint 1 前置 |
-| 0.9 | theme.css + global.css | 🔲 待开始 | - | Sprint 1 前置 |
-| 0.10 | api/client.ts 复制 | 🔲 待开始 | - | Sprint 1 前置 |
+| 0.8 | shadcn-vue UI 原语复制 | ✅ 完成 | Sprint 1 commit | 使用纯 Tailwind 替代 |
+| 0.9 | theme.css + global.css | ✅ 完成 | Sprint 1 commit | CSS 变量 + Tailwind tokens |
+| 0.10 | api/client.ts 复制 | ✅ 完成 | Sprint 1 commit | axios + SSE + 拦截器 |
 | 0.11 | Docker Compose 5 服务 | ✅ 完成 | Sprint 0 commit | nginx, backend, mongodb, postgres, redis |
 | 0.12 | 验收：测试通过 | ✅ 完成 | Sprint 0 commit | pytest 2/2, vite build OK, E2E proxy OK |
 
@@ -44,19 +44,36 @@
 
 | # | 任务 | 状态 | 提交 | 备注 |
 |---|------|------|------|------|
-| 1.1 | User 模型 + MongoDB 集合 | 🔲 待开始 | - | |
-| 1.2 | JWT 认证 (login/register/refresh/logout) | 🔲 待开始 | - | |
-| 1.3 | RBAC 中间件 | 🔲 待开始 | - | |
-| 1.4 | Case 模型 + CRUD API | 🔲 待开始 | - | |
-| 1.5 | Case 状态机枚举 | 🔲 待开始 | - | |
-| 1.6 | Pydantic 数据契约 | 🔲 待开始 | - | |
-| 1.7 | ArtifactManager | 🔲 待开始 | - | |
+| 1.1 | User 模型 + MongoDB 集合 | ✅ 完成 | b6a15bf | UserInDB + 索引 |
+| 1.2 | JWT 认证 (login/register/refresh/logout) | ✅ 完成 | b6a15bf | bcrypt + python-jose |
+| 1.3 | RBAC 中间件 | ✅ 完成 | b6a15bf | require_role() 依赖 |
+| 1.4 | Case 模型 + CRUD API | ✅ 完成 | b6a15bf | 4 端点 + 分页过滤 |
+| 1.5 | Case 状态机枚举 | ✅ 完成 | b6a15bf | 12 状态 |
+| 1.6 | Pydantic 数据契约 | ✅ 完成 | b6a15bf | 23 模型 |
+| 1.7 | ArtifactManager | 🔲 待开始 | - | 推迟到 Sprint 2 |
 
 ### 前端
 
 | # | 任务 | 状态 | 提交 | 备注 |
 |---|------|------|------|------|
-| 1.8 | LoginPage + LoginForm | 🔲 待开始 | - | |
+| 1.8 | LoginPage + LoginForm | ✅ 完成 | Sprint 1 FE commit | 登录/注册 tab 切换 |
+| 1.9 | useAuth composable | ✅ 完成 | Sprint 1 FE commit | JWT 解码 + localStorage |
+| 1.10 | 路由配置 | ✅ 完成 | Sprint 1 FE commit | auth guard + 嵌套路由 |
+| 1.11 | MainLayout + CaseListPanel | ✅ 完成 | Sprint 1 FE commit | 侧边栏 + 案例卡片 |
+| 1.12 | Mock API 层 | ✅ 完成 | Sprint 1 FE commit | VITE_USE_MOCK 开关 |
+
+### 验收
+
+| 测试项 | 结果 |
+|--------|------|
+| pytest 后端 | 8/8 passed, 78% coverage |
+| curl auth 全流程 | register→login→refresh→logout OK |
+| curl case CRUD | create→list→get→delete OK |
+| 503 graceful degradation | MongoDB 不可用时返回 503 |
+| vue-tsc 类型检查 | 0 errors |
+| vite build | 98 modules, 1.89s |
+| 前端 dev server | 200 OK |
+| 前端 → Vite Proxy → 后端 | /api/v1/ 代理成功 |
 | 1.9 | useAuth composable | 🔲 待开始 | - | |
 | 1.10 | 路由配置 | 🔲 待开始 | - | |
 | 1.11 | MainLayout + CaseListPanel | 🔲 待开始 | - | |
