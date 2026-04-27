@@ -9,7 +9,7 @@ tags:
   - name: Authentication
     description: Authentication endpoints (no auth required)
   - name: Cases
-    description: Auth required: manage and query RV-Insights cases
+    description: "Auth required: manage and query RV-Insights cases"
   - name: Pipeline
     description: Pipeline control and events for cases
   - name: Health

@@ -34,7 +34,7 @@
 | 0.9 | theme.css + global.css | 🔲 待开始 | - | Sprint 1 前置 |
 | 0.10 | api/client.ts 复制 | 🔲 待开始 | - | Sprint 1 前置 |
 | 0.11 | Docker Compose 5 服务 | ✅ 完成 | Sprint 0 commit | nginx, backend, mongodb, postgres, redis |
-| 0.12 | 验收：测试通过 | ✅ 完成 | Sprint 0 commit | pytest 2/2 passed, vite build OK |
+| 0.12 | 验收：测试通过 | ✅ 完成 | Sprint 0 commit | pytest 2/2, vite build OK, E2E proxy OK |
 
 ---
 
