@@ -1,3 +1,4 @@
+from typing import Optional
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
@@ -12,20 +13,28 @@ from .nodes import (
     route_human_decision,
     route_review_decision,
 )
+from .cost import CostCircuitBreaker
+
+
+def _wrap_with_cost_check(node_fn, breaker: CostCircuitBreaker):
+    async def wrapper(state: PipelineState) -> dict:
+        breaker.check(state)
+        return await node_fn(state)
+    return wrapper
 
 
 def build_pipeline_graph() -> StateGraph:
     graph = StateGraph(PipelineState)
+    breaker = CostCircuitBreaker()
 
-    # Nodes
-    graph.add_node("explore", explore_node)
+    graph.add_node("explore", _wrap_with_cost_check(explore_node, breaker))
     graph.add_node("explore_gate", human_gate_node)
-    graph.add_node("plan", plan_node)
+    graph.add_node("plan", _wrap_with_cost_check(plan_node, breaker))
     graph.add_node("plan_gate", human_gate_node)
-    graph.add_node("develop", develop_node)
-    graph.add_node("review", review_node)
+    graph.add_node("develop", _wrap_with_cost_check(develop_node, breaker))
+    graph.add_node("review", _wrap_with_cost_check(review_node, breaker))
     graph.add_node("code_gate", human_gate_node)
-    graph.add_node("test", test_node)
+    graph.add_node("test", _wrap_with_cost_check(test_node, breaker))
     graph.add_node("test_gate", human_gate_node)
 
     # Edges: START → explore → explore_gate → [route]
@@ -76,7 +85,7 @@ def get_pg_conn_string() -> str:
     return settings.POSTGRES_URI
 
 
-async def create_compiled_graph(pg_conn_string: str | None = None):
+async def create_compiled_graph(pg_conn_string: Optional[str] = None):
     """Create compiled graph with Postgres checkpointer.
 
     Returns an async context manager that yields the compiled graph.

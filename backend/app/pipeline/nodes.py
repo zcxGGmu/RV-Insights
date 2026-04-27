@@ -5,10 +5,23 @@ from .state import PipelineState
 try:
     from langgraph.types import interrupt
 except Exception:
-    # Fallback if interrupt is unavailable in this runtime
     def interrupt(_prompt):
-        # Default to automatic approval in fallback scenarios
         return {"action": "approve", "comment": "auto-approve (fallback)"}
+
+
+async def _publish(case_id: str, event_type: str, data: dict) -> None:
+    try:
+        import redis.asyncio as aioredis
+        from app.config import settings
+        from app.pipeline.events import EventPublisher
+        from app.models.schemas import EventType
+        r = aioredis.from_url(settings.REDIS_URI, decode_responses=True)
+        pub = EventPublisher(r)
+        et = EventType(event_type) if event_type in {e.value for e in EventType} else EventType.agent_output
+        await pub.publish(case_id, et, data)
+        await r.aclose()
+    except Exception:
+        pass
 
 
 def _stub_exploration_result() -> dict:
@@ -69,7 +82,10 @@ def _stub_test_result() -> dict:
 
 
 async def explore_node(state: PipelineState) -> dict:
+    case_id = state.get("case_id", "unknown")
+    await _publish(case_id, "agent_output", {"type": "thinking", "content": "Exploring repository for contribution opportunities..."})
     await asyncio.sleep(0.5)
+    await _publish(case_id, "stage_change", {"stage": "explore", "status": "completed"})
     return {
         "current_stage": "explore",
         "status": "pending_explore_review",
@@ -79,7 +95,10 @@ async def explore_node(state: PipelineState) -> dict:
 
 
 async def plan_node(state: PipelineState) -> dict:
+    case_id = state.get("case_id", "unknown")
+    await _publish(case_id, "agent_output", {"type": "thinking", "content": "Designing development and test plan..."})
     await asyncio.sleep(0.5)
+    await _publish(case_id, "stage_change", {"stage": "plan", "status": "completed"})
     return {
         "current_stage": "plan",
         "status": "pending_plan_review",
@@ -89,7 +108,10 @@ async def plan_node(state: PipelineState) -> dict:
 
 
 async def develop_node(state: PipelineState) -> dict:
+    case_id = state.get("case_id", "unknown")
+    await _publish(case_id, "agent_output", {"type": "thinking", "content": "Generating code changes..."})
     await asyncio.sleep(0.5)
+    await _publish(case_id, "stage_change", {"stage": "develop", "status": "completed"})
     return {
         "current_stage": "develop",
         "status": "reviewing",
@@ -99,8 +121,11 @@ async def develop_node(state: PipelineState) -> dict:
 
 
 async def review_node(state: PipelineState) -> dict:
+    case_id = state.get("case_id", "unknown")
+    await _publish(case_id, "agent_output", {"type": "thinking", "content": "Reviewing code for correctness and style..."})
     await asyncio.sleep(0.5)
     iter_num = int(state.get("review_iterations", 0)) + 1
+    await _publish(case_id, "stage_change", {"stage": "review", "status": "completed"})
     return {
         "current_stage": "review",
         "status": "pending_code_review",
@@ -111,7 +136,10 @@ async def review_node(state: PipelineState) -> dict:
 
 
 async def test_node(state: PipelineState) -> dict:
+    case_id = state.get("case_id", "unknown")
+    await _publish(case_id, "agent_output", {"type": "thinking", "content": "Running tests and compilation checks..."})
     await asyncio.sleep(0.5)
+    await _publish(case_id, "stage_change", {"stage": "test", "status": "completed"})
     return {
         "current_stage": "test",
         "status": "pending_test_review",

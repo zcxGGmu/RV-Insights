@@ -1,4 +1,5 @@
 import structlog
+from typing import Optional
 
 from .state import PipelineState
 
@@ -13,7 +14,7 @@ class CostLimitExceeded(Exception):
 
 
 class CostCircuitBreaker:
-    def __init__(self, max_cost: float | None = None):
+    def __init__(self, max_cost: Optional[float] = None):
         if max_cost is None:
             try:
                 from app.config import settings
