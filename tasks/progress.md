@@ -11,37 +11,45 @@
 - **任务清单**: `tasks/mvp-tasks.md`
 - **API 契约**: `docs/openapi.yaml`
 
-## 当前 Sprint: Sprint 3（ScienceClaw 前端迁移 + Explorer Agent）
+## 当前 Sprint: Sprint 3（ScienceClaw 前端迁移 + 对话模式基础）
 
 ## 当前状态: 待开始
 
-### 架构对标决策（v2 — 基于 Oracle 分析）
-- 前端状态管理：保留 Pinia，ScienceClaw 组件适配到 Pinia
-- SSE 后端：保留 Redis Pub/Sub + Stream（优于 ScienceClaw 的 asyncio.Queue）
-- SSE 客户端：升级为 ScienceClaw 的 `@microsoft/fetch-event-source`
-- 后端框架：保持 raw LangGraph + 双 SDK（不采用 deepagents）
+### 架构对标决策（v3 — 双模式：对话 + Pipeline）
+
+**核心变更（v2 → v3）**：新增对话交互模式，对标 ScienceClaw 完整功能。
+RV-Insights = **Chat Mode**（RISC-V 专家 Q&A）+ **Pipeline Mode**（五阶段自动化贡献）。
+
+- 双模式路由：`/` + `/chat/:id`（对话）, `/cases` + `/cases/:id`（Pipeline）
+- Chat SSE：asyncio.Queue → EventSourceResponse（对标 ScienceClaw）
+- Pipeline SSE：Redis Pub/Sub + Stream（保持不变）
+- 共享组件：ActivityPanel / ToolCallView / MarkdownEnhancements 双模式复用
+- Chat 存储：MongoDB `chat_sessions` 集合（events 内嵌，对标 ScienceClaw session-as-document）
+- 前端状态：保留 Pinia，新增 chatStore
 - UI 组件库：引入 reka-ui 对标 ScienceClaw
-- 前端迁移：组件级迁移，保留 CaseDetailPage 三栏布局
 
 ### 下一步行动（Sprint 3 优先级排序）
 
-**前端（Day 1-3）— ScienceClaw 组件迁移：**
+**前端 Day 1-2 — 共享组件迁移：**
 1. 引入 reka-ui + lucide-vue-next 依赖
-2. 迁移 UI 原语（dialog/popover/select/toast）
-3. 升级 SSE 客户端为 fetch-event-source
-4. 迁移 MarkdownEnhancements + ActivityPanel + ProcessMessage/StepMessage
-5. 迁移 ToolUse + toolViews 系统 + MonacoEditor
-6. 重构 AgentEventLog 基于迁移组件
-7. 移除 Mock API 层
+2. 迁移 UI 原语 + utils + SSE 客户端升级
+3. 迁移 MarkdownEnhancements + ActivityPanel + ProcessGroup/StepMessage
+4. 迁移 ToolCallView + toolViews + MonacoEditor
 
-**后端（Day 2-5）— Explorer Agent：**
-1. ClaudeAgentAdapter 实现（子进程模型 + 超时 + 取消）
-2. Explorer Agent System Prompt + explore_node 真实 LLM 调用
-3. parse_agent_output 三层解析 + verify_exploration_claims 幻觉验证
-4. PatchworkClient + 事件发布 + 统一 API 响应格式
+**前端 Day 2-4 — 对话模式页面：**
+5. HomePage（欢迎页 + ChatBox）
+6. ChatPage（拆分迁移，SSE 事件处理提取为 useChatSession composable）
+7. ChatBox + ChatMessage + SessionPanel + SessionItem
+8. chatStore + api/chat.ts + 路由更新
 
-**联调（Day 5）：**
-- 首次真实 E2E：启动 Pipeline → Explorer 运行 → 前端实时渲染 → 审核
+**后端 Day 2-5 — 对话模式服务：**
+9. ChatSession MongoDB 模型 + CRUD API
+10. RISC-V 专家对话 System Prompt
+11. ChatRunner 流式执行器（asyncio.Queue 模式）
+12. POST /sessions/:id/chat SSE 端点 + stop + notifications
+
+**联调 Day 5：**
+- HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话
 
 ---
 
