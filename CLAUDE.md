@@ -19,6 +19,12 @@
 4. `tasks/lessons.md` — 历史教训，避免重复踩坑
 5. `git log --oneline -20` — 最近提交，了解代码变更
 
+## Git 提交规则
+
+- 每完成一组相关任务后必须立即 `git commit`，不要攒到最后一起提交
+- commit message 使用 `<type>(<scope>): <subject>` + 详细 body，说明每个任务的变更内容
+- 不需要用户提醒，完成即提交
+
 ## 关键约束
 
 - Human-in-the-Loop：Pipeline 每个阶段转换必须人工确认
