@@ -346,6 +346,9 @@ interface ModelConfig {
   created_at: number;              // unix timestamp
   updated_at: number;
 }
+```
+
+> 错误码定义见 `tasks/error-codes.md`。
 
 ---
 

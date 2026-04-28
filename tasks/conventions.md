@@ -221,7 +221,66 @@ Sprint: N | Task: 任务描述
 ### 覆盖率
 
 - MVP 阶段目标：70%（与 mvp-tasks.md Sprint 7 一致）
-- 核心路径（auth、pipeline state machine、SSE 推送）要求 > 85%
+- 核心路径（auth、pipeline state machine、SSE 推送、ChatRunner）要求 > 85%
+
+### SSE 流测试模式
+
+后端 SSE 端点测试使用 httpx 的 async streaming：
+
+```python
+# Chat SSE 测试模式
+async def test_chat_sse_stream(client: AsyncClient, auth_headers: dict):
+    async with client.stream(
+        "POST",
+        f"/api/v1/sessions/{session_id}/chat",
+        json={"message": "test"},
+        headers=auth_headers,
+    ) as response:
+        events = []
+        async for line in response.aiter_lines():
+            if line.startswith("data: "):
+                events.append(json.loads(line[6:]))
+        # 验证事件序列
+        assert events[-1]["type"] == "done"
+
+# Pipeline SSE 测试模式
+async def test_pipeline_sse_stream(client: AsyncClient, auth_headers: dict):
+    async with client.stream(
+        "GET",
+        f"/api/v1/cases/{case_id}/events",
+        headers={**auth_headers, "Last-Event-ID": ""},
+    ) as response:
+        # 类似处理
+        ...
+```
+
+LLM 调用 mock：使用 `unittest.mock.AsyncMock` 替换 `ChatModel.astream()`，返回预定义的 `AIMessageChunk` 序列。
+
+### Chat 模式关键测试场景
+
+| 场景 | 测试要点 | 优先级 |
+|------|----------|--------|
+| 正常多轮对话 | 消息持久化、历史构建、token 统计 | P0 |
+| 流式输出 | message_chunk 事件序列完整性、message_chunk_done 收尾 | P0 |
+| 工具调用 | tool calling → called 生命周期、duration_ms 计算 | P0 |
+| 取消/停止 | POST /stop → 协作式取消 → done(interrupted=true) | P0 |
+| 断线重连 | event_id 游标回放、孤儿会话检测 | P1 |
+| 并发拒绝 | session RUNNING 时拒绝新 POST /chat | P1 |
+| 模型热切换 | 对话中途切换 model_config_id | P1 |
+| 超时处理 | agent_stream_timeout 触发 → 优雅退出 | P2 |
+| 空消息重连 | message="" + event_id 的重连场景 | P2 |
+| 大型工具结果 | 超过 3000 chars 的工具返回值截断/offload | P2 |
+
+### Pipeline 模式关键测试场景
+
+| 场景 | 测试要点 | 优先级 |
+|------|----------|--------|
+| 完整 Pipeline 流程 | 5 阶段顺序执行（mocked LLM） | P0 |
+| Human-in-the-Loop | interrupt → review → resume 正确性 | P0 |
+| Develop↔Review 迭代 | 迭代计数、escalate 逻辑 | P0 |
+| 成本熔断 | CostCircuitBreaker 在超预算时中断 | P1 |
+| SSE 事件推送 | Redis Pub/Sub → SSE 端点事件完整性 | P1 |
+| Last-Event-ID 重连 | Redis Stream 回放 + 实时接续 | P2 |
 
 ## 14. 日志约定
 

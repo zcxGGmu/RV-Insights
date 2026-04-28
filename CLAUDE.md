@@ -58,10 +58,12 @@ pnpm dev
 
 | 文件 | 用途 |
 |------|------|
-| `tasks/design.md` | 系统设计方案（v1 + v4 变更摘要） |
+| `tasks/design.md` | 系统设计方案（v1 Pipeline + v4 变更摘要，含矛盾清单） |
+| `tasks/chat-architecture.md` | Chat 模式后端架构（ChatRunner、数据模型、System Prompt 规范） |
 | `tasks/mvp-tasks.md` | MVP 任务清单 v4（Sprint 0-9） |
 | `tasks/conventions.md` | 开发规范（命名、格式、测试、日志、DoD） |
 | `tasks/api-contracts.md` | 全量 API 类型契约（14 个模块） |
+| `tasks/error-codes.md` | 业务错误码目录（1xxx-9xxx 全模块） |
 | `tasks/sse-protocol.md` | SSE 事件协议规范（Chat / Pipeline / Notification） |
 | `tasks/migration-map.md` | ScienceClaw → RV-Insights 文件迁移映射 |
 | `tasks/progress.md` | Sprint 进度追踪 + tech debt |

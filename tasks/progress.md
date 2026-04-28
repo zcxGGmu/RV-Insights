@@ -3,17 +3,19 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-25 | pytest 8/8 passed | vue-tsc 0 errors | vite build OK (1653 modules, 1.52s)
+**最后验证**: 2026-04-25 @ 28a0211 | pytest 8/8 passed | vue-tsc 0 errors | vite build OK (1653 modules, 1.52s)
 
 ## 项目信息
 
 - **分支**: `mvp/omo`
 - **参考项目**: `/home/zq/work-space/repo/ai-projs/posp/ScienceClaw`
 - **设计文档**: `tasks/design.md`
+- **Chat 架构**: `tasks/chat-architecture.md`
 - **任务清单**: `tasks/mvp-tasks.md`（v4 — 完全对标 ScienceClaw + 五阶段 Pipeline）
 - **API 契约**: `docs/openapi.yaml`
 - **SSE 协议**: `tasks/sse-protocol.md`
 - **类型契约**: `tasks/api-contracts.md`
+- **错误码目录**: `tasks/error-codes.md`
 - **迁移映射**: `tasks/migration-map.md`
 - **开发规范**: `tasks/conventions.md`
 - **经验教训**: `tasks/lessons.md`
@@ -67,6 +69,12 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 ## 当前状态: 待开始
 
+### 进行中的工作 (WIP)
+
+> 每次会话结束前更新此节。新会话从这里恢复。
+
+当前无进行中任务。Sprint 3 尚未开始编码。
+
 ### 依赖关系
 
 ```
@@ -75,6 +83,21 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 后端对话服务 (Day 2-5) ────→ 无前端依赖，可独立进行
 联调 (Day 5) ──────────→ 阻塞于前后端都完成
 ```
+
+### Sprint 3 文件映射（后端关键任务）
+
+| 任务 | 新建文件 | 修改文件 |
+|------|----------|----------|
+| 3.20 | `models/chat_schemas.py` | `models/__init__.py` |
+| 3.21 | — | `database.py` (chat_sessions 索引) |
+| 3.22 | `api/chat.py` | `api/router.py` |
+| 3.23 | `prompts/chat_system.py` | — |
+| 3.24 | `services/chat_runner.py`, `services/model_factory.py` | `config.py` (LLM 配置) |
+| 3.25 | — | `api/chat.py` (SSE 端点) |
+| 3.26 | — | `api/chat.py` (notifications) |
+| 3.27 | — | `api/auth.py` |
+
+> 路径前缀：`backend/app/`。前端文件映射见 `tasks/migration-map.md`。
 
 ### 前端：共享组件迁移
 
@@ -133,6 +156,27 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | vite build | 成功 |
 | E2E 流程 | HomePage → ChatPage → 流式响应 → 多轮对话 |
 | 共享组件 | ActivityPanel / ToolCallView / Markdown 渲染正常 |
+
+### 环境变更 (Sprint 3 新增)
+
+#### 后端依赖
+- 新增：`langchain-core`, `langchain-openai`, `langchain-anthropic`, `shortuuid`
+- 安装：`cd backend && pip install -e ".[dev]"`
+
+#### 前端依赖
+- 新增（Task 3.1）：reka-ui, lucide-vue-next, simplebar-vue, marked, highlight.js, dompurify, katex, mermaid, mitt, vue-i18n, monaco-editor
+- 安装：`cd web-console && pnpm install`
+
+#### 环境变量
+- 新增：`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`（Chat 模式 LLM 调用）
+- 新增：`CHAT_DEFAULT_MODEL`（默认 `gpt-4o-mini`）
+- ⚠️ `config.py` Settings 类需同步更新（Sprint 3 首个后端任务）
+
+### 已排除方案 (Sprint 3)
+
+> 记录已尝试但放弃的技术方案，避免后续会话重复探索。
+
+暂无。开发过程中遇到死路时更新此节。
 
 ---
 
@@ -278,8 +322,10 @@ Sprint: N | Task: 任务描述
 6. 从"进行中"的任务继续
 
 按需读取（做到相关功能时）：
-- `tasks/sse-protocol.md` — SSE 相关开发
-- `tasks/api-contracts.md` — 前后端接口开发
+- `tasks/chat-architecture.md` — Chat 后端架构（全文 14KB，Sprint 3 核心参考）
+- `tasks/sse-protocol.md` — SSE 相关开发（第一、二节）
+- `tasks/api-contracts.md` — 前后端接口开发（Sprint 3 重点：第 1-2 节 Auth + Sessions）
+- `tasks/error-codes.md` — 错误码定义（Sprint 3 重点：1xxx Auth + 2xxx Sessions）
 - `tasks/migration-map.md` — 迁移 ScienceClaw 组件
 - `tasks/design.md` — 架构决策回查（4500+ 行，按章节查，不要全读）
 

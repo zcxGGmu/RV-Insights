@@ -9,12 +9,13 @@
 
 ## v4 变更摘要（2026-04-28 追加）
 
-> 本设计文档基于 v1.0 Pipeline-only 架构编写。v4（`mvp-tasks.md`）引入了 Chat + Pipeline 双模式架构，以下为关键变更：
+> 本设计文档基于 v1.0 Pipeline-only 架构编写。v4（`mvp-tasks.md`）引入了 Chat + Pipeline 双模式架构，以下为关键变更。
+> **Chat 模式后端架构详见 `tasks/chat-architecture.md`**（本文档不覆盖 Chat 后端设计）。
 
 ### 架构变更
 
 - **双模式**：Chat 模式（通用对话 + 工具调用）与 Pipeline 模式（5 阶段 RISC-V 贡献流水线）并存
-- **Chat 后端**：`ChatRunner` + `asyncio.Queue` SSE 推送，独立于 LangGraph Pipeline
+- **Chat 后端**：`ChatRunner` + `asyncio.Queue` SSE 推送，独立于 LangGraph Pipeline → 详见 `tasks/chat-architecture.md`
 - **Pipeline 后端**：保持 LangGraph StateGraph，使用 Redis Pub/Sub 推送事件
 
 ### 前端路由变更
@@ -33,21 +34,37 @@
 - v1 设计 3 角色（admin / reviewer / viewer）→ v4 简化为 2 角色（admin / user）
 - 详见 5.11 节（已更新）
 
+### 已知 v1/v4 矛盾清单
+
+> ⚠️ 以下正文段落仍保留 v1 内容，阅读时以本表为准，不要按正文实现。
+
+| 正文位置 | v1 内容（已过时） | v4 现状 | 权威来源 |
+|----------|-------------------|---------|----------|
+| 1.6 MVP 范围 | 8 周、max 2 轮审核、编译验证、无 Chat | 10 Sprint、max 3 轮、含 QEMU、双模式 | `mvp-tasks.md` |
+| 4.2 目录结构 | `components/chat/AgentEventLog.vue` 等 v1 布局 | `components/shared/ActivityPanel.vue` 等 v4 布局 | `migration-map.md` |
+| 4.3 路由设计 | `/` → Dashboard, `/knowledge`, `/metrics` | 见上方路由变更表 | `mvp-tasks.md` |
+| 4.4+ 组件设计 | Pipeline-only 组件（无 ChatBox/SessionPanel 等） | Chat + Pipeline 双模式组件 | `migration-map.md` |
+| 5.2 PipelineState | `max_review_iterations=3`（与 1.6 的 "max 2 轮" 矛盾） | 以代码为准：3 轮 | `design.md` 5.2 节 |
+| 5.8 API 端点表 | `/api/v1/reviews/*`, `/api/v1/knowledge/*` | review 合并到 cases，knowledge 延后 Phase 2 | `api-contracts.md` |
+| 5.11 RBAC | 原 3 角色（admin/reviewer/viewer） | 已更新为 2 角色（admin/user） | 5.11 节已修正 |
+| 附录 C Gantt | Phase 1 起始 2026-05-01 | Sprint 0-2 已于 2026-04-25 完成 | `progress.md` |
+
 ### 章节有效性
 
 | 章节 | 状态 |
 |------|------|
-| 1. 项目定位 | 有效 |
-| 2. 系统架构 | 有效（补充 Chat 模式） |
-| 3. SDK 选型 | 有效 |
-| 4.1-4.2 前端技术栈/目录 | 需参考 `migration-map.md` |
-| 4.3 路由设计 | ⚠️ 已过时，见上表 |
-| 4.4+ 组件设计 | 部分过时，Chat 组件见 `migration-map.md` |
-| 5.1-5.10 后端设计 | 有效 |
-| 5.11 认证鉴权 | 已更新为 2 角色 |
-| 6. 数据库设计 | 有效（补充 chat_sessions 集合） |
-| 7. 部署方案 | 有效 |
-| 8. 测试策略 | 有效 |
+| 1. 项目定位 | ✅ 有效（1.6 MVP 范围以 `mvp-tasks.md` 为准） |
+| 2. 系统架构 | ✅ 有效（补充 Chat 模式，详见 `chat-architecture.md`） |
+| 3. SDK 选型 | ✅ 有效 |
+| 4.1 前端技术栈 | ✅ 有效 |
+| 4.2 目录结构 | ⚠️ 过时 → 以 `migration-map.md` 为准 |
+| 4.3 路由设计 | ⚠️ 过时 → 见上方路由变更表 |
+| 4.4+ 组件设计 | ⚠️ 部分过时 → Chat 组件见 `migration-map.md` |
+| 5.1-5.10 后端设计 | ✅ 有效（仅 Pipeline 模式，Chat 见 `chat-architecture.md`） |
+| 5.11 认证鉴权 | ✅ 已更新为 2 角色 |
+| 6. 数据库设计 | ✅ 有效（补充 `chat_sessions` 集合，schema 见 `chat-architecture.md`） |
+| 7. 部署方案 | ✅ 有效 |
+| 8. 测试策略 | ✅ 有效（补充 Chat 测试策略见 `conventions.md` 13 节） |
 
 ---
 
