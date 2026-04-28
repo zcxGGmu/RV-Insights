@@ -3,6 +3,8 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
+**最后验证**: 2026-04-25 | pytest 8/8 passed | vue-tsc 0 errors | vite build OK (1653 modules, 1.52s)
+
 ## 项目信息
 
 - **分支**: `mvp/omo`
@@ -20,7 +22,7 @@
 
 ```bash
 # 后端
-cd backend && pip install -r requirements.txt
+cd backend && pip install -e ".[dev]"
 uvicorn app.main:app --reload --port 8000
 pytest -v
 
@@ -47,49 +49,90 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | 前端 Mock API 与真实 API 响应格式不一致 | Mock 用裸 JSON，真实用 `{code, msg, data}` 包装 | Sprint 3 统一 |
 | OpenAPI 有重复的 `/api/v1/cases` path key | YAML 解析不报错但只保留最后一个 | Sprint 3 修复 |
 
+## 架构决策记录
+
+> 关键技术决策及其理由，避免后续会话重复讨论。
+
+| 决策 | 选择 | 原因 | 备选方案 |
+|------|------|------|----------|
+| Chat SSE 传输 | asyncio.Queue | 单用户单连接，无需跨进程广播，实现简单 | Redis Pub/Sub |
+| Pipeline SSE 传输 | Redis Pub/Sub | Pipeline 异步执行在后台线程，需跨进程事件传递 | asyncio.Queue |
+| 前端状态管理 | Pinia (Setup Store) | RV-Insights 已有 authStore/caseStore 基础，保持一致 | composable 单例（ScienceClaw 方式） |
+| UI 组件库 | reka-ui (Radix Vue) | 无样式原语，ScienceClaw 已验证稳定性 | shadcn-vue |
+| RBAC 角色 | 2 角色 (admin/user) | MVP 阶段简化，所有登录用户都是 contributor | 3 角色 (admin/reviewer/viewer) |
+| LLM 编排 | LangGraph StateGraph | 内置 checkpoint + interrupt + 条件边，适合 Pipeline 状态机 | 手写状态机 |
+| 开发期默认模型 | gpt-4o-mini | 成本可控，开发调试够用 | gpt-4o / claude-sonnet |
+
 ## 当前 Sprint: Sprint 3（共享基础设施 + 对话模式基础）
 
 ## 当前状态: 待开始
 
-### 架构对标决策（v4 — 完全对标 ScienceClaw + Pipeline 双模式）
+### 依赖关系
 
-**核心变更（v3 → v4）**：从"对标 ScienceClaw 核心功能"升级为"完全对标 ScienceClaw 全部功能（含 IM）"。
-Sprint 从 7 个扩展为 10 个（Sprint 0-9），总工时从 ~299h 增至 ~411h。
+```
+前端共享组件迁移 (Day 1-2) ──→ 无后端依赖，可独立进行
+前端对话页面 (Day 2-4) ────→ 可先用 Mock API，后端就绪后切换
+后端对话服务 (Day 2-5) ────→ 无前端依赖，可独立进行
+联调 (Day 5) ──────────→ 阻塞于前后端都完成
+```
 
-新增模块：
-- Skills 系统（CRUD + 热加载 + RISC-V 专用 Skills）
-- External Tools 系统（CRUD + 热加载）
-- ToolUniverse（RISC-V 工具宇宙 — list/get/run/categories）
-- Scheduled Tasks（Celery 微服务 + NLP 调度解析）
-- Webhooks（CRUD + test）
-- IM 集成（Lark bind/unbind + WeChat bridge + system settings）
-- Statistics 增强（每模型成本、趋势图表、货币切换）
-- Settings 完整 8 tab（Account/General/Models/Personalization/Tasks/Statistics/Notifications/IM）
-- 前端新增页面：SkillsPage, SkillDetailPage, ToolsPage, ToolDetailPage, ScienceToolDetail, TasksPage
+### 前端：共享组件迁移
 
-### 下一步行动（Sprint 3 优先级排序）
+| # | 任务 | 状态 | 提交 | 备注 |
+|---|------|------|------|------|
+| 3.1 | 引入 reka-ui + lucide + simplebar + marked + highlight.js + dompurify + katex + mermaid + mitt + vue-i18n + monaco-editor | 🔲 待开始 | - | ~1h |
+| 3.2 | 迁移 UI 原语（Dialog/Popover/Select/Toast/SimpleBar） | 🔲 待开始 | - | ~2h |
+| 3.3 | 迁移 utils 工具集（toast/eventBus/dom/time/markdownFormatter） | 🔲 待开始 | - | ~1.5h |
+| 3.4 | 升级 SSE 客户端为统一封装（auth headers + 自动重连 + AbortController） | 🔲 待开始 | - | ~2.5h |
+| 3.5 | 迁移 MarkdownEnhancements（代码高亮 + mermaid + KaTeX + DOMPurify） | 🔲 待开始 | - | ~2h |
+| 3.6 | 迁移 ActivityPanel（思考+工具执行时间线） | 🔲 待开始 | - | ~3h |
+| 3.7 | 迁移 ProcessGroup + StepMessage | 🔲 待开始 | - | ~2h |
+| 3.8 | 迁移 ToolCallView + toolViews + constants/tool.ts | 🔲 待开始 | - | ~2.5h |
+| 3.9 | 迁移 MonacoEditor + i18n 框架 + 中英文翻译 | 🔲 待开始 | - | ~2.5h |
 
-**前端 Day 1-2 — 共享组件迁移：**
-1. 引入 reka-ui + lucide-vue-next + simplebar-vue + marked + highlight.js + dompurify + katex + mermaid + mitt + vue-i18n + monaco-editor
-2. 迁移 UI 原语 + utils + SSE 客户端升级
-3. 迁移 MarkdownEnhancements + ActivityPanel + ProcessGroup/StepMessage
-4. 迁移 ToolCallView + toolViews + MonacoEditor + i18n
+### 前端：对话模式页面
 
-**前端 Day 2-4 — 对话模式页面：**
-5. HomePage（欢迎页 + ChatBox）
-6. ChatPage（拆分迁移，SSE 事件处理提取为 useChatSession composable）
-7. ChatBox + ChatMessage + SessionPanel + SessionItem + SuggestedQuestions
-8. chatStore + api/chat.ts + 路由更新
+| # | 任务 | 状态 | 提交 | 备注 |
+|---|------|------|------|------|
+| 3.10 | HomePage 迁移（欢迎页 + 快捷提示 + ChatBox） | 🔲 待开始 | - | ~3h |
+| 3.11 | ChatBox 组件迁移（文本输入 + 文件附件 + 发送/停止） | 🔲 待开始 | - | ~2.5h |
+| 3.12 | ChatMessage 组件迁移（Markdown + 代码高亮 + 打字机效果） | 🔲 待开始 | - | ~3h |
+| 3.13 | ChatPage 拆分迁移（SSE 事件处理提取为 composable） | 🔲 待开始 | - | ~5h，关键任务 |
+| 3.14 | SessionPanel 迁移（会话列表 + 时间分组 + pin/rename/delete） | 🔲 待开始 | - | ~3h |
+| 3.15 | SuggestedQuestions 组件 | 🔲 待开始 | - | ~0.5h |
+| 3.16 | useChatSession composable（SSE 连接 + 事件分发 + 消息累积） | 🔲 待开始 | - | ~3h |
+| 3.17 | useSessionGrouping + useSessionNotifications + usePendingChat | 🔲 待开始 | - | ~2h |
+| 3.18 | chatStore (Pinia) | 🔲 待开始 | - | ~1.5h |
+| 3.19 | api/chat.ts + 路由更新（/ → HomePage, /chat/:id → ChatPage） | 🔲 待开始 | - | ~2h |
 
-**后端 Day 2-5 — 对话模式服务：**
-9. ChatSession MongoDB 模型 + CRUD API
-10. RISC-V 专家对话 System Prompt
-11. ChatRunner 流式执行器（asyncio.Queue 模式）
-12. POST /sessions/:id/chat SSE + stop + notifications
-13. Auth 补充端点
+### 后端：对话模式服务
 
-**联调 Day 5：**
-- HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话
+| # | 任务 | 状态 | 提交 | 备注 |
+|---|------|------|------|------|
+| 3.20 | ChatSession/ChatMessage/ChatEvent Pydantic 模型 | 🔲 待开始 | - | ~1.5h |
+| 3.21 | chat_sessions MongoDB 集合 + 索引 | 🔲 待开始 | - | ~1h |
+| 3.22 | Chat Session CRUD API（PUT/GET/DELETE/PATCH） | 🔲 待开始 | - | ~3h |
+| 3.23 | RISC-V 专家对话 System Prompt | 🔲 待开始 | - | ~2h |
+| 3.24 | ChatRunner 流式执行器（asyncio.Queue → LLM astream → SSE） | 🔲 待开始 | - | ~5h，关键任务 |
+| 3.25 | POST /sessions/:id/chat SSE + POST /sessions/:id/stop | 🔲 待开始 | - | ~3h |
+| 3.26 | GET /sessions/notifications SSE 端点 | 🔲 待开始 | - | ~1.5h |
+| 3.27 | Auth 补充端点（change-password, change-fullname, me, status） | 🔲 待开始 | - | ~1h |
+
+### 联调
+
+| # | 任务 | 状态 | 提交 | 备注 |
+|---|------|------|------|------|
+| 3.28 | HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 | 🔲 待开始 | - | ~3h，阻塞于前后端完成 |
+
+### Sprint 3 验收标准
+
+| 测试项 | 预期结果 |
+|--------|----------|
+| pytest 后端 | 全部通过，含 Chat CRUD + Auth 补充端点 |
+| vue-tsc 类型检查 | 0 errors |
+| vite build | 成功 |
+| E2E 流程 | HomePage → ChatPage → 流式响应 → 多轮对话 |
+| 共享组件 | ActivityPanel / ToolCallView / Markdown 渲染正常 |
 
 ---
 
@@ -238,4 +281,14 @@ Sprint: N | Task: 任务描述
 - `tasks/sse-protocol.md` — SSE 相关开发
 - `tasks/api-contracts.md` — 前后端接口开发
 - `tasks/migration-map.md` — 迁移 ScienceClaw 组件
-- `tasks/design.md` — 架构决策回查（1600 行，按章节查，不要全读）
+- `tasks/design.md` — 架构决策回查（4500+ 行，按章节查，不要全读）
+
+### 不要做（Anti-patterns）
+
+- 不要全量读取 `design.md`（4500+ 行），按目录章节号定位后读取对应行范围
+- 不要修改 ScienceClaw 参考项目（`/home/zq/work-space/repo/ai-projs/posp/ScienceClaw`）的代码
+- 不要在 Mock API 中返回裸 JSON，必须用 `{code: 0, msg: "ok", data: ...}` 包装
+- 不要创建超过 800 行的文件，超过 400 行时考虑拆分
+- 不要跳过 DoD 检查就标记任务完成（见 `conventions.md` 第 16 节）
+- 不要在代码中硬编码 API key、密码、token
+- 不要用 `list()` 处理 Motor cursor，用 `to_list(length=None)` 或 `async for`

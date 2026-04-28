@@ -7,6 +7,50 @@
 
 ---
 
+## v4 变更摘要（2026-04-28 追加）
+
+> 本设计文档基于 v1.0 Pipeline-only 架构编写。v4（`mvp-tasks.md`）引入了 Chat + Pipeline 双模式架构，以下为关键变更：
+
+### 架构变更
+
+- **双模式**：Chat 模式（通用对话 + 工具调用）与 Pipeline 模式（5 阶段 RISC-V 贡献流水线）并存
+- **Chat 后端**：`ChatRunner` + `asyncio.Queue` SSE 推送，独立于 LangGraph Pipeline
+- **Pipeline 后端**：保持 LangGraph StateGraph，使用 Redis Pub/Sub 推送事件
+
+### 前端路由变更
+
+| 原设计（v1） | 现状（v4） | 说明 |
+|-------------|-----------|------|
+| `/` → DashboardView | `/` → HomePage（Chat 欢迎页） | 首页改为 Chat 入口 |
+| 无 | `/chat/:id` → ChatPage | 新增 Chat 对话页 |
+| `/cases` → CaseListView | `/cases` → CaseListView | 保持不变 |
+| `/cases/:id` → CaseDetailView | `/cases/:id` → CaseDetailView | 保持不变 |
+| `/knowledge` → KnowledgeView | 延后至 Phase 2 | MVP 不实现 |
+| `/metrics` → MetricsView | `/statistics` → StatisticsPage | 重命名 |
+
+### RBAC 简化
+
+- v1 设计 3 角色（admin / reviewer / viewer）→ v4 简化为 2 角色（admin / user）
+- 详见 5.11 节（已更新）
+
+### 章节有效性
+
+| 章节 | 状态 |
+|------|------|
+| 1. 项目定位 | 有效 |
+| 2. 系统架构 | 有效（补充 Chat 模式） |
+| 3. SDK 选型 | 有效 |
+| 4.1-4.2 前端技术栈/目录 | 需参考 `migration-map.md` |
+| 4.3 路由设计 | ⚠️ 已过时，见上表 |
+| 4.4+ 组件设计 | 部分过时，Chat 组件见 `migration-map.md` |
+| 5.1-5.10 后端设计 | 有效 |
+| 5.11 认证鉴权 | 已更新为 2 角色 |
+| 6. 数据库设计 | 有效（补充 chat_sessions 集合） |
+| 7. 部署方案 | 有效 |
+| 8. 测试策略 | 有效 |
+
+---
+
 ## 目录
 
 - [1. 项目概述与目标](#1-项目概述与目标)
@@ -1181,6 +1225,8 @@ web-console/
 ```
 
 ### 4.3 页面路由设计
+
+> ⚠️ **已过时**：以下路由为 v1 Pipeline-only 设计。v4 路由见文档顶部「v4 变更摘要」。
 
 ```typescript
 // router/index.ts
@@ -2809,19 +2855,19 @@ sequenceDiagram
     F-->>C: 200 OK + data
 ```
 
-**角色权限矩阵**：
+**角色权限矩阵**（v4 简化为 2 角色）：
 
-| 权限 | admin | reviewer | viewer |
-|------|-------|----------|--------|
-| 创建案例 | ✅ | ✅ | ❌ |
-| 启动 Pipeline | ✅ | ✅ | ❌ |
-| 提交审核决策 | ✅ | ✅ | ❌ |
-| 查看案例详情 | ✅ | ✅ | ✅ |
-| 查看实时日志 | ✅ | ✅ | ✅ |
-| 管理用户 | ✅ | ❌ | ❌ |
-| 管理知识库 | ✅ | ✅ | ❌ |
-| 查看指标 | ✅ | ✅ | ✅ |
-| 删除案例 | ✅ | ❌ | ❌ |
+| 权限 | admin | user |
+|------|-------|------|
+| 创建案例 | ✅ | ✅ |
+| 启动 Pipeline | ✅ | ✅ |
+| 提交审核决策 | ✅ | ✅ |
+| 查看案例详情 | ✅ | ✅ |
+| 查看实时日志 | ✅ | ✅ |
+| 管理用户 | ✅ | ❌ |
+| 管理系统设置 | ✅ | ❌ |
+| 删除案例 | ✅ | ❌ |
+| Chat 对话 | ✅ | ✅ |
 
 ```python
 # auth/dependencies.py
@@ -2868,7 +2914,7 @@ def require_role(*roles: str):
 @router.post("/api/v1/cases")
 async def create_case(
     body: CreateCaseRequest,
-    user: User = Depends(require_role("admin", "reviewer")),
+    user: User = Depends(require_role("admin", "user")),
 ):
     ...
 ```

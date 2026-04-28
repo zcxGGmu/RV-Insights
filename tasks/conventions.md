@@ -195,3 +195,68 @@ Sprint: N | Task: 任务描述
 - SSE 连接必须携带 Authorization header
 - 文件下载路径必须白名单校验
 - IM webhook URL 必须 HTTPS
+
+## 13. 测试约定
+
+### 后端
+
+- 测试文件：`backend/tests/test_{module}.py`
+- 框架：pytest + pytest-asyncio + httpx（`AsyncClient`）
+- 公共 fixture 放 `backend/tests/conftest.py`
+- 工厂函数放 `backend/tests/factories.py`（如需要）
+- 命名：`test_{action}_{scenario}` 或 `test_{action}_{scenario}_{expected}`
+
+### 前端
+
+- 测试文件：与源文件同目录，命名 `{Component}.spec.ts` 或 `{composable}.spec.ts`
+- 框架：vitest + @vue/test-utils（Sprint 7 配置）
+- 命名：`describe('{Component}')` + `it('should {behavior}')`
+
+### Mock 策略
+
+- 单元测试：可 mock 外部服务（LLM API、第三方 HTTP）
+- 集成测试：必须连接真实数据库（MongoDB、PostgreSQL、Redis）
+- 前端 API 层测试：使用 MSW 或手动 mock axios
+
+### 覆盖率
+
+- MVP 阶段目标：70%（与 mvp-tasks.md Sprint 7 一致）
+- 核心路径（auth、pipeline state machine、SSE 推送）要求 > 85%
+
+## 14. 日志约定
+
+### 后端
+
+- 使用 structlog，绑定上下文字段：`request_id`、`user_id`、`case_id`、`session_id`
+- 日志级别：
+  - `DEBUG`：开发调试信息（生产环境关闭）
+  - `INFO`：正常业务流程（请求处理、Pipeline 阶段转换）
+  - `WARNING`：异常但可恢复（重试、降级）
+  - `ERROR`：需要关注的错误（未捕获异常、外部服务不可用）
+- 禁止在日志中输出：token、密码、API key、用户敏感信息
+
+### 前端
+
+- 开发环境使用 `console.warn` / `console.error`（不使用 `console.log`）
+- 生产构建通过 Vite 插件移除所有 console 语句
+
+## 15. 环境变量约定
+
+- 命名：`UPPER_SNAKE_CASE`，按域分组（APP_、MONGODB_、JWT_、ANTHROPIC_ 等）
+- 必填项清单：参见 `backend/.env.template`
+- 本地开发：`cp backend/.env.template backend/.env` 后填入实际值
+- 敏感变量（API key、JWT secret）禁止提交到 git，仅通过 `.env` 或环境注入
+- Docker Compose 中通过 `env_file` 引用，不在 `docker-compose.yml` 中硬编码
+
+## 16. Definition of Done (DoD)
+
+每个任务标记完成前，必须满足：
+
+- [ ] 代码通过 `ruff check` + `mypy`（后端）/ `vue-tsc --noEmit`（前端）
+- [ ] 核心逻辑有单元测试且测试通过
+- [ ] API 变更已同步更新 `tasks/api-contracts.md`
+- [ ] SSE 事件变更已同步更新 `tasks/sse-protocol.md`
+- [ ] 无硬编码凭据（API key、密码、token）
+- [ ] commit message 符合 conventional commits 格式
+- [ ] 相关文档已更新（conventions / progress / lessons）
+- [ ] 文件不超过 800 行绝对上限

@@ -252,7 +252,7 @@ interface UploadedFile {
   upload_date: string;
   content_type: string;
   file_url: string;
-  metadata: { sandbox_path: string; session_id: string };
+  metadata: { storage_path: string; session_id: string };
 }
 ```
 
@@ -268,7 +268,7 @@ interface SessionFile {
   content_type: string;
   file_url: string;
   category: "result" | "process";
-  metadata: { sandbox_path: string; session_id: string };
+  metadata: { storage_path: string; session_id: string };
 }
 ```
 
@@ -356,7 +356,7 @@ interface ModelConfig {
 ### `GET /api/v1/statistics/summary`
 
 ```typescript
-// Response（直接返回，无 ApiResponse 包装）
+// Response data（使用统一 ApiResponse<T> 包装）
 interface SummaryResponse {
   total_cost_usd: number;
   total_cost_cny: number;
@@ -852,7 +852,7 @@ interface TaskSettings {
 { lark_user_id: string; lark_union_id?: string }
 
 // Response data
-{ platform: string; platform_user_id: string; science_user_id: string; status: string }
+{ platform: string; platform_user_id: string; user_id: string; status: string }
 ```
 
 ### `DELETE /api/v1/im/bind/lark`
@@ -870,7 +870,7 @@ interface LarkBindingStatus {
   bound: boolean;
   platform?: string;
   platform_user_id?: string;
-  science_user_id?: string;
+  user_id?: string;
   status?: string;
   updated_at?: number;
 }
