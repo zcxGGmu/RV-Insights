@@ -76,3 +76,43 @@
 **原因**：`X | None` 语法需要 Python 3.10+，`StrEnum` 需要 Python 3.11+。`from __future__ import annotations` 只延迟类型求值，但 Pydantic 在运行时仍需解析类型
 
 **如何避免**：ruff check 时不要使用 `--fix` 自动修复 UP042/UP045 规则；Pydantic 模型中坚持使用 `Optional[X]` 和 `str, Enum` 基类
+
+### 2026-04-28 | 前端依赖
+
+**教训**：reka-ui 引用了 `@internationalized/date` 的 `DayOfWeek` 类型，但新版 `@internationalized/date` 已移除该类型，导致 vue-tsc 报错
+
+**原因**：reka-ui 的 peer dependency 版本范围过宽，未锁定 `@internationalized/date` 的兼容版本
+
+**如何避免**：遇到第三方库上游类型 bug 时，在 `tsconfig.json` 中添加 `"skipLibCheck": true` 作为 workaround；同时在 tech debt 中记录，等上游修复后移除
+
+### 2026-04-28 | Git
+
+**教训**：根目录 `.gitignore` 中的 `lib/` 规则会匹配所有层级的 `lib/` 目录，包括 `web-console/src/lib/`
+
+**原因**：gitignore 的模式匹配是递归的，`lib/` 等同于 `**/lib/`
+
+**如何避免**：当需要在被忽略模式下保留特定子路径时，使用 `!web-console/src/lib/` 否定规则；新增 `lib/` 类通用目录时先检查是否影响嵌套路径
+
+### 2026-04-28 | 迁移策略
+
+**教训**：ScienceClaw 的大型组件（ChatPage 1300 行、ChatMessage 866 行）不应 1:1 复制，而应拆分为小组件 + utility 函数
+
+**原因**：大文件违反 400 行软限制，且包含大量 sandbox/VNC 等 RV-Insights 不需要的逻辑
+
+**如何避免**：迁移前先分析源文件结构，识别可提取为 utility 的逻辑（如 markdown 渲染）、可内联的简单逻辑（如 SSE 处理 <300 行时）、需要删除的无关功能（sandbox）。目标是每个文件 200-400 行
+
+### 2026-04-28 | 前端架构
+
+**教训**：ScienceClaw 使用 composable 单例模式管理状态，但 RV-Insights 已有 Pinia store 基础（authStore/caseStore），混用两种模式会增加认知负担
+
+**原因**：两种状态管理方式各有优劣，但在同一项目中应保持一致
+
+**如何避免**：RV-Insights 统一使用 Pinia store 管理全局状态；composable 仅用于封装可复用的 UI 逻辑（如 useSessionGrouping）而非全局状态
+
+### 2026-04-28 | 包管理
+
+**教训**：项目使用 pnpm（有 pnpm-lock.yaml），但之前误用 npm 安装依赖会生成 package-lock.json 导致冲突
+
+**原因**：未在开发初期检查 lockfile 类型来确定包管理器
+
+**如何避免**：开发前检查项目根目录的 lockfile：`pnpm-lock.yaml` → pnpm，`package-lock.json` → npm，`yarn.lock` → yarn。RV-Insights web-console 使用 pnpm

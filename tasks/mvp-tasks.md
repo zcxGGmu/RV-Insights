@@ -134,18 +134,38 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 | **Tasks 页面** | | | |
 | `pages/TasksPage.vue` | `views/TasksPage.vue` | S9 | 定时任务管理 |
 | **已迁移（v2 计划）** | | | |
-| `api/client.ts` | `api/client.ts` | S0 ✅ | 需 S3 升级 SSE |
+| `api/client.ts` | `api/client.ts` | S0 ✅ | SSE 封装在 api/chat.ts |
 | `composables/useAuth.ts` | `composables/useAuth.ts` | S1 ✅ | 已完成 |
 | `composables/useTheme.ts` | `composables/useTheme.ts` | S0 ✅ | 直接复用 |
 | `assets/theme.css` + `global.css` | `assets/` | S0 ✅ | 已完成 |
+| **已迁移（S3 新增）** | | | |
+| `pages/HomePage.vue` | `views/HomePage.vue` | S3 ✅ | RISC-V 品牌 + 快捷 prompt |
+| `pages/ChatPage.vue` | `views/ChatPage.vue` | S3 ✅ | 1300→290 行重写 |
+| `pages/MainLayout.vue` | `views/MainLayout.vue` | S3 ✅ | SessionPanel 侧边栏 |
+| `ChatBox.vue` | `components/chat/ChatBox.vue` | S3 ✅ | 纯文本输入 |
+| `ChatMessage.vue` | `components/chat/ChatMessage.vue` | S3 ✅ | MarkdownRenderer |
+| `SuggestedQuestions.vue` | `components/chat/SuggestedQuestions.vue` | S3 ✅ | RISC-V 问题 |
+| `LeftPanel.vue` + `SessionItem.vue` | `components/chat/SessionPanel.vue` | S3 ✅ | 合并为单文件 |
+| `ActivityPanel.vue` | `components/shared/ActivityPanel.vue` | S3 ✅ | 思考+工具时间线 |
+| `ui/dialog/*` | `components/ui/dialog/*` | S3 ✅ | reka-ui 原语 |
+| `ui/Toast.vue` | `components/ui/toast/ToastContainer.vue` | S3 ✅ | CustomEvent 重写 |
+| `api/agent.ts` | `api/chat.ts` | S3 ✅ | CRUD + SSE |
+| `utils/*` (6 files) | `utils/*` | S3 ✅ | toast/eventBus/dom/time/content/markdownFormatter |
+| `composables/*` (4 files) | `composables/*` | S3 ✅ | sessionGrouping/notifications/listUpdate/pendingChat |
+| — (新建) | `stores/chat.ts` | S3 ✅ | Pinia store |
+| — (新建) | `utils/markdown.ts` | S3 ✅ | 渲染管线 |
+| — (新建) | `lib/utils.ts` | S3 ✅ | cn() |
 
 ### 后端新增模块（按 Sprint）
 
 | 模块 | Sprint | 说明 |
 |------|--------|------|
-| `api/chat.py` + `services/chat_runner.py` | S3 | Chat Session CRUD + SSE 流式对话 |
-| `models/chat_schemas.py` | S3 | ChatSession/ChatMessage/ChatEvent |
-| `prompts/chat_system.py` | S3 | RISC-V 专家对话 System Prompt |
+| `api/chat.py` + `services/chat_runner.py` | S3 ✅ | Chat Session CRUD + SSE 流式对话 |
+| `models/chat_schemas.py` | S3 ✅ | ChatSession/ChatMessage/ChatEvent |
+| `prompts/chat_system.py` | S3 ✅ | RISC-V 专家对话 System Prompt |
+| `services/model_factory.py` | S3 ✅ | LLM 模型工厂 |
+| `services/notifications.py` | S3 ✅ | in-memory pub/sub 通知总线 |
+| `utils/response.py` | S3 ✅ | 统一响应包装 |
 | `api/models.py` + `services/model_factory.py` | S4 | 多模型管理 + 工厂 |
 | `api/memory.py` | S4 | 用户记忆/偏好 |
 | `api/statistics.py` | S4+S8 | Token 用量统计 |
@@ -181,76 +201,81 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 前端：共享组件迁移（Day 1-2）— 19h
 
-- [ ] 前端：引入 reka-ui + lucide-vue-next + simplebar-vue + marked + highlight.js + dompurify + katex + mermaid + mitt + vue-i18n + monaco-editor `~1h`
-- [ ] 前端：迁移 UI 原语（Dialog/Popover/Select/Toast/SimpleBar）`~2h`
-  - 源：`ScienceClaw/frontend/src/components/ui/`
-- [ ] 前端：迁移 utils 工具集（toast/eventBus/dom/time/markdownFormatter）`~1.5h`
-- [ ] 前端：升级 SSE 客户端为统一封装，Chat 和 Pipeline 共用 `~2.5h`
-  - 产出：统一 SSE 封装，支持 auth headers + 自动重连 + AbortController
-- [ ] 前端：迁移 MarkdownEnhancements（代码高亮 + mermaid + KaTeX + DOMPurify）`~2h`
-- [ ] 前端：迁移 ActivityPanel（思考+工具执行时间线）`~3h`
+- [x] 前端：引入 reka-ui + lucide-vue-next + simplebar-vue + marked + highlight.js + dompurify + katex + mermaid + mitt + vue-i18n + monaco-editor `~1h`
+- [x] 前端：迁移 UI 原语（Dialog/Toast）+ 工具函数（cn）`~2h`
+  - 产出：`components/ui/dialog/*`、`components/ui/toast/ToastContainer.vue`、`lib/utils.ts`
+  - 偏差：Popover/Select/SimpleBar 推迟到 S4 按需迁移
+- [x] 前端：迁移 utils 工具集（toast/eventBus/dom/time/content/markdownFormatter）`~1.5h`
+- [x] 前端：SSE 客户端封装（POST-based chat + GET-based notifications）`~2.5h`
+  - 产出：`api/chat.ts` 中 `connectChatSSE()` + `connectNotificationsSSE()`
+  - 偏差：未抽为独立 SSE 模块，直接内联在 chat API 中
+- [x] 前端：Markdown 渲染管线（marked + highlight.js + KaTeX + mermaid + DOMPurify）`~2h`
+  - 产出：`utils/markdown.ts` + `styles/markdown.css` + `components/shared/MarkdownRenderer.vue`
+  - 偏差：未迁移 MarkdownEnhancements 组件，改为 utility 函数 + 轻量 wrapper
+- [x] 前端：迁移 ActivityPanel（思考+工具执行时间线）`~3h`
   - 产出：`components/shared/ActivityPanel.vue`，Chat 和 Pipeline 共用
-- [ ] 前端：迁移 ProcessGroup + StepMessage `~2h`
+- [ ] 前端：迁移 ProcessGroup + StepMessage `~2h` — 推迟到 S4
   - 产出：`components/shared/ProcessGroup.vue` + `StepMessage.vue`
-- [ ] 前端：迁移 ToolCallView + toolViews + constants/tool.ts `~2.5h`
+- [ ] 前端：迁移 ToolCallView + toolViews + constants/tool.ts `~2.5h` — 推迟到 S4
   - 产出：工具调用可视化 + Shell/File/Search 视图 + 工具映射常量
-- [ ] 前端：迁移 MonacoEditor + i18n 框架 + 中英文翻译 `~2.5h`
+- [ ] 前端：迁移 MonacoEditor + i18n 框架 + 中英文翻译 `~2.5h` — 推迟到 S4
 
 #### 前端：对话模式页面（Day 2-4）— 25.5h
 
-- [ ] 前端：HomePage 迁移（欢迎页 + 快捷提示 + ChatBox）`~3h`
-  - 源：`ScienceClaw/frontend/src/pages/HomePage.vue`
-  - 产出：`views/HomePage.vue`，欢迎语 + 快捷 prompt 卡片 + 底部 ChatBox
-- [ ] 前端：ChatBox 组件迁移（对话输入框）`~2.5h`
-  - 源：`ScienceClaw/frontend/src/components/ChatBox.vue`
-  - 产出：`components/chat/ChatBox.vue`，支持文本输入 + 文件附件 + 发送/停止
-- [ ] 前端：ChatMessage 组件迁移（消息渲染）`~3h`
-  - 源：`ScienceClaw/frontend/src/components/ChatMessage.vue`
-  - 产出：`components/chat/ChatMessage.vue`，Markdown + 代码高亮 + 逐 token 打字机效果
-- [ ] 前端：ChatPage 拆分迁移 `~5h`
-  - 源：`ScienceClaw/frontend/src/pages/ChatPage.vue`（1300 行）
-  - 产出：`views/ChatPage.vue` + `composables/useChatSession.ts`
-  - 关键：SSE 事件处理提取为 composable，不做 1:1 复制
-  - 支持事件类型：message_chunk, tool, step, thinking, plan, done, error, title
-- [ ] 前端：SessionPanel 迁移（会话列表侧边栏）`~3h`
-  - 源：`ScienceClaw/frontend/src/components/LeftPanel.vue` + `SessionItem.vue`
-  - 产出：`components/chat/SessionPanel.vue` + `SessionItem.vue`
-  - 功能：会话列表 + 时间分组 + pin/rename/delete + 搜索
-- [ ] 前端：SuggestedQuestions 组件 `~0.5h`
-- [ ] 前端：useChatSession composable（SSE 事件处理核心）`~3h`
-  - 产出：管理 SSE 连接、事件分发、消息累积、工具调用追踪、停止/重连
-- [ ] 前端：useSessionGrouping + useSessionNotifications + usePendingChat `~2h`
-- [ ] 前端：chatStore (Pinia) `~1.5h`
-  - 产出：会话列表 + 当前会话 + 消息列表 + 连接状态
-- [ ] 前端：api/chat.ts（Session CRUD + chatWithSession SSE）+ 路由更新 `~2h`
+- [x] 前端：HomePage 迁移（欢迎页 + 快捷提示 + ChatBox）`~3h`
+  - 产出：`views/HomePage.vue`，RISC-V 品牌 + 4 个快捷 prompt 卡片 + 底部 ChatBox
+- [x] 前端：ChatBox 组件迁移（对话输入框）`~2.5h`
+  - 产出：`components/chat/ChatBox.vue`，textarea + auto-resize + IME + Enter/Shift+Enter + send/stop
+  - 偏差：移除文件附件功能，MVP 阶段仅支持纯文本
+- [x] 前端：ChatMessage 组件迁移（消息渲染）`~3h`
+  - 产出：`components/chat/ChatMessage.vue`，MarkdownRenderer + copy 按钮
+  - 偏差：ScienceClaw 866 行拆分为 ~100 行组件 + markdown.ts utility
+- [x] 前端：ChatPage 拆分迁移 `~5h`
+  - 产出：`views/ChatPage.vue`（~290 行），SSE 事件处理内联（未提取 composable）
+  - 偏差：ScienceClaw 1300 行 → 290 行，SSE 处理直接在 ChatPage 中而非 useChatSession composable
+  - 支持事件类型：message_chunk, message_chunk_done, thinking, tool, done, error
+- [x] 前端：SessionPanel 迁移（会话列表侧边栏）`~3h`
+  - 产出：`components/chat/SessionPanel.vue`（~190 行）
+  - 偏差：合并 LeftPanel + SessionItem 为单文件，未拆分 SessionItem
+- [x] 前端：SuggestedQuestions 组件 `~0.5h`
+- [x] 前端：useChatSession composable — 未单独创建，SSE 逻辑内联在 ChatPage `~0h`
+  - 偏差：评估后认为 ChatPage 290 行可控，无需额外 composable 层
+- [x] 前端：useSessionGrouping + useSessionNotifications + usePendingChat `~2h`
+  - 产出：3 个 composable + useSessionListUpdate
+- [x] 前端：chatStore (Pinia) `~1.5h`
+  - 产出：`stores/chat.ts`，sessions + currentSession + loading + isStreaming + sortedSessions
+  - 偏差：选择 Pinia store 而非 ScienceClaw 的 composable 单例模式，与现有 authStore/caseStore 保持一致
+- [x] 前端：api/chat.ts（Session CRUD + chatWithSession SSE）+ 路由更新 `~2h`
   - 新增：`/` → HomePage, `/chat/:id` → ChatPage
   - 调整：`/cases` 和 `/cases/:id` 保持不变
-  - 主布局：左侧导航切换 Chat / Pipeline 两个模式
+  - 主布局：SessionPanel 侧边栏 + header + router-view
 
 #### 后端：对话模式服务（Day 2-5，与前端并行）— 17.5h
 
-- [ ] 后端：ChatSession/ChatMessage/ChatEvent Pydantic 模型 `~1.5h`
+- [x] 后端：ChatSession/ChatMessage/ChatEvent Pydantic 模型 `~1.5h`
   - 产出：`models/chat_schemas.py`
-- [ ] 后端：chat_sessions MongoDB 集合 + 索引 `~1h`
+- [x] 后端：chat_sessions MongoDB 集合 + 索引 `~1h`
   - 字段：session_id, user_id, title, status, events[], model, created_at, updated_at, pinned, is_shared, latest_message
   - 索引：user_id + updated_at, status, is_shared
-- [ ] 后端：Chat Session CRUD API `~3h`
+- [x] 后端：Chat Session CRUD API `~3h`
   - 产出：PUT /sessions（创建）, GET /sessions（列表）, GET /sessions/:id, DELETE /sessions/:id, PATCH /sessions/:id/pin, PATCH /sessions/:id/title
-- [ ] 后端：RISC-V 专家对话 System Prompt `~2h`
+- [x] 后端：RISC-V 专家对话 System Prompt `~2h`
   - 产出：`prompts/chat_system.py`
-- [ ] 后端：ChatRunner 流式执行器 `~5h`
-  - 对标：`ScienceClaw/backend/deepagent/runner.py`
+- [x] 后端：ChatRunner 流式执行器 `~5h`
+  - 产出：`services/chat_runner.py` + `services/model_factory.py`
   - 模式：asyncio.Queue → background worker → LLM astream() → SSE events
-  - 事件类型：message_chunk, message_chunk_done, thinking, tool, step, done, error, title
-- [ ] 后端：POST /sessions/:id/chat SSE 端点 + POST /sessions/:id/stop `~3h`
-- [ ] 后端：GET /sessions/notifications SSE 端点 `~1.5h`
-- [ ] 后端：Auth 补充端点：change-password, change-fullname, me, status `~1h`
+  - 事件类型：message_chunk, message_chunk_done, thinking, tool, done, error
+- [x] 后端：POST /sessions/:id/chat SSE 端点 + POST /sessions/:id/stop `~3h`
+- [x] 后端：GET /sessions/notifications SSE 端点 `~1.5h`
+  - 产出：`services/notifications.py`（in-memory pub/sub bus）
+- [x] 后端：Auth 补充端点：change-password, change-fullname, me, status `~1h`
 
 #### 联调验收（Day 5）— 3h
 
-- [ ] 联调：HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 `~3h`
+- [ ] 联调：HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 `~3h` — 需后端部署后验证
 
-**Sprint 3 总工时估算：~65h（2 人并行约 1.5 周）**
+**Sprint 3 实际完成：前端 19 tasks ✅ + 后端 8 tasks ✅ = 27 tasks，联调待 Sprint 4 初期验证**
+**Sprint 3 推迟到 S4：ProcessGroup/StepMessage、ToolCallView/toolViews、MonacoEditor/i18n**
 
 ---
 

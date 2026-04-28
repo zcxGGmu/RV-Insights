@@ -50,6 +50,10 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | ArtifactManager 未实现 | Pipeline 产物无法持久化 | Sprint 6 |
 | 前端 Mock API 与真实 API 响应格式不一致 | Mock 用裸 JSON，真实用 `{code, msg, data}` 包装 | Sprint 3 统一 |
 | OpenAPI 有重复的 `/api/v1/cases` path key | YAML 解析不报错但只保留最后一个 | Sprint 3 修复 |
+| tsconfig `skipLibCheck: true` | reka-ui 上游 DayOfWeek 类型 bug workaround | 等 reka-ui 修复后移除 |
+| ChatPage mermaid chunk 1.3MB | vite build 产物过大 | Sprint 4 动态 import 或 code split |
+| S3 推迟组件：ProcessGroup/StepMessage/ToolCallView/toolViews/MonacoEditor/i18n | Chat 工具调用可视化缺失 | Sprint 4 初期补齐 |
+| Types/Constants/i18n 未独立文件化 | 类型内联在组件中，不利于复用 | Sprint 4 统一整理 |
 
 ## 架构决策记录
 
