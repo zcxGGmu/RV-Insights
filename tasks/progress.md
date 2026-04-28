@@ -67,22 +67,24 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 ## 当前 Sprint: Sprint 3（共享基础设施 + 对话模式基础）
 
-## 当前状态: 进行中（后端 3.20-3.22, 3.27 完成）
+## 当前状态: 进行中（后端 3.20-3.25, 3.27 完成，剩余 3.26 + 前端）
 
 ### 进行中的工作 (WIP)
 
 > 每次会话结束前更新此节。新会话从这里恢复。
 
-已完成后端基础任务：
+已完成后端任务：
 - 3.20 ChatSession/ChatMessage/ChatEvent Pydantic 模型 ✅
 - 3.21 chat_sessions MongoDB 集合 + 索引 ✅
 - 3.22 Chat Session CRUD API（PUT/GET/DELETE/PATCH） ✅
+- 3.23 RISC-V 专家 System Prompt ✅ (a24d0b4)
+- 3.24 ChatRunner + ModelFactory ✅ (a24d0b4)
+- 3.25 POST /sessions/:id/chat SSE + stop ✅ (a24d0b4)
 - 3.27 Auth 补充端点（me, status, change-password, change-fullname） ✅
 - 新增 `utils/response.py`（统一 `{code, msg, data}` 响应包装）
 - 新增 `tests/test_chat_and_auth.py`（13 tests all passed）
-- 新增依赖：`shortuuid`
 
-下一步：3.23 System Prompt → 3.24 ChatRunner → 3.25 SSE 端点
+下一步：3.26 notifications SSE → 后端测试补充 → 前端 3.1-3.19
 
 ### 依赖关系
 

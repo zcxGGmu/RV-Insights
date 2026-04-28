@@ -28,6 +28,7 @@ from app.services.model_factory import (
     get_default_model_config,
     get_default_task_settings,
 )
+from app.services.notifications import publish, subscribe, unsubscribe
 from app.utils.response import err, ok
 
 router = APIRouter()
@@ -53,6 +54,10 @@ async def create_session(
     )
     col = db.mongo_db[COLLECTION]
     await col.insert_one(doc.model_dump())
+    await publish("session_created", {
+        "session_id": session_id,
+        "user_id": user.email,
+    })
     return ok({"session_id": session_id, "mode": payload.mode})
 
 
@@ -290,6 +295,11 @@ async def chat_sse(
                     "updated_at": datetime.utcnow(),
                 }},
             )
+            await publish("session_updated", {
+                "session_id": session_id,
+                "user_id": user.email,
+                "source": doc.get("source"),
+            })
             await queue.put(None)
 
     asyncio.create_task(_background_worker())
@@ -331,3 +341,27 @@ async def stop_chat(
         {"$set": {"status": SessionStatus.COMPLETED.value, "updated_at": datetime.utcnow()}},
     )
     return ok({"ok": True, "was_running": False})
+
+
+@router.get("/notifications")
+async def session_notifications(
+    user: UserInDB = Depends(get_current_user),
+):
+    sub_id, events = await subscribe()
+
+    async def _event_generator():
+        try:
+            async for event in events:
+                evt_data = event.get("data", {})
+                if evt_data.get("user_id") and evt_data["user_id"] != user.email:
+                    continue
+                yield {
+                    "event": event["event"],
+                    "data": json.dumps(evt_data, ensure_ascii=False),
+                }
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await unsubscribe(sub_id)
+
+    return EventSourceResponse(_event_generator())
