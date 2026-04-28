@@ -65,26 +65,38 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | LLM 编排 | LangGraph StateGraph | 内置 checkpoint + interrupt + 条件边，适合 Pipeline 状态机 | 手写状态机 |
 | 开发期默认模型 | gpt-4o-mini | 成本可控，开发调试够用 | gpt-4o / claude-sonnet |
 
-## 当前 Sprint: Sprint 3（共享基础设施 + 对话模式基础）
+## 当前 Sprint: Sprint 3（共享基础设施 + 对话模式基础）✅ 完成
 
-## 当前状态: 进行中（后端 3.20-3.25, 3.27 完成，剩余 3.26 + 前端）
+## 当前状态: Sprint 3 全部完成，准备进入 Sprint 4
 
-### 进行中的工作 (WIP)
+### Sprint 3 完成总结
 
 > 每次会话结束前更新此节。新会话从这里恢复。
 
-已完成后端任务：
+后端（8 tasks）：
 - 3.20 ChatSession/ChatMessage/ChatEvent Pydantic 模型 ✅
 - 3.21 chat_sessions MongoDB 集合 + 索引 ✅
 - 3.22 Chat Session CRUD API（PUT/GET/DELETE/PATCH） ✅
-- 3.23 RISC-V 专家 System Prompt ✅ (a24d0b4)
-- 3.24 ChatRunner + ModelFactory ✅ (a24d0b4)
-- 3.25 POST /sessions/:id/chat SSE + stop ✅ (a24d0b4)
-- 3.27 Auth 补充端点（me, status, change-password, change-fullname） ✅
-- 新增 `utils/response.py`（统一 `{code, msg, data}` 响应包装）
-- 新增 `tests/test_chat_and_auth.py`（13 tests all passed）
+- 3.23 RISC-V 专家 System Prompt ✅
+- 3.24 ChatRunner + ModelFactory ✅
+- 3.25 POST /sessions/:id/chat SSE + stop ✅
+- 3.26 GET /sessions/notifications SSE ✅
+- 3.27 Auth 补充端点 ✅
+- 新增 `utils/response.py`、`services/notifications.py`
+- 测试：17 tests passed（test_chat_and_auth 13 + test_notifications 4）
 
-下一步：3.26 notifications SSE → 后端测试补充 → 前端 3.1-3.19
+前端（19 tasks）：
+- 3.1 依赖安装（reka-ui, marked, highlight.js, katex, mermaid, mitt, vue-i18n, monaco-editor）✅
+- 3.2-3.3 UI 原语 + 工具集（Dialog, Toast, cn, eventBus, toast, dom, content, markdownFormatter, time）✅
+- 3.4+3.19 Chat API 模块 + 路由更新 ✅
+- 3.5-3.9 共享展示组件（MarkdownRenderer, ActivityPanel, markdown.ts 渲染管线）✅
+- 3.10-3.15 Chat 页面组件（ChatBox, ChatMessage, SuggestedQuestions, SessionPanel, ChatPage, HomePage）✅
+- 3.16-3.18 Chat composables + chatStore ✅
+- MainLayout 重构为 SessionPanel 侧边栏 ✅
+
+验证：vue-tsc 通过，vite build 成功，pytest 17/17 passed
+
+下一步：Sprint 4（Pipeline 模式 — LangGraph 状态机 + 五阶段工作流）
 
 ### 依赖关系
 
