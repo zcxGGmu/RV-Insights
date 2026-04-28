@@ -21,6 +21,9 @@ dependencies = [
     "tenacity>=8.2.0",
     "aiofiles>=24.0.0",
     "shortuuid>=1.0.0",
+    "sse-starlette>=2.0.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.3.0",
 ]
 
 [project.optional-dependencies]
