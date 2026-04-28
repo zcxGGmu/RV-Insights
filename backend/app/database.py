@@ -40,6 +40,19 @@ class DatabaseManager:
                 await cases_col.create_index([("owner_id", 1), ("created_at", 1)])
                 await cases_col.create_index([("status", 1)])
                 await cases_col.create_index([("target_repo", 1)])
+                chat_col = self.mongo_db["chat_sessions"]
+                await chat_col.create_index(
+                    [("user_id", 1), ("updated_at", -1)],
+                    name="idx_chat_sessions_user_id_updated_at",
+                )
+                await chat_col.create_index(
+                    [("status", 1)],
+                    name="idx_chat_sessions_status",
+                )
+                await chat_col.create_index(
+                    [("is_shared", 1)],
+                    name="idx_chat_sessions_is_shared",
+                )
             except Exception:
                 logger.warning("mongodb_index_creation_failed")
             logger.info("mongodb_connected", uri=settings.MONGODB_URI)

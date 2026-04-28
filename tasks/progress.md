@@ -3,7 +3,7 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-25 @ 28a0211 | pytest 8/8 passed | vue-tsc 0 errors | vite build OK (1653 modules, 1.52s)
+**最后验证**: 2026-04-28 | pytest 13/13 passed (test_chat_and_auth) | app import OK
 
 ## 项目信息
 
@@ -67,13 +67,22 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 ## 当前 Sprint: Sprint 3（共享基础设施 + 对话模式基础）
 
-## 当前状态: 待开始
+## 当前状态: 进行中（后端 3.20-3.22, 3.27 完成）
 
 ### 进行中的工作 (WIP)
 
 > 每次会话结束前更新此节。新会话从这里恢复。
 
-当前无进行中任务。Sprint 3 尚未开始编码。
+已完成后端基础任务：
+- 3.20 ChatSession/ChatMessage/ChatEvent Pydantic 模型 ✅
+- 3.21 chat_sessions MongoDB 集合 + 索引 ✅
+- 3.22 Chat Session CRUD API（PUT/GET/DELETE/PATCH） ✅
+- 3.27 Auth 补充端点（me, status, change-password, change-fullname） ✅
+- 新增 `utils/response.py`（统一 `{code, msg, data}` 响应包装）
+- 新增 `tests/test_chat_and_auth.py`（13 tests all passed）
+- 新增依赖：`shortuuid`
+
+下一步：3.23 System Prompt → 3.24 ChatRunner → 3.25 SSE 端点
 
 ### 依赖关系
 
@@ -132,14 +141,14 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 | # | 任务 | 状态 | 提交 | 备注 |
 |---|------|------|------|------|
-| 3.20 | ChatSession/ChatMessage/ChatEvent Pydantic 模型 | 🔲 待开始 | - | ~1.5h |
-| 3.21 | chat_sessions MongoDB 集合 + 索引 | 🔲 待开始 | - | ~1h |
-| 3.22 | Chat Session CRUD API（PUT/GET/DELETE/PATCH） | 🔲 待开始 | - | ~3h |
+| 3.20 | ChatSession/ChatMessage/ChatEvent Pydantic 模型 | ✅ 完成 | - | ~1.5h |
+| 3.21 | chat_sessions MongoDB 集合 + 索引 | ✅ 完成 | - | ~1h |
+| 3.22 | Chat Session CRUD API（PUT/GET/DELETE/PATCH） | ✅ 完成 | - | ~3h |
 | 3.23 | RISC-V 专家对话 System Prompt | 🔲 待开始 | - | ~2h |
 | 3.24 | ChatRunner 流式执行器（asyncio.Queue → LLM astream → SSE） | 🔲 待开始 | - | ~5h，关键任务 |
 | 3.25 | POST /sessions/:id/chat SSE + POST /sessions/:id/stop | 🔲 待开始 | - | ~3h |
 | 3.26 | GET /sessions/notifications SSE 端点 | 🔲 待开始 | - | ~1.5h |
-| 3.27 | Auth 补充端点（change-password, change-fullname, me, status） | 🔲 待开始 | - | ~1h |
+| 3.27 | Auth 补充端点（change-password, change-fullname, me, status） | ✅ 完成 | - | ~1h |
 
 ### 联调
 

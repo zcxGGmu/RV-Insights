@@ -20,6 +20,7 @@ dependencies = [
     "structlog>=24.0.0",
     "tenacity>=8.2.0",
     "aiofiles>=24.0.0",
+    "shortuuid>=1.0.0",
 ]
 
 [project.optional-dependencies]

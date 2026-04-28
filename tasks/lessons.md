@@ -68,3 +68,11 @@
 **原因**：这些 `.js` 文件在 `.gitignore` 规则添加之前就已被 git 追踪，gitignore 不会影响已追踪的文件
 
 **如何避免**：添加 gitignore 规则后，必须执行 `git rm --cached` 移除已追踪的文件；新项目初始化时先配好 gitignore 再首次提交
+
+### 2026-04-28 | 后端
+
+**教训**：本机 Python 3.9 不支持 `X | None` 类型注解语法和 `enum.StrEnum`，ruff auto-fix 会将 `Optional[X]` 转为 `X | None` 导致运行时 TypeError
+
+**原因**：`X | None` 语法需要 Python 3.10+，`StrEnum` 需要 Python 3.11+。`from __future__ import annotations` 只延迟类型求值，但 Pydantic 在运行时仍需解析类型
+
+**如何避免**：ruff check 时不要使用 `--fix` 自动修复 UP042/UP045 规则；Pydantic 模型中坚持使用 `Optional[X]` 和 `str, Enum` 基类
