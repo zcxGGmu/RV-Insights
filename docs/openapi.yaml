@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: RV-Insights API (MVP)
   version: 1.0.0
-  description: OpenAPI 3.1.0 schema for the RV-Insights MVP endpoints (Auth, Cases, Pipeline, Health).
+  description: OpenAPI 3.1.0 schema for the RV-Insights MVP endpoints (Auth, Cases, Pipeline, Sessions, Models, Statistics, Memory, Skills, Tools, ToolUniverse, Tasks, Webhooks, IM, File, Health).
 servers:
   - url: /
 tags:
@@ -14,6 +14,30 @@ tags:
     description: Pipeline control and events for cases
   - name: Health
     description: Health checks for backend services
+  - name: Sessions
+    description: "Auth required: chat sessions CRUD and SSE streaming"
+  - name: Models
+    description: "Auth required: LLM model configuration management"
+  - name: Statistics
+    description: "Auth required: usage statistics and cost tracking"
+  - name: Memory
+    description: "Auth required: user persistent memory"
+  - name: Skills
+    description: "Auth required: skill management (CRUD + hot reload)"
+  - name: Tools
+    description: "Auth required: external tool management"
+  - name: ToolUniverse
+    description: "RISC-V scientific tool catalog (list, get, run)"
+  - name: Tasks
+    description: "Scheduled tasks (via task-service)"
+  - name: Webhooks
+    description: "Webhook management (via task-service)"
+  - name: IM
+    description: "Auth required: Lark/WeChat IM integration"
+  - name: File
+    description: "Auth required: file download"
+  - name: Science
+    description: "Auth required: prompt optimization"
 paths:
   /api/v1/auth/register:
     post:
@@ -401,6 +425,804 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  # ── Auth supplements (Sprint 3) ──
+  /api/v1/auth/status:
+    get:
+      tags: [Authentication]
+      summary: Check auth status
+      responses:
+        '200':
+          description: Auth status
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+  /api/v1/auth/change-password:
+    post:
+      tags: [Authentication]
+      summary: Change password
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password]
+              properties:
+                old_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '200':
+          description: Password changed
+  /api/v1/auth/change-fullname:
+    post:
+      tags: [Authentication]
+      summary: Change display name
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullname]
+              properties:
+                fullname:
+                  type: string
+      responses:
+        '200':
+          description: Name updated
+  /api/v1/auth/check-default-password:
+    get:
+      tags: [Authentication]
+      summary: Check if default password is in use
+      responses:
+        '200':
+          description: Default password status
+  # ── Sessions (Sprint 3) ──
+  /api/v1/sessions:
+    put:
+      tags: [Sessions]
+      summary: Create new chat session
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                model_config_id:
+                  type: string
+      responses:
+        '200':
+          description: Session created
+    get:
+      tags: [Sessions]
+      summary: List all sessions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Session list
+  /api/v1/sessions/{session_id}:
+    get:
+      tags: [Sessions]
+      summary: Get session with events
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session detail with events
+    delete:
+      tags: [Sessions]
+      summary: Delete session
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session deleted
+  /api/v1/sessions/{session_id}/chat:
+    post:
+      tags: [Sessions]
+      summary: Send message and stream response (SSE)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/v1/sessions/{session_id}/stop:
+    post:
+      tags: [Sessions]
+      summary: Stop running session
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session stopped
+  /api/v1/sessions/{session_id}/pin:
+    patch:
+      tags: [Sessions]
+      summary: Pin/unpin session
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pinned:
+                  type: boolean
+      responses:
+        '200':
+          description: Pin status updated
+  /api/v1/sessions/{session_id}/title:
+    patch:
+      tags: [Sessions]
+      summary: Update session title
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        '200':
+          description: Title updated
+  /api/v1/sessions/{session_id}/share:
+    post:
+      tags: [Sessions]
+      summary: Share session publicly
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session shared
+    delete:
+      tags: [Sessions]
+      summary: Unshare session
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session unshared
+  /api/v1/sessions/shared/{session_id}:
+    get:
+      tags: [Sessions]
+      summary: Get shared session (no auth)
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shared session data
+  /api/v1/sessions/{session_id}/upload:
+    post:
+      tags: [Sessions]
+      summary: Upload file to session
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File uploaded
+  /api/v1/sessions/{session_id}/files:
+    get:
+      tags: [Sessions]
+      summary: List session files
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File list
+  /api/v1/sessions/notifications:
+    get:
+      tags: [Sessions]
+      summary: Session lifecycle notifications (SSE)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: SSE notification stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  # ── Models (Sprint 4) ──
+  /api/v1/models:
+    get:
+      tags: [Models]
+      summary: List model configs
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Model config list
+    post:
+      tags: [Models]
+      summary: Create model config
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModelRequest'
+      responses:
+        '200':
+          description: Model created
+  /api/v1/models/{model_id}:
+    put:
+      tags: [Models]
+      summary: Update model config
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: model_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Model updated
+    delete:
+      tags: [Models]
+      summary: Delete model config
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: model_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Model deleted
+  /api/v1/models/detect-context-window:
+    post:
+      tags: [Models]
+      summary: Detect model context window size
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Context window detected
+  # ── Statistics (Sprint 4) ──
+  /api/v1/statistics/summary:
+    get:
+      tags: [Statistics]
+      summary: Usage summary
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: time_range
+          schema:
+            type: string
+            enum: [today, 7days, 30days, all]
+      responses:
+        '200':
+          description: Summary stats
+  /api/v1/statistics/models:
+    get:
+      tags: [Statistics]
+      summary: Per-model usage
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Model usage stats
+  /api/v1/statistics/trends:
+    get:
+      tags: [Statistics]
+      summary: Daily usage trends
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Trend data
+  /api/v1/statistics/sessions:
+    get:
+      tags: [Statistics]
+      summary: Per-session usage
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Session usage list
+  # ── Memory (Sprint 4) ──
+  /api/v1/memory:
+    get:
+      tags: [Memory]
+      summary: Get user memory
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Memory content
+    put:
+      tags: [Memory]
+      summary: Update user memory
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Memory updated
+  # ── Skills (Sprint 8) ──
+  /api/v1/sessions/skills:
+    get:
+      tags: [Skills]
+      summary: List all skills
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Skill list
+  /api/v1/sessions/skills/{skill_name}/block:
+    put:
+      tags: [Skills]
+      summary: Block/unblock skill
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: skill_name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Block status updated
+  /api/v1/sessions/skills/{skill_name}:
+    delete:
+      tags: [Skills]
+      summary: Delete skill
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: skill_name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Skill deleted
+  # ── Tools (Sprint 8) ──
+  /api/v1/sessions/tools:
+    get:
+      tags: [Tools]
+      summary: List external tools
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Tool list
+  /api/v1/sessions/tools/{tool_name}:
+    delete:
+      tags: [Tools]
+      summary: Delete tool
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tool_name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tool deleted
+  # ── ToolUniverse (Sprint 8) ──
+  /api/v1/tooluniverse/tools:
+    get:
+      tags: [ToolUniverse]
+      summary: List RISC-V tools
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: lang
+          schema:
+            type: string
+            enum: [en, zh]
+      responses:
+        '200':
+          description: Tool catalog
+  /api/v1/tooluniverse/tools/{tool_name}:
+    get:
+      tags: [ToolUniverse]
+      summary: Get tool spec
+      parameters:
+        - in: path
+          name: tool_name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tool specification
+  /api/v1/tooluniverse/tools/{tool_name}/run:
+    post:
+      tags: [ToolUniverse]
+      summary: Run tool
+      parameters:
+        - in: path
+          name: tool_name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tool execution result
+  /api/v1/tooluniverse/categories:
+    get:
+      tags: [ToolUniverse]
+      summary: List tool categories
+      responses:
+        '200':
+          description: Category list
+  # ── Tasks (Sprint 9, task-service) ──
+  /task-service/tasks:
+    get:
+      tags: [Tasks]
+      summary: List scheduled tasks
+      responses:
+        '200':
+          description: Task list
+    post:
+      tags: [Tasks]
+      summary: Create scheduled task
+      responses:
+        '200':
+          description: Task created
+  /task-service/tasks/{task_id}:
+    get:
+      tags: [Tasks]
+      summary: Get task detail
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task detail
+    put:
+      tags: [Tasks]
+      summary: Update task
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task updated
+    delete:
+      tags: [Tasks]
+      summary: Delete task
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Task deleted
+  /task-service/tasks/{task_id}/runs:
+    get:
+      tags: [Tasks]
+      summary: List task runs
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run history
+  /task-service/tasks/validate-schedule:
+    post:
+      tags: [Tasks]
+      summary: Validate schedule description
+      responses:
+        '200':
+          description: Validation result
+  # ── Webhooks (Sprint 9, task-service) ──
+  /task-service/webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List webhooks
+      responses:
+        '200':
+          description: Webhook list
+    post:
+      tags: [Webhooks]
+      summary: Create webhook
+      responses:
+        '200':
+          description: Webhook created
+  /task-service/webhooks/{webhook_id}:
+    put:
+      tags: [Webhooks]
+      summary: Update webhook
+      parameters:
+        - in: path
+          name: webhook_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook updated
+    delete:
+      tags: [Webhooks]
+      summary: Delete webhook
+      parameters:
+        - in: path
+          name: webhook_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Webhook deleted
+  /task-service/webhooks/{webhook_id}/test:
+    post:
+      tags: [Webhooks]
+      summary: Test webhook
+      parameters:
+        - in: path
+          name: webhook_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test result
+  # ── IM (Sprint 9) ──
+  /api/v1/im/bind/lark:
+    post:
+      tags: [IM]
+      summary: Bind Lark account
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lark bound
+    delete:
+      tags: [IM]
+      summary: Unbind Lark account
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lark unbound
+  /api/v1/im/bind/lark/status:
+    get:
+      tags: [IM]
+      summary: Get Lark binding status
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Binding status
+  /api/v1/im/settings:
+    get:
+      tags: [IM]
+      summary: Get IM system settings (admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: IM settings
+    put:
+      tags: [IM]
+      summary: Update IM system settings (admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Settings updated
+  /api/v1/im/wechat/start:
+    post:
+      tags: [IM]
+      summary: Start WeChat bridge (admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Bridge started
+  /api/v1/im/wechat/stop:
+    post:
+      tags: [IM]
+      summary: Stop WeChat bridge (admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Bridge stopped
+  /api/v1/im/wechat/status:
+    get:
+      tags: [IM]
+      summary: Get WeChat bridge status (admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Bridge status
+  # ── File (Sprint 4) ──
+  /api/v1/file/download:
+    get:
+      tags: [File]
+      summary: Download file
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+  # ── Science (Sprint 8) ──
+  /api/v1/science/optimize-prompt:
+    post:
+      tags: [Science]
+      summary: Optimize prompt
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Optimized prompt
+  # ── Task Settings (Sprint 9) ──
+  /api/v1/task-settings:
+    get:
+      tags: [Tasks]
+      summary: Get task settings
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Task settings
+    put:
+      tags: [Tasks]
+      summary: Update task settings
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Settings updated
 components:
   securitySchemes:
     BearerAuth:
@@ -750,3 +1572,66 @@ components:
         type: string
       redis:
         type: string
+    # ── Sprint 3+ schemas ──
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        timestamp:
+          type: integer
+        event_id:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string
+        language:
+          type: string
+          enum: [zh, en]
+        model_config_id:
+          type: string
+    CreateModelRequest:
+      type: object
+      required: [name, model_name]
+      properties:
+        name:
+          type: string
+        provider:
+          type: string
+          default: openai
+        base_url:
+          type: string
+        api_key:
+          type: string
+        model_name:
+          type: string
+        context_window:
+          type: integer
+          minimum: 1024
+          maximum: 10000000
+    ModelConfig:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+        base_url:
+          type: string
+        api_key:
+          type: string
+        model_name:
+          type: string
+        context_window:
+          type: integer
+        is_system:
+          type: boolean
+        is_active:
+          type: boolean
+        created_at:
+          type: integer
+        updated_at:
+          type: integer

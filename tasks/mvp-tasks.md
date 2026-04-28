@@ -1,10 +1,11 @@
-# RV-Insights MVP 阶段任务清单（v3 — 双模式：对话 + Pipeline）
+# RV-Insights MVP 阶段任务清单（v4 — 完全对标 ScienceClaw + 五阶段 Pipeline）
 
 > 目标：构建 AI 驱动的多 Agent 平台，面向 RISC-V 开源贡献场景。
 > 双模式：① ScienceClaw 同款对话交互（RISC-V 专家 Q&A）② 五阶段 Agent Pipeline（自动化贡献）
+> 完全对标：ScienceClaw 全部前端功能（含 IM/Skills/Tools/ToolUniverse/Tasks/Statistics）
 > 参考项目：ScienceClaw（Vue 3 + Vite + TailwindCSS 前端，FastAPI + deepagents 后端，MongoDB）
-> 预计周期：7 个 Sprint（每 Sprint 1 周），共 7 周
-> 版本：v3 — 新增对话交互模式，对标 ScienceClaw 完整功能
+> 预计周期：10 个 Sprint（每 Sprint 1 周），共 10 周
+> 版本：v4 — 完全对标 ScienceClaw，含 IM 集成
 
 ---
 
@@ -22,10 +23,14 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 │  │                    │    │                              │  │
 │  │  HomePage (欢迎)   │    │  CaseListPage (案例列表)     │  │
 │  │  ChatPage (对话)   │    │  CaseDetailPage (案例详情)   │  │
-│  │  LeftPanel (会话列表)│    │  PipelineView (流水线)      │  │
-│  │  ActivityPanel     │    │  ReviewPanel (审核)          │  │
-│  │  ChatBox (输入)    │    │  DiffViewer (代码差异)       │  │
+│  │  SharePage (分享)  │    │  PipelineView (流水线)      │  │
+│  │  LeftPanel (会话)  │    │  ReviewPanel (审核)          │  │
+│  │  ActivityPanel     │    │  DiffViewer (代码差异)       │  │
+│  │  ChatBox (输入)    │    │  TestLogViewer (测试日志)    │  │
 │  └──────────────────┘    └────────────────────────────┘  │
+│                                                          │
+│  共享页面：SkillsPage, ToolsPage, ScienceToolDetail,      │
+│           TasksPage, Settings (8 tab)                     │
 │                                                          │
 │  共享组件：MarkdownEnhancements, ToolCallView, Toast,     │
 │           MonacoEditor, Settings, UserMenu, i18n          │
@@ -39,6 +44,9 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 │  │  Session CRUD     │    │  Case CRUD + Review API      │  │
 │  │  LLM 直接调用      │    │  Claude SDK + OpenAI SDK     │  │
 │  └──────────────────┘    └────────────────────────────┘  │
+│                                                          │
+│  共享服务：Models, Statistics, Memory, Skills, Tools,      │
+│           ToolUniverse, Tasks, Webhooks, IM, File          │
 │                                                          │
 │  共享基础设施：MongoDB, Redis (SSE), JWT Auth, EventPublisher │
 └──────────────────────────────────────────────────────────┘
@@ -56,76 +64,104 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 | 数据存储 | `chat_sessions` 集合（events 内嵌） | `contribution_cases` 集合 + PostgreSQL 检查点 |
 | 典型场景 | "解释 RISC-V V 扩展的 vsetvli 指令" | "为 Linux 内核添加 Zicfiss 扩展支持" |
 
-### 架构对标决策（v3 更新）
+### ScienceClaw 完全对标清单
 
-| 决策项 | 选择 | 理由 |
-|--------|------|------|
-| 前端状态管理 | 保留 Pinia | 已有 caseStore/authStore，新增 chatStore |
-| SSE 后端（Pipeline） | Redis Pub/Sub + Stream | 多节点 pipeline 解耦 + Last-Event-ID 重连 |
-| SSE 后端（Chat） | asyncio.Queue → EventSourceResponse | 对标 ScienceClaw，单会话无需 Redis |
-| SSE 客户端 | `@microsoft/fetch-event-source` | 统一 auth headers + 自动重连 |
-| Pipeline 引擎 | raw LangGraph + 双 SDK | `deepagents` 与 human gates 不兼容 |
-| Chat 引擎 | LangChain ChatModel 直接调用 | 无需 LangGraph 编排，简单直接 |
-| UI 组件库 | reka-ui | 对标 ScienceClaw |
-| 前端迁移 | 组件级迁移 | ChatPage 拆分迁移，不整页复制 |
+以下为 ScienceClaw 全部功能模块，RV-Insights 必须全部实现：
+
+| 模块 | ScienceClaw 功能 | RV-Insights Sprint | 适配说明 |
+|------|-----------------|-------------------|----------|
+| **Auth** | login/register/refresh/logout/change-password/change-fullname/me/status/check-default-password | S0-2 ✅ + S3 补充 | 已有基础，补充 change-password/fullname/me/status |
+| **Sessions (Chat)** | CRUD/pin/title/stop/chat-SSE/share/files/upload/notifications | S3-S4 | 核心对话功能 |
+| **Models** | list/create/update/delete/detect-context-window | S4 | 多模型管理 |
+| **Statistics** | summary/models/trends/sessions | S4 + S8 增强 | Token 用量统计 |
+| **Memory** | GET/PUT personalization | S4 | 用户记忆/偏好 |
+| **Skills** | list/get/block/delete/files/read/save-from-session | S8 | RISC-V 专用 Skills |
+| **Tools** | list/get/block/delete/read/save-from-session | S8 | 外部工具管理 |
+| **ToolUniverse** | list/get/run/categories | S8 | RISC-V 工具宇宙 |
+| **Science** | optimize_prompt | S8 | Prompt 优化 |
+| **File** | download | S8 | 文件下载 |
+| **Tasks** | CRUD/validate-schedule/runs | S9 | 定时任务 |
+| **Webhooks** | CRUD/test | S9 | 通知 Webhook |
+| **IM** | Lark bind/unbind/status + WeChat start/stop/status + system settings | S9 | IM 集成 |
+| **Settings UI** | 8 tabs: Account/General/Models/Personalization/Tasks/Statistics/Notifications/IM | S4 + S8 + S9 | 完整设置面板 |
+| **Pages** | Login/Home/Chat/Share/Skills/SkillDetail/Tools/ToolDetail/ScienceToolDetail/Tasks | S3-S9 | 全部页面 |
 
 ---
 
-## 从 ScienceClaw 迁移清单（v3 — 含对话组件）
+## 从 ScienceClaw 迁移清单（v4 — 完整功能对标）
 
 ### 前端直接迁移（复制 + 适配）
 
-| ScienceClaw 源文件 | RV-Insights 目标 | 适配工作 |
-|---------------------|------------------|----------|
-| **对话核心组件** | | |
-| `pages/HomePage.vue` | `views/HomePage.vue` | **新增**：欢迎页 + 快捷提示 + ChatBox |
-| `pages/ChatPage.vue` | `views/ChatPage.vue` | **新增**：拆分迁移，提取 SSE 事件处理为 composable |
-| `components/ChatBox.vue` | `components/chat/ChatBox.vue` | **新增**：对话输入框 + 文件附件 + 模型选择 |
-| `components/ChatMessage.vue` | `components/chat/ChatMessage.vue` | **新增**：消息渲染（markdown + 代码 + mermaid） |
-| `components/SuggestedQuestions.vue` | `components/chat/SuggestedQuestions.vue` | **新增**：推荐问题 |
-| `components/LeftPanel.vue` | `components/chat/SessionPanel.vue` | **新增**：会话列表侧边栏（与 CaseListPanel 并列） |
-| `components/SessionItem.vue` | `components/chat/SessionItem.vue` | **新增**：会话列表项（pin/rename/delete） |
-| `components/ActivityPanel.vue` | `components/shared/ActivityPanel.vue` | **新增**：思考+工具时间线（Chat 和 Pipeline 共用） |
-| `components/ProcessMessage.vue` | `components/shared/ProcessGroup.vue` | **新增**：执行过程分组 |
-| `components/StepMessage.vue` | `components/shared/StepMessage.vue` | **新增**：步骤消息 |
-| `components/ToolUse.vue` | `components/shared/ToolCallView.vue` | **新增**：工具调用可视化 |
-| `components/SimpleBar.vue` | `components/ui/SimpleBar.vue` | **新增**：自定义滚动条 |
-| **对话 composables** | | |
-| `composables/useSessionNotifications.ts` | `composables/useSessionNotifications.ts` | **新增**：会话通知 SSE |
-| `composables/useSessionGrouping.ts` | `composables/useSessionGrouping.ts` | **新增**：会话时间分组 |
-| `composables/usePendingChat.ts` | `composables/usePendingChat.ts` | **新增**：跨页消息传递 |
-| `composables/useMessageGrouper.ts` | `composables/useMessageGrouper.ts` | **新增**：消息分组（process+step） |
-| `composables/useRightPanel.ts` | `composables/useRightPanel.ts` | **新增**：右侧面板状态 |
-| **对话 API** | | |
-| `api/agent.ts` | `api/chat.ts` | **新增**：Session CRUD + chatWithSession SSE |
-| **工具视图** | | |
-| `components/toolViews/ShellToolView.vue` | `components/toolViews/ShellToolView.vue` | 直接复用 |
-| `components/toolViews/FileToolView.vue` | `components/toolViews/FileToolView.vue` | 直接复用 |
-| `components/toolViews/SearchToolView.vue` | `components/toolViews/SearchToolView.vue` | 直接复用 |
-| **已迁移（v2 计划）** | | |
-| `api/client.ts` | `api/client.ts` | 已完成，需升级 SSE |
-| `composables/useAuth.ts` | `composables/useAuth.ts` | 已完成 |
-| `composables/useTheme.ts` | `composables/useTheme.ts` | 直接复用 |
-| `components/ui/*` | `components/ui/*` | 引入 reka-ui |
-| `components/MarkdownEnhancements.vue` | `components/MarkdownEnhancements.vue` | 直接复用 |
-| `components/ui/MonacoEditor.vue` | `components/ui/MonacoEditor.vue` | 直接复用 |
-| `components/settings/*` | `components/settings/*` | 裁剪版 |
-| `components/UserMenu.vue` | `components/UserMenu.vue` | 直接复用 |
-| `assets/theme.css` + `global.css` | `assets/` | 已完成 |
-| `locales/*` | `locales/` | 扩展 RV-Insights 词条 |
-| `constants/tool.ts` | `constants/tool.ts` | 工具映射 |
-| `utils/*` | `utils/*` | 直接复用 |
+| ScienceClaw 源文件 | RV-Insights 目标 | Sprint | 适配工作 |
+|---------------------|------------------|--------|----------|
+| **对话核心组件** | | | |
+| `pages/HomePage.vue` | `views/HomePage.vue` | S3 | 欢迎页 + 快捷提示 + ChatBox |
+| `pages/ChatPage.vue` | `views/ChatPage.vue` | S3 | 拆分迁移，SSE 提取为 composable |
+| `pages/SharePage.vue` | `views/SharePage.vue` | S4 | 公开分享回放 |
+| `components/ChatBox.vue` | `components/chat/ChatBox.vue` | S3 | 输入框 + 文件附件 + 模型选择 |
+| `components/ChatMessage.vue` | `components/chat/ChatMessage.vue` | S3 | Markdown + 代码 + KaTeX |
+| `components/SuggestedQuestions.vue` | `components/chat/SuggestedQuestions.vue` | S3 | 推荐问题 |
+| `components/LeftPanel.vue` | `components/chat/SessionPanel.vue` | S3 | 会话列表侧边栏 |
+| `components/SessionItem.vue` | `components/chat/SessionItem.vue` | S3 | 会话列表项 |
+| `components/ActivityPanel.vue` | `components/shared/ActivityPanel.vue` | S3 | 思考+工具时间线 |
+| `components/ProcessMessage.vue` | `components/shared/ProcessGroup.vue` | S3 | 执行过程分组 |
+| `components/StepMessage.vue` | `components/shared/StepMessage.vue` | S3 | 步骤消息 |
+| `components/ToolUse.vue` | `components/shared/ToolCallView.vue` | S3 | 工具调用可视化 |
+| `components/SimpleBar.vue` | `components/ui/SimpleBar.vue` | S3 | 自定义滚动条 |
+| **面板组件** | | | |
+| `components/PlanPanel.vue` | `components/chat/PlanPanel.vue` | S4 | 计划可视化 |
+| `components/ToolPanel.vue` | `components/chat/ToolPanel.vue` | S4 | 工具详情面板 |
+| `components/FilePanel.vue` | `components/chat/FilePanel.vue` | S4 | 文件预览面板 |
+| `components/SessionFileList.vue` | `components/chat/SessionFileList.vue` | S4 | 会话文件列表 |
+| **工具视图** | | | |
+| `components/toolViews/ShellToolView.vue` | `components/toolViews/ShellToolView.vue` | S3 | 直接复用 |
+| `components/toolViews/FileToolView.vue` | `components/toolViews/FileToolView.vue` | S3 | 直接复用 |
+| `components/toolViews/SearchToolView.vue` | `components/toolViews/SearchToolView.vue` | S3 | 直接复用 |
+| **Settings** | | | |
+| `components/settings/SettingsDialog.vue` | `components/settings/SettingsDialog.vue` | S4 | 8 tab 设置面板 |
+| `components/settings/ModelSettings.vue` | `components/settings/ModelSettings.vue` | S4+S8 | 模型管理 |
+| `components/settings/TokenStatistics.vue` | `components/settings/TokenStatistics.vue` | S4+S8 | 用量统计 |
+| `components/settings/PersonalizationSettings.vue` | `components/settings/PersonalizationSettings.vue` | S4 | 记忆编辑 |
+| `components/settings/TaskSettings.vue` | `components/settings/TaskSettings.vue` | S9 | 任务设置 |
+| `components/settings/NotificationSettings.vue` | `components/settings/NotificationSettings.vue` | S9 | Webhook 管理 |
+| `components/settings/IMSystemSettings.vue` | `components/settings/IMSettings.vue` | S9 | IM 设置 |
+| **Skills/Tools 页面** | | | |
+| `pages/SkillsPage.vue` | `views/SkillsPage.vue` | S8 | Skills 库 |
+| `pages/SkillDetailPage.vue` | `views/SkillDetailPage.vue` | S8 | Skill 文件浏览 |
+| `pages/ToolsPage.vue` | `views/ToolsPage.vue` | S8 | Tools 库 |
+| `pages/ToolDetailPage.vue` | `views/ToolDetailPage.vue` | S8 | Tool 详情 |
+| `pages/ScienceToolDetail.vue` | `views/ScienceToolDetail.vue` | S8 | ToolUniverse 详情 |
+| **Tasks 页面** | | | |
+| `pages/TasksPage.vue` | `views/TasksPage.vue` | S9 | 定时任务管理 |
+| **已迁移（v2 计划）** | | | |
+| `api/client.ts` | `api/client.ts` | S0 ✅ | 需 S3 升级 SSE |
+| `composables/useAuth.ts` | `composables/useAuth.ts` | S1 ✅ | 已完成 |
+| `composables/useTheme.ts` | `composables/useTheme.ts` | S0 ✅ | 直接复用 |
+| `assets/theme.css` + `global.css` | `assets/` | S0 ✅ | 已完成 |
 
-### 后端新增（对话模式）
+### 后端新增模块（按 Sprint）
 
-| 模块 | 说明 |
-|------|------|
-| `api/chat.py` | **新增**：Chat Session CRUD + SSE 对话端点 |
-| `services/chat_service.py` | **新增**：LLM 调用 + 工具执行 + 流式响应 |
-| `services/chat_runner.py` | **新增**：SSE 流式执行器（asyncio.Queue 模式，对标 ScienceClaw runner.py） |
-| `models/chat_schemas.py` | **新增**：ChatSession, ChatMessage, ChatEvent Pydantic 模型 |
-| `prompts/chat_system.py` | **新增**：RISC-V 专家对话 System Prompt |
-| MongoDB `chat_sessions` 集合 | **新增**：对话会话存储（events 内嵌） |
+| 模块 | Sprint | 说明 |
+|------|--------|------|
+| `api/chat.py` + `services/chat_runner.py` | S3 | Chat Session CRUD + SSE 流式对话 |
+| `models/chat_schemas.py` | S3 | ChatSession/ChatMessage/ChatEvent |
+| `prompts/chat_system.py` | S3 | RISC-V 专家对话 System Prompt |
+| `api/models.py` + `services/model_factory.py` | S4 | 多模型管理 + 工厂 |
+| `api/memory.py` | S4 | 用户记忆/偏好 |
+| `api/statistics.py` | S4+S8 | Token 用量统计 |
+| `adapters/claude_adapter.py` | S5 | Claude Agent SDK 适配器 |
+| `adapters/openai_adapter.py` | S5 | OpenAI Agents SDK 适配器 |
+| `pipeline/prompts/*.py` | S5-S7 | 各阶段 Agent System Prompt |
+| `pipeline/tools/*.py` | S5-S7 | 各阶段 Agent 工具集 |
+| `services/artifact_manager.py` | S6 | 产物管理 |
+| `services/sandbox_client.py` | S7 | Sandbox REST 客户端 |
+| `api/skills.py` + `services/skill_loader.py` | S8 | Skills CRUD + 热加载 |
+| `api/tools.py` + `services/tool_loader.py` | S8 | External Tools CRUD |
+| `api/tooluniverse.py` | S8 | ToolUniverse API |
+| `api/science.py` + `api/file.py` | S8 | Prompt 优化 + 文件下载 |
+| `task-service/` | S9 | Celery 定时任务微服务 |
+| `api/tasks.py` + `api/webhooks.py` | S9 | Tasks + Webhooks |
+| `api/im.py` | S9 | IM 集成 (Lark/WeChat) |
 
 ---
 
@@ -137,41 +173,38 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 ---
 
-### Sprint 3：ScienceClaw 前端迁移 + 对话模式基础（Week 3）
+### Sprint 3：共享基础设施 + 对话模式基础（Week 3）
 
 > 目标：迁移 ScienceClaw 核心 UI 组件 + 共享基础设施，搭建对话模式骨架（前后端）。
 > 验收标准：① 对话模式可用：HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话；② 共享组件（ActivityPanel/ToolCallView/Markdown）就绪。
-> 策略：先建对话模式（复用 ScienceClaw 最多），再在 Sprint 4+ 用共享组件增强 Pipeline 模式。
+> 策略：先建对话模式（复用 ScienceClaw 最多），再在后续 Sprint 用共享组件增强 Pipeline 模式。
 
-#### 前端：共享组件迁移（Day 1-2）
+#### 前端：共享组件迁移（Day 1-2）— 19h
 
-- [ ] 前端：引入 reka-ui + lucide-vue-next + simplebar-vue 依赖 `~0.5h`
-- [ ] 前端：迁移 UI 原语（dialog/popover/select/toast/SimpleBar）`~2h`
+- [ ] 前端：引入 reka-ui + lucide-vue-next + simplebar-vue + marked + highlight.js + dompurify + katex + mermaid + mitt + vue-i18n + monaco-editor `~1h`
+- [ ] 前端：迁移 UI 原语（Dialog/Popover/Select/Toast/SimpleBar）`~2h`
   - 源：`ScienceClaw/frontend/src/components/ui/`
-- [ ] 前端：迁移 utils 工具集（toast/eventBus/dom/time/markdownFormatter）`~1h`
-- [ ] 前端：升级 SSE 客户端为 `@microsoft/fetch-event-source` `~2h`
-  - 产出：统一 SSE 封装，Chat 和 Pipeline 共用
-- [ ] 前端：迁移 MarkdownEnhancements（代码高亮 + mermaid + KaTeX）`~1.5h`
+- [ ] 前端：迁移 utils 工具集（toast/eventBus/dom/time/markdownFormatter）`~1.5h`
+- [ ] 前端：升级 SSE 客户端为统一封装，Chat 和 Pipeline 共用 `~2.5h`
+  - 产出：统一 SSE 封装，支持 auth headers + 自动重连 + AbortController
+- [ ] 前端：迁移 MarkdownEnhancements（代码高亮 + mermaid + KaTeX + DOMPurify）`~2h`
 - [ ] 前端：迁移 ActivityPanel（思考+工具执行时间线）`~3h`
   - 产出：`components/shared/ActivityPanel.vue`，Chat 和 Pipeline 共用
-- [ ] 前端：迁移 ProcessGroup + StepMessage `~2.5h`
+- [ ] 前端：迁移 ProcessGroup + StepMessage `~2h`
   - 产出：`components/shared/ProcessGroup.vue` + `StepMessage.vue`
-- [ ] 前端：迁移 ToolCallView + toolViews + constants/tool.ts `~3h`
+- [ ] 前端：迁移 ToolCallView + toolViews + constants/tool.ts `~2.5h`
   - 产出：工具调用可视化 + Shell/File/Search 视图 + 工具映射常量
-- [ ] 前端：迁移 MonacoEditor + UserMenu + LanguageSelector `~1.5h`
-- [ ] 前端：迁移 i18n 框架 + 中英文翻译 `~1.5h`
+- [ ] 前端：迁移 MonacoEditor + i18n 框架 + 中英文翻译 `~2.5h`
 
-**共享组件工时：~19h**
-
-#### 前端：对话模式页面（Day 2-4）
+#### 前端：对话模式页面（Day 2-4）— 25.5h
 
 - [ ] 前端：HomePage 迁移（欢迎页 + 快捷提示 + ChatBox）`~3h`
   - 源：`ScienceClaw/frontend/src/pages/HomePage.vue`
   - 产出：`views/HomePage.vue`，欢迎语 + 快捷 prompt 卡片 + 底部 ChatBox
-- [ ] 前端：ChatBox 组件迁移（对话输入框）`~2h`
+- [ ] 前端：ChatBox 组件迁移（对话输入框）`~2.5h`
   - 源：`ScienceClaw/frontend/src/components/ChatBox.vue`
   - 产出：`components/chat/ChatBox.vue`，支持文本输入 + 文件附件 + 发送/停止
-- [ ] 前端：ChatMessage 组件迁移（消息渲染）`~2.5h`
+- [ ] 前端：ChatMessage 组件迁移（消息渲染）`~3h`
   - 源：`ScienceClaw/frontend/src/components/ChatMessage.vue`
   - 产出：`components/chat/ChatMessage.vue`，Markdown + 代码高亮 + 逐 token 打字机效果
 - [ ] 前端：ChatPage 拆分迁移 `~5h`
@@ -183,24 +216,23 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
   - 源：`ScienceClaw/frontend/src/components/LeftPanel.vue` + `SessionItem.vue`
   - 产出：`components/chat/SessionPanel.vue` + `SessionItem.vue`
   - 功能：会话列表 + 时间分组 + pin/rename/delete + 搜索
-- [ ] 前端：SuggestedQuestions 组件 `~1h`
+- [ ] 前端：SuggestedQuestions 组件 `~0.5h`
 - [ ] 前端：useChatSession composable（SSE 事件处理核心）`~3h`
   - 产出：管理 SSE 连接、事件分发、消息累积、工具调用追踪、停止/重连
 - [ ] 前端：useSessionGrouping + useSessionNotifications + usePendingChat `~2h`
 - [ ] 前端：chatStore (Pinia) `~1.5h`
   - 产出：会话列表 + 当前会话 + 消息列表 + 连接状态
-- [ ] 前端：api/chat.ts（Session CRUD + chatWithSession SSE）`~1.5h`
-- [ ] 前端：路由更新 `~1h`
+- [ ] 前端：api/chat.ts（Session CRUD + chatWithSession SSE）+ 路由更新 `~2h`
   - 新增：`/` → HomePage, `/chat/:id` → ChatPage
   - 调整：`/cases` 和 `/cases/:id` 保持不变
   - 主布局：左侧导航切换 Chat / Pipeline 两个模式
 
-**对话模式前端工时：~25.5h**
+#### 后端：对话模式服务（Day 2-5，与前端并行）— 17.5h
 
-#### 后端：对话模式服务（Day 2-5，与前端并行）
-
-- [ ] 后端：ChatSession MongoDB 模型 + 集合 `~2h`
-  - 产出：`chat_sessions` 集合，字段：session_id, user_id, title, status, events[], model, created_at, updated_at, pinned, is_shared, latest_message
+- [ ] 后端：ChatSession/ChatMessage/ChatEvent Pydantic 模型 `~1.5h`
+  - 产出：`models/chat_schemas.py`
+- [ ] 后端：chat_sessions MongoDB 集合 + 索引 `~1h`
+  - 字段：session_id, user_id, title, status, events[], model, created_at, updated_at, pinned, is_shared, latest_message
   - 索引：user_id + updated_at, status, is_shared
 - [ ] 后端：Chat Session CRUD API `~3h`
   - 产出：PUT /sessions（创建）, GET /sessions（列表）, GET /sessions/:id, DELETE /sessions/:id, PATCH /sessions/:id/pin, PATCH /sessions/:id/title
@@ -209,14 +241,12 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 - [ ] 后端：ChatRunner 流式执行器 `~5h`
   - 对标：`ScienceClaw/backend/deepagent/runner.py`
   - 模式：asyncio.Queue → background worker → LLM astream() → SSE events
-  - 事件类型：message_chunk, tool, step, thinking, plan, done, error, title
-- [ ] 后端：POST /sessions/:id/chat SSE 端点 `~3h`
-- [ ] 后端：POST /sessions/:id/stop 端点 `~1h`
-- [ ] 后端：Session 通知 SSE 端点 `~1.5h`
+  - 事件类型：message_chunk, message_chunk_done, thinking, tool, step, done, error, title
+- [ ] 后端：POST /sessions/:id/chat SSE 端点 + POST /sessions/:id/stop `~3h`
+- [ ] 后端：GET /sessions/notifications SSE 端点 `~1.5h`
+- [ ] 后端：Auth 补充端点：change-password, change-fullname, me, status `~1h`
 
-**后端对话模式工时：~17.5h**
-
-#### 联调验收（Day 5）
+#### 联调验收（Day 5）— 3h
 
 - [ ] 联调：HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 `~3h`
 
@@ -224,116 +254,242 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 ---
 
-### Sprint 4：Explorer Agent + Pipeline UI 增强（Week 4-5 前半）
+### Sprint 4：对话模式完善 + Model 管理（Week 4）
 
-> 目标：Explorer Agent 真实 LLM 调用 + 用共享组件增强 Pipeline UI。
-> 验收标准：Pipeline 启动 → Explorer 运行 → 前端实时显示 → 审核通过。
+> 目标：Chat Mode 功能完善（工具调用、计划面板、文件面板、分享），Model CRUD，Statistics 基础。
+> 验收标准：① 工具调用在 ActivityPanel 可见；② 模型切换生效；③ 会话分享可用；④ Statistics 页面显示用量。
 
-#### 后端
+#### 后端（20h）
 
-- [ ] 后端：ClaudeAgentAdapter `~4h`
-- [ ] 后端：Explorer Prompt + explore_node 真实实现 `~6h`
-- [ ] 后端：parse_agent_output + verify_exploration_claims `~4.5h`
-- [ ] 后端：PatchworkClient `~2h`
-- [ ] 后端：explore_node 事件发布 + 统一 ApiResponse `~2.5h`
+- [ ] 后端：ChatRunner 工具集成 — web_search, code_analysis `~4h`
+- [ ] 后端：ChatRunner Plan tracking middleware `~2h`
+- [ ] 后端：Model CRUD API — GET list, POST create, PUT update, DELETE, POST detect-context-window `~3h`
+- [ ] 后端：Model 配置模型 + 多模型工厂（OpenAI/Anthropic/DeepSeek）`~4h`
+  - 产出：`models/model_schemas.py` + `services/model_factory.py`
+- [ ] 后端：Session share/unshare + shared 公开视图 `~2h`
+- [ ] 后端：Session files + upload 端点 `~2h`
+- [ ] 后端：Memory API — GET/PUT 用户记忆 `~1.5h`
+- [ ] 后端：Statistics API — summary/models/trends/sessions `~1.5h`
 
-**后端工时：~19h**
+#### 前端（22h）
 
-#### 前端
+- [ ] 前端：PlanPanel（多步骤计划可视化 + 进度）`~2.5h`
+- [ ] 前端：ToolPanel + FilePanel + SessionFileList `~7h`
+- [ ] 前端：SharePage + ShareLayout（公开分享回放）`~3h`
+- [ ] 前端：UserMenu（用户菜单 + Settings 触发）`~1h`
+- [ ] 前端：Settings 面板 — 6 个 tab: Account/General/Models/Personalization/Statistics/Notifications `~5h`
+- [ ] 前端：useSettingsDialog + useRightPanel + useFilePanel + useMessageGrouper composables `~2.5h`
+- [ ] 前端：api/models.ts + api/memory.ts + api/statistics.ts `~1h`
 
-- [ ] 前端：重构 AgentEventLog 基于共享组件 `~3h`
-- [ ] 前端：移除 Pipeline Mock API `~2h`
-- [ ] 前端：ContributionCard + EvidenceChain `~3.5h`
-- [ ] 前端：CostSummary `~1.5h`
-- [ ] 联调 `~3h`
+#### 联调（3h）
 
-**前端工时：~13h**
+- [ ] 联调：Chat 工具调用 → ActivityPanel → PlanPanel → Statistics `~3h`
 
-**Sprint 4 总工时估算：~32h**
+**Sprint 4 总工时估算：~45h**
 
 ---
 
-### Sprint 5：Planner + Developer + DiffViewer（Week 5 后半-6 前半）
+### Sprint 5：Explorer + Planner Agent 真实 LLM（Week 5）
 
-> 验收标准：Explore → Plan → Develop 端到端。
+> 目标：Pipeline 前两阶段真实 LLM 调用。Explorer 使用 Claude Agent SDK，Planner 使用 OpenAI Agents SDK。
+> 验收标准：Pipeline 启动 → Explorer 真实运行 → 人工审核通过 → Planner 生成方案 → 人工审核通过。
 
-#### 后端
+#### 后端（24h）
 
-- [ ] 后端：OpenAIAgentAdapter `~3h`
-- [ ] 后端：Planner Agent + plan_node `~6h`
-- [ ] 后端：Developer Agent + develop_node `~6h`
+- [ ] 后端：AgentAdapter 抽象基类 `~1h`
+  - 产出：`adapters/__init__.py`
+- [ ] 后端：ClaudeAgentAdapter（Anthropic SDK 封装）`~4h`
+  - 产出：`adapters/claude_adapter.py`
+- [ ] 后端：OpenAIAgentAdapter（OpenAI Agents SDK 封装）`~3.5h`
+  - 产出：`adapters/openai_adapter.py`
+- [ ] 后端：Explorer Prompt + Tools `~5h`
+  - 产出：`pipeline/prompts/explorer.py` + `pipeline/tools/explorer_tools.py`
+  - 工具：web_search, patchwork_search, code_grep, mailing_list_search
+- [ ] 后端：explore_node 真实实现 `~4h`
+- [ ] 后端：Planner Prompt + plan_node 真实实现 `~4.5h`
+  - 产出：`pipeline/prompts/planner.py`
+- [ ] 后端：EventPublisher 扩展 — thinking/tool_call/tool_result 细粒度事件 `~1h`
+- [ ] 后端：PatchworkClient `~1h`
+  - 产出：`datasources/patchwork.py`
+
+#### 前端（13h）
+
+- [ ] 前端：重构 AgentEventLog → 使用共享 ActivityPanel `~3h`
+- [ ] 前端：ContributionCard + EvidenceChain `~4h`
+- [ ] 前端：ExecutionPlanView + CostSummary `~4h`
+- [ ] 前端：移除 Pipeline Mock API，连接真实后端 `~2h`
+
+#### 联调（3h）
+
+- [ ] 联调：Create case → Start → Explorer 真实运行 → Review → Planner 生成方案 `~3h`
+
+**Sprint 5 总工时估算：~40h**
+
+---
+
+### Sprint 6：Developer + Reviewer Agent + DiffViewer（Week 6）
+
+> 目标：开发和审核阶段真实 LLM + 迭代循环。Monaco Diff Editor 展示补丁。
+> 验收标准：Plan 通过 → Developer 生成补丁 → Reviewer 发现问题 → Developer 修复 → Reviewer 通过。
+
+#### 后端（22h）
+
+- [ ] 后端：Developer Prompt + Tools `~5h`
+  - 产出：`pipeline/prompts/developer.py` + `pipeline/tools/developer_tools.py`
+  - 工具：file_write, file_edit, bash_exec, git_diff
+- [ ] 后端：develop_node 真实实现 `~5h`
+- [ ] 后端：Reviewer Prompt + Tools `~4h`
+  - 产出：`pipeline/prompts/reviewer.py` + `pipeline/tools/reviewer_tools.py`
+  - 工具：checkpatch_run, code_read, grep_search
+- [ ] 后端：review_node 真实实现（确定性+LLM 双轨）`~4h`
 - [ ] 后端：ArtifactManager `~2.5h`
-- [ ] 后端：develop_node 事件发布 `~1.5h`
-- [ ] 验收 `~2h`
+  - 产出：`services/artifact_manager.py`
+- [ ] 后端：Develop↔Review 迭代循环验证 + escalate 逻辑 `~1.5h`
 
-**后端工时：~21h**
+#### 前端（18h）
 
-#### 前端
+- [ ] 前端：DiffViewer（Monaco Diff Editor，side-by-side + inline）`~5h`
+- [ ] 前端：PatchFileList + ReviewFindingsView `~5h`
+- [ ] 前端：IterationBadge + IterationTimeline `~3h`
+- [ ] 前端：CaseDetailPage 更新 — DiffViewer 集成 `~2h`
+- [ ] 前端：ReviewPanel 更新 — findings 行内高亮 `~3h`
 
-- [ ] 前端：ExecutionPlanView `~4h`
-- [ ] 前端：DiffViewer（Monaco）`~5h`
-- [ ] 前端：补丁文件查看器 + IterationBadge `~3h`
-- [ ] 联调 `~3h`
+#### 联调（3h）
 
-**前端工时：~15h**
+- [ ] 联调：Plan 通过 → Developer 生成补丁 → DiffViewer → Reviewer 迭代 → 通过 `~3h`
 
-**Sprint 5 总工时估算：~36h**
-
----
-
-### Sprint 6：Review + Test + 迭代循环（Week 6 后半-7 前半）
-
-> 验收标准：完整 5 阶段 Pipeline + Develop ↔ Review 迭代。
-
-#### 后端
-
-- [ ] 后端：Reviewer Agent + review_node（确定性+LLM 双轨）`~8h`
-- [ ] 后端：checkpatch.pl 集成 `~3h`
-- [ ] 后端：迭代循环验证 + escalate_node `~3.5h`
-- [ ] 后端：Tester Agent + test_node `~4h`
-- [ ] 验收 `~2h`
-
-**后端工时：~20.5h**
-
-#### 前端
-
-- [ ] 前端：ReviewFindingsView + DiffViewer 行内高亮 `~6h`
-- [ ] 前端：TestResultSummary + TestLogViewer `~3h`
-- [ ] 前端：迭代历史时间线 `~3h`
-- [ ] 联调 `~3h`
-
-**前端工时：~15h**
-
-**Sprint 6 总工时估算：~35.5h**
+**Sprint 6 总工时估算：~43h**
 
 ---
 
-### Sprint 7：测试 + 部署 + 收尾（Week 7 后半）
+### Sprint 7：Tester Agent + 全 Pipeline E2E（Week 7）
 
-> 验收标准：`docker compose up` → 对话 + Pipeline 双模式均可用。
+> 目标：完整 5 阶段 Pipeline 端到端 + 测试覆盖。
+> 验收标准：完整 Pipeline 从 Explore 到 Test 全部通过，测试覆盖率 70%+。
 
-- [ ] 后端：单元测试（routes + contracts + adapters + chat_runner）`~7h`
-- [ ] 后端：集成测试（Pipeline + Chat with testcontainers）`~5h`
-- [ ] 前端：错误处理 + 响应式 + i18n 完善 + Settings 迁移 `~8.5h`
-- [ ] 部署：Docker 优化 + Nginx 双 SSE 路径 + 冒烟测试 + 文档 `~10.5h`
+#### 后端（18h）
 
-**Sprint 7 总工时估算：~31h**
+- [ ] 后端：Tester Prompt + Tools `~4.5h`
+  - 产出：`pipeline/prompts/tester.py` + `pipeline/tools/tester_tools.py`
+  - 工具：bash_exec (cross-compile), qemu_boot, test_runner
+- [ ] 后端：test_node 真实实现 `~4h`
+- [ ] 后端：Sandbox REST 客户端 `~2h`
+  - 产出：`services/sandbox_client.py`
+- [ ] 后端：集成测试 — 全 Pipeline (mocked LLM) `~4h`
+- [ ] 后端：单元测试 — adapters + chat_runner + artifact_manager `~3.5h`
+
+#### 前端（14h）
+
+- [ ] 前端：TestResultSummary + TestLogViewer `~4.5h`
+- [ ] 前端：CompletionCard（补丁下载 + commit message）`~2h`
+- [ ] 前端：错误处理 + 响应式 + loading states `~4.5h`
+- [ ] 前端：单元测试 — useChatSession, useCaseEvents `~3h`
+
+#### 联调（4h）
+
+- [ ] 联调：完整 5 阶段 Pipeline E2E `~2.5h`
+- [ ] 压力测试：并发 Pipeline + Chat `~1.5h`
+
+**Sprint 7 总工时估算：~36h**
+
+---
+
+### Sprint 8：Skills + Tools + ToolUniverse + 完整 Settings（Week 8）
+
+> 目标：ScienceClaw 二级功能对标 — Skills/Tools/ToolUniverse/完整 Settings。
+> 验收标准：Skills 页面可用、ToolUniverse 可运行、Settings 8 tab 完整。
+
+#### 后端（18h）
+
+- [ ] 后端：Skills CRUD + 热加载 `~5h`
+  - 产出：`api/skills.py` + `services/skill_loader.py`
+- [ ] 后端：3 个 RISC-V 初始 Skill `~2h`
+  - 产出：`skills/` 目录
+- [ ] 后端：External Tools CRUD + 热加载 `~4h`
+  - 产出：`api/tools.py` + `services/tool_loader.py`
+- [ ] 后端：ToolUniverse API — list/get/run/categories `~3h`
+  - 产出：`api/tooluniverse.py`
+- [ ] 后端：optimize_prompt 端点 `~1h`
+  - 产出：`api/science.py`
+- [ ] 后端：文件下载端点 `~1h`
+  - 产出：`api/file.py`
+- [ ] 后端：Statistics 增强 — 每模型成本、趋势 `~2h`
+
+#### 前端（20h）
+
+- [ ] 前端：SkillsPage + SkillDetailPage `~5.5h`
+- [ ] 前端：ToolsPage + ToolDetailPage `~4.5h`
+- [ ] 前端：ScienceToolDetail（ToolUniverse 工具详情 + 参数表单 + 运行）`~2h`
+- [ ] 前端：ModelSettings（Model CRUD + context window 检测）`~2h`
+- [ ] 前端：TokenStatistics（用量图表 + 时间范围 + 货币切换）`~2.5h`
+- [ ] 前端：AccountSettings + ChangePassword + PersonalizationSettings `~2.5h`
+- [ ] 前端：api/skills.ts + api/tools.ts + api/tooluniverse.ts `~1h`
+
+#### 联调（2h）
+
+- [ ] 联调：Skill 创建 → 出现在 Chat 工具列表 → 对话中使用 `~2h`
+
+**Sprint 8 总工时估算：~40h**
+
+---
+
+### Sprint 9：Scheduled Tasks + IM + 部署收尾（Week 9）
+
+> 目标：最终 ScienceClaw 功能（定时任务、Webhooks、IM），生产部署，文档。
+> 验收标准：`docker compose up` → 对话 + Pipeline 双模式 + 全部功能可用。
+
+#### 后端（20h）
+
+- [ ] 后端：Celery 定时任务微服务 `~4h`
+  - 产出：`task-service/` 目录
+- [ ] 后端：Tasks API — CRUD + validate-schedule + runs `~3h`
+  - 产出：`api/tasks.py`
+- [ ] 后端：Webhooks API — CRUD + test `~2h`
+  - 产出：`api/webhooks.py`
+- [ ] 后端：IM API — Lark bind/unbind/status + WeChat start/stop/status + system settings `~2h`
+  - 产出：`api/im.py`
+- [ ] 后端：会话通知 pub/sub 服务 `~1.5h`
+  - 产出：`services/notification_service.py`
+- [ ] 后端：安全加固 — rate limiting + input validation `~2h`
+- [ ] 后端：Docker 优化 — multi-stage build + health checks `~2h`
+- [ ] 后端：Nginx 双 SSE 路径 + OpenAPI 文档更新 `~2.5h`
+- [ ] 后端：部署文档 + .env template `~1h`
+
+#### 前端（16h）
+
+- [ ] 前端：TasksPage（定时任务管理，三栏布局）`~3h`
+- [ ] 前端：TaskConfigPage（任务配置 + NLP 调度输入）`~2.5h`
+- [ ] 前端：TaskSettings + NotificationSettings `~2.5h`
+- [ ] 前端：IMSettings（Lark/WeChat 绑定 UI）`~1.5h`
+- [ ] 前端：LanguageSelector + i18n 全量翻译 `~2.5h`
+- [ ] 前端：无障碍审计 + UI 动效 + 空状态 + error boundaries `~4h`
+
+#### 部署联调（6h）
+
+- [ ] 部署：Docker Compose 添加 task-service (Celery + Redis broker) `~1h`
+- [ ] 冒烟测试：全流程 register → chat → pipeline → complete `~2h`
+- [ ] 性能测试：10 并发 chat + 3 并发 pipeline `~1.5h`
+- [ ] README 更新：setup guide + architecture diagram `~1.5h`
+
+**Sprint 9 总工时估算：~42h**
 
 ---
 
 ## 工时汇总
 
-| Sprint | 后端 | 前端 | 合计 | 状态 |
-|--------|------|------|------|------|
-| Sprint 0 | ~10h | ~3.5h | ~19h | ✅ 已完成 |
-| Sprint 1 | ~19h | ~15h | ~34h | ✅ 已完成 |
-| Sprint 2 | ~23h | ~23.5h | ~46.5h | ✅ 已完成 |
-| Sprint 3 | ~17.5h | ~44.5h | ~65h | 🔲 待开始 |
-| Sprint 4 | ~19h | ~13h | ~32h | 🔲 待开始 |
-| Sprint 5 | ~21h | ~15h | ~36h | 🔲 待开始 |
-| Sprint 6 | ~20.5h | ~15h | ~35.5h | 🔲 待开始 |
-| Sprint 7 | ~12h | ~19h | ~31h | 🔲 待开始 |
-| **总计** | **~142h** | **~148.5h** | **~299h** | — |
+| Sprint | 后端 | 前端 | 联调 | 合计 | 状态 |
+|--------|------|------|------|------|------|
+| Sprint 0 | ~10h | ~3.5h | ~5.5h | ~19h | ✅ 已完成 |
+| Sprint 1 | ~19h | ~15h | — | ~34h | ✅ 已完成 |
+| Sprint 2 | ~23h | ~23.5h | — | ~46.5h | ✅ 已完成 |
+| Sprint 3 | ~17.5h | ~44.5h | ~3h | ~65h | 🔲 待开始 |
+| Sprint 4 | ~20h | ~22h | ~3h | ~45h | 🔲 待开始 |
+| Sprint 5 | ~24h | ~13h | ~3h | ~40h | 🔲 待开始 |
+| Sprint 6 | ~22h | ~18h | ~3h | ~43h | 🔲 待开始 |
+| Sprint 7 | ~18h | ~14h | ~4h | ~36h | 🔲 待开始 |
+| Sprint 8 | ~18h | ~20h | ~2h | ~40h | 🔲 待开始 |
+| Sprint 9 | ~20h | ~16h | ~6h | ~42h | 🔲 待开始 |
+| **总计** | **~191.5h** | **~189.5h** | **~30h** | **~411h** | — |
 
 ---
 
@@ -343,11 +499,13 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 |--------|------|--------|----------|
 | M0 | Sprint 0 ✅ | 项目骨架 | `docker compose up` 全绿 |
 | M1 | Sprint 2 ✅ | Pipeline 引擎 + 案例 UI | SSE 事件流通 |
-| M2 | Sprint 3 | **对话模式可用** + 共享组件 | 多轮对话流式响应，对标 ScienceClaw |
-| M3 | Sprint 4 | Explorer E2E | Explorer 真实运行 |
-| M4 | Sprint 5 | 3 阶段 MVP | Explore → Plan → Develop |
-| M5 | Sprint 6 | 5 阶段完整 Pipeline | Review 迭代 + Test |
-| M6 | Sprint 7 | 可部署版本（双模式） | 对话 + Pipeline 均可用 |
+| M2 | Sprint 3 | **对话模式 MVP** + 共享组件 | 多轮对话流式响应，对标 ScienceClaw |
+| M3 | Sprint 4 | **对话模式完整** | 工具+计划+统计+分享+模型管理 |
+| M4 | Sprint 5 | Explorer + Planner E2E | 真实 LLM Pipeline 前 2 阶段 |
+| M5 | Sprint 6 | Dev + Review 迭代 | 补丁生成 + DiffViewer + 迭代循环 |
+| M6 | Sprint 7 | 完整 5 阶段 Pipeline | 全 Pipeline E2E + 测试覆盖 70%+ |
+| M7 | Sprint 8 | **ScienceClaw 功能对标** | Skills + Tools + ToolUniverse + Settings 8 tab |
+| M8 | Sprint 9 | **生产就绪（全功能）** | Docker 部署 + Tasks + IM + 全功能可用 |
 
 ---
 
@@ -355,11 +513,15 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 | 风险 | 影响 | 概率 | 缓解措施 |
 |------|------|------|----------|
-| Sprint 3 工时超预期（65h） | 高 | 中 | 允许延长 2-3 天，共享组件优先 |
-| Claude Agent SDK 不稳定 | 高 | 中 | Sprint 4 优先验证，准备降级方案 |
+| Sprint 3 工时超预期（65h） | 高 | 中 | 共享组件从 ScienceClaw 复制+适配，前后端并行 |
+| Claude Agent SDK 不稳定 | 高 | 中 | Sprint 5 优先验证，准备降级到 raw Anthropic API |
 | ChatPage 1300 行迁移复杂 | 中 | 中 | 拆分为 composable，不 1:1 复制 |
 | Chat 和 Pipeline SSE 冲突 | 中 | 低 | 独立 SSE 端点，共享客户端封装 |
 | 对话模式 LLM 成本 | 中 | 中 | 默认 gpt-4o-mini，可切换 |
+| OpenAI Agents SDK Breaking Changes | 中 | 低 | 适配器层隔离 + 版本锁定 |
+| LLM 开发期成本 | 中 | 中 | 开发期用 gpt-4o-mini/claude-haiku，CostCircuitBreaker 已有 |
+| IM 集成复杂度 | 中 | 中 | Sprint 9 实现 stub 级别，后续迭代完善 |
+| QEMU 沙箱安全 | 高 | 低 | MVP 仅编译验证，完整沙箱 Phase 2 |
 
 ---
 
@@ -374,3 +536,36 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 | Pipeline 存储 | MongoDB `contribution_cases` + PG 检查点 | LangGraph 需要 |
 | 共享组件 | ActivityPanel/ToolCallView/Markdown | 双模式复用 |
 | 路由 | `/` + `/chat/:id` / `/cases` + `/cases/:id` | 清晰分离 |
+| UI 组件库 | reka-ui | 对标 ScienceClaw |
+| 前端迁移 | 组件级迁移 | ChatPage 拆分迁移，不整页复制 |
+| Agent SDK | Claude (explore/develop/test) + OpenAI (plan/review) | 各取所长 |
+| 编排层 | LangGraph StateGraph | 统一状态管理 + 检查点 |
+| 定时任务 | Celery + Redis broker | 对标 ScienceClaw task-service |
+| IM 集成 | Lark + WeChat bridge | 完全对标 ScienceClaw |
+
+---
+
+## 依赖关系图
+
+```
+Sprint 0-2 ✅ (骨架 + Auth + Case + Pipeline 引擎)
+    │
+    ├──→ Sprint 3 (共享组件 + Chat 基础)
+    │        │
+    │        ├──→ Sprint 4 (Chat 完善 + Models + Statistics)
+    │        │        │
+    │        │        └──→ Sprint 5 (Explorer + Planner 真实 LLM)
+    │        │                 │
+    │        │                 └──→ Sprint 6 (Developer + Reviewer + DiffViewer)
+    │        │                          │
+    │        │                          └──→ Sprint 7 (Tester + 全 Pipeline E2E)
+    │        │                                   │
+    │        │                                   └──→ Sprint 8 (Skills + Tools + ToolUniverse)
+    │        │                                            │
+    │        │                                            └──→ Sprint 9 (Tasks + IM + 部署)
+    │        │
+    │        └──→ Sprint 8 (共享组件被 Skills/Tools 页面复用)
+    │
+    └──→ Sprint 4 (Model 管理被 Sprint 5 model_factory 依赖)
+```
+
