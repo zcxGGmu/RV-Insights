@@ -1,0 +1,76 @@
+.code-block-wrapper {
+  @apply my-3 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden;
+}
+
+.code-block-header {
+  @apply flex items-center justify-between px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-xs;
+}
+
+.code-lang {
+  @apply text-gray-500 dark:text-gray-400 font-mono;
+}
+
+.copy-btn {
+  @apply px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 cursor-pointer transition-colors;
+}
+
+.code-block-body {
+  @apply flex overflow-x-auto text-sm;
+}
+
+.code-block-body.collapsed {
+  @apply max-h-[480px] overflow-hidden;
+}
+
+.code-block-body .line-numbers {
+  @apply py-3 px-2 text-right select-none border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900;
+}
+
+.code-block-body .line-numbers code {
+  @apply text-gray-400 dark:text-gray-600 text-xs leading-relaxed;
+}
+
+.code-block-body .code-content {
+  @apply py-3 px-4 flex-1 min-w-0;
+}
+
+.code-block-body .code-content code {
+  @apply text-sm leading-relaxed;
+}
+
+.expand-btn {
+  @apply w-full py-1.5 text-xs text-center text-gray-500 hover:text-gray-700 bg-gray-50 dark:bg-gray-900 dark:hover:text-gray-300 border-t border-gray-200 dark:border-gray-700 cursor-pointer;
+}
+
+.mermaid-wrapper {
+  @apply my-4 flex justify-center;
+}
+
+.mermaid-wrapper svg {
+  @apply max-w-full;
+}
+
+.mermaid-error {
+  @apply p-3 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs;
+}
+
+.markdown-body table {
+  @apply w-full border-collapse my-3;
+}
+
+.markdown-body th,
+.markdown-body td {
+  @apply border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-sm;
+}
+
+.markdown-body th {
+  @apply bg-gray-50 dark:bg-gray-800 font-medium;
+}
+
+.markdown-body blockquote {
+  @apply border-l-4 border-gray-300 dark:border-gray-600 pl-4 my-3 text-gray-600 dark:text-gray-400;
+}
+
+.markdown-body img {
+  @apply max-w-full rounded-lg my-3;
+}
