@@ -9,7 +9,9 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/MainLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: '', name: 'cases', component: () => import('../views/CaseListPage.vue') },
+      { path: '', name: 'dashboard', component: () => import('../views/HomePage.vue') },
+      { path: 'chat/:id', name: 'chat', component: () => import('../views/ChatPage.vue') },
+      { path: 'cases', name: 'cases', component: () => import('../views/CaseListPage.vue') },
       { path: 'cases/:id', name: 'case-detail', component: () => import('../views/CaseDetailPage.vue') }
     ]
   }
