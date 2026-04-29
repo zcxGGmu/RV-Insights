@@ -24,11 +24,15 @@ async def code_analysis(code: str, analysis_type: str = "explain") -> str:
     lang = _detect_language(code)
 
     if analysis_type == "explain":
+        comment_count = sum(
+            1 for line in lines
+            if line.strip().startswith(("#", "//", "/*"))
+        )
         return (
             f"Code analysis ({lang}, {len(lines)} lines):\n"
             f"This code appears to be written in {lang}. "
             f"It contains {len(lines)} lines with "
-            f"{sum(1 for l in lines if l.strip().startswith(('#', '//', '/*')))} comment lines."
+            f"{comment_count} comment lines."
         )
 
     if analysis_type == "review":

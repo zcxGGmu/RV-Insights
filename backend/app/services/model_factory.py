@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from pydantic import BaseModel
@@ -27,8 +27,8 @@ KNOWN_CONTEXT_WINDOWS: dict[str, int] = {
 class ModelConfig(BaseModel):
     provider: str = "openai"
     model_name: str = "gpt-4o"
-    base_url: Optional[str] = None
-    api_key: Optional[str] = None
+    base_url: str | None = None
+    api_key: str | None = None
     temperature: float = 0.7
     context_window: int = 128000
 
@@ -66,7 +66,7 @@ def create_chat_model(config: ModelConfig) -> Any:
 
 
 async def resolve_model_config(
-    model_config_id: Optional[str],
+    model_config_id: str | None,
     user_id: str,
     db: Any,
 ) -> ModelConfig:
@@ -102,7 +102,7 @@ async def verify_model_connection(config: ModelConfig) -> bool:
         return False
 
 
-def detect_context_window(model_name: str) -> Optional[int]:
+def detect_context_window(model_name: str) -> int | None:
     return KNOWN_CONTEXT_WINDOWS.get(model_name)
 
 

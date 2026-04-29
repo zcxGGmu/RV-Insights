@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import time
-from typing import Any, AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import shortuuid
 from langchain_core.messages import (
@@ -88,7 +89,7 @@ class ChatRunner:
         session: ChatSessionInDB,
         model_config: ModelConfig,
         task_settings: TaskSettings,
-        memory_content: Optional[str] = None,
+        memory_content: str | None = None,
     ):
         self._session = session
         self._model_config = model_config
@@ -106,7 +107,7 @@ class ChatRunner:
     async def astream(
         self,
         query: str,
-        attachments: Optional[list[str]] = None,
+        attachments: list[str] | None = None,
         language: str = "zh",
     ) -> AsyncGenerator[dict[str, Any], None]:
         self._start_time = time.time()

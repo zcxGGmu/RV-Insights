@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 import shortuuid
 from fastapi import APIRouter, Depends
@@ -117,7 +116,11 @@ async def update_model(
         return err(4001, "模型配置不存在")
 
     updates: dict = {"updated_at": datetime.utcnow()}
-    for field in ("name", "base_url", "api_key", "model_name", "context_window", "temperature", "is_active"):
+    fields = (
+        "name", "base_url", "api_key", "model_name",
+        "context_window", "temperature", "is_active",
+    )
+    for field in fields:
         val = getattr(req, field, None)
         if val is not None:
             updates[field] = val
@@ -174,7 +177,7 @@ async def detect_context_window_endpoint(
     req: DetectContextWindowRequest,
     _user: UserInDB = Depends(get_current_user),
 ):
-    window: Optional[int] = detect_context_window(req.model_name)
+    window: int | None = detect_context_window(req.model_name)
     if window:
         return ok({"context_window": window})
     return err(4004, "无法自动检测 context window")

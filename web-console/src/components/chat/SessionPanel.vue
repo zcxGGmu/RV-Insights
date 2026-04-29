@@ -3,11 +3,12 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   Plus, Search, X, Pin, PinOff, Pencil, Trash2,
-  MessageSquare, ChevronDown, ChevronRight,
+  MessageSquare, ChevronDown, ChevronRight, Share2, Link2Off,
 } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import { useSessionGrouping, type FilterType } from '@/composables/useSessionGrouping'
 import { useSessionNotifications } from '@/composables/useSessionNotifications'
+import { shareSession, unshareSession } from '@/api/chat'
 import { formatCustomTime } from '@/utils/time'
 
 const router = useRouter()
@@ -61,6 +62,18 @@ async function handleDelete(sessionId: string) {
   if (route.params.id === sessionId) {
     router.push('/')
   }
+}
+
+async function handleToggleShare(sessionId: string, isShared: boolean) {
+  if (isShared) {
+    await unshareSession(sessionId)
+  } else {
+    const res = await shareSession(sessionId)
+    if (res.code === 0 && res.data.share_url) {
+      await navigator.clipboard.writeText(window.location.origin + res.data.share_url)
+    }
+  }
+  await store.fetchSessions()
 }
 
 const filters: { key: FilterType; label: string }[] = [
@@ -155,6 +168,14 @@ const filters: { key: FilterType; label: string }[] = [
             </div>
 
             <div class="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100" @click.stop>
+              <button
+                class="rounded p-0.5 hover:bg-gray-300 dark:hover:bg-gray-700"
+                :title="s.is_shared ? '取消分享' : '分享'"
+                @click="handleToggleShare(s.session_id, s.is_shared)"
+              >
+                <Link2Off v-if="s.is_shared" class="size-3 text-blue-400" />
+                <Share2 v-else class="size-3 text-gray-400" />
+              </button>
               <button
                 class="rounded p-0.5 hover:bg-gray-300 dark:hover:bg-gray-700"
                 @click="handlePin(s.session_id, s.pinned)"

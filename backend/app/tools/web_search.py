@@ -8,7 +8,7 @@ from app.config import settings
 
 @tool
 async def web_search(query: str) -> str:
-    """Search the web for information about RISC-V, Linux kernel, open source projects, and technical topics.
+    """Search the web for RISC-V, Linux kernel, and open source topics.
 
     Args:
         query: The search query string.
