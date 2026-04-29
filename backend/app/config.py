@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     AGENT_STREAM_TIMEOUT: int = 10800
     AGENT_QUEUE_MAXSIZE: int = 256
 
+    UPLOAD_DIR: str = "./uploads"
+    MAX_UPLOAD_SIZE: int = 10_485_760
+
+    SEARCH_API_KEY: str = ""
+    SEARCH_API_URL: str = ""
+
     model_config = SettingsConfigDict(env_file=".env")
 
 

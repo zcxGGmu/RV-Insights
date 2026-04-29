@@ -53,6 +53,26 @@ class DatabaseManager:
                     [("is_shared", 1)],
                     name="idx_chat_sessions_is_shared",
                 )
+                models_col = self.mongo_db["model_configs"]
+                await models_col.create_index(
+                    [("user_id", 1)],
+                    name="idx_model_configs_user_id",
+                )
+                await models_col.create_index(
+                    [("is_system", 1)],
+                    name="idx_model_configs_is_system",
+                )
+                memories_col = self.mongo_db["user_memories"]
+                await memories_col.create_index(
+                    [("user_id", 1)],
+                    unique=True,
+                    name="idx_user_memories_user_id",
+                )
+                files_col = self.mongo_db["session_files"]
+                await files_col.create_index(
+                    [("session_id", 1)],
+                    name="idx_session_files_session_id",
+                )
             except Exception:
                 logger.warning("mongodb_index_creation_failed")
             logger.info("mongodb_connected", uri=settings.MONGODB_URI)

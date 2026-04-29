@@ -1,8 +1,27 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
+import structlog
 from pydantic import BaseModel
+
+logger = structlog.get_logger()
+
+DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
+
+KNOWN_CONTEXT_WINDOWS: dict[str, int] = {
+    "gpt-4o": 128000,
+    "gpt-4o-mini": 128000,
+    "gpt-4-turbo": 128000,
+    "gpt-3.5-turbo": 16385,
+    "claude-3-5-sonnet-20241022": 200000,
+    "claude-3-5-haiku-20241022": 200000,
+    "claude-sonnet-4-20250514": 200000,
+    "claude-3-opus-20240229": 200000,
+    "deepseek-chat": 64000,
+    "deepseek-coder": 64000,
+    "deepseek-reasoner": 64000,
+}
 
 
 class ModelConfig(BaseModel):
@@ -21,18 +40,18 @@ class TaskSettings(BaseModel):
     queue_maxsize: int = 256
 
 
-def create_chat_model(config: ModelConfig):
+def create_chat_model(config: ModelConfig) -> Any:
     if config.provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(
             model=config.model_name,
             anthropic_api_key=config.api_key or "",
             temperature=config.temperature,
-            max_tokens=config.output_reserve if hasattr(config, "output_reserve") else 4096,
+            max_tokens=4096,
         )
 
     from langchain_openai import ChatOpenAI
-    kwargs: dict = {
+    kwargs: dict[str, Any] = {
         "model": config.model_name,
         "temperature": config.temperature,
         "streaming": True,
@@ -41,7 +60,50 @@ def create_chat_model(config: ModelConfig):
         kwargs["api_key"] = config.api_key
     if config.base_url:
         kwargs["base_url"] = config.base_url
+    elif config.provider == "deepseek":
+        kwargs["base_url"] = DEEPSEEK_BASE_URL
     return ChatOpenAI(**kwargs)
+
+
+async def resolve_model_config(
+    model_config_id: Optional[str],
+    user_id: str,
+    db: Any,
+) -> ModelConfig:
+    if model_config_id and db and db.mongo_db:
+        col = db.mongo_db["model_configs"]
+        doc = await col.find_one({
+            "id": model_config_id,
+            "$or": [{"user_id": user_id}, {"is_system": True}],
+            "is_active": True,
+        })
+        if doc:
+            return ModelConfig(
+                provider=doc.get("provider", "openai"),
+                model_name=doc.get("model_name", "gpt-4o"),
+                base_url=doc.get("base_url"),
+                api_key=doc.get("api_key"),
+                temperature=doc.get("temperature", 0.7),
+                context_window=doc.get("context_window", 128000),
+            )
+        logger.warning("model_config_not_found", model_config_id=model_config_id)
+
+    return get_default_model_config()
+
+
+async def verify_model_connection(config: ModelConfig) -> bool:
+    try:
+        llm = create_chat_model(config)
+        from langchain_core.messages import HumanMessage
+        response = await llm.ainvoke([HumanMessage(content="Hi")])
+        return bool(response.content)
+    except Exception as exc:
+        logger.warning("model_verification_failed", error=str(exc))
+        return False
+
+
+def detect_context_window(model_name: str) -> Optional[int]:
+    return KNOWN_CONTEXT_WINDOWS.get(model_name)
 
 
 def get_default_model_config() -> ModelConfig:

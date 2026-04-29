@@ -25,8 +25,8 @@ from app.models.chat_schemas import (
 from app.models.user import UserInDB
 from app.services.chat_runner import ChatRunner
 from app.services.model_factory import (
-    get_default_model_config,
     get_default_task_settings,
+    resolve_model_config,
 )
 from app.services.notifications import publish, subscribe, unsubscribe
 from app.utils.response import err, ok
@@ -240,13 +240,24 @@ async def chat_sse(
         )
 
     session = ChatSessionInDB(**{**doc, "status": SessionStatus.RUNNING})
-    model_config = get_default_model_config()
+    model_config = await resolve_model_config(
+        doc.get("model_config_id"), user.email, db,
+    )
     task_settings = get_default_task_settings()
+
+    memory_content: Optional[str] = None
+    if db.mongo_db:
+        mem_doc = await db.mongo_db["user_memories"].find_one(
+            {"user_id": user.email}
+        )
+        if mem_doc:
+            memory_content = mem_doc.get("content")
 
     runner = ChatRunner(
         session=session,
         model_config=model_config,
         task_settings=task_settings,
+        memory_content=memory_content,
     )
     _active_runners[session_id] = runner
 
@@ -341,6 +352,64 @@ async def stop_chat(
         {"$set": {"status": SessionStatus.COMPLETED.value, "updated_at": datetime.utcnow()}},
     )
     return ok({"ok": True, "was_running": False})
+
+
+@router.post("/{session_id}/share")
+async def share_session(
+    session_id: str,
+    user: UserInDB = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    col = db.mongo_db[COLLECTION]
+    doc = await col.find_one({"session_id": session_id})
+    if not doc:
+        return err(2001, "Session not found")
+    if doc["user_id"] != user.email:
+        return err(2002, "Session not owned")
+    await col.update_one(
+        {"session_id": session_id},
+        {"$set": {"is_shared": True, "updated_at": datetime.utcnow()}},
+    )
+    return ok({"session_id": session_id, "is_shared": True})
+
+
+@router.delete("/{session_id}/share")
+async def unshare_session(
+    session_id: str,
+    user: UserInDB = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    col = db.mongo_db[COLLECTION]
+    doc = await col.find_one({"session_id": session_id})
+    if not doc:
+        return err(2001, "Session not found")
+    if doc["user_id"] != user.email:
+        return err(2002, "Session not owned")
+    await col.update_one(
+        {"session_id": session_id},
+        {"$set": {"is_shared": False, "updated_at": datetime.utcnow()}},
+    )
+    return ok({"session_id": session_id, "is_shared": False})
+
+
+@router.get("/shared/{session_id}")
+async def get_shared_session(
+    session_id: str,
+    db=Depends(get_db),
+):
+    col = db.mongo_db[COLLECTION]
+    doc = await col.find_one({"session_id": session_id, "is_shared": True})
+    if not doc:
+        return err(2005, "分享功能未启用")
+    data = GetSessionData(
+        session_id=doc["session_id"],
+        title=doc.get("title"),
+        status=SessionStatus(doc.get("status", "pending")),
+        events=doc.get("events", []),
+        is_shared=True,
+        mode=doc.get("mode", "chat"),
+    )
+    return ok(data.model_dump())
 
 
 @router.get("/notifications")
