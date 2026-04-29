@@ -25,6 +25,20 @@
 - commit message 使用 `<type>(<scope>): <subject>` + 详细 body，说明每个任务的变更内容
 - 不需要用户提醒，完成即提交
 
+## tasks/ 文件维护规则
+
+每完成一个 Sprint 或一组重要任务后，必须同步更新 `tasks/` 下的相关文件：
+
+1. `tasks/progress.md` — 更新当前 Sprint 状态、完成总结、tech debt 变更
+2. `tasks/mvp-tasks.md` — 将已完成任务标记为 `[x]`，补充产出和偏差说明
+3. `tasks/lessons.md` — 记录开发过程中的新教训（错误、发现、最佳实践）
+4. `tasks/chat-architecture.md` — 如果 Chat 后端架构有变更，同步更新
+5. `tasks/sse-protocol.md` — 如果 SSE 事件协议有变更，同步更新
+6. `tasks/api-contracts.md` — 如果 API 契约有变更，同步更新
+7. `tasks/error-codes.md` — 如果新增错误码，同步更新
+
+原则：`tasks/` 是项目的唯一事实来源，代码变更后必须保持文档与实现一致。不需要用户提醒，完成即更新。
+
 ## 关键约束
 
 - Human-in-the-Loop：Pipeline 每个阶段转换必须人工确认

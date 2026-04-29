@@ -1,6 +1,7 @@
 # Chat 模式后端架构设计
 
-> Sprint 3 核心参考文档。定义 Chat 模式的后端执行模型、数据模型、SSE 事件生成流程。
+> Sprint 3-4 核心参考文档。定义 Chat 模式的后端执行模型、数据模型、SSE 事件生成流程。
+> Sprint 4 新增：工具集成（web_search/code_analysis）、多模型工厂、Memory 注入、Plan 追踪。
 > 对标 ScienceClaw `deepagent/runner.py` + `route/sessions.py`，适配 RV-Insights 技术栈。
 
 ---

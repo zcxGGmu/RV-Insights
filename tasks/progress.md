@@ -52,7 +52,7 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | OpenAPI 有重复的 `/api/v1/cases` path key | YAML 解析不报错但只保留最后一个 | Sprint 3 修复 |
 | tsconfig `skipLibCheck: true` | reka-ui 上游 DayOfWeek 类型 bug workaround | 等 reka-ui 修复后移除 |
 | ChatPage mermaid chunk 1.3MB | vite build 产物过大 | Sprint 4 动态 import 或 code split |
-| S3 推迟组件：ProcessGroup/StepMessage/ToolCallView/toolViews/MonacoEditor/i18n | Chat 工具调用可视化缺失 | Sprint 4 初期补齐 |
+| S3 推迟组件：~~ProcessGroup/StepMessage~~/ToolCallView/toolViews/MonacoEditor/i18n | Chat 工具调用可视化缺失 | ProcessGroup/StepMessage S4 已完成，其余 S8 |
 | Types/Constants/i18n 未独立文件化 | 类型内联在组件中，不利于复用 | Sprint 4 统一整理 |
 
 ## 架构决策记录

@@ -214,7 +214,7 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
   - 偏差：未迁移 MarkdownEnhancements 组件，改为 utility 函数 + 轻量 wrapper
 - [x] 前端：迁移 ActivityPanel（思考+工具执行时间线）`~3h`
   - 产出：`components/shared/ActivityPanel.vue`，Chat 和 Pipeline 共用
-- [ ] 前端：迁移 ProcessGroup + StepMessage `~2h` — 推迟到 S4
+- [x] 前端：迁移 ProcessGroup + StepMessage `~2h` — S4 完成
   - 产出：`components/shared/ProcessGroup.vue` + `StepMessage.vue`
 - [ ] 前端：迁移 ToolCallView + toolViews + constants/tool.ts `~2.5h` — 推迟到 S4
   - 产出：工具调用可视化 + Shell/File/Search 视图 + 工具映射常量
@@ -286,31 +286,56 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 后端（20h）
 
-- [ ] 后端：ChatRunner 工具集成 — web_search, code_analysis `~4h`
-- [ ] 后端：ChatRunner Plan tracking middleware `~2h`
-- [ ] 后端：Model CRUD API — GET list, POST create, PUT update, DELETE, POST detect-context-window `~3h`
-- [ ] 后端：Model 配置模型 + 多模型工厂（OpenAI/Anthropic/DeepSeek）`~4h`
-  - 产出：`models/model_schemas.py` + `services/model_factory.py`
-- [ ] 后端：Session share/unshare + shared 公开视图 `~2h`
-- [ ] 后端：Session files + upload 端点 `~2h`
-- [ ] 后端：Memory API — GET/PUT 用户记忆 `~1.5h`
-- [ ] 后端：Statistics API — summary/models/trends/sessions `~1.5h`
+- [x] 后端：ChatRunner 工具集成 — web_search, code_analysis `~4h`
+  - 产出：`tools/__init__.py`, `tools/web_search.py`, `tools/code_analysis.py`
+  - 使用 LangGraph `create_react_agent` + `astream_events(version="v2")`
+- [x] 后端：ChatRunner Plan tracking middleware `~2h`
+  - 产出：ChatRunner 检测 plan/step SSE 事件并发射
+- [x] 后端：Model CRUD API — GET list, POST create, PUT update, DELETE, POST detect-context-window `~3h`
+  - 产出：`api/models.py`，错误码 4001-4006
+- [x] 后端：Model 配置模型 + 多模型工厂（OpenAI/Anthropic/DeepSeek）`~4h`
+  - 产出：`models/model_schemas.py` + `services/model_factory.py` 重构
+  - resolve_model_config() 从 DB 加载，verify_model_connection() 测试连接
+- [x] 后端：Session share/unshare + shared 公开视图 `~2h`
+  - 产出：`api/chat.py` 新增 3 个 share 端点
+- [x] 后端：Session files + upload 端点 `~2h`
+  - 产出：`api/files.py`，扩展名白名单 + 大小限制
+- [x] 后端：Memory API — GET/PUT 用户记忆 `~1.5h`
+  - 产出：`api/memory.py`，MongoDB `user_memories` 集合
+- [x] 后端：Statistics API — summary/models/trends/sessions `~1.5h`
+  - 产出：`api/statistics.py`，MongoDB 聚合管线
 
 #### 前端（22h）
 
-- [ ] 前端：PlanPanel（多步骤计划可视化 + 进度）`~2.5h`
-- [ ] 前端：ToolPanel + FilePanel + SessionFileList `~7h`
-- [ ] 前端：SharePage + ShareLayout（公开分享回放）`~3h`
-- [ ] 前端：UserMenu（用户菜单 + Settings 触发）`~1h`
-- [ ] 前端：Settings 面板 — 6 个 tab: Account/General/Models/Personalization/Statistics/Notifications `~5h`
-- [ ] 前端：useSettingsDialog + useRightPanel + useFilePanel + useMessageGrouper composables `~2.5h`
-- [ ] 前端：api/models.ts + api/memory.ts + api/statistics.ts `~1h`
+- [x] 前端：PlanPanel（多步骤计划可视化 + 进度）`~2.5h`
+  - 产出：`components/chat/PlanPanel.vue`
+- [x] 前端：ToolPanel + FilePanel + SessionFileList `~7h`
+  - 产出：`components/chat/ToolPanel.vue`, `components/chat/FilePanel.vue`
+- [x] 前端：SharePage + ShareLayout（公开分享回放）`~3h`
+  - 产出：`views/ShareLayout.vue`, `views/SharePage.vue`
+  - 路由：`/share/:id`（无 auth）
+- [x] 前端：UserMenu（用户菜单 + Settings 触发）`~1h`
+  - 产出：`components/shared/UserMenu.vue`
+- [x] 前端：Settings 面板 — 6 个 tab: Account/General/Models/Personalization/Statistics/Notifications `~5h`
+  - 产出：`components/settings/SettingsDialog.vue` + 6 个子组件
+- [x] 前端：useSettingsDialog + useRightPanel + useFilePanel + useMessageGrouper composables `~2.5h`
+  - 产出：4 个 composable 文件
+- [x] 前端：api/models.ts + api/memory.ts + api/statistics.ts `~1h`
+
+#### 集成收尾
+
+- [x] 前端：ChatBox 模型选择器下拉 `~1h`
+- [x] 前端：SessionPanel 分享/取消分享按钮 `~0.5h`
+- [x] 前端：ProcessGroup + StepMessage 共享组件（S3 推迟项）`~1h`
+- [x] 前端：ChatPage 集成 PlanPanel + tool/plan SSE 事件 + 右侧面板 `~2h`
+- [x] 前端：MainLayout 重构（UserMenu + SettingsDialog）`~0.5h`
 
 #### 联调（3h）
 
 - [ ] 联调：Chat 工具调用 → ActivityPanel → PlanPanel → Statistics `~3h`
 
-**Sprint 4 总工时估算：~45h**
+**Sprint 4 实际完成：后端 8 tasks ✅ + 前端 12 tasks ✅ = 20 tasks，联调待后端部署后验证**
+**验证：ruff check passed (Sprint 4 files) | pnpm build OK**
 
 ---
 

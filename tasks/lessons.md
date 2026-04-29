@@ -116,3 +116,39 @@
 **原因**：未在开发初期检查 lockfile 类型来确定包管理器
 
 **如何避免**：开发前检查项目根目录的 lockfile：`pnpm-lock.yaml` → pnpm，`package-lock.json` → npm，`yarn.lock` → yarn。RV-Insights web-console 使用 pnpm
+
+---
+
+## Sprint 4
+
+### 2026-04-29 | 后端
+
+**教训**：ruff `--fix` 自动修复会将 `Optional[X]` 转为 `X | None`，但 Python 3.9 不支持该语法。Sprint 4 新文件需要手动修复 ruff 报错而非用 `--fix`
+
+**原因**：ruff UP045 规则默认启用，`--fix` 会自动应用不兼容当前 Python 版本的语法变更
+
+**如何避免**：对 Sprint 4 新文件使用 `ruff check` 检查后手动修复，或在 `ruff.toml` 中禁用 UP045 规则
+
+### 2026-04-29 | 前端
+
+**教训**：Vue 模板中不能直接访问 `localStorage`，需要通过 `<script setup>` 中定义的函数间接调用
+
+**原因**：Vue 模板的表达式上下文只包含组件实例上的属性和方法，不包含全局对象
+
+**如何避免**：浏览器 API（localStorage, window, document）的调用封装为 script setup 中的函数
+
+### 2026-04-29 | 前端
+
+**教训**：lucide-vue-next 图标名称需要精确匹配，`LinkOff` 不存在应使用 `Link2Off`
+
+**原因**：lucide 图标库的命名规则不完全直觉化，部分图标有数字后缀
+
+**如何避免**：使用 lucide 图标前先在 `node_modules/lucide-vue-next` 中确认导出名称，或查阅 lucide.dev 官网
+
+### 2026-04-29 | 架构
+
+**教训**：LangGraph `create_react_agent` + `astream_events(version="v2")` 是集成工具调用的最简路径，自动处理 tool-calling loop
+
+**原因**：手动实现 tool-calling loop 需要处理多轮 LLM 调用、工具执行、结果回传，代码量大且容易出错
+
+**如何避免**：优先使用 LangGraph 的高级 API 而非手写循环；`astream_events` v2 提供细粒度事件（on_chat_model_stream, on_tool_start, on_tool_end）
