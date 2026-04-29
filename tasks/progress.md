@@ -3,7 +3,7 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-28 | pytest 13/13 passed (test_chat_and_auth) | app import OK
+**最后验证**: 2026-04-29 | ruff check passed (Sprint 4 files) | pnpm build OK
 
 ## 项目信息
 
@@ -69,9 +69,51 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | LLM 编排 | LangGraph StateGraph | 内置 checkpoint + interrupt + 条件边，适合 Pipeline 状态机 | 手写状态机 |
 | 开发期默认模型 | gpt-4o-mini | 成本可控，开发调试够用 | gpt-4o / claude-sonnet |
 
-## 当前 Sprint: Sprint 3（共享基础设施 + 对话模式基础）✅ 完成
+## 当前 Sprint: Sprint 4（对话模式完善 + Model 管理）✅ 完成
 
-## 当前状态: Sprint 3 全部完成，准备进入 Sprint 4
+## 当前状态: Sprint 4 全部完成，准备进入 Sprint 5
+
+### Sprint 4 完成总结
+
+后端（Phase 1-2, 8 tasks）：
+- Model 配置 schema + MongoDB 集合索引 ✅
+- 多模型工厂重构（OpenAI/Anthropic/DeepSeek + resolve_model_config） ✅
+- Model CRUD API（list/create/update/delete/detect-context-window） ✅
+- Memory API（GET/PUT 用户记忆） ✅
+- ChatRunner 工具集成（create_react_agent + web_search/code_analysis） ✅
+- Session share/unshare + 公开访问端点 ✅
+- Session files upload/list/download ✅
+- Statistics API（summary/models/trends — MongoDB 聚合管线） ✅
+
+前端（Phase 3-5, 7 tasks）：
+- API 模块：models.ts, memory.ts, statistics.ts + chat.ts 扩展 ✅
+- Composables：useSettingsDialog, useRightPanel, useFilePanel, useMessageGrouper ✅
+- PlanPanel + ToolPanel + FilePanel 组件 ✅
+- UserMenu 下拉菜单 + SettingsDialog 6-tab 模态框 ✅
+- ShareLayout + SharePage 公开回放页面 ✅
+- ChatPage 集成 PlanPanel + tool/plan SSE 事件 + 右侧面板 ✅
+- ChatBox 模型选择器 + SessionPanel 分享按钮 ✅
+- ProcessGroup + StepMessage 共享组件 ✅
+- MainLayout 重构（UserMenu + SettingsDialog） ✅
+- Router 添加 /share/:id 路由 ✅
+
+验证：ruff check passed (Sprint 4 files) | pnpm build OK
+
+下一步：Sprint 5（Pipeline 模式 — LangGraph 状态机 + 五阶段工作流）
+
+### Sprint 4 文件映射
+
+| Phase | 新建文件 | 修改文件 |
+|-------|----------|----------|
+| Phase 1 | `models/model_schemas.py`, `api/models.py`, `api/memory.py`, `tools/__init__.py`, `tools/web_search.py`, `tools/code_analysis.py` | `config.py`, `database.py`, `services/model_factory.py`, `services/chat_runner.py` |
+| Phase 2 | `api/files.py`, `api/statistics.py` | `api/chat.py` (share endpoints), `api/router.py` |
+| Phase 3 | `api/models.ts`, `api/memory.ts`, `api/statistics.ts`, `composables/useSettingsDialog.ts`, `composables/useRightPanel.ts`, `composables/useFilePanel.ts`, `composables/useMessageGrouper.ts` | `api/chat.ts` |
+| Phase 4 | `chat/PlanPanel.vue`, `chat/ToolPanel.vue`, `chat/FilePanel.vue`, `shared/UserMenu.vue`, `settings/*.vue` (7 files), `views/ShareLayout.vue`, `views/SharePage.vue` | `views/ChatPage.vue`, `views/MainLayout.vue`, `router/index.ts` |
+| Phase 5 | `shared/ProcessGroup.vue`, `shared/StepMessage.vue` | `chat/ChatBox.vue`, `chat/SessionPanel.vue` |
+
+---
+
+## Sprint 3（共享基础设施 + 对话模式基础）✅ 完成
 
 ### Sprint 3 完成总结
 
