@@ -4,6 +4,14 @@ import { useAuthStore } from '../stores/auth'
 const routes: Array<RouteRecordRaw> = [
   { path: '/login', name: 'login', component: () => import('../views/LoginPage.vue'), meta: { requiresAuth: false } },
   {
+    path: '/share',
+    component: () => import('../views/ShareLayout.vue'),
+    meta: { requiresAuth: false },
+    children: [
+      { path: ':id', name: 'share', component: () => import('../views/SharePage.vue') },
+    ],
+  },
+  {
     path: '/',
     name: 'home',
     component: () => import('../views/MainLayout.vue'),
