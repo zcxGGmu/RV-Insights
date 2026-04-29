@@ -85,6 +85,35 @@ export async function stopChat(sessionId: string) {
   return res.data
 }
 
+export async function shareSession(sessionId: string) {
+  const res = await apiClient.post(`${BASE}/${sessionId}/share`)
+  return res.data
+}
+
+export async function unshareSession(sessionId: string) {
+  const res = await apiClient.delete(`${BASE}/${sessionId}/share`)
+  return res.data
+}
+
+export async function getSharedSession(sessionId: string) {
+  const res = await apiClient.get(`${BASE}/shared/${sessionId}`)
+  return res.data
+}
+
+export async function uploadFile(sessionId: string, file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await apiClient.post(`${BASE}/${sessionId}/files`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
+export async function getSessionFiles(sessionId: string) {
+  const res = await apiClient.get(`${BASE}/${sessionId}/files`)
+  return res.data
+}
+
 export function connectChatSSE(
   sessionId: string,
   payload: ChatPayload,
