@@ -132,8 +132,17 @@ export interface ExecutionPlan {
   risk_assessment: string
 }
 
+export interface PatchFile {
+  filename: string
+  original_content: string
+  modified_content: string
+  diff_content: string
+  language: string
+}
+
 export interface DevelopmentResult {
   patch_files: string[]
+  patches: Record<string, PatchFile>
   changed_files: string[]
   commit_message: string
   change_summary: string

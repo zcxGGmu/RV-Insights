@@ -35,6 +35,7 @@ def _stub_execution_plan() -> dict:
 def _stub_development_result() -> dict:
     return {
         "patch_files": [],
+        "patches": {},
         "changed_files": ["stub.py"],
         "commit_message": "stub: placeholder commit",
         "change_summary": "Stub development result",

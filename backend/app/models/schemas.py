@@ -108,8 +108,17 @@ class ExecutionPlan(BaseModel):
 
 
 # Development
+class PatchFile(BaseModel):
+    filename: str
+    original_content: str = ""
+    modified_content: str = ""
+    diff_content: str = ""
+    language: str = "c"
+
+
 class DevelopmentResult(BaseModel):
     patch_files: List[str]
+    patches: Dict[str, PatchFile] = {}
     changed_files: List[str]
     commit_message: str
     change_summary: str

@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     EXPLORER_PROVIDER: str = "anthropic"
     PLANNER_MODEL: str = "gpt-4o"
     PLANNER_PROVIDER: str = "openai"
+    DEVELOPER_MODEL: str = "gpt-4o"
+    DEVELOPER_PROVIDER: str = "openai"
+    REVIEWER_MODEL: str = "gpt-4o"
+    REVIEWER_PROVIDER: str = "openai"
 
     model_config = SettingsConfigDict(env_file=".env")
 
