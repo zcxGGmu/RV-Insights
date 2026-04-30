@@ -101,6 +101,22 @@
           :plan="caseStore.currentCase.execution_plan"
           class="mt-4"
         />
+        <DevelopmentResultCard
+          v-if="caseStore.currentCase?.development_result"
+          :result="caseStore.currentCase.development_result"
+          class="mt-4"
+        />
+        <ReviewVerdictCard
+          v-if="caseStore.currentCase?.review_verdict"
+          :verdict="caseStore.currentCase.review_verdict"
+          class="mt-4"
+        />
+        <IterationBadge
+          v-if="caseStore.currentCase?.review_iterations"
+          :current="caseStore.currentCase.review_iterations"
+          :max="3"
+          class="mt-3"
+        />
 
         <!-- Review Panel -->
         <div class="mt-6">
@@ -125,6 +141,9 @@ import PipelineView from '@/components/pipeline/PipelineView.vue'
 import ReviewPanel from '@/components/pipeline/ReviewPanel.vue'
 import ContributionCard from '@/components/pipeline/ContributionCard.vue'
 import ExecutionPlanView from '@/components/pipeline/ExecutionPlanView.vue'
+import DevelopmentResultCard from '@/components/pipeline/DevelopmentResultCard.vue'
+import ReviewVerdictCard from '@/components/pipeline/ReviewVerdictCard.vue'
+import IterationBadge from '@/components/pipeline/IterationBadge.vue'
 import AgentEventLog from '@/components/AgentEventLog.vue'
 import { useCaseStore } from '@/stores/case'
 import { useCaseEvents } from '@/composables/useCaseEvents'
