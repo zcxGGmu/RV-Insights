@@ -3,7 +3,7 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-30 | ruff check passed (Sprint 5 files) | vue-tsc passed | pnpm build OK
+**最后验证**: 2026-04-30 | ruff check passed (Sprint 6 files) | vue-tsc passed | pnpm build OK | 25 tests passed
 
 ## 项目信息
 
@@ -47,7 +47,7 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 |---|---|---|
 | Motor cursor 需用 `to_list(length=None)` | 直接 `list()` 会报错 | 已修复，见 lessons.md |
 | ScienceClaw `user.name` vs RV-Insights `user.username` | 迁移组件时字段不匹配 | 迁移时逐个检查 |
-| ArtifactManager 未实现 | Pipeline 产物无法持久化 | Sprint 6 |
+| ~~ArtifactManager 未实现~~ | ~~Pipeline 产物无法持久化~~ | ✅ Sprint 6 MVP stub（patches 内联） |
 | 前端 Mock API 与真实 API 响应格式不一致 | Mock 用裸 JSON，真实用 `{code, msg, data}` 包装 | Sprint 3 统一 |
 | OpenAPI 有重复的 `/api/v1/cases` path key | YAML 解析不报错但只保留最后一个 | Sprint 3 修复 |
 | tsconfig `skipLibCheck: true` | reka-ui 上游 DayOfWeek 类型 bug workaround | 等 reka-ui 修复后移除 |
@@ -75,9 +75,56 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 | SDK 策略简化 | Claude/OpenAI SDK 改为 LangGraph create_react_agent | Sprint 5 已验证可行 |
 
-## 当前 Sprint: Sprint 5（Explorer + Planner Agent 真实 LLM）✅ 完成
+## 当前 Sprint: Sprint 6（Developer + Reviewer Agent + DiffViewer）✅ 完成
 
-## 当前状态: Sprint 5 全部完成（含联调），准备进入 Sprint 6
+## 当前状态: Sprint 6 全部完成，准备进入 Sprint 7
+
+### Sprint 6 完成总结（2026-04-30）
+
+**架构偏差**：原计划 Developer 用 Pattern A（LangChainReactAdapter + tools），实际采用 Pattern B（direct llm.ainvoke），因为 MVP 不需要真实文件系统操作。Reviewer 同理。
+
+**重构**：nodes.py（581行）拆分为 `pipeline/nodes/` 包（8 个模块），graph.py 导入不变。
+
+后端（Phase 1-3, 12 tasks）：
+- Config 扩展（DEVELOPER/REVIEWER_MODEL + PROVIDER） ✅
+- Schema 扩展（PatchFile 模型 + DevelopmentResult.patches 字段） ✅
+- nodes.py → nodes/ 包重构（8 模块） ✅
+- Developer System Prompt（kernel coding style + unified diff 输出） ✅
+- Source Fetcher（GitHub raw content 异步获取） ✅
+- develop_node 真实实现（Pattern B + source context + review feedback） ✅
+- Reviewer System Prompt（5 维审查 + 决策规则） ✅
+- review_node 真实实现（Pattern B + iteration tracking） ✅
+- ArtifactManager MVP stub ✅
+
+前端（Phase 4-5, 5 tasks）：
+- Monaco Worker 配置 + DiffViewer 组件（side-by-side/inline） ✅
+- DevelopmentResultCard（commit message + 行统计 + 可折叠 DiffViewer） ✅
+- ReviewVerdictCard（verdict badge + findings 列表 + severity 排序） ✅
+- IterationBadge（迭代计数器，颜色递增） ✅
+- CaseDetailPage 集成（3 个新组件条件渲染） ✅
+
+验证：25 tests passed | ruff check passed | vue-tsc passed | pnpm build OK
+
+下一步：Sprint 7（Tester Agent + 全 Pipeline E2E）
+
+### Sprint 6 文件映射
+
+| Phase | 新建文件 | 修改文件 |
+|-------|----------|----------|
+| Phase 1 | `pipeline/nodes/__init__.py`, `_shared.py`, `explore.py`, `plan.py`, `develop.py`(占位), `review.py`(占位), `stubs.py`, `gates.py` | `config.py`, `models/schemas.py`, `pipeline/stubs.py`, `types/index.ts` |
+| Phase 2 | `pipeline/prompts/developer.py`, `pipeline/tools/source_fetcher.py` | `pipeline/nodes/develop.py` |
+| Phase 3 | `pipeline/prompts/reviewer.py` | `pipeline/nodes/review.py` |
+| Phase 4 | `utils/monaco.ts`, `components/pipeline/DiffViewer.vue` | — |
+| Phase 5 | `components/pipeline/DevelopmentResultCard.vue`, `ReviewVerdictCard.vue`, `IterationBadge.vue` | `views/CaseDetailPage.vue` |
+| Phase 6 | `services/artifact_manager.py` | — |
+
+| 删除文件 | 原因 |
+|----------|------|
+| `backend/app/pipeline/nodes.py` | 拆分为 `pipeline/nodes/` 包 |
+
+---
+
+## Sprint 5（Explorer + Planner Agent 真实 LLM）✅ 完成
 
 ### Sprint 5 联调验证（2026-04-30）
 
