@@ -438,21 +438,23 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 后端（18h）
 
-- [ ] 后端：Tester Prompt + Tools `~4.5h`
-  - 产出：`pipeline/prompts/tester.py` + `pipeline/tools/tester_tools.py`
-  - 工具：bash_exec (cross-compile), qemu_boot, test_runner
-- [ ] 后端：test_node 真实实现 `~4h`
-- [ ] 后端：Sandbox REST 客户端 `~2h`
+- [x] 后端：Tester Prompt + Tools `~4.5h`
+  - 产出：`pipeline/prompts/tester.py`（Pattern B，无独立 tools）
+  - 偏差：Pattern B（direct llm.ainvoke），不需要 bash_exec/qemu_boot tools
+- [x] 后端：test_node 真实实现 `~4h`
+- [ ] 后端：Sandbox REST 客户端 `~2h`（推迟，MVP 不需要真实 QEMU）
   - 产出：`services/sandbox_client.py`
-- [ ] 后端：集成测试 — 全 Pipeline (mocked LLM) `~4h`
-- [ ] 后端：单元测试 — adapters + chat_runner + artifact_manager `~3.5h`
+- [x] 后端：集成测试 — 全 Pipeline (mocked LLM) `~4h`
+  - 产出：test_pipeline_coverage.py（36 tests）+ test_pipeline_sprint7.py（16 tests）
+- [ ] 后端：单元测试 — adapters + chat_runner + artifact_manager `~3.5h`（推迟到 Sprint 8）
 
 #### 前端（14h）
 
-- [ ] 前端：TestResultSummary + TestLogViewer `~4.5h`
-- [ ] 前端：CompletionCard（补丁下载 + commit message）`~2h`
-- [ ] 前端：错误处理 + 响应式 + loading states `~4.5h`
-- [ ] 前端：单元测试 — useChatSession, useCaseEvents `~3h`
+- [x] 前端：TestResultSummary + TestLogViewer `~4.5h`
+  - 产出：TestResultCard.vue（含 test case 列表 + 可折叠日志）
+- [x] 前端：CompletionCard（补丁下载 + commit message）`~2h`
+- [ ] 前端：错误处理 + 响应式 + loading states `~4.5h`（推迟到 Sprint 8）
+- [ ] 前端：单元测试 — useChatSession, useCaseEvents `~3h`（推迟到 Sprint 8）
 
 #### 联调（4h）
 
@@ -553,9 +555,9 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 | Sprint 2 | ~23h | ~23.5h | — | ~46.5h | ✅ 已完成 |
 | Sprint 3 | ~17.5h | ~44.5h | ~3h | ~65h | 🔲 待开始 |
 | Sprint 4 | ~20h | ~22h | ~3h | ~45h | 🔲 待开始 |
-| Sprint 5 | ~24h | ~13h | ~3h | ~40h | 🔲 待开始 |
-| Sprint 6 | ~22h | ~18h | ~3h | ~43h | 🔲 待开始 |
-| Sprint 7 | ~18h | ~14h | ~4h | ~36h | 🔲 待开始 |
+| Sprint 5 | ~24h | ~13h | ~3h | ~40h | ✅ 已完成 |
+| Sprint 6 | ~22h | ~18h | ~3h | ~43h | ✅ 已完成 |
+| Sprint 7 | ~18h | ~14h | ~4h | ~36h | ✅ 已完成 |
 | Sprint 8 | ~18h | ~20h | ~2h | ~40h | 🔲 待开始 |
 | Sprint 9 | ~20h | ~16h | ~6h | ~42h | 🔲 待开始 |
 | **总计** | **~191.5h** | **~189.5h** | **~30h** | **~411h** | — |

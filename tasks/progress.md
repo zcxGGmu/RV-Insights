@@ -3,7 +3,7 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-30 | ruff check passed | vue-tsc passed | pnpm build OK | 54 tests passed (coverage 49%)
+**最后验证**: 2026-04-30 | ruff check passed | vue-tsc passed | pnpm build OK | 106 tests passed (coverage 53%)
 
 ## 项目信息
 
@@ -75,9 +75,44 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 | SDK 策略简化 | Claude/OpenAI SDK 改为 LangGraph create_react_agent | Sprint 5 已验证可行 |
 
-## 当前 Sprint: Sprint 6（Developer + Reviewer Agent + DiffViewer）✅ 完成
+## 当前 Sprint: Sprint 7（Tester Agent + TestResultCard + CompletionCard）✅ 完成
 
-## 当前状态: Sprint 6 全部完成，准备进入 Sprint 7
+## 当前状态: Sprint 7 全部完成，准备进入 Sprint 8
+
+### Sprint 7 完成总结（2026-04-30）
+
+**架构偏差**：原计划 Tester 使用 Pattern A（LangChainReactAdapter + bash_exec/qemu_boot tools），实际采用 Pattern B（direct llm.ainvoke），与 Sprint 6 Developer/Reviewer 保持一致。Sandbox REST 客户端推迟（MVP 不需要真实 QEMU 执行）。
+
+后端（Phase 1-2）：
+- Config 扩展（TESTER_MODEL + TESTER_PROVIDER） ✅
+- Schema 扩展（TestCaseResult 模型 + TestResult 新增 test_case_results/compilation_passed/test_log） ✅
+- Tester System Prompt（RISC-V patch 测试评估 + 5 维检查） ✅
+- test_node 真实实现（Pattern B + patch content formatting + fail-closed） ✅
+- _stub_test_result 改为 fail-closed（passed=False, compilation_passed=False） ✅
+- Python 3.9 兼容修复（state.py/events.py/model_factory.py: Optional[X] + timezone.utc） ✅
+
+测试（52 tests 新增，总计 106）：
+- test_pipeline_sprint7.py（16 tests）：JSON 解析、test_node 执行、stub 安全、patch 格式化 ✅
+- test_pipeline_coverage.py（36 tests）：cost 模块、stub 工厂、schema 验证、graph 结构、config、plan 节点 ✅
+- 覆盖率：49% → 53% | test.py 88% | plan.py 87% | graph.py 71% | gates.py 94%
+
+前端（Phase 3）：
+- types/index.ts 扩展（TestCaseResult 接口 + TestResult 新增字段） ✅
+- TestResultCard.vue（pass/fail badge + 编译状态 + 测试用例列表 + 失败详情 + 可折叠日志） ✅
+- CompletionCard.vue（pipeline 完成卡片 + commit message + 成本 + token + 时间统计） ✅
+- CaseDetailPage.vue 集成（TestResultCard + CompletionCard 条件渲染） ✅
+
+验证：106 tests passed (coverage 53%) | ruff check passed (pre-existing warnings only) | vue-tsc passed | vite build OK
+
+下一步：Sprint 8（Skills + Tools + ToolUniverse + 完整 Settings）
+
+### Sprint 7 文件映射
+
+| Phase | 新建文件 | 修改文件 |
+|-------|----------|----------|
+| Phase 1 | `pipeline/prompts/tester.py`, `pipeline/nodes/test.py` | `config.py`, `models/schemas.py`, `pipeline/stubs.py`, `pipeline/state.py`, `pipeline/events.py`, `services/model_factory.py`, `pipeline/nodes/__init__.py` |
+| Phase 2 | `tests/test_pipeline_sprint7.py`, `tests/test_pipeline_coverage.py` | — |
+| Phase 3 | `components/pipeline/TestResultCard.vue`, `components/pipeline/CompletionCard.vue` | `types/index.ts`, `views/CaseDetailPage.vue` |
 
 ### Sprint 6 完成总结（2026-04-30）
 

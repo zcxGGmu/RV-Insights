@@ -240,3 +240,19 @@
 **原因**：网络慢/CDN 超时/广告拦截都可能导致 chunk 加载失败，默认无任何 UI 反馈
 
 **如何避免**：所有 `defineAsyncComponent` 必须用对象形式，至少提供 `loadingComponent` 和 `errorComponent`
+
+### 2026-04-30 | Python 兼容性
+
+**教训**：Python 3.9 不支持 `datetime.UTC`（3.11+）和 Pydantic/TypedDict 中的 `str | None` union 语法（即使有 `from __future__ import annotations`）
+
+**原因**：`datetime.UTC` 是 Python 3.11 新增常量。Pydantic/LangGraph 在运行时用 `typing.get_type_hints()` 求值类型注解，绕过 `__future__` annotations 的延迟求值
+
+**如何避免**：始终用 `datetime.timezone.utc` 和 `Optional[X]`。在 Pydantic BaseModel 和 TypedDict 中绝不使用 `X | None` 语法
+
+### 2026-04-30 | 测试
+
+**教训**：Sprint 6 的 `TestInterruptFallback` 删除 `sys.modules["app.pipeline.nodes"]` 后，后续测试 mock `app.pipeline.nodes._shared.get_publisher` 会失败（AttributeError）
+
+**原因**：删除 sys.modules 条目后模块重新导入，但 mock path 解析依赖旧的模块引用
+
+**如何避免**：避免在测试中删除 `sys.modules` 条目。如果必须测试模块重新加载，用独立子进程或 `importlib.reload`

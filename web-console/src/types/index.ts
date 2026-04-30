@@ -167,6 +167,13 @@ export interface ReviewVerdict {
   summary: string
 }
 
+export interface TestCaseResult {
+  test_id: string
+  name: string
+  passed: boolean
+  message: string
+}
+
 export interface TestResult {
   passed: boolean
   total_tests: number
@@ -176,4 +183,7 @@ export interface TestResult {
   coverage_percent?: number
   qemu_version?: string
   failure_details: string[]
+  test_case_results: TestCaseResult[]
+  compilation_passed?: boolean
+  test_log: string
 }

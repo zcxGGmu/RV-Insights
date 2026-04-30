@@ -117,6 +117,16 @@
           :max="3"
           class="mt-3"
         />
+        <TestResultCard
+          v-if="caseStore.currentCase?.test_result"
+          :result="caseStore.currentCase.test_result"
+          class="mt-4"
+        />
+        <CompletionCard
+          v-if="caseStore.currentCase?.status === 'completed'"
+          :case-data="caseStore.currentCase"
+          class="mt-4"
+        />
 
         <!-- Review Panel -->
         <div class="mt-6">
@@ -144,6 +154,8 @@ import ExecutionPlanView from '@/components/pipeline/ExecutionPlanView.vue'
 import DevelopmentResultCard from '@/components/pipeline/DevelopmentResultCard.vue'
 import ReviewVerdictCard from '@/components/pipeline/ReviewVerdictCard.vue'
 import IterationBadge from '@/components/pipeline/IterationBadge.vue'
+import TestResultCard from '@/components/pipeline/TestResultCard.vue'
+import CompletionCard from '@/components/pipeline/CompletionCard.vue'
 import AgentEventLog from '@/components/AgentEventLog.vue'
 import { useCaseStore } from '@/stores/case'
 import { useCaseEvents } from '@/composables/useCaseEvents'
