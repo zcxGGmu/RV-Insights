@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, type Ref, toValue, type MaybeRefOrGetter } from 'vue'
 import type { SessionListItem } from '@/api/chat'
 
 export type FilterType = 'all' | 'pinned' | 'running' | 'shared'
@@ -39,13 +39,13 @@ function isWithinDays(ts: number | null, days: number): boolean {
   return diff > 0 && diff <= days
 }
 
-export function useSessionGrouping(sessions: { value: SessionListItem[] }) {
+export function useSessionGrouping(sessions: MaybeRefOrGetter<SessionListItem[]>) {
   const activeFilter = ref<FilterType>('all')
   const collapsedGroups = ref<Set<string>>(new Set())
   const searchQuery = ref('')
 
   const filteredSessions = computed(() => {
-    let result = sessions.value
+    let result = toValue(sessions) ?? []
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()
       result = result.filter(
@@ -106,12 +106,15 @@ export function useSessionGrouping(sessions: { value: SessionListItem[] }) {
     collapsedGroups.value = next
   }
 
-  const stats = computed(() => ({
-    all: sessions.value.length,
-    pinned: sessions.value.filter((s) => s.pinned).length,
-    running: sessions.value.filter((s) => s.status === 'running' || s.status === 'pending').length,
-    shared: sessions.value.filter((s) => s.is_shared).length,
-  }))
+  const stats = computed(() => {
+    const list = toValue(sessions) ?? []
+    return {
+      all: list.length,
+      pinned: list.filter((s) => s.pinned).length,
+      running: list.filter((s) => s.status === 'running' || s.status === 'pending').length,
+      shared: list.filter((s) => s.is_shared).length,
+    }
+  })
 
   return {
     activeFilter,

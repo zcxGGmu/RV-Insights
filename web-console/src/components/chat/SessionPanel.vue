@@ -16,7 +16,7 @@ const route = useRoute()
 const store = useChatStore()
 
 const { groupedSessions, searchQuery, activeFilter, stats, setFilter, setSearchQuery, toggleGroupCollapse } =
-  useSessionGrouping(store.sortedSessions as any)
+  useSessionGrouping(() => store.sortedSessions)
 
 const { onSessionCreated, onSessionUpdated } = useSessionNotifications()
 
