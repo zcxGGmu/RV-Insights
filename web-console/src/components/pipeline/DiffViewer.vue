@@ -86,6 +86,8 @@ watch([() => props.original, () => props.modified], () => {
       <span class="text-xs font-mono text-gray-600 truncate">{{ filename }}</span>
       <button
         class="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors"
+        :aria-pressed="isInline"
+        aria-label="Toggle diff view mode"
         @click="toggleInline"
       >
         {{ isInline ? 'Side-by-side' : 'Inline' }}

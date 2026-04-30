@@ -38,6 +38,7 @@ async def publish_fire_and_forget(
     case_id: str, event_type: str, data: dict,
 ) -> None:
     """Fire-and-forget event publish (creates a short-lived Redis connection)."""
+    r = None
     try:
         import redis.asyncio as aioredis
 
@@ -53,6 +54,11 @@ async def publish_fire_and_forget(
             else EventType.agent_output
         )
         await pub.publish(case_id, et, data)
-        await r.aclose()
     except Exception:
         pass
+    finally:
+        if r:
+            try:
+                await r.aclose()
+            except Exception:
+                pass

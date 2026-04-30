@@ -102,26 +102,29 @@ def _parse_development_result(text: str) -> dict[str, Any]:
     """Extract JSON from LLM output and validate DevelopmentResult shape."""
     from app.models.schemas import DevelopmentResult
 
-    # Strip markdown code fences
-    cleaned = re.sub(r"```(?:json)?\s*", "", text)
-    cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+    stripped = text.strip()
 
+    # Attempt 1: raw text is valid JSON
     try:
-        data = json.loads(cleaned)
+        data = json.loads(stripped)
         DevelopmentResult.model_validate(data)
         return data
-    except (json.JSONDecodeError, Exception) as exc:
-        logger.warning("development_result_parse_failed", error=str(exc))
+    except (json.JSONDecodeError, Exception):
+        pass
 
-    # Try extracting from fenced block
-    match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
+    # Attempt 2: extract from outermost markdown fence
+    match = re.search(
+        r"```(?:json)?\s*\n(.*)\n```\s*$", stripped, re.DOTALL,
+    )
     if match:
         try:
             data = json.loads(match.group(1))
             DevelopmentResult.model_validate(data)
             return data
-        except (json.JSONDecodeError, Exception):
-            pass
+        except (json.JSONDecodeError, Exception) as exc:
+            logger.warning(
+                "development_result_parse_failed", error=str(exc),
+            )
 
     return _stub_development_result()
 
@@ -223,11 +226,13 @@ async def develop_node(state: dict) -> dict:
     except Exception as exc:
         logger.error(
             "develop_node_failed", case_id=case_id, error=str(exc),
+            exc_info=True,
         )
+        safe_msg = "Developer agent encountered an internal error."
         if publisher:
             try:
                 await publisher.publish_error(
-                    case_id, f"Developer failed: {exc!s}", recoverable=True,
+                    case_id, safe_msg, recoverable=True,
                 )
             except Exception:
                 pass
@@ -237,10 +242,10 @@ async def develop_node(state: dict) -> dict:
             "status": "reviewing",
             "development_result": _stub_development_result(),
             "cost": state.get("cost", {}),
-            "error": str(exc),
+            "error": safe_msg,
             "events": [{
                 "event_type": "error",
-                "data": {"message": str(exc)},
+                "data": {"message": safe_msg},
             }],
         }
     finally:

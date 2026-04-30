@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import re
+
 import structlog
 
 logger = structlog.get_logger()
 
 _GITHUB_RAW_URL = "https://raw.githubusercontent.com/{repo}/{branch}/{path}"
+_REPO_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$")
+_MAX_FILES = 20
 
 
 async def fetch_source_files(
@@ -20,10 +24,19 @@ async def fetch_source_files(
     """
     import httpx
 
+    if not _REPO_PATTERN.match(target_repo):
+        logger.warning("invalid_target_repo", repo=target_repo)
+        return {p: "" for p in file_paths}
+
+    safe_paths = [
+        p for p in file_paths
+        if p and not p.startswith("/") and ".." not in p
+    ][:_MAX_FILES]
+
     results: dict[str, str] = {}
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        for path in file_paths:
+        for path in safe_paths:
             url = _GITHUB_RAW_URL.format(
                 repo=target_repo, branch=branch, path=path,
             )
@@ -43,5 +56,9 @@ async def fetch_source_files(
                     path=path, error=str(exc),
                 )
                 results[path] = ""
+
+    for p in file_paths:
+        if p not in results:
+            results[p] = ""
 
     return results

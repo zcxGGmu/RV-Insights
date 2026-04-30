@@ -46,11 +46,21 @@ def _stub_development_result() -> dict:
 
 def _stub_review_verdict(iteration: int) -> dict:
     return {
-        "approved": True,
-        "findings": [],
+        "approved": False,
+        "findings": [{
+            "severity": "critical",
+            "category": "completeness",
+            "file": None,
+            "line": None,
+            "description": "Automated review failed — manual inspection required",
+            "suggestion": "Retry the pipeline or review patches manually",
+        }],
         "iteration": iteration,
-        "reviewer_model": "stub",
-        "summary": "Stub review: auto-approved",
+        "reviewer_model": "stub-fallback",
+        "summary": (
+            "Review could not be completed (LLM failure or parse error)."
+            " Patch NOT approved."
+        ),
     }
 
 

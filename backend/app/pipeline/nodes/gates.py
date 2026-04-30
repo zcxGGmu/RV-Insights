@@ -6,9 +6,12 @@ from ..state import PipelineState
 
 try:
     from langgraph.types import interrupt
-except Exception:
+except ImportError:
     def interrupt(_prompt):  # type: ignore[misc]
-        return {"action": "approve", "comment": "auto-approve (fallback)"}
+        raise RuntimeError(
+            "langgraph.types.interrupt unavailable — "
+            "cannot bypass human gate"
+        )
 
 
 def human_gate_node(state: PipelineState) -> dict:
@@ -26,10 +29,14 @@ def human_gate_node(state: PipelineState) -> dict:
         decision.get("comment", "")
         if isinstance(decision, dict) else ""
     )
-    return {
+    result: dict = {
         "human_decision": action,
         "human_comment": comment,
     }
+    # Reset review loop counter when human sends back to develop
+    if action == "reject" and state.get("current_stage") in ("review", "test"):
+        result["review_iterations"] = 0
+    return result
 
 
 def route_human_decision(state: PipelineState) -> str:

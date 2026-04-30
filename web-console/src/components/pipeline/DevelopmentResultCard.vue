@@ -1,9 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue'
+import { ref, computed, defineAsyncComponent, defineComponent, h } from 'vue'
 import { GitCommitHorizontal, Plus, Minus, FileCode2, ChevronDown, ChevronRight } from 'lucide-vue-next'
 import type { DevelopmentResult } from '@/types'
 
-const DiffViewer = defineAsyncComponent(() => import('./DiffViewer.vue'))
+const DiffViewerLoading = defineComponent({
+  render: () => h('div', { class: 'h-[400px] flex items-center justify-center text-sm text-gray-400' }, 'Loading diff viewer...'),
+})
+
+const DiffViewerError = defineComponent({
+  render: () => h('div', { class: 'h-[400px] flex items-center justify-center text-sm text-red-500' }, 'Failed to load diff viewer. Please refresh.'),
+})
+
+const DiffViewer = defineAsyncComponent({
+  loader: () => import('./DiffViewer.vue'),
+  loadingComponent: DiffViewerLoading,
+  errorComponent: DiffViewerError,
+  delay: 200,
+  timeout: 15000,
+})
 
 const props = defineProps<{
   result: DevelopmentResult
@@ -63,6 +77,7 @@ function toggleFile(filename: string) {
         <div v-for="[filename, patch] in patchEntries" :key="filename">
           <button
             class="flex items-center gap-2 w-full text-left text-sm font-mono px-2 py-1.5 rounded hover:bg-gray-50 transition-colors"
+            :aria-expanded="expandedFiles.has(filename)"
             @click="toggleFile(filename)"
           >
             <component :is="expandedFiles.has(filename) ? ChevronDown : ChevronRight" class="w-3.5 h-3.5 text-gray-400" />

@@ -133,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed, toRef } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Loader2, XCircle } from 'lucide-vue-next'
 import CaseStatusBadge from '@/components/CaseStatusBadge.vue'
@@ -156,23 +156,34 @@ const caseStore = useCaseStore()
 const caseId = computed<string>(() => route.params.id as string)
 
 const caseEvents = useCaseEvents(caseId)
-const currentCaseRef = toRef(caseStore, 'currentCase')
 
 function goBack() {
   router.push('/cases')
 }
 
 async function handleStart() {
-  await caseStore.startPipeline(caseId.value)
-  caseEvents.connect()
+  try {
+    await caseStore.startPipeline(caseId.value)
+    caseEvents.connect()
+  } catch {
+    // error already set in store
+  }
 }
 
 async function handleReview(decision: ReviewDecision) {
-  await caseStore.submitReview(caseId.value, decision)
+  try {
+    await caseStore.submitReview(caseId.value, decision)
+  } catch {
+    // error already set in store
+  }
 }
 
 async function retryLoad() {
-  await caseStore.loadCase(caseId.value)
+  try {
+    await caseStore.loadCase(caseId.value)
+  } catch {
+    // error already set in store
+  }
 }
 
 onMounted(async () => {

@@ -82,21 +82,22 @@ def _parse_review_verdict(
     """Extract JSON from LLM output and validate ReviewVerdict shape."""
     from app.models.schemas import ReviewVerdict
 
-    # Strip markdown code fences
-    cleaned = re.sub(r"```(?:json)?\s*", "", text)
-    cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+    stripped = text.strip()
 
+    # Attempt 1: raw text is valid JSON
     try:
-        data = json.loads(cleaned)
+        data = json.loads(stripped)
         data["iteration"] = iteration
         data["reviewer_model"] = model_name
         ReviewVerdict.model_validate(data)
         return data
-    except (json.JSONDecodeError, Exception) as exc:
-        logger.warning("review_verdict_parse_failed", error=str(exc))
+    except (json.JSONDecodeError, Exception):
+        pass
 
-    # Try extracting from fenced block
-    match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
+    # Attempt 2: extract from outermost markdown fence
+    match = re.search(
+        r"```(?:json)?\s*\n(.*)\n```\s*$", stripped, re.DOTALL,
+    )
     if match:
         try:
             data = json.loads(match.group(1))
@@ -104,8 +105,10 @@ def _parse_review_verdict(
             data["reviewer_model"] = model_name
             ReviewVerdict.model_validate(data)
             return data
-        except (json.JSONDecodeError, Exception):
-            pass
+        except (json.JSONDecodeError, Exception) as exc:
+            logger.warning(
+                "review_verdict_parse_failed", error=str(exc),
+            )
 
     return _stub_review_verdict(iteration)
 
@@ -204,12 +207,14 @@ async def review_node(state: dict) -> dict:
     except Exception as exc:
         logger.error(
             "review_node_failed", case_id=case_id, error=str(exc),
+            exc_info=True,
         )
         iter_num = int(state.get("review_iterations", 0)) + 1
+        safe_msg = "Reviewer agent encountered an internal error."
         if publisher:
             try:
                 await publisher.publish_error(
-                    case_id, f"Reviewer failed: {exc!s}", recoverable=True,
+                    case_id, safe_msg, recoverable=True,
                 )
             except Exception:
                 pass
@@ -220,10 +225,10 @@ async def review_node(state: dict) -> dict:
             "review_verdict": _stub_review_verdict(iter_num),
             "review_iterations": iter_num,
             "cost": state.get("cost", {}),
-            "error": str(exc),
+            "error": safe_msg,
             "events": [{
                 "event_type": "error",
-                "data": {"message": str(exc)},
+                "data": {"message": safe_msg},
             }],
         }
     finally:
