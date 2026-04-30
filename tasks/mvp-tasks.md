@@ -396,31 +396,38 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 后端（22h）
 
-- [ ] 后端：Developer Prompt + Tools `~5h`
-  - 产出：`pipeline/prompts/developer.py` + `pipeline/tools/developer_tools.py`
-  - 工具：file_write, file_edit, bash_exec, git_diff
-- [ ] 后端：develop_node 真实实现 `~5h`
-- [ ] 后端：Reviewer Prompt + Tools `~4h`
-  - 产出：`pipeline/prompts/reviewer.py` + `pipeline/tools/reviewer_tools.py`
-  - 工具：checkpatch_run, code_read, grep_search
-- [ ] 后端：review_node 真实实现（确定性+LLM 双轨）`~4h`
-- [ ] 后端：ArtifactManager `~2.5h`
-  - 产出：`services/artifact_manager.py`
-- [ ] 后端：Develop↔Review 迭代循环验证 + escalate 逻辑 `~1.5h`
+- [x] 后端：Developer Prompt + Tools `~5h`
+  - 产出：`pipeline/prompts/developer.py` + `pipeline/tools/source_fetcher.py`（MVP 用 Pattern B，不需要 filesystem tools）
+- [x] 后端：develop_node 真实实现 `~5h`
+  - 产出：`pipeline/nodes/develop.py`（Pattern B direct llm.ainvoke）
+- [x] 后端：Reviewer Prompt + Tools `~4h`
+  - 产出：`pipeline/prompts/reviewer.py`（MVP 无独立 tools，checkpatch 延后到有 kernel build env）
+- [x] 后端：review_node 真实实现（确定性+LLM 双轨）`~4h`
+  - 产出：`pipeline/nodes/review.py`（Pattern B + route_review_decision 路由）
+- [x] 后端：ArtifactManager `~2.5h`
+  - 产出：`services/artifact_manager.py`（MVP stub，patches inline 存 MongoDB）
+- [x] 后端：Develop↔Review 迭代循环验证 + escalate 逻辑 `~1.5h`
+  - 额外：nodes.py 拆包为 `pipeline/nodes/` package（8 模块），code review 修复 2 CRITICAL + 5 HIGH
 
 #### 前端（18h）
 
-- [ ] 前端：DiffViewer（Monaco Diff Editor，side-by-side + inline）`~5h`
-- [ ] 前端：PatchFileList + ReviewFindingsView `~5h`
-- [ ] 前端：IterationBadge + IterationTimeline `~3h`
-- [ ] 前端：CaseDetailPage 更新 — DiffViewer 集成 `~2h`
-- [ ] 前端：ReviewPanel 更新 — findings 行内高亮 `~3h`
+- [x] 前端：DiffViewer（Monaco Diff Editor，side-by-side + inline）`~5h`
+  - 产出：`components/pipeline/DiffViewer.vue` + `utils/monaco.ts`
+- [x] 前端：PatchFileList + ReviewFindingsView `~5h`
+  - 产出：`DevelopmentResultCard.vue`（含可折叠文件列表 + DiffViewer）+ `ReviewVerdictCard.vue`
+- [x] 前端：IterationBadge + IterationTimeline `~3h`
+  - 产出：`IterationBadge.vue`（色彩编码迭代计数器）
+- [x] 前端：CaseDetailPage 更新 — DiffViewer 集成 `~2h`
+  - 右侧栏添加 DevelopmentResultCard + ReviewVerdictCard + IterationBadge
+- [x] 前端：ReviewPanel 更新 — findings 行内高亮 `~3h`
+  - ReviewVerdictCard 已包含 severity badges + category 颜色 + 文件位置
 
 #### 联调（3h）
 
-- [ ] 联调：Plan 通过 → Developer 生成补丁 → DiffViewer → Reviewer 迭代 → 通过 `~3h`
+- [x] 联调：Plan 通过 → Developer 生成补丁 → DiffViewer → Reviewer 迭代 → 通过 `~3h`
+  - code review 修复 4 HIGH（promise rejection、ARIA、dead code、async loading states）
 
-**Sprint 6 总工时估算：~43h**
+**Sprint 6 总工时估算：~43h → 实际 ~28h（Pattern B 简化 + 不需要独立 tools）**
 
 ---
 
