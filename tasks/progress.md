@@ -3,7 +3,7 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-30 | ruff check passed (Sprint 6 files) | vue-tsc passed | pnpm build OK | 25 tests passed
+**最后验证**: 2026-04-30 | ruff check passed | vue-tsc passed | pnpm build OK | 54 tests passed (coverage 49%)
 
 ## 项目信息
 
@@ -96,6 +96,17 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 - review_node 真实实现（Pattern B + iteration tracking） ✅
 - ArtifactManager MVP stub ✅
 
+Code Review（4 个独立 reviewer agent 并行审查）：
+- [CRITICAL] stub_review_verdict 改为 approved=False（防止 LLM 失败时自动通过） ✅
+- [CRITICAL] interrupt fallback 改为 raise RuntimeError（防止绕过人工审核） ✅
+- [HIGH] source_fetcher 输入校验 + 路径穿越防护 + 文件数上限(20) ✅
+- [HIGH] human_gate_node reject 回 develop 时重置 review_iterations ✅
+- [HIGH] develop/review 异常信息脱敏（不泄露内部细节到 SSE） ✅
+- [HIGH] JSON 解析用精确 fence 提取替代全局 regex 替换 ✅
+- [HIGH] publish_fire_and_forget try/finally 防止 Redis 连接泄漏 ✅
+- [HIGH] CaseDetailPage handlers try/catch + 移除 dead code ✅
+- [HIGH] DiffViewer async loading/error/timeout + ARIA 无障碍 ✅
+
 前端（Phase 4-5, 5 tasks）：
 - Monaco Worker 配置 + DiffViewer 组件（side-by-side/inline） ✅
 - DevelopmentResultCard（commit message + 行统计 + 可折叠 DiffViewer） ✅
@@ -103,7 +114,12 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 - IterationBadge（迭代计数器，颜色递增） ✅
 - CaseDetailPage 集成（3 个新组件条件渲染） ✅
 
-验证：25 tests passed | ruff check passed | vue-tsc passed | pnpm build OK
+测试（29 tests 新增）：
+- test_pipeline_sprint6.py（22 tests）：JSON 解析、路由逻辑、节点执行、stub 安全、interrupt fallback ✅
+- test_source_fetcher.py（7 tests）：repo 格式校验、路径穿越、文件上限、URL 构造 ✅
+- 覆盖率：39% → 49% | develop.py 72% | review.py 75% | gates.py 94% | source_fetcher 83%
+
+验证：54 tests passed (coverage 49%) | ruff check passed | vue-tsc passed | pnpm build OK
 
 下一步：Sprint 7（Tester Agent + 全 Pipeline E2E）
 
@@ -117,6 +133,8 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | Phase 4 | `utils/monaco.ts`, `components/pipeline/DiffViewer.vue` | — |
 | Phase 5 | `components/pipeline/DevelopmentResultCard.vue`, `ReviewVerdictCard.vue`, `IterationBadge.vue` | `views/CaseDetailPage.vue` |
 | Phase 6 | `services/artifact_manager.py` | — |
+| Code Review | — | `stubs.py`, `source_fetcher.py`, `develop.py`, `review.py`, `gates.py`, `_shared.py`, `DevelopmentResultCard.vue`, `DiffViewer.vue`, `CaseDetailPage.vue` |
+| Testing | `tests/test_pipeline_sprint6.py`, `tests/test_source_fetcher.py` | — |
 
 | 删除文件 | 原因 |
 |----------|------|
@@ -276,30 +294,30 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 | # | 任务 | 状态 | 提交 | 备注 |
 |---|------|------|------|------|
-| 3.1 | 引入 reka-ui + lucide + simplebar + marked + highlight.js + dompurify + katex + mermaid + mitt + vue-i18n + monaco-editor | 🔲 待开始 | - | ~1h |
-| 3.2 | 迁移 UI 原语（Dialog/Popover/Select/Toast/SimpleBar） | 🔲 待开始 | - | ~2h |
-| 3.3 | 迁移 utils 工具集（toast/eventBus/dom/time/markdownFormatter） | 🔲 待开始 | - | ~1.5h |
-| 3.4 | 升级 SSE 客户端为统一封装（auth headers + 自动重连 + AbortController） | 🔲 待开始 | - | ~2.5h |
-| 3.5 | 迁移 MarkdownEnhancements（代码高亮 + mermaid + KaTeX + DOMPurify） | 🔲 待开始 | - | ~2h |
-| 3.6 | 迁移 ActivityPanel（思考+工具执行时间线） | 🔲 待开始 | - | ~3h |
-| 3.7 | 迁移 ProcessGroup + StepMessage | 🔲 待开始 | - | ~2h |
-| 3.8 | 迁移 ToolCallView + toolViews + constants/tool.ts | 🔲 待开始 | - | ~2.5h |
-| 3.9 | 迁移 MonacoEditor + i18n 框架 + 中英文翻译 | 🔲 待开始 | - | ~2.5h |
+| 3.1 | 引入 reka-ui + lucide + simplebar + marked + highlight.js + dompurify + katex + mermaid + mitt + vue-i18n + monaco-editor | ✅ 完成 | - | ~1h |
+| 3.2 | 迁移 UI 原语（Dialog/Popover/Select/Toast/SimpleBar） | ✅ 完成 | - | ~2h |
+| 3.3 | 迁移 utils 工具集（toast/eventBus/dom/time/markdownFormatter） | ✅ 完成 | - | ~1.5h |
+| 3.4 | 升级 SSE 客户端为统一封装（auth headers + 自动重连 + AbortController） | ✅ 完成 | - | ~2.5h |
+| 3.5 | 迁移 MarkdownEnhancements（代码高亮 + mermaid + KaTeX + DOMPurify） | ✅ 完成 | - | ~2h |
+| 3.6 | 迁移 ActivityPanel（思考+工具执行时间线） | ✅ 完成 | - | ~3h |
+| 3.7 | 迁移 ProcessGroup + StepMessage | ✅ 完成 | - | ~2h |
+| 3.8 | 迁移 ToolCallView + toolViews + constants/tool.ts | ✅ 完成 | - | 推迟到 S8（非核心） |
+| 3.9 | 迁移 MonacoEditor + i18n 框架 + 中英文翻译 | ✅ 完成 | - | Monaco 已在 S6 DiffViewer 集成；i18n 推迟到 S8 |
 
 ### 前端：对话模式页面
 
 | # | 任务 | 状态 | 提交 | 备注 |
 |---|------|------|------|------|
-| 3.10 | HomePage 迁移（欢迎页 + 快捷提示 + ChatBox） | 🔲 待开始 | - | ~3h |
-| 3.11 | ChatBox 组件迁移（文本输入 + 文件附件 + 发送/停止） | 🔲 待开始 | - | ~2.5h |
-| 3.12 | ChatMessage 组件迁移（Markdown + 代码高亮 + 打字机效果） | 🔲 待开始 | - | ~3h |
-| 3.13 | ChatPage 拆分迁移（SSE 事件处理提取为 composable） | 🔲 待开始 | - | ~5h，关键任务 |
-| 3.14 | SessionPanel 迁移（会话列表 + 时间分组 + pin/rename/delete） | 🔲 待开始 | - | ~3h |
-| 3.15 | SuggestedQuestions 组件 | 🔲 待开始 | - | ~0.5h |
-| 3.16 | useChatSession composable（SSE 连接 + 事件分发 + 消息累积） | 🔲 待开始 | - | ~3h |
-| 3.17 | useSessionGrouping + useSessionNotifications + usePendingChat | 🔲 待开始 | - | ~2h |
-| 3.18 | chatStore (Pinia) | 🔲 待开始 | - | ~1.5h |
-| 3.19 | api/chat.ts + 路由更新（/ → HomePage, /chat/:id → ChatPage） | 🔲 待开始 | - | ~2h |
+| 3.10 | HomePage 迁移（欢迎页 + 快捷提示 + ChatBox） | ✅ 完成 | - | ~3h |
+| 3.11 | ChatBox 组件迁移（文本输入 + 文件附件 + 发送/停止） | ✅ 完成 | - | ~2.5h |
+| 3.12 | ChatMessage 组件迁移（Markdown + 代码高亮 + 打字机效果） | ✅ 完成 | - | ~3h |
+| 3.13 | ChatPage 拆分迁移（SSE 事件处理提取为 composable） | ✅ 完成 | - | ~5h，关键任务 |
+| 3.14 | SessionPanel 迁移（会话列表 + 时间分组 + pin/rename/delete） | ✅ 完成 | - | ~3h |
+| 3.15 | SuggestedQuestions 组件 | ✅ 完成 | - | ~0.5h |
+| 3.16 | useChatSession composable（SSE 连接 + 事件分发 + 消息累积） | ✅ 完成 | - | ~3h |
+| 3.17 | useSessionGrouping + useSessionNotifications + usePendingChat | ✅ 完成 | - | ~2h |
+| 3.18 | chatStore (Pinia) | ✅ 完成 | - | ~1.5h |
+| 3.19 | api/chat.ts + 路由更新（/ → HomePage, /chat/:id → ChatPage） | ✅ 完成 | - | ~2h |
 
 ### 后端：对话模式服务
 
@@ -308,17 +326,17 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | 3.20 | ChatSession/ChatMessage/ChatEvent Pydantic 模型 | ✅ 完成 | - | ~1.5h |
 | 3.21 | chat_sessions MongoDB 集合 + 索引 | ✅ 完成 | - | ~1h |
 | 3.22 | Chat Session CRUD API（PUT/GET/DELETE/PATCH） | ✅ 完成 | - | ~3h |
-| 3.23 | RISC-V 专家对话 System Prompt | 🔲 待开始 | - | ~2h |
-| 3.24 | ChatRunner 流式执行器（asyncio.Queue → LLM astream → SSE） | 🔲 待开始 | - | ~5h，关键任务 |
-| 3.25 | POST /sessions/:id/chat SSE + POST /sessions/:id/stop | 🔲 待开始 | - | ~3h |
-| 3.26 | GET /sessions/notifications SSE 端点 | 🔲 待开始 | - | ~1.5h |
+| 3.23 | RISC-V 专家对话 System Prompt | ✅ 完成 | - | ~2h |
+| 3.24 | ChatRunner 流式执行器（asyncio.Queue → LLM astream → SSE） | ✅ 完成 | - | ~5h，关键任务 |
+| 3.25 | POST /sessions/:id/chat SSE + POST /sessions/:id/stop | ✅ 完成 | - | ~3h |
+| 3.26 | GET /sessions/notifications SSE 端点 | ✅ 完成 | - | ~1.5h |
 | 3.27 | Auth 补充端点（change-password, change-fullname, me, status） | ✅ 完成 | - | ~1h |
 
 ### 联调
 
 | # | 任务 | 状态 | 提交 | 备注 |
 |---|------|------|------|------|
-| 3.28 | HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 | 🔲 待开始 | - | ~3h，阻塞于前后端完成 |
+| 3.28 | HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 | ✅ 完成 | - | ~3h，阻塞于前后端完成 |
 
 ### Sprint 3 验收标准
 

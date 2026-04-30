@@ -960,3 +960,167 @@ interface WeChatBridgeStatus {
 { optimized_prompt: string }
 ```
 ```
+
+---
+
+## 15. Cases / Pipeline 模块
+
+> Sprint 2 创建 CRUD，Sprint 5-6 实现 Pipeline 控制。
+
+### `POST /api/v1/cases/` — 创建 Case
+
+```typescript
+// Request
+{
+  title: string;
+  target_repo: string;           // e.g. "torvalds/linux"
+  input_context: string;         // 贡献描述
+  contribution_type?: string;    // "bugfix" | "feature" | "optimization" | ...
+}
+
+// Response (201) — CaseResponse
+{
+  id: string;
+  title: string;
+  status: CaseStatus;
+  target_repo: string;
+  input_context: string;
+  owner_id: string;
+  exploration_result?: ExplorationResult;
+  execution_plan?: ExecutionPlan;
+  development_result?: DevelopmentResult;
+  review_verdict?: ReviewVerdict;
+  test_result?: TestResult;
+  review_iterations: number;     // default 0
+  created_at: string;            // ISO 8601
+  updated_at: string;
+  cost: CostSummary;
+}
+```
+
+### `GET /api/v1/cases/` — 列表 Cases
+
+```typescript
+// Query params
+page?: number;                   // default 1
+per_page?: number;               // default 20
+status_filter?: CaseStatus;
+target_repo?: string;
+
+// Response
+{
+  items: CaseResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+```
+
+### `GET /api/v1/cases/{case_id}` — 获取单个 Case
+
+```typescript
+// Response — CaseResponse（同上）
+// 404: Case not found
+```
+
+### `DELETE /api/v1/cases/{case_id}` — 删除 Case（admin only）
+
+```typescript
+// Auth: require_role("admin")
+// Response: { detail: "Deleted" }
+// 403: Forbidden | 404: Case not found
+```
+
+### `POST /api/v1/cases/{case_id}/start` — 启动 Pipeline
+
+```typescript
+// Request: 无 body
+// 前提: case.status === "created"
+// Response — CaseResponse（status 变为 "exploring"）
+// 409: Case status is '<current>', expected 'created'
+// 404: Case not found
+```
+
+### `POST /api/v1/cases/{case_id}/review` — 提交人工审核决策
+
+```typescript
+// Request
+{
+  action: "approve" | "reject" | "abandon";
+  comment?: string;
+  review_id?: string;
+}
+
+// 前提: case.status 以 "pending_" 开头
+// Response — CaseResponse（Pipeline 在后台异步恢复）
+// 409: Case is not awaiting review | Case has no pipeline thread
+// 404: Case not found
+```
+
+### `GET /api/v1/cases/{case_id}/events` — Pipeline SSE 事件流
+
+```typescript
+// Method: GET (SSE)
+// Headers: Authorization: Bearer <token>, Last-Event-ID?: <seq>
+// Content-Type: text/event-stream
+//
+// 事件格式:
+// id: <seq>
+// event: <EventType>
+// data: <PipelineEvent JSON>
+//
+// 503: Redis unavailable | 404: Case not found
+```
+
+### 共享类型定义
+
+```typescript
+type CaseStatus =
+  | "created"
+  | "exploring" | "pending_explore_review"
+  | "planning" | "pending_plan_review"
+  | "developing" | "reviewing" | "pending_code_review"
+  | "testing" | "pending_test_review"
+  | "completed" | "abandoned";
+
+interface CostSummary {
+  total_input_tokens: number;
+  total_output_tokens: number;
+  estimated_cost_usd: number;
+}
+
+interface PatchFile {
+  filename: string;
+  original_content: string;
+  modified_content: string;
+  diff_content: string;
+  language: string;              // default "c"
+}
+
+interface DevelopmentResult {
+  patch_files: string[];
+  patches: Record<string, PatchFile>;
+  changed_files: string[];
+  commit_message: string;
+  change_summary: string;
+  lines_added: number;
+  lines_removed: number;
+}
+
+interface ReviewFinding {
+  severity: string;              // "critical" | "major" | "minor" | "suggestion"
+  category: string;              // "correctness" | "security" | "style" | "completeness" | "performance"
+  file?: string;
+  line?: number;
+  description: string;
+  suggestion?: string;
+}
+
+interface ReviewVerdict {
+  approved: boolean;
+  findings: ReviewFinding[];
+  iteration: number;
+  reviewer_model: string;
+  summary: string;
+}
+```

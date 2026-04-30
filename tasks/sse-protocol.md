@@ -228,9 +228,14 @@ LLM 推理/思维链内容。
 
 ---
 
-## 二、Pipeline 模式事件（6 种）
+## 二、Pipeline 模式事件（8 种）
 
 Pipeline 使用 Redis Pub/Sub + Stream，通过 `GET /api/v1/cases/{id}/events` SSE 端点推送。
+
+> **命名映射**：后端 `EventType` 枚举名 → 协议文档名
+> `stage_change` → `stage_change` | `agent_output` → `agent_output` | `review_request` → `human_gate`
+> `cost_update` → `cost_update` | `completed` → `pipeline_done` | `error` → `pipeline_error`
+> `iteration_update` → `iteration_update` | `heartbeat` → 心跳（见第五节）
 
 ### 1. `stage_change`
 
@@ -240,22 +245,54 @@ Pipeline 使用 Redis Pub/Sub + Stream，通过 `GET /api/v1/cases/{id}/events` 
 {
   case_id: string;
   stage: "explore" | "plan" | "develop" | "review" | "test";
-  status: "started" | "completed" | "failed" | "skipped";
+  status: "started" | "completed" | "failed" | "skipped" | "resumed";
+  message?: string;                  // 可选的上下文消息
   timestamp: number;
 }
 ```
 
 ### 2. `agent_output`
 
-Agent 节点输出（探索发现、计划方案、代码补丁、审查意见、测试结果）。
+Agent 节点输出。`type` 字段区分子类型：
+
+**结果类型**（阶段完成时发送）：
 
 ```typescript
 {
   case_id: string;
   stage: string;
-  node: string;
-  output_type: "exploration_result" | "execution_plan" | "development_result" | "review_verdict" | "test_result";
-  data: Record<string, any>;       // 结构因 output_type 而异
+  type: "exploration_result" | "execution_plan" | "development_result" | "review_verdict" | "test_result";
+  data: Record<string, any>;       // 结构因 type 而异
+  timestamp: number;
+}
+```
+
+**过程类型**（执行中实时发送）：
+
+```typescript
+// thinking — Agent 正在思考
+{
+  case_id: string;
+  type: "thinking";
+  content: string;
+  timestamp: number;
+}
+
+// tool_call — Agent 调用工具
+{
+  case_id: string;
+  type: "tool_call";
+  tool_name: string;
+  args: Record<string, any>;
+  timestamp: number;
+}
+
+// tool_result — 工具返回结果
+{
+  case_id: string;
+  type: "tool_result";
+  tool_name: string;
+  result: string;
   timestamp: number;
 }
 ```
@@ -314,6 +351,23 @@ Pipeline 执行异常。
   timestamp: number;
 }
 ```
+
+### 7. `iteration_update`
+
+Develop↔Review 迭代循环状态更新。
+
+```typescript
+{
+  case_id: string;
+  iteration: number;              // 当前迭代次数
+  max_iterations: number;         // 最大迭代次数（默认 3）
+  timestamp: number;
+}
+```
+
+### 8. `heartbeat`
+
+保活心跳，每 15 秒发送（见第五节）。不含 data payload。
 
 ---
 

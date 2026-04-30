@@ -196,3 +196,47 @@
 **原因**：代理转发时可能剥离了 OpenAI 响应中的 `usage` 字段
 
 **如何避免**：成本追踪不能完全依赖 `usage_metadata`；可考虑 tiktoken 本地估算作为 fallback，或在切换到原生 API 后自动恢复
+
+---
+
+## Sprint 6 教训
+
+### 2026-04-30 | 安全
+
+**教训**：Stub/fallback 函数绝不能返回 `approved=True`。`_stub_review_verdict()` 默认 auto-approve，导致 LLM 失败或 JSON 解析失败时补丁被自动通过——直接绕过了 Review 安全关卡
+
+**原因**：编写 stub 时只考虑了 happy path（"先通过，后面再实现"），忽略了 fallback 是失败路径，应该保守（fail-closed）
+
+**如何避免**：所有安全相关的 stub/fallback 必须 fail-closed（拒绝/报错），不能 fail-open（通过/忽略）。同理，`interrupt()` 的 fallback 也不能 auto-approve，应 raise RuntimeError
+
+### 2026-04-30 | 安全
+
+**教训**：Pipeline 节点的 `except` 块不能把 `str(exc)` 直接发到前端（SSE / state）。Python 异常消息经常包含连接 URL、部分 API key、内部主机名
+
+**原因**：开发时习惯性地 `f"Failed: {exc!s}"` 做错误消息，忘记这些消息会经 SSE 推送到浏览器
+
+**如何避免**：异常处理统一用 `safe_msg = "…generic message…"` 对外，`logger.error(..., error=str(exc), exc_info=True)` 留在服务端日志
+
+### 2026-04-30 | 后端
+
+**教训**：用 `re.sub(r"```(?:json)?\s*", "", text)` 全局替换 Markdown fence 会破坏 JSON 内部的 diff 内容（如果 diff 本身包含 \`\`\`）。应改用精确提取（先尝试 raw JSON，再匹配最外层 fence）
+
+**原因**：LLM 输出的 JSON 中 `diff_content` 字段可能包含 Markdown 代码块标记，全局 regex 会把它们也删掉，导致 JSON 值被截断
+
+**如何避免**：解析 LLM JSON 输出时，优先 `json.loads(text.strip())`；失败后用 `re.search(r"```json\n(.*)\n```$", text, re.DOTALL)` 匹配最外层 fence，不要全局替换
+
+### 2026-04-30 | 测试
+
+**教训**：`unittest.mock.patch("app.pipeline.nodes.develop.create_chat_model")` 对 deferred import（函数体内 `from ... import`）无效——因为 `patch` 查找模块级属性时目标不存在。应 patch 原始模块 `"app.services.model_factory.create_chat_model"`
+
+**原因**：`patch` 的 `get_original()` 在 `__enter__` 时检查 target module 的 `__dict__`，deferred import 只在函数调用时才注入
+
+**如何避免**：当被 mock 的函数是 deferred import 时，patch 到源模块（`app.services.model_factory.create_chat_model`），而非消费模块（`app.pipeline.nodes.develop.create_chat_model`）
+
+### 2026-04-30 | 前端
+
+**教训**：`defineAsyncComponent(() => import('./Heavy.vue'))` 必须提供 `loadingComponent` / `errorComponent` / `timeout`，否则 Monaco 等大块（~2MB）加载失败时用户看到空白无反馈
+
+**原因**：网络慢/CDN 超时/广告拦截都可能导致 chunk 加载失败，默认无任何 UI 反馈
+
+**如何避免**：所有 `defineAsyncComponent` 必须用对象形式，至少提供 `loadingComponent` 和 `errorComponent`
