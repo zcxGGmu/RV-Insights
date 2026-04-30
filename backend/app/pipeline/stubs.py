@@ -66,10 +66,13 @@ def _stub_review_verdict(iteration: int) -> dict:
 
 def _stub_test_result() -> dict:
     return {
-        "passed": True,
-        "total_tests": 1,
-        "passed_tests": 1,
+        "passed": False,
+        "total_tests": 0,
+        "passed_tests": 0,
         "failed_tests": 0,
-        "test_log_path": "/tmp/stub_test.log",
-        "failure_details": [],
+        "test_log_path": "",
+        "failure_details": ["Test could not be executed (LLM failure or parse error)."],
+        "test_case_results": [],
+        "compilation_passed": False,
+        "test_log": "Stub: test could not be executed.",
     }

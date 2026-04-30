@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     DEVELOPER_PROVIDER: str = "openai"
     REVIEWER_MODEL: str = "gpt-4o"
     REVIEWER_PROVIDER: str = "openai"
+    TESTER_MODEL: str = "gpt-4o"
+    TESTER_PROVIDER: str = "openai"
 
     model_config = SettingsConfigDict(env_file=".env")
 

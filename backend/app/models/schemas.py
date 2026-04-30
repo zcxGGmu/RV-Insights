@@ -145,15 +145,25 @@ class ReviewVerdict(BaseModel):
 
 
 # Test
+class TestCaseResult(BaseModel):
+    test_id: str
+    name: str
+    passed: bool
+    message: str
+
+
 class TestResult(BaseModel):
     passed: bool
     total_tests: int
     passed_tests: int
     failed_tests: int
-    test_log_path: str
+    test_log_path: str = ""
     coverage_percent: Optional[float] = None
     qemu_version: Optional[str] = None
     failure_details: List[str] = []
+    test_case_results: List[TestCaseResult] = []
+    compilation_passed: Optional[bool] = None
+    test_log: str = ""
 
 
 # Case

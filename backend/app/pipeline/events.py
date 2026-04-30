@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import redis.asyncio as aioredis
 import structlog
@@ -29,7 +29,7 @@ class EventPublisher:
             case_id=case_id,
             event_type=event_type,
             data=data,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
         )
 
         payload = event.model_dump_json()

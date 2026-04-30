@@ -5,7 +5,7 @@ from .explore import explore_node
 from .gates import human_gate_node, route_human_decision, route_review_decision
 from .plan import plan_node
 from .review import review_node
-from .stubs import test_node
+from .test import test_node
 
 __all__ = [
     "explore_node",

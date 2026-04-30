@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from operator import add
-from typing import Annotated, TypedDict
+from typing import Annotated, Optional, TypedDict
 
 
 class PipelineState(TypedDict):
@@ -11,9 +11,9 @@ class PipelineState(TypedDict):
     case_id: str
 
     # Input context from the Case document
-    input_context: str | None
-    target_repo: str | None
-    contribution_type: str | None
+    input_context: Optional[str]
+    target_repo: Optional[str]
+    contribution_type: Optional[str]
 
     # Stages: explore | plan | develop | review | test
     current_stage: str
@@ -22,20 +22,20 @@ class PipelineState(TypedDict):
     status: str
 
     # Stage results (optional until produced by each node)
-    exploration_result: dict | None
-    execution_plan: dict | None
-    development_result: dict | None
-    review_verdict: dict | None
-    test_result: dict | None
+    exploration_result: Optional[dict]
+    execution_plan: Optional[dict]
+    development_result: Optional[dict]
+    review_verdict: Optional[dict]
+    test_result: Optional[dict]
 
     # Controller/state management
     review_iterations: int
-    human_decision: str | None   # approve | reject | abandon
-    human_comment: str | None
+    human_decision: Optional[str]   # approve | reject | abandon
+    human_comment: Optional[str]
 
     # Cost accounting (tokens/cost) – kept generic for the skeleton
     cost: dict
-    error: str | None
+    error: Optional[str]
 
     # Accumulated events for the pipeline lifecycle
     events: Annotated[list[dict], add]
