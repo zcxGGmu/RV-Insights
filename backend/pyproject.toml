@@ -24,6 +24,7 @@ dependencies = [
     "sse-starlette>=2.0.0",
     "langchain-core>=0.3.0",
     "langchain-openai>=0.3.0",
+    "langchain-anthropic>=0.3.0",
 ]
 
 [project.optional-dependencies]

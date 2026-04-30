@@ -152,3 +152,31 @@
 **原因**：手动实现 tool-calling loop 需要处理多轮 LLM 调用、工具执行、结果回传，代码量大且容易出错
 
 **如何避免**：优先使用 LangGraph 的高级 API 而非手写循环；`astream_events` v2 提供细粒度事件（on_chat_model_stream, on_tool_start, on_tool_end）
+
+---
+
+## Sprint 5
+
+### 2026-04-30 | 架构
+
+**教训**：设计文档建议 Claude Agent SDK（子进程模型）+ OpenAI Agents SDK（库模型），但实际采用 LangGraph create_react_agent 统一方案更优
+
+**原因**：Claude/OpenAI SDK 各有独立的事件模型和 API 风格，集成两套 SDK 会增加维护成本；而 LangGraph create_react_agent + astream_events 已在 ChatRunner 中验证过，可复用事件映射和成本追踪逻辑
+
+**如何避免**：评估新 SDK 时，先检查现有基础设施是否已能满足需求；跨 SDK 统一适配层的复杂度往往超过预期
+
+### 2026-04-30 | Pipeline
+
+**教训**：PipelineState 缺少输入字段（input_context/target_repo/contribution_type），start_pipeline 也未传递 Case 的输入信息给 LangGraph state，导致 Agent 节点无法获取任务上下文
+
+**原因**：Sprint 2 只实现了 Pipeline 骨架（stub 节点），stub 不需要真实输入；Sprint 5 替换为真实 LLM 时才暴露这个缺口
+
+**如何避免**：即使是 stub 实现，也应保留完整的数据流通路径（输入 → state → 节点），避免后续集成时发现数据断链
+
+### 2026-04-30 | 后端
+
+**教训**：ruff N818 要求异常类名以 Error 结尾（`CostLimitExceeded` → `CostLimitExceededError`），rename 需要同步更新所有导出和引用
+
+**原因**：PEP 8 命名约定，ruff 默认启用 N818 规则
+
+**如何避免**：新建异常类时直接以 `Error` 结尾命名；rename 时用 grep 确认所有引用点（尤其是 `__init__.py` 的 `__all__` 导出）

@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     SEARCH_API_KEY: str = ""
     SEARCH_API_URL: str = ""
 
+    ANTHROPIC_API_KEY: str = ""
+    EXPLORER_MODEL: str = "claude-sonnet-4-20250514"
+    EXPLORER_PROVIDER: str = "anthropic"
+    PLANNER_MODEL: str = "gpt-4o"
+    PLANNER_PROVIDER: str = "openai"
+
     model_config = SettingsConfigDict(env_file=".env")
 
 

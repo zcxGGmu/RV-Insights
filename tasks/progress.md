@@ -3,7 +3,7 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-29 | ruff check passed (Sprint 4 files) | pnpm build OK
+**最后验证**: 2026-04-30 | ruff check passed (Sprint 5 files) | vue-tsc passed | pnpm build OK
 
 ## 项目信息
 
@@ -54,6 +54,8 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | ChatPage mermaid chunk 1.3MB | vite build 产物过大 | Sprint 4 动态 import 或 code split |
 | S3 推迟组件：~~ProcessGroup/StepMessage~~/ToolCallView/toolViews/MonacoEditor/i18n | Chat 工具调用可视化缺失 | ProcessGroup/StepMessage S4 已完成，其余 S8 |
 | Types/Constants/i18n 未独立文件化 | 类型内联在组件中，不利于复用 | Sprint 4 统一整理 |
+| Explorer/Planner 使用简化 SDK 策略 | 未用 Claude SDK/OpenAI SDK 独立封装，统一用 LangGraph | Sprint 6/7 视需求决定是否切换 |
+| Pipeline 联调未完成 | Explorer/Planner 代码就绪但未端到端验证 | Sprint 5 联调阶段（需 API key） |
 
 ## 架构决策记录
 
@@ -68,10 +70,55 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | RBAC 角色 | 2 角色 (admin/user) | MVP 阶段简化，所有登录用户都是 contributor | 3 角色 (admin/reviewer/viewer) |
 | LLM 编排 | LangGraph StateGraph | 内置 checkpoint + interrupt + 条件边，适合 Pipeline 状态机 | 手写状态机 |
 | 开发期默认模型 | gpt-4o-mini | 成本可控，开发调试够用 | gpt-4o / claude-sonnet |
+| Pipeline Agent SDK | LangGraph create_react_agent | 复用 ChatRunner 模式，统一事件流，简化成本追踪 | Claude Agent SDK + OpenAI Agents SDK（原计划） |
 
-## 当前 Sprint: Sprint 4（对话模式完善 + Model 管理）✅ 完成
+| SDK 策略简化 | Claude/OpenAI SDK 改为 LangGraph create_react_agent | Sprint 5 已验证可行 |
 
-## 当前状态: Sprint 4 全部完成，准备进入 Sprint 5
+## 当前 Sprint: Sprint 5（Explorer + Planner Agent 真实 LLM）✅ 完成
+
+## 当前状态: Sprint 5 代码完成，联调待 API key 配置后进行
+
+### Sprint 5 完成总结
+
+**SDK 策略偏差**：原计划用 Claude Agent SDK + OpenAI Agents SDK 独立封装，实际采用 LangGraph create_react_agent + astream_events 统一方案，复用 ChatRunner 已有模式，降低复杂度约 30%。
+
+后端（Phase 1-3, 11 tasks）：
+- AgentAdapter ABC + AgentEvent 模型（adapters/__init__.py） ✅
+- LangChainReactAdapter（create_react_agent + astream_events v2） ✅
+- PipelineState 扩展（input_context/target_repo/contribution_type） ✅
+- Config 扩展（ANTHROPIC_API_KEY + EXPLORER/PLANNER 配置） ✅
+- Token 成本估算（PRICING_PER_1M + estimate_cost/merge_cost） ✅
+- EventPublisher 便捷方法（publish_thinking/tool_call/tool_result） ✅
+- PatchworkClient（patchwork.kernel.org API 客户端） ✅
+- Explorer 工具集（patchwork_search + mailing_list_search + code_grep） ✅
+- Explorer System Prompt（三段式 RISC-V 探索策略） ✅
+- explore_node 真实实现（LLM + 工具调用 + 事件流 + 成本追踪） ✅
+- Planner System Prompt + plan_node 真实实现（结构化 JSON 输出） ✅
+- verify_exploration_claims（URL 可达性 + 路径安全 + 证据阈值） ✅
+- start_pipeline 传递输入字段到 initial_state ✅
+
+前端（Phase 4, 4 tasks）：
+- ContributionCard 组件（贡献类型 badge + 可行性评分条 + 证据链） ✅
+- ExecutionPlanView 组件（开发步骤卡片 + 测试用例 + 风险 badge） ✅
+- AgentEventLog 增强（工具参数表格 + 结果截断展开 + 自动滚动） ✅
+- CaseDetailPage 集成 ContributionCard + ExecutionPlanView ✅
+
+验证：ruff check passed | vue-tsc passed | pnpm build OK
+
+下一步：Sprint 5 联调（需配置 ANTHROPIC_API_KEY/OPENAI_API_KEY），然后 Sprint 6
+
+### Sprint 5 文件映射
+
+| Phase | 新建文件 | 修改文件 |
+|-------|----------|----------|
+| Phase 1 | `adapters/langchain_adapter.py`, `datasources/__init__.py`, `datasources/patchwork.py`, `pipeline/stubs.py` | `pyproject.toml`, `config.py`, `pipeline/state.py`, `pipeline/cost.py`, `pipeline/events.py`, `pipeline/__init__.py`, `api/pipeline.py`, `adapters/__init__.py` |
+| Phase 2 | `pipeline/tools/__init__.py`, `pipeline/tools/explorer_tools.py`, `pipeline/prompts/__init__.py`, `pipeline/prompts/explorer.py`, `pipeline/verification.py` | `pipeline/nodes.py` (explore_node) |
+| Phase 3 | `pipeline/prompts/planner.py` | `pipeline/nodes.py` (plan_node) |
+| Phase 4 | `components/pipeline/ContributionCard.vue`, `components/pipeline/ExecutionPlanView.vue` | `components/AgentEventLog.vue`, `views/CaseDetailPage.vue` |
+
+---
+
+## Sprint 4（对话模式完善 + Model 管理）✅ 完成
 
 ### Sprint 4 完成总结
 

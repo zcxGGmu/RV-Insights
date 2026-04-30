@@ -91,24 +91,16 @@
         </div>
 
         <!-- Stage Results -->
-        <div v-if="caseStore.currentCase?.exploration_result" class="mt-6">
-          <h3 class="text-sm font-semibold text-gray-700 mb-2">Exploration Result</h3>
-          <div class="bg-white rounded-lg border p-3 text-sm space-y-2">
-            <div><span class="text-gray-500">Title:</span> <span class="font-medium">{{ caseStore.currentCase.exploration_result.title }}</span></div>
-            <div><span class="text-gray-500">Type:</span> {{ caseStore.currentCase.exploration_result.contribution_type }}</div>
-            <div><span class="text-gray-500">Score:</span> {{ caseStore.currentCase.exploration_result.feasibility_score }}</div>
-            <div class="text-xs text-gray-600">{{ caseStore.currentCase.exploration_result.summary }}</div>
-          </div>
-        </div>
-
-        <div v-if="caseStore.currentCase?.execution_plan" class="mt-4">
-          <h3 class="text-sm font-semibold text-gray-700 mb-2">Execution Plan</h3>
-          <div class="bg-white rounded-lg border p-3 text-sm space-y-2">
-            <div><span class="text-gray-500">Steps:</span> {{ caseStore.currentCase.execution_plan.dev_steps.length }}</div>
-            <div><span class="text-gray-500">Tests:</span> {{ caseStore.currentCase.execution_plan.test_cases.length }}</div>
-            <div><span class="text-gray-500">Risk:</span> {{ caseStore.currentCase.execution_plan.risk_assessment }}</div>
-          </div>
-        </div>
+        <ContributionCard
+          v-if="caseStore.currentCase?.exploration_result"
+          :result="caseStore.currentCase.exploration_result"
+          class="mt-6"
+        />
+        <ExecutionPlanView
+          v-if="caseStore.currentCase?.execution_plan"
+          :plan="caseStore.currentCase.execution_plan"
+          class="mt-4"
+        />
 
         <!-- Review Panel -->
         <div class="mt-6">
@@ -131,6 +123,8 @@ import { ArrowLeft, Loader2, XCircle } from 'lucide-vue-next'
 import CaseStatusBadge from '@/components/CaseStatusBadge.vue'
 import PipelineView from '@/components/pipeline/PipelineView.vue'
 import ReviewPanel from '@/components/pipeline/ReviewPanel.vue'
+import ContributionCard from '@/components/pipeline/ContributionCard.vue'
+import ExecutionPlanView from '@/components/pipeline/ExecutionPlanView.vue'
 import AgentEventLog from '@/components/AgentEventLog.vue'
 import { useCaseStore } from '@/stores/case'
 import { useCaseEvents } from '@/composables/useCaseEvents'

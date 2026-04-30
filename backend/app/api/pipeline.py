@@ -144,6 +144,9 @@ async def start_pipeline(
             async with await create_compiled_graph() as compiled:
                 initial_state = {
                     "case_id": case_id,
+                    "input_context": case_doc.get("input_context", ""),
+                    "target_repo": case_doc.get("target_repo", ""),
+                    "contribution_type": case_doc.get("contribution_type", ""),
                     "current_stage": "explore",
                     "status": CaseStatus.exploring.value,
                     "exploration_result": None,
@@ -154,7 +157,11 @@ async def start_pipeline(
                     "review_iterations": 0,
                     "human_decision": None,
                     "human_comment": None,
-                    "cost": {"total_input_tokens": 0, "total_output_tokens": 0, "estimated_cost_usd": 0.0},
+                    "cost": {
+                        "total_input_tokens": 0,
+                        "total_output_tokens": 0,
+                        "estimated_cost_usd": 0.0,
+                    },
                     "error": None,
                     "events": [],
                 }

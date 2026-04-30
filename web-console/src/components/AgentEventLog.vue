@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import {
   CheckCircle2,
   XCircle,
@@ -10,13 +10,22 @@ import {
   AlertTriangle,
   DollarSign,
   MessageSquare,
-  Activity
+  Activity,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-vue-next'
 import type { PipelineEvent } from '@/types'
 
 const props = defineProps<{
   events: PipelineEvent[]
 }>()
+
+const containerRef = ref<HTMLElement | null>(null)
+
+/** Track which tool_result events are expanded (by seq number) */
+const expandedResults = ref<Set<number>>(new Set())
+
+const TRUNCATE_LIMIT = 200
 
 interface RenderEvent {
   seq: number
@@ -26,6 +35,8 @@ interface RenderEvent {
   title: string
   body?: string
   meta?: string
+  toolArgs?: Record<string, unknown>
+  isTruncatable?: boolean
 }
 
 function renderEvent(event: PipelineEvent): RenderEvent {
@@ -61,15 +72,17 @@ function renderEvent(event: PipelineEvent): RenderEvent {
         base.iconColor = 'text-orange-500'
         base.bgColor = 'bg-orange-50'
         base.title = `Tool: ${event.data.tool_name || 'unknown'}`
-        base.body = JSON.stringify(event.data.args || {}, null, 2)
+        base.toolArgs = (event.data.args || {}) as Record<string, unknown>
       } else if (type === 'tool_result') {
         base.icon = FileCheck
         base.iconColor = 'text-teal-500'
         base.bgColor = 'bg-teal-50'
         base.title = `Result: ${event.data.tool_name || 'unknown'}`
-        base.body = typeof event.data.result === 'string'
+        const raw = typeof event.data.result === 'string'
           ? event.data.result
           : JSON.stringify(event.data.result || {}, null, 2)
+        base.body = raw
+        base.isTruncatable = raw.length > TRUNCATE_LIMIT
       } else {
         base.icon = MessageSquare
         base.iconColor = 'text-gray-600'
@@ -122,10 +135,47 @@ function renderEvent(event: PipelineEvent): RenderEvent {
 const renderedEvents = computed(() => {
   return [...props.events].reverse().map(renderEvent)
 })
+
+function isExpanded(seq: number): boolean {
+  return expandedResults.value.has(seq)
+}
+
+function toggleExpand(seq: number): void {
+  const next = new Set(expandedResults.value)
+  if (next.has(seq)) {
+    next.delete(seq)
+  } else {
+    next.add(seq)
+  }
+  expandedResults.value = next
+}
+
+function displayBody(evt: RenderEvent): string {
+  if (!evt.body) return ''
+  if (!evt.isTruncatable || isExpanded(evt.seq)) return evt.body
+  return evt.body.slice(0, TRUNCATE_LIMIT) + '...'
+}
+
+function formatArgValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  return JSON.stringify(value)
+}
+
+// Auto-scroll to top when new events arrive (newest displayed first)
+watch(
+  () => props.events.length,
+  () => {
+    nextTick(() => {
+      if (containerRef.value) {
+        containerRef.value.scrollTop = 0
+      }
+    })
+  }
+)
 </script>
 
 <template>
-  <div class="space-y-2">
+  <div ref="containerRef" class="space-y-2">
     <div
       v-for="evt in renderedEvents"
       :key="evt.seq"
@@ -140,10 +190,37 @@ const renderedEvents = computed(() => {
         </span>
         <span class="text-xs text-gray-400 font-mono">#{{ evt.seq }}</span>
       </div>
-      <pre
-        v-if="evt.body"
-        class="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-words font-mono bg-white/50 rounded p-2"
-      >{{ evt.body }}</pre>
+
+      <!-- Tool call args as compact key-value table -->
+      <table
+        v-if="evt.toolArgs && Object.keys(evt.toolArgs).length > 0"
+        class="mt-1 w-full text-xs font-mono bg-white/50 rounded overflow-hidden"
+      >
+        <tr
+          v-for="(val, key) in evt.toolArgs"
+          :key="String(key)"
+          class="border-b border-gray-100 last:border-b-0"
+        >
+          <td class="px-2 py-1 text-gray-500 font-medium whitespace-nowrap align-top w-1/4">{{ key }}</td>
+          <td class="px-2 py-1 text-gray-700 break-all">{{ formatArgValue(val) }}</td>
+        </tr>
+      </table>
+
+      <!-- Body with optional truncation toggle -->
+      <template v-if="evt.body">
+        <pre
+          class="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-words font-mono bg-white/50 rounded p-2"
+        >{{ displayBody(evt) }}</pre>
+        <button
+          v-if="evt.isTruncatable"
+          class="mt-1 text-xs font-medium flex items-center gap-1 transition-colors"
+          :class="isExpanded(evt.seq) ? 'text-blue-600 hover:text-blue-800' : 'text-gray-500 hover:text-gray-700'"
+          @click="toggleExpand(evt.seq)"
+        >
+          <component :is="isExpanded(evt.seq) ? ChevronDown : ChevronRight" class="w-3 h-3" />
+          {{ isExpanded(evt.seq) ? 'Show less' : 'Show more' }}
+        </button>
+      </template>
     </div>
   </div>
 </template>

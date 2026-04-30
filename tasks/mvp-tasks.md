@@ -346,34 +346,45 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 后端（24h）
 
-- [ ] 后端：AgentAdapter 抽象基类 `~1h`
-  - 产出：`adapters/__init__.py`
-- [ ] 后端：ClaudeAgentAdapter（Anthropic SDK 封装）`~4h`
-  - 产出：`adapters/claude_adapter.py`
-- [ ] 后端：OpenAIAgentAdapter（OpenAI Agents SDK 封装）`~3.5h`
-  - 产出：`adapters/openai_adapter.py`
-- [ ] 后端：Explorer Prompt + Tools `~5h`
+- [x] 后端：AgentAdapter 抽象基类 `~1h`
+  - 产出：`adapters/__init__.py`（AgentEvent + AgentAdapter ABC）
+- [x] 后端：LangChainReactAdapter（替代原计划的 Claude/OpenAI 独立 SDK 封装）`~4h`
+  - 产出：`adapters/langchain_adapter.py`
+  - 偏差：未使用 Claude Agent SDK / OpenAI Agents SDK，改用 LangGraph create_react_agent + astream_events，复用 ChatRunner 模式，降低复杂度
+- [x] 后端：Explorer Prompt + Tools `~5h`
   - 产出：`pipeline/prompts/explorer.py` + `pipeline/tools/explorer_tools.py`
-  - 工具：web_search, patchwork_search, code_grep, mailing_list_search
-- [ ] 后端：explore_node 真实实现 `~4h`
-- [ ] 后端：Planner Prompt + plan_node 真实实现 `~4.5h`
+  - 工具：patchwork_search, mailing_list_search, code_grep
+- [x] 后端：explore_node 真实实现 `~4h`
+  - 替换 stub 为 LangChainReactAdapter 驱动的真实 LLM 调用
+- [x] 后端：Planner Prompt + plan_node 真实实现 `~4.5h`
   - 产出：`pipeline/prompts/planner.py`
-- [ ] 后端：EventPublisher 扩展 — thinking/tool_call/tool_result 细粒度事件 `~1h`
-- [ ] 后端：PatchworkClient `~1h`
-  - 产出：`datasources/patchwork.py`
+  - 使用 ChatOpenAI ainvoke + 结构化 JSON 输出
+- [x] 后端：EventPublisher 扩展 — thinking/tool_call/tool_result 细粒度事件 `~1h`
+- [x] 后端：PatchworkClient `~1h`
+  - 产出：`datasources/patchwork.py`（httpx + tenacity retry）
+- [x] 后端：PipelineState 扩展 + start_pipeline 输入传递 `~0.5h`
+  - 新增 input_context/target_repo/contribution_type 字段
+- [x] 后端：Token 成本估算 + merge_cost `~0.5h`
+  - PRICING_PER_1M 定价表 + estimate_cost/merge_cost 函数
+- [x] 后端：Config 扩展（ANTHROPIC_API_KEY + EXPLORER/PLANNER 配置）`~0.5h`
+- [x] 后端：verify_exploration_claims 验证函数 `~1h`
+  - 产出：`pipeline/verification.py`（URL 可达性 + 路径安全 + 证据阈值）
 
 #### 前端（13h）
 
-- [ ] 前端：重构 AgentEventLog → 使用共享 ActivityPanel `~3h`
-- [ ] 前端：ContributionCard + EvidenceChain `~4h`
-- [ ] 前端：ExecutionPlanView + CostSummary `~4h`
-- [ ] 前端：移除 Pipeline Mock API，连接真实后端 `~2h`
+- [x] 前端：AgentEventLog 增强（工具参数表格 + 结果截断展开 + 自动滚动）`~3h`
+- [x] 前端：ContributionCard（贡献类型 badge + 可行性评分 + 证据链）`~4h`
+  - 产出：`components/pipeline/ContributionCard.vue`
+- [x] 前端：ExecutionPlanView（开发步骤卡片 + 测试用例 + 风险 badge）`~4h`
+  - 产出：`components/pipeline/ExecutionPlanView.vue`
+- [x] 前端：CaseDetailPage 集成 ContributionCard + ExecutionPlanView `~2h`
 
 #### 联调（3h）
 
 - [ ] 联调：Create case → Start → Explorer 真实运行 → Review → Planner 生成方案 `~3h`
+  - 待真实 API key 配置后进行端到端验证
 
-**Sprint 5 总工时估算：~40h**
+**Sprint 5 总工时估算：~40h（实际 ~30h，SDK 策略简化节省了时间）**
 
 ---
 
