@@ -51,8 +51,12 @@ class _FakeCollection:
             inserted_id = _id
         return _R()
 
-    async def find(self, query):
-        return list(self._docs)
+    def find(self, query):
+        docs = list(self._docs)
+        class _Cursor:
+            async def to_list(self, length=None):
+                return docs
+        return _Cursor()
 
     async def delete_one(self, query):
         _id = query.get("_id")

@@ -13,10 +13,9 @@
  */
 import { test, expect, type ConsoleMessage } from '@playwright/test'
 
-const BASE = 'http://localhost:5175'
+const BASE = 'http://localhost:5173'
 const CASE_ID = '7e8bd53e-0e33-425b-b3f3-fb2c282de93d'
-const ARTIFACTS =
-  '/home/zq/work-space/repo/ai-projs/posp/RV-Insights/web-console/tests/e2e/artifacts'
+const ARTIFACTS = new URL('./artifacts', import.meta.url).pathname
 
 // ─── Scenario 1: Login page renders ────────────────────────────────────────
 

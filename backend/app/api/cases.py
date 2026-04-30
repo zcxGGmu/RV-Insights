@@ -59,8 +59,7 @@ async def create_case(payload: CaseCreate, user: UserInDB = Depends(get_current_
 @router.get("/", response_model=CaseListResponse)
 async def list_cases(page: int = 1, per_page: int = 20, status_filter: Optional[CaseStatus] = None, target_repo: Optional[str] = None, db = Depends(get_db), user: UserInDB = Depends(get_current_user)):
     cases = db.mongo_db["cases"]
-    raw = await cases.find({})
-    all_cases = await raw.to_list(length=None) if hasattr(raw, "to_list") else raw
+    all_cases = await cases.find({}).to_list(length=None)
     filtered = []
     for c in all_cases:
         if status_filter and c.get("status") != status_filter.value:
