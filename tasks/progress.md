@@ -55,7 +55,8 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | S3 推迟组件：~~ProcessGroup/StepMessage~~/ToolCallView/toolViews/MonacoEditor/i18n | Chat 工具调用可视化缺失 | ProcessGroup/StepMessage S4 已完成，其余 S8 |
 | Types/Constants/i18n 未独立文件化 | 类型内联在组件中，不利于复用 | Sprint 4 统一整理 |
 | Explorer/Planner 使用简化 SDK 策略 | 未用 Claude SDK/OpenAI SDK 独立封装，统一用 LangGraph | Sprint 6/7 视需求决定是否切换 |
-| Pipeline 联调未完成 | Explorer/Planner 代码就绪但未端到端验证 | Sprint 5 联调阶段（需 API key） |
+| ~~Pipeline 联调未完成~~ | ~~Explorer/Planner 代码就绪但未端到端验证~~ | ✅ Sprint 5 联调通过（2026-04-30） |
+| 代理端点不返回 usage_metadata | Token 计数为 0，成本追踪失效 | 待切换到原生 API 或代理支持 usage 后自动修复 |
 
 ## 架构决策记录
 
@@ -76,7 +77,16 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 ## 当前 Sprint: Sprint 5（Explorer + Planner Agent 真实 LLM）✅ 完成
 
-## 当前状态: Sprint 5 代码完成，联调待 API key 配置后进行
+## 当前状态: Sprint 5 全部完成（含联调），准备进入 Sprint 6
+
+### Sprint 5 联调验证（2026-04-30）
+
+- API 代理：`gpt-5.4` via `https://claude.hanbbq.top/v1` ✅
+- Explorer 真实运行：573 个 SSE 事件，生成 RISC-V Vector CSR 探索结果 ✅
+- Planner 真实运行：5 dev_steps + 4 test_cases 的 ExecutionPlan ✅
+- 完整流程：create → start → explore → approve → plan → pending_plan_review ✅
+- 发现并修复：langchain-openai bind_tools 需要 OPENAI_API_KEY 环境变量 → model_factory.py os.environ.setdefault
+- 已知限制：代理端点不返回 usage_metadata，token 计数为 0
 
 ### Sprint 5 完成总结
 

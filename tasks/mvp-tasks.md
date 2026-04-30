@@ -381,8 +381,9 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 联调（3h）
 
-- [ ] 联调：Create case → Start → Explorer 真实运行 → Review → Planner 生成方案 `~3h`
-  - 待真实 API key 配置后进行端到端验证
+- [x] 联调：Create case → Start → Explorer 真实运行 → Review → Planner 生成方案 `~3h`
+  - 2026-04-30 验证通过：gpt-5.4 via 代理端点，Explorer 573 事件 + Planner 5 步骤
+  - 修复：langchain-openai bind_tools 需 OPENAI_API_KEY 环境变量 → model_factory.py setdefault
 
 **Sprint 5 总工时估算：~40h（实际 ~30h，SDK 策略简化节省了时间）**
 

@@ -41,8 +41,12 @@ class TaskSettings(BaseModel):
 
 
 def create_chat_model(config: ModelConfig) -> Any:
+    import os
+
     if config.provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
+        if config.api_key:
+            os.environ.setdefault("ANTHROPIC_API_KEY", config.api_key)
         return ChatAnthropic(
             model=config.model_name,
             anthropic_api_key=config.api_key or "",
@@ -51,6 +55,8 @@ def create_chat_model(config: ModelConfig) -> Any:
         )
 
     from langchain_openai import ChatOpenAI
+    if config.api_key:
+        os.environ.setdefault("OPENAI_API_KEY", config.api_key)
     kwargs: dict[str, Any] = {
         "model": config.model_name,
         "temperature": config.temperature,

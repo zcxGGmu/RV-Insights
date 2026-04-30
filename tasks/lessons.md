@@ -180,3 +180,19 @@
 **原因**：PEP 8 命名约定，ruff 默认启用 N818 规则
 
 **如何避免**：新建异常类时直接以 `Error` 结尾命名；rename 时用 grep 确认所有引用点（尤其是 `__init__.py` 的 `__all__` 导出）
+
+### 2026-04-30 | 联调
+
+**教训**：`langchain-openai` 的 `ChatOpenAI` 在 `bind_tools()` 内部会重新初始化 OpenAI client，此时会检查 `OPENAI_API_KEY` 环境变量，即使构造时已通过 `api_key` 参数传入
+
+**原因**：langchain-openai 1.2.1 的 `bind_tools` 创建新 LLM 实例时，底层 `openai.AsyncClient` 的初始化逻辑会 fallback 到环境变量
+
+**如何避免**：在 `create_chat_model` 中，传入 `api_key` 时同时调用 `os.environ.setdefault("OPENAI_API_KEY", api_key)`，确保环境变量可用；不要在 `.env` 中设置 `OPENAI_API_KEY`（会被 pydantic-settings 拒绝为 extra field）
+
+### 2026-04-30 | 联调
+
+**教训**：第三方 API 代理（如 `claude.hanbbq.top`）通常不返回 `usage_metadata`，导致 token 计数为 0、成本追踪失效
+
+**原因**：代理转发时可能剥离了 OpenAI 响应中的 `usage` 字段
+
+**如何避免**：成本追踪不能完全依赖 `usage_metadata`；可考虑 tiktoken 本地估算作为 fallback，或在切换到原生 API 后自动恢复
