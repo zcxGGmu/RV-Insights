@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Dict
 
 from fastapi import APIRouter, Depends, Query
 
@@ -13,7 +14,24 @@ router = APIRouter()
 
 
 def _time_range(days: int) -> datetime:
-    return datetime.utcnow() - timedelta(days=days)
+    return datetime.now(timezone.utc) - timedelta(days=days)
+
+
+# Approximate pricing per 1K tokens (Claude-class models)
+_INPUT_COST_PER_1K = 0.003   # USD per 1K input tokens
+_OUTPUT_COST_PER_1K = 0.015  # USD per 1K output tokens
+_USD_TO_CNY = 7.25
+
+
+def _calc_cost(input_tokens: int, output_tokens: int) -> Dict[str, float]:
+    cost_usd = (
+        (input_tokens / 1000) * _INPUT_COST_PER_1K
+        + (output_tokens / 1000) * _OUTPUT_COST_PER_1K
+    )
+    return {
+        "cost_usd": round(cost_usd, 4),
+        "cost_cny": round(cost_usd * _USD_TO_CNY, 4),
+    }
 
 
 @router.get("/summary")
@@ -59,6 +77,8 @@ async def get_summary(
             "total_tokens": 0,
             "total_duration_ms": 0,
             "total_tool_calls": 0,
+            "cost_usd": 0,
+            "cost_cny": 0,
         })
 
     r = results[0]
@@ -72,6 +92,7 @@ async def get_summary(
         "total_tokens": input_t + output_t,
         "total_duration_ms": r.get("total_duration_ms", 0),
         "total_tool_calls": r.get("total_tool_calls", 0),
+        **_calc_cost(input_t, output_t),
     })
 
 
@@ -117,6 +138,7 @@ async def get_model_stats(
             "total_output_tokens": output_t,
             "total_tokens": input_t + output_t,
             "total_duration_ms": r.get("total_duration_ms", 0),
+            **_calc_cost(input_t, output_t),
         })
     return ok({"models": models})
 
@@ -215,5 +237,6 @@ async def get_session_stats(
             "total_tokens": input_t + output_t,
             "total_duration_ms": r.get("total_duration_ms", 0),
             "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+            **_calc_cost(input_t, output_t),
         })
     return ok({"sessions": sessions})
