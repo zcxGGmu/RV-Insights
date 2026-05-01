@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE: int = 10_485_760
 
+    SKILLS_DIR: str = "./skills"
+    EXTERNAL_TOOLS_DIR: str = "./external_tools"
+
     SEARCH_API_KEY: str = ""
     SEARCH_API_URL: str = ""
 
