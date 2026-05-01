@@ -65,9 +65,9 @@ class SkillLoader:
         item = self._cache.get(name)
         if item is None:
             return None
-        skill_dir: Path = item["dir"]
+        skill_dir = item["dir"].resolve()
         target = (skill_dir / sub_path).resolve()
-        if not target.is_relative_to(skill_dir.resolve()):
+        if not target.is_relative_to(skill_dir):
             return None
         if not target.exists() or not target.is_dir():
             return None

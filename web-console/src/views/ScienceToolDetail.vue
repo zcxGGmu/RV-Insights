@@ -65,6 +65,10 @@ async function handleRun() {
       if (v.trim()) args[k] = v.trim()
     }
     const data = await runTUTool(toolName, args)
+    if (data.success === false) {
+      error.value = data.error || '工具执行失败'
+      return
+    }
     result.value = data.result
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e.message || '执行失败'

@@ -146,7 +146,7 @@ class DatabaseManager:
 
         # Mongo ping
         try:
-            if self.mongo_db:
+            if self.mongo_db is not None:
                 await self.mongo_db.command("ping")
                 status["mongodb"] = "connected"
         except Exception:
@@ -154,7 +154,7 @@ class DatabaseManager:
 
         # Postgres ping/check
         try:
-            if self.pg_pool:
+            if self.pg_pool is not None:
                 async with self.pg_pool.connection() as conn:
                     await conn.execute("SELECT 1")
                     status["postgres"] = "connected"
@@ -163,7 +163,7 @@ class DatabaseManager:
 
         # Redis ping
         try:
-            if self.redis:
+            if self.redis is not None:
                 pong = await self.redis.ping()
                 if pong:
                     status["redis"] = "connected"

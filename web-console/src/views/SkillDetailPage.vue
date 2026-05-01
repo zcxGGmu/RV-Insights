@@ -16,7 +16,7 @@ const fileContent = ref('')
 const loadingFiles = ref(true)
 const loadingContent = ref(false)
 
-async function loadFiles(path = '') {
+async function loadFiles(path = '.') {
   loadingFiles.value = true
   try {
     const res = await browseSkillFiles(skillName, path)
