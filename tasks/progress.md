@@ -3,7 +3,7 @@
 > 此文件为持久化进度追踪，每次开发会话启动时先读取此文件以恢复上下文。
 > 每完成一个功能点并提交后，更新此文件。
 
-**最后验证**: 2026-04-30 | ruff check passed | vue-tsc passed | pnpm build OK | 106 tests passed (coverage 53%)
+**最后验证**: 2026-05-01 | ruff check passed | vue-tsc passed | build OK | 163 tests passed (coverage 59%)
 
 ## 项目信息
 
@@ -75,9 +75,64 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 | SDK 策略简化 | Claude/OpenAI SDK 改为 LangGraph create_react_agent | Sprint 5 已验证可行 |
 
-## 当前 Sprint: Sprint 7（Tester Agent + TestResultCard + CompletionCard）✅ 完成
+## 当前 Sprint: Sprint 8（Skills + Tools + ToolUniverse + Settings）✅ 完成
 
-## 当前状态: Sprint 7 全部完成，准备进入 Sprint 8
+## 当前状态: Sprint 8 全部完成，准备进入 Sprint 9
+
+### Sprint 8 完成总结（2026-05-01）
+
+**存储设计**：Skills 存文件系统（backend/skills/），Tools 存文件系统（backend/external_tools/），ToolUniverse 纯内存注册表，Block 状态存 MongoDB。
+
+后端（Phase 1-3, 19 文件新增）：
+- SkillLoader：文件系统扫描 + YAML frontmatter 解析 + 路径穿越防护 ✅
+- 3 个内置 Skill：riscv_isa_expert, riscv_patch_reviewer, riscv_contribution_guide ✅
+- Skills API 6 端点（list/block/delete/browse/read/save，错误码 5001-5004） ✅
+- ToolLoader：文件系统扫描 + description 解析 + CRUD ✅
+- Tools API 5 端点（list/block/delete/read/save，错误码 5101-5103） ✅
+- ToolUniverseRegistry + 4 个 RISC-V 内置工具（instruction decoder, CSR lookup, config checker, patch validator） ✅
+- ToolUniverse API 4 端点（裸 JSON 响应 + HTTPException） ✅
+- Science optimize-prompt 端点（LLM + 启发式 fallback） ✅
+- File download 端点（路径白名单安全） ✅
+- Router 路由顺序修复（skills/tools 注册在 chat 之前，防止 session_id 吞噬） ✅
+
+后端（Phase 4, 统计增强 + 57 新测试）：
+- Statistics 添加 cost_usd/cost_cny 计算（summary/models/sessions 三个端点） ✅
+- datetime.utcnow() → datetime.now(timezone.utc) 修复 ✅
+- test_skills.py（20 tests）：SkillLoader + API + 路径穿越防护 + builtin 保护 ✅
+- test_tools.py（17 tests）：ToolLoader + API + save-with-replaces ✅
+- test_tooluniverse.py（20 tests）：Registry + built-in tools + API ✅
+
+前端（Phase 5, 4 API + 4 页面）：
+- api/skills.ts, api/tools.ts, api/tooluniverse.ts, api/science.ts ✅
+- types/index.ts 扩展（6 新接口） ✅
+- api/statistics.ts 添加 cost 字段 ✅
+- SkillsPage.vue（卡片网格 + block/delete + builtin 徽章） ✅
+- SkillDetailPage.vue（双面板文件树 + 内容查看器） ✅
+- ToolsPage.vue（双 tab：ToolUniverse + External Tools，搜索 + 分类过滤） ✅
+- ScienceToolDetail.vue（动态参数表单 + 运行 + 结果展示 + 测试示例） ✅
+- Router 4 新路由 ✅
+
+前端（Phase 6, Settings + 集成）：
+- StatisticsSettings.vue 添加成本显示（USD + CNY） ✅
+- SessionPanel.vue 底部添加 Skills/Tools 导航链接 ✅
+
+验证：163 tests passed (coverage 59%) | ruff check passed | vue-tsc: 0 errors | build OK
+总路由数：60 | 新增测试：57 | 新建文件：后端 19 + 前端 8 = 27
+
+下一步：Sprint 9（待规划）
+
+### Sprint 8 文件映射
+
+| Phase | 新建文件 | 修改文件 |
+|-------|----------|----------|
+| Phase 1 | `services/skill_loader.py`, `models/skill_schemas.py`, `api/skills.py`, `skills/` (3 dirs) | `config.py`, `api/router.py` |
+| Phase 2 | `services/tool_loader.py`, `api/tools.py`, `external_tools/.gitkeep` | `config.py`, `api/router.py` |
+| Phase 3 | `services/tooluniverse_registry.py`, `api/tooluniverse.py`, `api/science.py`, `api/file_download.py` | `api/router.py` |
+| Phase 4 | `tests/test_skills.py`, `tests/test_tools.py`, `tests/test_tooluniverse.py` | `api/statistics.py` |
+| Phase 5 | `api/skills.ts`, `api/tools.ts`, `api/tooluniverse.ts`, `api/science.ts`, `views/SkillsPage.vue`, `views/SkillDetailPage.vue`, `views/ToolsPage.vue`, `views/ScienceToolDetail.vue` | `types/index.ts`, `api/statistics.ts`, `router/index.ts` |
+| Phase 6 | — | `components/settings/StatisticsSettings.vue`, `components/chat/SessionPanel.vue` |
+
+## Sprint 7（Tester Agent + TestResultCard + CompletionCard）✅ 完成
 
 ### Sprint 7 完成总结（2026-04-30）
 
