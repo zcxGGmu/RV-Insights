@@ -89,6 +89,8 @@ onMounted(fetchData)
           { label: '输出 Token', value: formatNumber(summary.total_output_tokens) },
           { label: '工具调用', value: summary.total_tool_calls },
           { label: '总耗时', value: `${(summary.total_duration_ms / 1000).toFixed(1)}s` },
+          { label: '成本 (USD)', value: `$${(summary.cost_usd ?? 0).toFixed(4)}` },
+          { label: '成本 (CNY)', value: `¥${(summary.cost_cny ?? 0).toFixed(4)}` },
         ]" :key="stat.label" class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
           <p class="text-xs text-gray-500">{{ stat.label }}</p>
           <p class="mt-1 text-xl font-semibold text-gray-800 dark:text-gray-200">{{ stat.value }}</p>
@@ -107,7 +109,7 @@ onMounted(fetchData)
           </div>
           <div class="text-right">
             <p class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ formatNumber(m.total_tokens) }} tokens</p>
-            <p class="text-xs text-gray-500">{{ (m.total_duration_ms / 1000).toFixed(1) }}s</p>
+            <p class="text-xs text-gray-500">{{ (m.total_duration_ms / 1000).toFixed(1) }}s · ${{ (m.cost_usd ?? 0).toFixed(4) }}</p>
           </div>
         </div>
         <p v-if="!modelStats.length" class="py-4 text-center text-sm text-gray-400">暂无数据</p>
