@@ -187,3 +187,56 @@ export interface TestResult {
   compilation_passed?: boolean
   test_log: string
 }
+
+// ── Skills & Tools types ──────────────────────────────────────────────
+
+export interface ExternalSkillItem {
+  name: string
+  description: string
+  files: string[]
+  blocked: boolean
+  builtin: boolean
+}
+
+export interface ExternalToolItem {
+  name: string
+  description: string
+  file: string
+  blocked: boolean
+}
+
+export interface FileEntry {
+  name: string
+  path: string
+  type: 'file' | 'directory'
+}
+
+// ── ToolUniverse types ────────────────────────────────────────────────
+
+export interface TUToolListItem {
+  name: string
+  description: string
+  category: string
+  category_zh: string | null
+  param_count: number
+  required_params: string[]
+  has_examples: boolean
+  has_return_schema: boolean
+}
+
+export interface TUToolSpec {
+  name: string
+  description: string
+  parameters: Record<string, any>
+  test_examples: Record<string, any>[]
+  return_schema: Record<string, any>
+  category: string
+  category_zh: string | null
+  source_file: string
+}
+
+export interface TUCategory {
+  name: string
+  count: number
+  name_zh?: string
+}

@@ -20,7 +20,11 @@ const routes: Array<RouteRecordRaw> = [
       { path: '', name: 'dashboard', component: () => import('../views/HomePage.vue') },
       { path: 'chat/:id', name: 'chat', component: () => import('../views/ChatPage.vue') },
       { path: 'cases', name: 'cases', component: () => import('../views/CaseListPage.vue') },
-      { path: 'cases/:id', name: 'case-detail', component: () => import('../views/CaseDetailPage.vue') }
+      { path: 'cases/:id', name: 'case-detail', component: () => import('../views/CaseDetailPage.vue') },
+      { path: 'skills', name: 'skills', component: () => import('../views/SkillsPage.vue') },
+      { path: 'skills/:name', name: 'skill-detail', component: () => import('../views/SkillDetailPage.vue') },
+      { path: 'tools', name: 'tools', component: () => import('../views/ToolsPage.vue') },
+      { path: 'tools/science/:name', name: 'science-tool-detail', component: () => import('../views/ScienceToolDetail.vue') }
     ]
   }
 ]

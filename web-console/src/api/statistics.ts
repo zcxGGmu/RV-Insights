@@ -10,6 +10,8 @@ export interface StatsSummary {
   total_tokens: number
   total_duration_ms: number
   total_tool_calls: number
+  cost_usd: number
+  cost_cny: number
 }
 
 export interface ModelStat {
@@ -19,6 +21,8 @@ export interface ModelStat {
   total_output_tokens: number
   total_tokens: number
   total_duration_ms: number
+  cost_usd: number
+  cost_cny: number
 }
 
 export interface TrendPoint {
@@ -35,6 +39,8 @@ export interface SessionStat {
   total_tokens: number
   total_duration_ms: number
   created_at: string | null
+  cost_usd: number
+  cost_cny: number
 }
 
 export async function getSummary(days = 30) {
