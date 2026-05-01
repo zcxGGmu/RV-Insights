@@ -4,13 +4,14 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   Plus, Search, X, Pin, PinOff, Pencil, Trash2,
   MessageSquare, ChevronDown, ChevronRight, Share2, Link2Off,
-  BookOpen, Wrench,
+  BookOpen, Wrench, GitBranch,
 } from 'lucide-vue-next'
 import { useChatStore } from '@/stores/chat'
 import { useSessionGrouping, type FilterType } from '@/composables/useSessionGrouping'
 import { useSessionNotifications } from '@/composables/useSessionNotifications'
 import { shareSession, unshareSession } from '@/api/chat'
 import { formatCustomTime } from '@/utils/time'
+import { showErrorToast } from '@/utils/toast'
 
 const router = useRouter()
 const route = useRoute()
@@ -32,9 +33,13 @@ onSessionCreated(() => store.fetchSessions())
 onSessionUpdated(() => store.fetchSessions())
 
 async function handleNewChat() {
-  const res = await store.createSession('chat')
-  if (res.code === 0) {
-    router.push(`/chat/${res.data.session_id}`)
+  try {
+    const res = await store.createSession('chat')
+    if (res.code === 0) {
+      router.push(`/chat/${res.data.session_id}`)
+    }
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || e?.message || '创建会话失败')
   }
 }
 
@@ -207,6 +212,13 @@ const filters: { key: FilterType; label: string }[] = [
     </div>
 
     <div class="border-t border-gray-200 p-2 dark:border-gray-700">
+      <router-link
+        to="/cases"
+        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-800"
+      >
+        <GitBranch class="size-4" />
+        Pipeline
+      </router-link>
       <router-link
         to="/skills"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-800"

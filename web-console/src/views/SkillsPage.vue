@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Shield, ShieldOff, Trash2, BookOpen } from 'lucide-vue-next'
 import { listSkills, blockSkill, deleteSkill } from '@/api/skills'
 import type { ExternalSkillItem } from '@/types'
+import { showErrorToast } from '@/utils/toast'
 
 const router = useRouter()
 const skills = ref<ExternalSkillItem[]>([])
@@ -20,20 +21,28 @@ async function loadSkills() {
 }
 
 async function toggleBlock(skill: ExternalSkillItem) {
-  const res = await blockSkill(skill.name, !skill.blocked)
-  if (res.code === 0) {
-    skills.value = skills.value.map(s =>
-      s.name === skill.name ? { ...s, blocked: !s.blocked } : s
-    )
+  try {
+    const res = await blockSkill(skill.name, !skill.blocked)
+    if (res.code === 0) {
+      skills.value = skills.value.map(s =>
+        s.name === skill.name ? { ...s, blocked: !s.blocked } : s
+      )
+    }
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || '操作失败')
   }
 }
 
 async function handleDelete(skill: ExternalSkillItem) {
   if (skill.builtin) return
   if (!confirm(`确定删除技能 "${skill.name}"？`)) return
-  const res = await deleteSkill(skill.name)
-  if (res.code === 0) {
-    skills.value = skills.value.filter(s => s.name !== skill.name)
+  try {
+    const res = await deleteSkill(skill.name)
+    if (res.code === 0) {
+      skills.value = skills.value.filter(s => s.name !== skill.name)
+    }
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || '删除失败')
   }
 }
 

@@ -5,6 +5,7 @@ import { Wrench, Shield, ShieldOff, Trash2, Search, Beaker } from 'lucide-vue-ne
 import { listTUTools, listTUCategories } from '@/api/tooluniverse'
 import { listTools, blockTool, deleteTool, readToolFile } from '@/api/tools'
 import type { TUToolListItem, ExternalToolItem, TUCategory } from '@/types'
+import { showErrorToast } from '@/utils/toast'
 
 const router = useRouter()
 const activeTab = ref<'universe' | 'external'>('universe')
@@ -65,8 +66,8 @@ async function toggleBlockTool(tool: ExternalToolItem) {
         t.name === tool.name ? { ...t, blocked: !t.blocked } : t,
       )
     }
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || '操作失败')
   }
 }
 
@@ -77,8 +78,8 @@ async function handleDeleteTool(tool: ExternalToolItem) {
     if (res.code === 0) {
       extTools.value = extTools.value.filter(t => t.name !== tool.name)
     }
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || '删除失败')
   }
 }
 
@@ -90,8 +91,8 @@ async function viewExtToolSource(tool: ExternalToolItem) {
       sourceContent.value = res.data.content
       showSourceModal.value = true
     }
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || '读取源码失败')
   }
 }
 

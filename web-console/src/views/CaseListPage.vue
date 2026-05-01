@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import CaseStatusBadge from '@/components/CaseStatusBadge.vue'
 import { listCases, createCase as apiCreateCase } from '@/api/cases'
 import type { Case } from '@/types'
+import { showErrorToast } from '@/utils/toast'
 
 const router = useRouter()
 const showNewCase = ref(false)
@@ -21,9 +22,14 @@ function goToDetail(caseId: string) {
 
 async function loadCases() {
   loading.value = true
-  const res = await listCases({ page: page.value, per_page: perPage, status: filters.value.status, target_repo: filters.value.target_repo })
-  cases.value = res.items ?? []
-  loading.value = false
+  try {
+    const res = await listCases({ page: page.value, per_page: perPage, status: filters.value.status, target_repo: filters.value.target_repo })
+    cases.value = res.items ?? []
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || '加载案例失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 async function openNewCase() {
@@ -32,10 +38,14 @@ async function openNewCase() {
 
 async function createCase() {
   if (!newCase.value.title || !newCase.value.target_repo) return
-  await apiCreateCase({ title: newCase.value.title, target_repo: newCase.value.target_repo, input_context: newCase.value.input_context })
-  showNewCase.value = false
-  newCase.value = { title: '', target_repo: '', input_context: '' }
-  await loadCases()
+  try {
+    await apiCreateCase({ title: newCase.value.title, target_repo: newCase.value.target_repo, input_context: newCase.value.input_context })
+    showNewCase.value = false
+    newCase.value = { title: '', target_repo: '', input_context: '' }
+    await loadCases()
+  } catch (e: any) {
+    showErrorToast(e?.response?.data?.detail || '创建案例失败')
+  }
 }
 
 onMounted(loadCases)
@@ -91,7 +101,7 @@ onMounted(loadCases)
     </div>
 
     <!-- Simple New Case Modal -->
-    <div v-if="showNewCase" class="fixed inset-0 bg-black/40 flex items-center justify-center">
+    <div v-if="showNewCase" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div class="bg-white rounded-lg p-6 w-full max-w-md">
         <h3 class="text-xl font-semibold mb-4">New Case</h3>
         <div class="space-y-2">
