@@ -51,7 +51,8 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 | 前端 Mock API 与真实 API 响应格式不一致 | Mock 用裸 JSON，真实用 `{code, msg, data}` 包装 | Sprint 3 统一 |
 | OpenAPI 有重复的 `/api/v1/cases` path key | YAML 解析不报错但只保留最后一个 | Sprint 3 修复 |
 | tsconfig `skipLibCheck: true` | reka-ui 上游 DayOfWeek 类型 bug workaround | 等 reka-ui 修复后移除 |
-| ChatPage mermaid chunk 1.3MB | vite build 产物过大 | Sprint 4 动态 import 或 code split |
+| ~~ChatPage mermaid chunk 1.3MB~~ | ~~vite build 产物过大~~ | DiffViewer 3.7MB chunk 更严重，Sprint 9 统一优化 |
+| ChatMessage+DiffViewer 大 chunk | vite build: ChatMessage 1.3MB + DiffViewer 3.7MB | Sprint 9 code-split（dynamic import + manualChunks） |
 | S3 推迟组件：~~ProcessGroup/StepMessage~~/ToolCallView/toolViews/MonacoEditor/i18n | Chat 工具调用可视化缺失 | ProcessGroup/StepMessage S4 已完成，其余 S8 |
 | Types/Constants/i18n 未独立文件化 | 类型内联在组件中，不利于复用 | Sprint 4 统一整理 |
 | Explorer/Planner 使用简化 SDK 策略 | 未用 Claude SDK/OpenAI SDK 独立封装，统一用 LangGraph | Sprint 6/7 视需求决定是否切换 |
@@ -77,7 +78,23 @@ pytest -v && cd ../web-console && pnpm vue-tsc && pnpm build
 
 ## 当前 Sprint: Sprint 8（Skills + Tools + ToolUniverse + Settings）✅ 完成
 
-## 当前状态: Sprint 8 全部完成，准备进入 Sprint 9
+## 当前状态: Sprint 8 全部完成 + 前后端联调通过，准备进入 Sprint 9
+
+### Sprint 8 联调修复（2026-05-01）
+
+**修复 1**（`ebfb558`）— 前后端联调 3 个 bug：
+- Motor `AsyncIOMotorDatabase` 不支持 `bool()` → health_check 改用 `is not None` ✅
+- `skill_loader.browse_files` 中 `Path.resolve()` 不一致 → `skill_dir` 先 resolve ✅
+- `ScienceToolDetail.vue` 未检查 `data.success === false` → 添加错误检查 ✅
+
+**修复 2**（`6fb0b5b`）— 前端按钮无响应 + Pipeline 不可见（5 个根因）：
+- `vue-tsc -b` 生成 96 个 `.js` 文件到 `src/` → Vite 加载 stale JS 而非 TS 源码 ✅
+  - 修复：`tsconfig.json` 添加 `noEmit: true`，build 脚本改为 `vue-tsc --noEmit`
+- `.env` 的 `VITE_API_BASE_URL=http://localhost:8000` 绕过 Vite proxy → 清空走 proxy ✅
+- SessionPanel 侧栏无 Pipeline 入口 → 添加 Cases/Pipeline 导航链接 ✅
+- `registerUser` API 未存 localStorage token → 注册后无法自动登录 ✅
+- SessionPanel/SkillsPage/ToolsPage/CaseListPage 所有 async handler 无错误反馈 → 添加 try/catch + showErrorToast ✅
+- CaseListPage modal 缺失 z-50 → 可能被侧栏遮挡 ✅
 
 ### Sprint 8 完成总结（2026-05-01）
 

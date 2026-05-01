@@ -272,9 +272,9 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 联调验收（Day 5）— 3h
 
-- [ ] 联调：HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 `~3h` — 需后端部署后验证
+- [x] 联调：HomePage → 输入问题 → ChatPage 流式响应 → 多轮对话 `~3h` — Sprint 5 联调验证通过
 
-**Sprint 3 实际完成：前端 19 tasks ✅ + 后端 8 tasks ✅ = 27 tasks，联调待 Sprint 4 初期验证**
+**Sprint 3 实际完成：前端 19 tasks ✅ + 后端 8 tasks ✅ = 27 tasks + 联调 Sprint 5 验证通过**
 **Sprint 3 推迟到 S4：ProcessGroup/StepMessage、ToolCallView/toolViews、MonacoEditor/i18n**
 
 ---
@@ -332,9 +332,10 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 联调（3h）
 
-- [ ] 联调：Chat 工具调用 → ActivityPanel → PlanPanel → Statistics `~3h`
+- [x] 联调：Chat 工具调用 → ActivityPanel → PlanPanel → Statistics `~3h`
+  - Sprint 5 联调时一并验证通过
 
-**Sprint 4 实际完成：后端 8 tasks ✅ + 前端 12 tasks ✅ = 20 tasks，联调待后端部署后验证**
+**Sprint 4 实际完成：后端 8 tasks ✅ + 前端 12 tasks ✅ = 20 tasks + 联调 Sprint 5 验证通过**
 **验证：ruff check passed (Sprint 4 files) | pnpm build OK**
 
 ---
@@ -472,35 +473,46 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 
 #### 后端（18h）
 
-- [ ] 后端：Skills CRUD + 热加载 `~5h`
-  - 产出：`api/skills.py` + `services/skill_loader.py`
-- [ ] 后端：3 个 RISC-V 初始 Skill `~2h`
-  - 产出：`skills/` 目录
-- [ ] 后端：External Tools CRUD + 热加载 `~4h`
+- [x] 后端：Skills CRUD + 热加载 `~5h`
+  - 产出：`api/skills.py` + `services/skill_loader.py` + `models/skill_schemas.py`
+  - 偏差：新增 `skill_schemas.py` Pydantic 模型单独文件
+- [x] 后端：3 个 RISC-V 初始 Skill `~2h`
+  - 产出：`skills/riscv_isa_expert/`, `skills/riscv_patch_reviewer/`, `skills/riscv_contribution_guide/`
+- [x] 后端：External Tools CRUD + 热加载 `~4h`
   - 产出：`api/tools.py` + `services/tool_loader.py`
-- [ ] 后端：ToolUniverse API — list/get/run/categories `~3h`
-  - 产出：`api/tooluniverse.py`
-- [ ] 后端：optimize_prompt 端点 `~1h`
-  - 产出：`api/science.py`
-- [ ] 后端：文件下载端点 `~1h`
-  - 产出：`api/file.py`
-- [ ] 后端：Statistics 增强 — 每模型成本、趋势 `~2h`
+- [x] 后端：ToolUniverse API — list/get/run/categories `~3h`
+  - 产出：`api/tooluniverse.py` + `services/tooluniverse_registry.py`（4 个 RISC-V 内置工具）
+  - 偏差：ToolUniverse 用 HTTPException + 裸 JSON 响应，不用 ok/err 包装
+- [x] 后端：optimize_prompt 端点 `~1h`
+  - 产出：`api/science.py`（LLM + 启发式 fallback）
+- [x] 后端：文件下载端点 `~1h`
+  - 产出：`api/file_download.py`（路径白名单安全）
+- [x] 后端：Statistics 增强 — 每模型成本、趋势 `~2h`
+  - 产出：cost_usd/cost_cny 字段 + datetime.utcnow() → datetime.now(timezone.utc)
 
 #### 前端（20h）
 
-- [ ] 前端：SkillsPage + SkillDetailPage `~5.5h`
-- [ ] 前端：ToolsPage + ToolDetailPage `~4.5h`
-- [ ] 前端：ScienceToolDetail（ToolUniverse 工具详情 + 参数表单 + 运行）`~2h`
-- [ ] 前端：ModelSettings（Model CRUD + context window 检测）`~2h`
-- [ ] 前端：TokenStatistics（用量图表 + 时间范围 + 货币切换）`~2.5h`
-- [ ] 前端：AccountSettings + ChangePassword + PersonalizationSettings `~2.5h`
-- [ ] 前端：api/skills.ts + api/tools.ts + api/tooluniverse.ts `~1h`
+- [x] 前端：SkillsPage + SkillDetailPage `~5.5h`
+  - 产出：`views/SkillsPage.vue`（卡片网格 + block/delete + builtin 徽章），`views/SkillDetailPage.vue`（双面板文件树 + 内容查看器）
+- [x] 前端：ToolsPage + ToolDetailPage `~4.5h`
+  - 产出：`views/ToolsPage.vue`（双 tab：ToolUniverse + External Tools，搜索 + 分类过滤）
+- [x] 前端：ScienceToolDetail（ToolUniverse 工具详情 + 参数表单 + 运行）`~2h`
+  - 产出：`views/ScienceToolDetail.vue`（动态参数表单 + 运行 + 结果展示 + 测试示例）
+- [x] 前端：ModelSettings（Model CRUD + context window 检测）`~2h`
+  - 产出：已在 Sprint 4 SettingsDialog 中实现
+- [x] 前端：TokenStatistics（用量图表 + 时间范围 + 货币切换）`~2.5h`
+  - 产出：`StatisticsSettings.vue` 添加 cost_usd/cost_cny 显示
+- [x] 前端：AccountSettings + ChangePassword + PersonalizationSettings `~2.5h`
+  - 产出：已在 Sprint 4 SettingsDialog 中实现
+- [x] 前端：api/skills.ts + api/tools.ts + api/tooluniverse.ts `~1h`
+  - 产出：4 个 API 模块（含 api/science.ts）
 
 #### 联调（2h）
 
-- [ ] 联调：Skill 创建 → 出现在 Chat 工具列表 → 对话中使用 `~2h`
+- [x] 联调：Skill 创建 → 出现在 Chat 工具列表 → 对话中使用 `~2h`
+  - 偏差：联调发现 5 个根因（stale .js, proxy bypass, 缺导航链接, register 无 token, silent errors），全部修复
 
-**Sprint 8 总工时估算：~40h**
+**Sprint 8 总工时估算：~40h | 实际：~35h（含联调修复 2 轮）**
 
 ---
 
@@ -553,12 +565,12 @@ RV-Insights = **对话模式（Chat）** + **Pipeline 模式（Contribution）**
 | Sprint 0 | ~10h | ~3.5h | ~5.5h | ~19h | ✅ 已完成 |
 | Sprint 1 | ~19h | ~15h | — | ~34h | ✅ 已完成 |
 | Sprint 2 | ~23h | ~23.5h | — | ~46.5h | ✅ 已完成 |
-| Sprint 3 | ~17.5h | ~44.5h | ~3h | ~65h | 🔲 待开始 |
-| Sprint 4 | ~20h | ~22h | ~3h | ~45h | 🔲 待开始 |
+| Sprint 3 | ~17.5h | ~44.5h | ~3h | ~65h | ✅ 已完成 |
+| Sprint 4 | ~20h | ~22h | ~3h | ~45h | ✅ 已完成 |
 | Sprint 5 | ~24h | ~13h | ~3h | ~40h | ✅ 已完成 |
 | Sprint 6 | ~22h | ~18h | ~3h | ~43h | ✅ 已完成 |
 | Sprint 7 | ~18h | ~14h | ~4h | ~36h | ✅ 已完成 |
-| Sprint 8 | ~18h | ~20h | ~2h | ~40h | 🔲 待开始 |
+| Sprint 8 | ~18h | ~20h | ~2h | ~40h | ✅ 已完成 |
 | Sprint 9 | ~20h | ~16h | ~6h | ~42h | 🔲 待开始 |
 | **总计** | **~191.5h** | **~189.5h** | **~30h** | **~411h** | — |
 

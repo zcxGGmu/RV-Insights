@@ -256,3 +256,47 @@
 **原因**：删除 sys.modules 条目后模块重新导入，但 mock path 解析依赖旧的模块引用
 
 **如何避免**：避免在测试中删除 `sys.modules` 条目。如果必须测试模块重新加载，用独立子进程或 `importlib.reload`
+
+---
+
+## Sprint 8 联调修复
+
+### 2026-05-01 | 构建
+
+**教训**：`vue-tsc -b`（build 模式）在没有 `noEmit: true` 时会将所有 `.ts` 编译为 `.js` 输出到 `src/`，Vite 的 `resolve.extensions` 默认 `.js` 优先于 `.ts`，导致加载的是 stale 编译产物而非源码
+
+**原因**：tsconfig.json 缺失 `noEmit: true`，package.json 的 build 脚本用了 `vue-tsc -b` 触发编译输出
+
+**如何避免**：Vite 项目的 tsconfig.json 必须设置 `noEmit: true`；build 脚本只做类型检查 `vue-tsc --noEmit`，不要用 `-b` 标志。若发现 src/ 下出现 `.js` 文件，立即排查 tsconfig
+
+### 2026-05-01 | 后端
+
+**教训**：Motor `AsyncIOMotorDatabase` 对象不支持 `bool()` 真值测试，`if db:` 会抛出 NotImplementedError
+
+**原因**：Motor 数据库对象覆写了 `__bool__` 为 raise，强制用户用显式比较
+
+**如何避免**：Motor 对象始终用 `is not None` / `is None` 比较，不要用 `if db:` 或 `if not db:`
+
+### 2026-05-01 | 后端
+
+**教训**：`Path.resolve()` 在不同调用点可能产生不一致的基路径，导致 `is_relative_to()` 失败——即使目标路径确实在基目录内
+
+**原因**：`skill_dir` 在 `__init__` 中未 resolve，但在 `browse_files` 中 resolve 了子路径，两者基路径不匹配
+
+**如何避免**：在 Loader/Service 初始化时对基目录调用 `Path(dir).resolve()` 一次，后续所有路径操作都基于这个已 resolve 的路径
+
+### 2026-05-01 | 运维
+
+**教训**：同一端口（8000）可能被其他项目的后端进程（如 ScienceClaw `backend.main:app`）占用，请求会静默路由到错误的服务
+
+**原因**：uvicorn 进程被替换后端口被新进程占用，但前端/代理仍连接同一端口，无法区分是哪个后端
+
+**如何避免**：调试 API 异常时先 `lsof -i :8000` 确认进程身份（看 module path `app.main:app` vs `backend.main:app`）；考虑不同项目使用不同端口
+
+### 2026-05-01 | 前端
+
+**教训**：`registerUser()` API 未像 `loginUser()` 一样存储 token 到 localStorage，导致注册后自动登录失败
+
+**原因**：复制 login 逻辑时遗漏了 token 存储步骤
+
+**如何避免**：所有返回 token 的 API 端点（login/register/refresh）必须在同一处理流程中存储 token；写完后对比现有的 token 存储逻辑确认一致性
