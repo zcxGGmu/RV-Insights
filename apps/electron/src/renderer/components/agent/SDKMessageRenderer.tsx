@@ -49,7 +49,7 @@ import type {
   SDKToolUseBlock,
   SDKToolResultBlock,
   RecoveryAction,
-} from '@proma/shared'
+} from '@rv-insights/shared'
 import type { ToolActivity } from '@/atoms/agent-atoms'
 
 // ===== SDKMessageRenderer Props =====

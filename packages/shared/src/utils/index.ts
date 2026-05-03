@@ -1,5 +1,5 @@
 /**
- * Shared utility functions for proma
+ * Shared utility functions for rv-insights
  */
 
 // Placeholder - will be expanded as needed

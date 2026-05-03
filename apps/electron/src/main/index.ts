@@ -5,7 +5,7 @@ import { existsSync } from 'fs'
 // Dev 与正式版使用独立的 userData 目录，避免共享 Chromium SingletonLock 导致 dev 启动被静默退出
 // 必须在任何会读取 userData 路径的模块加载之前执行
 if (!app.isPackaged) {
-  app.setPath('userData', join(app.getPath('appData'), '@proma/electron-dev'))
+  app.setPath('userData', join(app.getPath('appData'), '@rv-insights/electron-dev'))
 }
 
 // 单实例锁：防止重复启动同一个版本（dev/prod 因 userData 已隔离，互不影响）
@@ -236,7 +236,7 @@ app.whenReady().then(async () => {
   // 必须在其他初始化之前执行，确保环境变量正确加载
   await initializeRuntime()
 
-  // 同步默认 Skills 模板到 ~/.proma/default-skills/
+  // 同步默认 Skills 模板到 ~/.rv-insights/default-skills/
   seedDefaultSkills()
 
   // 升级所有工作区中版本过旧的默认 Skills

@@ -11,11 +11,11 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { Zap, Compass, Map as MapIcon } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { agentPermissionModeMapAtom, agentDefaultPermissionModeAtom, currentAgentWorkspaceIdAtom, agentWorkspacesAtom } from '@/atoms/agent-atoms'
-import type { PromaPermissionMode } from '@proma/shared'
-import { PROMA_PERMISSION_MODE_ORDER } from '@proma/shared'
+import type { RV-InsightsPermissionMode } from '@rv-insights/shared'
+import { PROMA_PERMISSION_MODE_ORDER } from '@rv-insights/shared'
 
 /** 模式配置 */
-const MODE_CONFIG: Record<PromaPermissionMode, {
+const MODE_CONFIG: Record<RV-InsightsPermissionMode, {
   icon: React.ComponentType<{ className?: string }>
   label: string
   description: string
@@ -59,7 +59,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
   // 初始化：如果当前 session 不在 Map 中，从默认值写入，确保隔离
   React.useEffect(() => {
     if (!modeMap.has(sessionId)) {
-      setModeMap((prev: Map<string, PromaPermissionMode>) => {
+      setModeMap((prev: Map<string, RV-InsightsPermissionMode>) => {
         if (prev.has(sessionId)) return prev
         const next = new Map(prev)
         next.set(sessionId, defaultMode)
@@ -90,7 +90,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
     const nextMode = PROMA_PERMISSION_MODE_ORDER[nextIndex]!
 
     // 更新当前 session 的模式
-    setModeMap((prev: Map<string, PromaPermissionMode>) => {
+    setModeMap((prev: Map<string, RV-InsightsPermissionMode>) => {
       const next = new Map(prev)
       next.set(sessionId, nextMode)
       return next

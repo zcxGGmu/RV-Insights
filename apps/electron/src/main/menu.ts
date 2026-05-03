@@ -16,17 +16,17 @@ export function createApplicationMenu(): Menu {
     ...(isMac
       ? [
           {
-            label: 'Proma',
+            label: 'RV-Insights',
             submenu: [
-              { role: 'about' as const, label: '关于 Proma' },
+              { role: 'about' as const, label: '关于 RV-Insights' },
               { type: 'separator' as const },
               { role: 'services' as const, label: '服务' },
               { type: 'separator' as const },
-              { role: 'hide' as const, label: '隐藏 Proma' },
+              { role: 'hide' as const, label: '隐藏 RV-Insights' },
               { role: 'hideOthers' as const, label: '隐藏其他' },
               { role: 'unhide' as const, label: '显示全部' },
               { type: 'separator' as const },
-              { role: 'quit' as const, label: '退出 Proma' },
+              { role: 'quit' as const, label: '退出 RV-Insights' },
             ],
           },
         ]

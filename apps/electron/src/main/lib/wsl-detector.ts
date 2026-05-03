@@ -11,7 +11,7 @@
  */
 
 import { execSync } from 'node:child_process'
-import type { WslStatus } from '@proma/shared'
+import type { WslStatus } from '@rv-insights/shared'
 
 /**
  * 解析 WSL 发行版列表输出

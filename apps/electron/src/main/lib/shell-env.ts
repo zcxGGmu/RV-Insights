@@ -14,7 +14,7 @@
 
 import { execSync } from 'child_process'
 import { app } from 'electron'
-import type { ShellEnvResult } from '@proma/shared'
+import type { ShellEnvResult } from '@rv-insights/shared'
 
 /**
  * 获取用户默认 Shell 路径

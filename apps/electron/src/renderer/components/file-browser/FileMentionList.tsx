@@ -7,7 +7,7 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import type { FileIndexEntry } from '@proma/shared'
+import type { FileIndexEntry } from '@rv-insights/shared'
 import { FileTypeIcon } from './FileTypeIcon'
 
 export interface FileMentionListProps {

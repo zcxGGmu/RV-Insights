@@ -7,7 +7,7 @@
 import { ipcMain, nativeTheme, shell, dialog, BrowserWindow, app } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@proma/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, APP_ICON_IPC_CHANNELS } from '../types'
 import type { QuickTaskSubmitInput } from '../types'
 import type {
@@ -54,7 +54,7 @@ import type {
   GitHubRelease,
   GitHubReleaseListOptions,
   PermissionResponse,
-  PromaPermissionMode,
+  RV-InsightsPermissionMode,
   AskUserResponse,
   ExitPlanModeResponse,
   SystemPromptConfig,
@@ -85,7 +85,7 @@ import type {
   WeChatConfig,
   WeChatBridgeState,
   SDKMessage,
-} from '@proma/shared'
+} from '@rv-insights/shared'
 import type { UserProfile, AppSettings } from '../types'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
 import { registerUpdaterIpc } from './lib/updater/updater-ipc'
@@ -237,7 +237,7 @@ export function resolveAppIconPath(variantId: string): string | null {
   if (!variantId || variantId === 'default') {
     return join(resourcesDir, 'icon.png')
   }
-  return join(resourcesDir, 'proma-logos', `proma-${variantId}.png`)
+  return join(resourcesDir, 'rv-insights-logos', `rv-insights-${variantId}.png`)
 }
 
 export function registerIpcHandlers(): void {
@@ -1080,7 +1080,7 @@ export function registerIpcHandlers(): void {
   // 测试 MCP 服务器连接
   ipcMain.handle(
     AGENT_IPC_CHANNELS.TEST_MCP_SERVER,
-    async (_, name: string, entry: import('@proma/shared').McpServerEntry): Promise<{ success: boolean; message: string }> => {
+    async (_, name: string, entry: import('@rv-insights/shared').McpServerEntry): Promise<{ success: boolean; message: string }> => {
       const { validateMcpServer } = await import('./lib/mcp-validator')
       const result = await validateMcpServer(name, entry)
       return {
@@ -1167,7 +1167,7 @@ export function registerIpcHandlers(): void {
   // 排队发送消息
   ipcMain.handle(
     AGENT_IPC_CHANNELS.QUEUE_MESSAGE,
-    async (event, input: import('@proma/shared').AgentQueueMessageInput): Promise<string> => {
+    async (event, input: import('@rv-insights/shared').AgentQueueMessageInput): Promise<string> => {
       return queueAgentMessage(input, event.sender)
     }
   )
@@ -1205,7 +1205,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'permission_resolved', requestId, behavior } },
+          payload: { kind: 'rv_insights_event', event: { type: 'permission_resolved', requestId, behavior } },
         })
       }
     }
@@ -1231,7 +1231,7 @@ export function registerIpcHandlers(): void {
   // 获取工作区权限模式
   ipcMain.handle(
     AGENT_IPC_CHANNELS.GET_PERMISSION_MODE,
-    async (_, workspaceSlug: string): Promise<PromaPermissionMode> => {
+    async (_, workspaceSlug: string): Promise<RV-InsightsPermissionMode> => {
       return getWorkspacePermissionMode(workspaceSlug)
     }
   )
@@ -1239,7 +1239,7 @@ export function registerIpcHandlers(): void {
   // 设置工作区权限模式（同时更新运行中的活跃 session）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.SET_PERMISSION_MODE,
-    async (_, workspaceSlug: string, mode: PromaPermissionMode): Promise<void> => {
+    async (_, workspaceSlug: string, mode: RV-InsightsPermissionMode): Promise<void> => {
       const validModes = new Set<string>(['auto', 'bypassPermissions', 'plan'])
       if (!validModes.has(mode)) {
         throw new Error(`无效的权限模式: ${mode}`)
@@ -1285,7 +1285,7 @@ export function registerIpcHandlers(): void {
       try {
         const { searchMemory } = await import('./lib/memos-client')
         const result = await searchMemory(
-          { apiKey: config.apiKey, userId: config.userId?.trim() || 'proma-user', baseUrl: config.baseUrl },
+          { apiKey: config.apiKey, userId: config.userId?.trim() || 'rv-insights-user', baseUrl: config.baseUrl },
           'test connection',
           1,
         )
@@ -1360,7 +1360,7 @@ export function registerIpcHandlers(): void {
         try {
           const { searchMemory } = await import('./lib/memos-client')
           const result = await searchMemory(
-            { apiKey: config.apiKey, userId: config.userId?.trim() || 'proma-user', baseUrl: config.baseUrl },
+            { apiKey: config.apiKey, userId: config.userId?.trim() || 'rv-insights-user', baseUrl: config.baseUrl },
             'test connection',
             1,
           )
@@ -1443,7 +1443,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'ask_user_resolved', requestId } },
+          payload: { kind: 'rv_insights_event', event: { type: 'ask_user_resolved', requestId } },
         })
       }
     }
@@ -1463,7 +1463,7 @@ export function registerIpcHandlers(): void {
         // 通知渲染进程请求已处理
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
+          payload: { kind: 'rv_insights_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
         })
 
         // 如果用户选择了新的权限模式，通知渲染进程更新 UI
@@ -1477,7 +1477,7 @@ export function registerIpcHandlers(): void {
           }
           event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
             sessionId,
-            payload: { kind: 'proma_event', event: { type: 'permission_mode_changed', mode: targetMode } },
+            payload: { kind: 'rv_insights_event', event: { type: 'permission_mode_changed', mode: targetMode } },
           })
           console.log(`[IPC] ExitPlanMode 权限模式切换: ${targetMode}`)
         }
@@ -1490,7 +1490,7 @@ export function registerIpcHandlers(): void {
   // 获取所有待处理的交互请求快照（渲染进程重载后恢复状态）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.GET_PENDING_REQUESTS,
-    async (): Promise<import('@proma/shared').PendingRequestsSnapshot> => {
+    async (): Promise<import('@rv-insights/shared').PendingRequestsSnapshot> => {
       return {
         permissions: permissionService.getPendingRequests(),
         askUsers: askUserService.getPendingRequests(),
@@ -1810,7 +1810,7 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 在 Proma 内置预览窗口打开附加目录文件（无工作区路径限制；
+  // 在 RV-Insights 内置预览窗口打开附加目录文件（无工作区路径限制；
   // 不支持的格式由 openFilePreview 内部 fallback 到系统默认应用）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.OPEN_ATTACHED_FILE,
@@ -2203,7 +2203,7 @@ export function registerIpcHandlers(): void {
   // 保存单个 Bot 配置
   ipcMain.handle(
     FEISHU_IPC_CHANNELS.SAVE_BOT_CONFIG,
-    async (_, input: import('@proma/shared').FeishuBotConfigInput) => {
+    async (_, input: import('@rv-insights/shared').FeishuBotConfigInput) => {
       const saved = saveFeishuBotConfig(input)
       // 配置变更后自动重启或停止（不阻塞保存结果）
       if (saved.enabled && saved.appId && saved.appSecret) {
@@ -2384,7 +2384,7 @@ export function registerIpcHandlers(): void {
   // 保存单个 Bot 配置
   ipcMain.handle(
     DINGTALK_IPC_CHANNELS.SAVE_BOT_CONFIG,
-    async (_, input: import('@proma/shared').DingTalkBotConfigInput) => {
+    async (_, input: import('@rv-insights/shared').DingTalkBotConfigInput) => {
       const saved = saveDingTalkBotConfig(input)
       // 配置变更后自动重启或停止（不阻塞保存结果）
       if (saved.enabled && saved.clientId && saved.clientSecret) {

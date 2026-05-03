@@ -22,7 +22,7 @@
  * - 禁止伪造 User-Agent（违反服务条款可能导致会员停权）
  */
 
-import type { ProviderType } from '@proma/shared'
+import type { ProviderType } from '@rv-insights/shared'
 import type {
   ProviderAdapter,
   ProviderRequest,

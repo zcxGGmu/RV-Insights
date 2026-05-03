@@ -1,7 +1,7 @@
 /**
- * PromaLogoSettings - Proma 品牌 Logo 下载
+ * RV-InsightsLogoSettings - RV-Insights 品牌 Logo 下载
  *
- * 展示多个 Proma Logo 颜色变体网格，用户可下载用作机器人头像。
+ * 展示多个 RV-Insights Logo 颜色变体网格，用户可下载用作机器人头像。
  */
 
 import * as React from 'react'
@@ -15,24 +15,24 @@ import { Button } from '@/components/ui/button'
 // ===== Logo 资源导入 =====
 
 // 基础色系
-import promaBlackLogo from '@/assets/bots/proma-logos/proma-black.png'
-import promaWhiteLogo from '@/assets/bots/proma-logos/proma-white.png'
-import promaBlueLogo from '@/assets/bots/proma-logos/proma-blue.png'
-import promaPurpleLogo from '@/assets/bots/proma-logos/proma-purple.png'
-import promaGradientLogo from '@/assets/bots/proma-logos/proma-gradient.png'
-import promaTransparentLogo from '@/assets/bots/proma-logos/proma-transparent.png'
+import rvInsightsBlackLogo from '@/assets/bots/rv-insights-logos/rv-insights-black.png'
+import rvInsightsWhiteLogo from '@/assets/bots/rv-insights-logos/rv-insights-white.png'
+import rvInsightsBlueLogo from '@/assets/bots/rv-insights-logos/rv-insights-blue.png'
+import rvInsightsPurpleLogo from '@/assets/bots/rv-insights-logos/rv-insights-purple.png'
+import rvInsightsGradientLogo from '@/assets/bots/rv-insights-logos/rv-insights-gradient.png'
+import rvInsightsTransparentLogo from '@/assets/bots/rv-insights-logos/rv-insights-transparent.png'
 
 // 潘通年度色
-import promaCoralLogo from '@/assets/bots/proma-logos/proma-coral.png'
-import promaVeriPeriLogo from '@/assets/bots/proma-logos/proma-veri-peri.png'
-import promaVivaMagentaLogo from '@/assets/bots/proma-logos/proma-viva-magenta.png'
-import promaMochaMousseLogo from '@/assets/bots/proma-logos/proma-mocha-mousse.png'
-import promaEmeraldLogo from '@/assets/bots/proma-logos/proma-emerald.png'
+import rvInsightsCoralLogo from '@/assets/bots/rv-insights-logos/rv-insights-coral.png'
+import rvInsightsVeriPeriLogo from '@/assets/bots/rv-insights-logos/rv-insights-veri-peri.png'
+import rvInsightsVivaMagentaLogo from '@/assets/bots/rv-insights-logos/rv-insights-viva-magenta.png'
+import rvInsightsMochaMousseLogo from '@/assets/bots/rv-insights-logos/rv-insights-mocha-mousse.png'
+import rvInsightsEmeraldLogo from '@/assets/bots/rv-insights-logos/rv-insights-emerald.png'
 
 // 科技风格
-import proma8bitLogo from '@/assets/bots/proma-logos/proma-8bit.png'
-import promaCyberpunkLogo from '@/assets/bots/proma-logos/proma-cyberpunk.png'
-import promaFuturisticLogo from '@/assets/bots/proma-logos/proma-futuristic.png'
+import rvInsights8bitLogo from '@/assets/bots/rv-insights-logos/rv-insights-8bit.png'
+import rvInsightsCyberpunkLogo from '@/assets/bots/rv-insights-logos/rv-insights-cyberpunk.png'
+import rvInsightsFuturisticLogo from '@/assets/bots/rv-insights-logos/rv-insights-futuristic.png'
 
 // ===== 类型 =====
 
@@ -53,48 +53,48 @@ const LOGO_VARIANTS: readonly LogoVariant[] = [
     id: 'black',
     name: '经典黑',
     description: '黑色背景，适合浅色界面',
-    src: promaBlackLogo,
-    resourcePath: 'proma-logos/proma-black.png',
+    src: rvInsightsBlackLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-black.png',
     previewBg: 'bg-neutral-900',
   },
   {
     id: 'white',
     name: '纯白版',
     description: '白色背景，适合深色界面',
-    src: promaWhiteLogo,
-    resourcePath: 'proma-logos/proma-white.png',
+    src: rvInsightsWhiteLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-white.png',
     previewBg: 'bg-white',
   },
   {
     id: 'blue',
     name: '品牌蓝',
     description: '深蓝背景，适合正式场合',
-    src: promaBlueLogo,
-    resourcePath: 'proma-logos/proma-blue.png',
+    src: rvInsightsBlueLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-blue.png',
     previewBg: 'bg-blue-900',
   },
   {
     id: 'purple',
     name: '紫色版',
     description: '紫色调，个性风格',
-    src: promaPurpleLogo,
-    resourcePath: 'proma-logos/proma-purple.png',
+    src: rvInsightsPurpleLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-purple.png',
     previewBg: 'bg-purple-900',
   },
   {
     id: 'gradient',
     name: '渐变版',
     description: '蓝紫渐变背景',
-    src: promaGradientLogo,
-    resourcePath: 'proma-logos/proma-gradient.png',
+    src: rvInsightsGradientLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-gradient.png',
     previewBg: 'bg-gradient-to-br from-blue-600 to-purple-600',
   },
   {
     id: 'transparent',
     name: '透明底',
     description: '无背景，可叠加任意颜色',
-    src: promaTransparentLogo,
-    resourcePath: 'proma-logos/proma-transparent.png',
+    src: rvInsightsTransparentLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-transparent.png',
     previewBg: 'bg-[repeating-conic-gradient(#e5e7eb_0%_25%,#fff_0%_50%)] bg-[length:16px_16px]',
   },
   // 潘通年度色
@@ -102,40 +102,40 @@ const LOGO_VARIANTS: readonly LogoVariant[] = [
     id: 'coral',
     name: '珊瑚橘',
     description: 'Pantone 2019 Living Coral',
-    src: promaCoralLogo,
-    resourcePath: 'proma-logos/proma-coral.png',
+    src: rvInsightsCoralLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-coral.png',
     previewBg: 'bg-[#FF6F61]',
   },
   {
     id: 'veri-peri',
     name: '长春花蓝',
     description: 'Pantone 2022 Very Peri',
-    src: promaVeriPeriLogo,
-    resourcePath: 'proma-logos/proma-veri-peri.png',
+    src: rvInsightsVeriPeriLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-veri-peri.png',
     previewBg: 'bg-[#6667AB]',
   },
   {
     id: 'viva-magenta',
     name: '非凡洋红',
     description: 'Pantone 2023 Viva Magenta',
-    src: promaVivaMagentaLogo,
-    resourcePath: 'proma-logos/proma-viva-magenta.png',
+    src: rvInsightsVivaMagentaLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-viva-magenta.png',
     previewBg: 'bg-[#BB2649]',
   },
   {
     id: 'mocha-mousse',
     name: '摩卡慕斯',
     description: 'Pantone 2025 Mocha Mousse',
-    src: promaMochaMousseLogo,
-    resourcePath: 'proma-logos/proma-mocha-mousse.png',
+    src: rvInsightsMochaMousseLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-mocha-mousse.png',
     previewBg: 'bg-[#A47764]',
   },
   {
     id: 'emerald',
     name: '翡翠绿',
     description: 'Pantone 2013 Emerald',
-    src: promaEmeraldLogo,
-    resourcePath: 'proma-logos/proma-emerald.png',
+    src: rvInsightsEmeraldLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-emerald.png',
     previewBg: 'bg-[#009473]',
   },
   // 科技风格
@@ -143,24 +143,24 @@ const LOGO_VARIANTS: readonly LogoVariant[] = [
     id: '8bit',
     name: '8bit 像素风',
     description: '复古像素游戏风格',
-    src: proma8bitLogo,
-    resourcePath: 'proma-logos/proma-8bit.png',
+    src: rvInsights8bitLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-8bit.png',
     previewBg: 'bg-[#1a1a2e]',
   },
   {
     id: 'cyberpunk',
     name: '赛博朋克',
     description: '霓虹赛博风格',
-    src: promaCyberpunkLogo,
-    resourcePath: 'proma-logos/proma-cyberpunk.png',
+    src: rvInsightsCyberpunkLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-cyberpunk.png',
     previewBg: 'bg-[#0d0221]',
   },
   {
     id: 'futuristic',
     name: '未来质感',
     description: '金属全息科技风',
-    src: promaFuturisticLogo,
-    resourcePath: 'proma-logos/proma-futuristic.png',
+    src: rvInsightsFuturisticLogo,
+    resourcePath: 'rv-insights-logos/rv-insights-futuristic.png',
     previewBg: 'bg-[#4a4a4a]',
   },
 ] as const
@@ -172,7 +172,7 @@ function LogoCard({ logo }: { logo: LogoVariant }): React.ReactElement {
     try {
       const saved = await window.electronAPI.saveResourceFileAs(
         logo.resourcePath,
-        `proma-${logo.id}.png`,
+        `rv-insights-${logo.id}.png`,
       )
       if (saved) {
         toast.success(`${logo.name} 已保存`)
@@ -214,12 +214,12 @@ function LogoCard({ logo }: { logo: LogoVariant }): React.ReactElement {
   )
 }
 
-export function PromaLogoSettings(): React.ReactElement {
+export function RV-InsightsLogoSettings(): React.ReactElement {
   return (
     <>
       <SettingsSection
         title="品牌 Logo"
-        description="下载 Proma Logo 用作机器人头像，让用户一眼认出你的 AI 助手"
+        description="下载 RV-Insights Logo 用作机器人头像，让用户一眼认出你的 AI 助手"
       >
         <div className="grid grid-cols-3 gap-4">
           {LOGO_VARIANTS.map((logo) => (

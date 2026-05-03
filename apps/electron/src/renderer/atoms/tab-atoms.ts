@@ -54,7 +54,7 @@ export const tabMruAtom = atom<string[]>([])
 
 /** 侧边栏是否收起（持久化） */
 export const sidebarCollapsedAtom = atomWithStorage<boolean>(
-  'proma-sidebar-collapsed',
+  'rv-insights-sidebar-collapsed',
   false,
 )
 

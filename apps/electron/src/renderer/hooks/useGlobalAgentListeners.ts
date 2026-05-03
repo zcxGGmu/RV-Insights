@@ -48,7 +48,7 @@ import { tabsAtom, activeTabIdAtom, openTab, updateTabTitle } from '@/atoms/tab-
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 import type { NotificationSoundType } from '@/types/settings'
 import { toast } from 'sonner'
-import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock } from '@proma/shared'
+import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock } from '@rv-insights/shared'
 
 /** 触发右侧文件浏览器自动定位的写入类工具集合 */
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Update'])
@@ -75,7 +75,7 @@ function inferContextWindow(model?: string): number | undefined {
 }
 
 function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
-  if (payload.kind === 'proma_event') {
+  if (payload.kind === 'rv_insights_event') {
     const evt = payload.event
     switch (evt.type) {
       case 'permission_request':
@@ -579,7 +579,7 @@ export function useGlobalAgentListeners(): void {
               return next
             })
             // 同步更新权限模式选择器（per-session）
-            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@proma/shared').PromaPermissionMode>) => {
+            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@rv-insights/shared').RV-InsightsPermissionMode>) => {
               const next = new Map(prev)
               next.set(sessionId, 'plan')
               return next
@@ -587,7 +587,7 @@ export function useGlobalAgentListeners(): void {
           } else if (event.type === 'permission_mode_changed') {
             // 权限模式变更（如 Plan 模式退出时切换到完全自动）
             console.log(`[GlobalAgentListeners] 权限模式变更: ${event.mode}`)
-            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@proma/shared').PromaPermissionMode>) => {
+            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@rv-insights/shared').RV-InsightsPermissionMode>) => {
               const next = new Map(prev)
               next.set(sessionId, event.mode)
               return next
