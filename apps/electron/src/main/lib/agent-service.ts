@@ -24,7 +24,7 @@ import type {
   AgentStreamEvent,
   AgentStreamPayload,
   AgentQueueMessageInput,
-  RV-InsightsPermissionMode,
+  RVInsightsPermissionMode,
 } from '@rv-insights/shared'
 import { ClaudeAgentAdapter, scanAndKillOrphanedClaudeSubprocesses } from './adapters/claude-agent-adapter'
 import { AgentEventBus } from './agent-event-bus'
@@ -252,7 +252,7 @@ export function killOrphanedClaudeSubprocesses(): void {
  *
  * 同时更新 RV-Insights 侧（canUseTool 动态读取）和 SDK 侧（query.setPermissionMode）。
  */
-export async function updateAgentPermissionMode(sessionId: string, mode: RV-InsightsPermissionMode): Promise<void> {
+export async function updateAgentPermissionMode(sessionId: string, mode: RVInsightsPermissionMode): Promise<void> {
   await orchestrator.updateSessionPermissionMode(sessionId, mode)
 }
 

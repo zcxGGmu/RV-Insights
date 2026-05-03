@@ -9,7 +9,7 @@
  * - 动态 per-message 上下文（buildDynamicContext）：注入到用户消息前，每次实时读取磁盘
  */
 
-import type { RV-InsightsPermissionMode, AgentDefinition } from '@rv-insights/shared'
+import type { RVInsightsPermissionMode, AgentDefinition } from '@rv-insights/shared'
 import { getUserProfile } from './user-profile-service'
 import { getWorkspaceMcpConfig, getWorkspaceSkills } from './agent-workspace-manager'
 import { getConfigDirName } from './config-paths'
@@ -85,7 +85,7 @@ interface SystemPromptContext {
   workspaceName?: string
   workspaceSlug?: string
   sessionId: string
-  permissionMode: RV-InsightsPermissionMode
+  permissionMode: RVInsightsPermissionMode
   /** 记忆服务是否已启用且配置了 API Key */
   memoryEnabled: boolean
   /** 用户选用的模型是否为 Claude 系列（影响 SubAgent 模型策略描述，缺省视为 true） */

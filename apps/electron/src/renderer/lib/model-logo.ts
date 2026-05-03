@@ -107,7 +107,7 @@ import StepDarkLogo from '@/assets/models/step_dark.png'
 import MiniMaxLogo from '@/assets/models/minimax.png'
 
 // RV-Insights
-import RV-InsightsLogo from '@/assets/models/rv-insights.png'
+import RVInsightsLogo from '@/assets/models/rv-insights.png'
 
 // Cohere
 import CohereLogo from '@/assets/models/cohere.png'
@@ -251,7 +251,7 @@ const PROVIDER_LOGO_MAP: Record<ProviderType, string> = {
  * 优先级高于 ProviderType，用于识别用户通过兼容格式接入的实际供应商。
  */
 const URL_LOGO_MAP: Array<[RegExp, string]> = [
-  [/proma\.cool/i, RV-InsightsLogo],
+  [/proma\.cool/i, RVInsightsLogo],
   [/moonshot\.cn|kimi/i, MoonshotLogo],
   [/bigmodel\.cn|zhipuai/i, ZhipuLogo],
   [/minimax/i, MiniMaxLogo],
@@ -354,4 +354,4 @@ export function resolveModelDisplayName(modelId: string, channels: import('@rv-i
 }
 
 /** 默认模型图标 */
-export { DefaultLogo, RV-InsightsLogo }
+export { DefaultLogo, RVInsightsLogo }

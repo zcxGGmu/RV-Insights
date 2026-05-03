@@ -1,5 +1,5 @@
 /**
- * RV-InsightsLogoSettings - RV-Insights 品牌 Logo 下载
+ * RVInsightsLogoSettings - RV-Insights 品牌 Logo 下载
  *
  * 展示多个 RV-Insights Logo 颜色变体网格，用户可下载用作机器人头像。
  */
@@ -214,7 +214,7 @@ function LogoCard({ logo }: { logo: LogoVariant }): React.ReactElement {
   )
 }
 
-export function RV-InsightsLogoSettings(): React.ReactElement {
+export function RVInsightsLogoSettings(): React.ReactElement {
   return (
     <>
       <SettingsSection

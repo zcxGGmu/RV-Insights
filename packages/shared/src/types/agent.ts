@@ -498,12 +498,12 @@ export type AgentEvent =
   | { type: 'waiting_resume'; message: string }
   | { type: 'resume_start'; messageId: string }
   // 权限模式变更（Plan → bypassPermissions 等）
-  | { type: 'permission_mode_changed'; mode: RV-InsightsPermissionMode }
+  | { type: 'permission_mode_changed'; mode: RVInsightsPermissionMode }
 
 // ===== RV-Insights 内部事件（SDK 不覆盖的场景） =====
 
 /** RV-Insights 内部事件类型 */
-export type RV-InsightsEvent =
+export type RVInsightsEvent =
   | { type: 'permission_request'; request: PermissionRequest }
   | { type: 'permission_resolved'; requestId: string; behavior: 'allow' | 'deny' }
   | { type: 'ask_user_request'; request: AskUserRequest }
@@ -515,13 +515,13 @@ export type RV-InsightsEvent =
   | { type: 'model_resolved'; model: string }
   | { type: 'waiting_resume'; message: string }
   | { type: 'resume_start'; messageId: string }
-  | { type: 'permission_mode_changed'; mode: RV-InsightsPermissionMode }
+  | { type: 'permission_mode_changed'; mode: RVInsightsPermissionMode }
 
 
 /** IPC 传输的统一 payload（替代 AgentEvent） */
 export type AgentStreamPayload =
   | { kind: 'sdk_message'; message: SDKMessage }
-  | { kind: 'rv_insights_event'; event: RV-InsightsEvent }
+  | { kind: 'rv_insights_event'; event: RVInsightsEvent }
 
 // ===== Agent 会话管理 =====
 
@@ -731,7 +731,7 @@ export interface AgentSendInput {
   /** 动态注入的 MCP 服务器（仅在本次会话中生效，如飞书群聊工具） */
   customMcpServers?: Record<string, Record<string, unknown>>
   /** 强制覆盖权限模式（飞书等无 UI 交互场景下强制 'bypassPermissions'） */
-  permissionModeOverride?: RV-InsightsPermissionMode
+  permissionModeOverride?: RVInsightsPermissionMode
   /** 用户通过 /skill:xxx 引用的 Skill slug 列表 */
   mentionedSkills?: string[]
   /** 用户通过 #mcp:xxx 引用的 MCP 服务器名称列表 */
@@ -1025,15 +1025,15 @@ export interface ExitPlanModeResponse {
 // ===== 权限系统类型 =====
 
 /** RV-Insights 权限模式（直接映射 SDK 原生模式） */
-export type RV-InsightsPermissionMode = 'auto' | 'bypassPermissions' | 'plan'
+export type RVInsightsPermissionMode = 'auto' | 'bypassPermissions' | 'plan'
 
 /** 权限模式定义顺序（用于循环切换） */
-export const PROMA_PERMISSION_MODE_ORDER: readonly RV-InsightsPermissionMode[] = ['auto', 'bypassPermissions', 'plan']
+export const RV_INSIGHTS_PERMISSION_MODE_ORDER: readonly RVInsightsPermissionMode[] = ['auto', 'bypassPermissions', 'plan']
 
 /** 迁移旧权限模式值到新模式 */
-export function migratePermissionMode(mode: string): RV-InsightsPermissionMode {
+export function migratePermissionMode(mode: string): RVInsightsPermissionMode {
   if (mode === 'auto' || mode === 'bypassPermissions' || mode === 'plan') return mode
-  const migration: Record<string, RV-InsightsPermissionMode> = {
+  const migration: Record<string, RVInsightsPermissionMode> = {
     acceptEdits: 'auto',
     smart: 'auto',
     supervised: 'auto',

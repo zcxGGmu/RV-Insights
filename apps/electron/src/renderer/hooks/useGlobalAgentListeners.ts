@@ -579,7 +579,7 @@ export function useGlobalAgentListeners(): void {
               return next
             })
             // 同步更新权限模式选择器（per-session）
-            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@rv-insights/shared').RV-InsightsPermissionMode>) => {
+            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@rv-insights/shared').RVInsightsPermissionMode>) => {
               const next = new Map(prev)
               next.set(sessionId, 'plan')
               return next
@@ -587,7 +587,7 @@ export function useGlobalAgentListeners(): void {
           } else if (event.type === 'permission_mode_changed') {
             // 权限模式变更（如 Plan 模式退出时切换到完全自动）
             console.log(`[GlobalAgentListeners] 权限模式变更: ${event.mode}`)
-            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@rv-insights/shared').RV-InsightsPermissionMode>) => {
+            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@rv-insights/shared').RVInsightsPermissionMode>) => {
               const next = new Map(prev)
               next.set(sessionId, event.mode)
               return next

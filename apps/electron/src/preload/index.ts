@@ -64,7 +64,7 @@ import type {
   GitHubReleaseListOptions,
   PermissionRequest,
   PermissionResponse,
-  RV-InsightsPermissionMode,
+  RVInsightsPermissionMode,
   AskUserRequest,
   AskUserResponse,
   ExitPlanModeResponse,
@@ -467,10 +467,10 @@ export interface ElectronAPI {
   respondPermission: (response: PermissionResponse) => Promise<void>
 
   /** 获取工作区权限模式 */
-  getPermissionMode: (workspaceSlug: string) => Promise<RV-InsightsPermissionMode>
+  getPermissionMode: (workspaceSlug: string) => Promise<RVInsightsPermissionMode>
 
   /** 设置工作区权限模式 */
-  setPermissionMode: (workspaceSlug: string, mode: RV-InsightsPermissionMode) => Promise<void>
+  setPermissionMode: (workspaceSlug: string, mode: RVInsightsPermissionMode) => Promise<void>
 
   /** 获取全局记忆配置 */
   getMemoryConfig: () => Promise<MemoryConfig>
@@ -1247,7 +1247,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.GET_PERMISSION_MODE, workspaceSlug)
   },
 
-  setPermissionMode: (workspaceSlug: string, mode: RV-InsightsPermissionMode) => {
+  setPermissionMode: (workspaceSlug: string, mode: RVInsightsPermissionMode) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.SET_PERMISSION_MODE, workspaceSlug, mode)
   },
 

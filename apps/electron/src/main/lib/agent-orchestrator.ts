@@ -22,7 +22,7 @@ import { createRequire } from 'node:module'
 import { app } from 'electron'
 import type { AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, SdkBeta, ProviderType } from '@rv-insights/shared'
 import { SAFE_TOOLS } from '@rv-insights/shared'
-import type { PermissionRequest, RV-InsightsPermissionMode, AskUserRequest, ExitPlanModeRequest } from '@rv-insights/shared'
+import type { PermissionRequest, RVInsightsPermissionMode, AskUserRequest, ExitPlanModeRequest } from '@rv-insights/shared'
 import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
 import { isPromptTooLongError, friendlyErrorMessage, mapSDKErrorToTypedError, extractErrorDetails, shouldKeepChannelOpen } from './adapters/claude-agent-adapter'
 import { isTransientNetworkError } from './error-patterns'
@@ -388,7 +388,7 @@ export class AgentOrchestrator {
   private stoppedBySessions = new Set<string>()
 
   /** 运行中会话的当前权限模式（支持运行时动态切换） */
-  private sessionPermissionModes = new Map<string, RV-InsightsPermissionMode>()
+  private sessionPermissionModes = new Map<string, RVInsightsPermissionMode>()
 
   constructor(adapter: AgentProviderAdapter, eventBus: AgentEventBus) {
     this.adapter = adapter
@@ -1065,7 +1065,7 @@ export class AgentOrchestrator {
 
       // 12. 读取应用设置 + 获取权限模式
       const appSettings = getSettings()
-      const initialPermissionMode: RV-InsightsPermissionMode = permissionModeOverride
+      const initialPermissionMode: RVInsightsPermissionMode = permissionModeOverride
         ?? (workspaceSlug
           ? getWorkspacePermissionMode(workspaceSlug)
           : (appSettings.agentPermissionMode ?? 'auto'))
@@ -1074,7 +1074,7 @@ export class AgentOrchestrator {
       console.log(`[Agent 编排] 权限模式: ${initialPermissionMode}${permissionModeOverride ? '（外部覆盖）' : ''}`)
 
       /** 读取当前会话的实时权限模式（支持运行中切换） */
-      const getPermissionMode = (): RV-InsightsPermissionMode =>
+      const getPermissionMode = (): RVInsightsPermissionMode =>
         this.sessionPermissionModes.get(sessionId) ?? initialPermissionMode
 
       // ExitPlanMode 拦截器：plan 模式下走 UI 审批流程
@@ -1988,7 +1988,7 @@ export class AgentOrchestrator {
    * 同时更新 RV-Insights 侧（canUseTool 闭包读取的 Map）和 SDK 侧（query.setPermissionMode）。
    * 典型场景：用户在 Agent 运行中通过 PermissionModeSelector 切换模式。
    */
-  async updateSessionPermissionMode(sessionId: string, mode: RV-InsightsPermissionMode): Promise<void> {
+  async updateSessionPermissionMode(sessionId: string, mode: RVInsightsPermissionMode): Promise<void> {
     if (!this.activeSessions.has(sessionId)) return
     this.sessionPermissionModes.set(sessionId, mode)
     // 同步通知 SDK 侧

@@ -54,7 +54,7 @@ import type {
   GitHubRelease,
   GitHubReleaseListOptions,
   PermissionResponse,
-  RV-InsightsPermissionMode,
+  RVInsightsPermissionMode,
   AskUserResponse,
   ExitPlanModeResponse,
   SystemPromptConfig,
@@ -1231,7 +1231,7 @@ export function registerIpcHandlers(): void {
   // 获取工作区权限模式
   ipcMain.handle(
     AGENT_IPC_CHANNELS.GET_PERMISSION_MODE,
-    async (_, workspaceSlug: string): Promise<RV-InsightsPermissionMode> => {
+    async (_, workspaceSlug: string): Promise<RVInsightsPermissionMode> => {
       return getWorkspacePermissionMode(workspaceSlug)
     }
   )
@@ -1239,7 +1239,7 @@ export function registerIpcHandlers(): void {
   // 设置工作区权限模式（同时更新运行中的活跃 session）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.SET_PERMISSION_MODE,
-    async (_, workspaceSlug: string, mode: RV-InsightsPermissionMode): Promise<void> => {
+    async (_, workspaceSlug: string, mode: RVInsightsPermissionMode): Promise<void> => {
       const validModes = new Set<string>(['auto', 'bypassPermissions', 'plan'])
       if (!validModes.has(mode)) {
         throw new Error(`无效的权限模式: ${mode}`)

@@ -19,7 +19,7 @@ import {
   getDefaultSkillsDir,
   parseSkillVersion,
 } from './config-paths'
-import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, RV-InsightsPermissionMode } from '@rv-insights/shared'
+import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, RVInsightsPermissionMode } from '@rv-insights/shared'
 import { migratePermissionMode } from '@rv-insights/shared'
 
 interface AgentWorkspacesIndex {
@@ -739,7 +739,7 @@ function isNewerVersion(a: string, b: string): boolean {
 // ===== 权限模式管理 =====
 
 interface WorkspaceConfig {
-  permissionMode?: RV-InsightsPermissionMode
+  permissionMode?: RVInsightsPermissionMode
   attachedDirectories?: string[]
 }
 
@@ -768,12 +768,12 @@ function writeWorkspaceConfig(workspaceSlug: string, config: WorkspaceConfig): v
 }
 
 /** 获取工作区权限模式，默认 'auto'，支持旧值自动迁移 */
-export function getWorkspacePermissionMode(workspaceSlug: string): RV-InsightsPermissionMode {
+export function getWorkspacePermissionMode(workspaceSlug: string): RVInsightsPermissionMode {
   const config = readWorkspaceConfig(workspaceSlug)
   return config.permissionMode ? migratePermissionMode(config.permissionMode) : 'auto'
 }
 
-export function setWorkspacePermissionMode(workspaceSlug: string, mode: RV-InsightsPermissionMode): void {
+export function setWorkspacePermissionMode(workspaceSlug: string, mode: RVInsightsPermissionMode): void {
   const config = readWorkspaceConfig(workspaceSlug)
   const updated: WorkspaceConfig = { ...config, permissionMode: mode }
   writeWorkspaceConfig(workspaceSlug, updated)
