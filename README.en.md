@@ -6,21 +6,18 @@ Next-generation AI desktop app with integrated agents. Local-first, multi-provid
 
 ### ✦ Core Capabilities
 
-> **Chat** · Multi-model conversations &nbsp;│&nbsp; **Agent** · Autonomous general agent &nbsp;│&nbsp; **Agent Teams** · Multi-agent collaboration &nbsp;│&nbsp; **Skills & MCP** · Extensible toolchain
+> **rv-pipeline** · RISC-V open-source contribution pipeline &nbsp;│&nbsp; **Agent** · Autonomous general agent &nbsp;│&nbsp; **Agent Teams** · Multi-agent collaboration &nbsp;│&nbsp; **Skills & MCP** · Extensible toolchain
 >
 > **Lark Remote** · Use Agent from your phone &nbsp;│&nbsp; **Memory** · Understands you across sessions &nbsp;│&nbsp; **Multi-Provider** · Anthropic / OpenAI / Google / DeepSeek / MiniMax / Kimi / Zhipu &nbsp;│&nbsp; **Local-First** · Your data stays with you
 
 ![RV-Insights Poster](https://img.erlich.fun/personal-blog/uPic/pb.png)
 
-### Commercial Version Running in Parallel
-RV-Insights also offers a commercial version. If you need **cloud features** | **stable and reliable API** | **cost-effective subscription plans** | **simple user experience**, you're welcome to support the commercial version of RV-Insights: https://proma.cool/download — subscription plans start at 40% of official pricing.
-
 The core vision of RV-Insights is not to replace any particular software. Currently, only the infrastructure of RV-Insights has been implemented. Going forward, RV-Insights will continue to build multi-agent collaboration (personal and team), agent connections with external services, Tools and Skills consolidation, and the ability to proactively provide software and suggestions based on user understanding and memory. RV-Insights is evolving rapidly with the help of VibeCoding tools. PRs are welcome!
 
 ## Screenshots
 
-### Chat Mode
-Chat mode with multi-model switching and file attachment support.
+### rv-pipeline Mode
+rv-pipeline is an intelligent pipeline for RISC-V open-source contributions, consisting of 5 stages: Explorer (discover contribution points) → Planner (design plan) → Developer (code development) → Reviewer (code review) → Tester (test verification). Each node pauses after output for human approval, and Developer ↔ Reviewer supports multi-round iteration until review passes. Powered by LangGraph for orchestration; Explorer / Planner / Developer / Tester use Claude Agent SDK, Reviewer uses OpenAI Agents SDK.
 
 ![RV-Insights Chat Mode](https://img.erlich.fun/personal-blog/uPic/tBXRKI.png)
 
@@ -54,12 +51,16 @@ Full-protocol LLM channel support for all domestic and international providers, 
 
 ## Features
 
+- **rv-pipeline** — 5-stage pipeline for RISC-V open-source contributions (Explorer → Planner → Developer → Reviewer → Tester), LangGraph orchestration with human-in-the-loop approval at each node
 - **Multi-Provider Support** — Anthropic, OpenAI, Google, DeepSeek, MiniMax, Kimi, Zhipu GLM, and any OpenAI-compatible endpoint
 - **AI Agent Mode** — Autonomous general agent powered by Claude Agent SDK
+- **Agent Teams** — Multi-agent collaboration, auto-assemble teams for complex tasks, improving results by 5-20%
+- **Remote via Lark** — Use RV-Insights Agent remotely via Feishu/Lark bot, supporting private chats and group chats
+- **Skills & MCP** — Extensible toolchain with built-in Brainstorming and office suite Skills, auto-discover and install new Skills via conversation
 - **Streaming & Thinking** — Real-time streaming output with extended thinking visualization
 - **Rich Rendering** — Mermaid diagrams, syntax-highlighted code blocks, Markdown
 - **Attachments & Documents** — Upload images and parse PDF/Office/text files in conversations
-- **Memory** — Shared memory across Chat and Agent, AI remembers your preferences, habits, and context across sessions
+- **Memory** — Shared memory across rv-pipeline and Agent, AI remembers your preferences, habits, and context across sessions
 - **Local-First** — All data stored locally in `~/.rv-insights/`, no database, fully portable
 - **Themes** — Light and dark mode with system preference detection
 
@@ -74,6 +75,14 @@ Download the latest release for your platform:
 ### Adding a Channel
 
 Go to **Settings > Channels**, click **Add Channel**, select a provider, and enter your API Key. RV-Insights will auto-fill the correct API endpoint. Click **Test Connection** to verify, then **Fetch Models** to load available models.
+
+### rv-pipeline Mode
+
+rv-pipeline requires two channels:
+- **Claude channel** (for Explorer / Planner / Developer / Tester): Add an Anthropic or Claude Agent SDK-compatible provider channel
+- **OpenAI channel** (for Reviewer): Add an OpenAI or OpenAI Agents SDK-compatible provider channel
+
+Go to **Settings > rv-pipeline** to select the channels and models. During pipeline execution, each node will automatically pause after output, waiting for your on-screen approval before proceeding to the next stage.
 
 ### Agent Mode (Anthropic Only)
 
@@ -97,6 +106,9 @@ MiniMax, Kimi (Moonshot), and Zhipu GLM use dedicated API endpoints — these ar
 - **Styling** — Tailwind CSS + shadcn/ui
 - **Build** — Vite (renderer) + esbuild (main/preload)
 - **Language** — TypeScript
+- **Pipeline Orchestration** — LangGraph
+- **Agent SDK** — Claude Agent SDK 0.2.120
+- **Reviewer SDK** — OpenAI Agents SDK
 
 ## Credits
 

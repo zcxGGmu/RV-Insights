@@ -34,28 +34,14 @@ RV-Insights 希望能在 3 月结束前实现 Pro Active Agent，白话讲就是
 
 RV-Insights 是一个开源的软件，我们的所有的代码都是公开的，`RV-Insights 开源地址`：https://github.com/ErlichLiu/RV-Insights.git 
 
-### 版本（开源版本和商业运行版本）
-
-为了更好的服务大家，减少大家的麻烦，我们同时也提供商业的版本，商业的版本跟开源的版本一致，只是内置了 RV-Insights 官方的 AI 供应商渠道，这样大家可以无需配置就可以直接使用，更加的简单。`RV-Insights 商业版本地址`：https://proma.cool/download
-
-商业版本提供更优惠的订阅方式，所有模型都是官方原价计价，订阅会提供更低的折扣，起步折扣就是 7 折，最低是 4 折左右。商业的版本也会帮助 RV-Insights 提供更多的资源来推进开源版本和商业版本的发展。
-
 ### 下载和安装
 
-`开源版本下载地址`：https://github.com/ErlichLiu/RV-Insights/releases 
-
-`商业版本下载地址`：https://proma.cool/download
+`开源版本下载地址`：https://github.com/ErlichLiu/RV-Insights/releases
 
 Windows 用户我们推荐安装到 `C 盘`，这样会对接下来的 Agent 执行会更加友好。
 
-**说明**：开源版本的下载需要向下滚动并找到对应的下载区域，然后按照这个部分的指引下载安装即可：
+**说明**：下载需要向下滚动并找到对应的下载区域，然后按照这个部分的指引下载安装即可：
 ![image-20260308125017458](https://img.erlich.fun/personal-blog/uPic/image-20260308125017458.png)
-
-
-
-商业版本的则很简单，直接访问 https://proma.cool/download 后下载对应版本即可，下方可以下载到更早的版本。
-
-![image-20260308125051182](https://img.erlich.fun/personal-blog/uPic/image-20260308125051182.png)
 
 
 
