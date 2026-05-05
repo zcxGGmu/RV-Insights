@@ -14,10 +14,6 @@
 >
 > **飞书远程** · 手机也能用 Agent &nbsp;│&nbsp; **记忆** · 跨会话理解你 &nbsp;│&nbsp; **多供应商** · Anthropic / OpenAI / Google / DeepSeek / MiniMax / Kimi / 智谱 &nbsp;│&nbsp; **本地优先** · 数据全在你手里
 
-![RV-Insights 海报](./docs/assets/rv-insights-poster.png)
-
-RV-Insights 的核心意义不在于替代任何一款软件，目前只实现了 RV-Insights 的基础设施部分，接下来 RV-Insights 将继续实现多 Agents 协同工作（个人与他人）、Agents 与外部的链接、Tools 和 Skills 固化，以及利用对用户的理解和记忆实现主动提供软件和建议的能力等，RV-Insights 正在借助 VibeCoding 工具在飞速进化，欢迎大家 PR。
-
 ## RV-Insights 截图
 
 ### rv-pipeline 模式
