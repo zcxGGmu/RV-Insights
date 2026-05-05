@@ -6,7 +6,7 @@
 
 ## 在开始之前（推荐看）
 
-![RV-Insights 海报](https://img.erlich.fun/personal-blog/uPic/pb.png)
+![RV-Insights 海报](./docs/assets/rv-insights-poster.png)
 
 大家好，感谢大家关注开源通用 Agent 项目 RV-Insights，我是 RV-Insights 的开发者 Erlich。在正式开始关于 RV-Insights 的使用教程前，我想先简单做个本次系列教程的介绍。
 

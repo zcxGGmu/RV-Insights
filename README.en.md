@@ -10,7 +10,7 @@ Next-generation AI desktop app with integrated agents. Local-first, multi-provid
 >
 > **Lark Remote** · Use Agent from your phone &nbsp;│&nbsp; **Memory** · Understands you across sessions &nbsp;│&nbsp; **Multi-Provider** · Anthropic / OpenAI / Google / DeepSeek / MiniMax / Kimi / Zhipu &nbsp;│&nbsp; **Local-First** · Your data stays with you
 
-![RV-Insights Poster](https://img.erlich.fun/personal-blog/uPic/pb.png)
+![RV-Insights Poster](./docs/assets/rv-insights-poster.png)
 
 The core vision of RV-Insights is not to replace any particular software. Currently, only the infrastructure of RV-Insights has been implemented. Going forward, RV-Insights will continue to build multi-agent collaboration (personal and team), agent connections with external services, Tools and Skills consolidation, and the ability to proactively provide software and suggestions based on user understanding and memory. RV-Insights is evolving rapidly with the help of VibeCoding tools. PRs are welcome!
 
