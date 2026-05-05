@@ -313,7 +313,7 @@ interface PipelineService {
 
 ```mermaid
 graph LR
-    subgraph RV-Insights 现有架构（复用层）
+    subgraph "RV-Insights 现有架构（复用层）"
         AM[app-mode.ts<br/>'chat' → 'pipeline']
         TAB[tab-atoms.ts<br/>TabType 扩展]
         TC[TabContent.tsx<br/>路由分支]
