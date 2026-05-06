@@ -6,16 +6,17 @@
  * - 渐进式消息内容搜索（debounce 后 IPC 调用）
  * - 匹配文字高亮
  * - 键盘导航（上下箭头 + Enter + Esc）
- * - 同时搜索 Chat 和 Agent 模式
+ * - 同时搜索 Pipeline、Chat 和 Agent 模式
  */
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { Search, X, MessageSquare, Bot, Archive, Loader2 } from 'lucide-react'
+import { Search, X, MessageSquare, Bot, Archive, Loader2, GitBranch } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
 import { conversationsAtom } from '@/atoms/chat-atoms'
+import { pipelineSessionsAtom } from '@/atoms/pipeline-atoms'
 import {
   agentSessionsAtom,
   currentAgentWorkspaceIdAtom,
@@ -29,7 +30,7 @@ import type { ConversationMeta, AgentSessionMeta, MessageSearchResult, AgentMess
 interface TitleResult {
   id: string
   title: string
-  type: 'chat' | 'agent'
+  type: 'pipeline' | 'chat' | 'agent'
   archived?: boolean
   updatedAt: number
 }
@@ -38,7 +39,7 @@ interface TitleResult {
 interface ContentResult {
   id: string
   title: string
-  type: 'chat' | 'agent'
+  type: 'pipeline' | 'chat' | 'agent'
   snippet: string
   matchStart: number
   matchLength: number
@@ -102,6 +103,7 @@ function HighlightSnippet({ snippet, matchStart, matchLength }: {
 
 export function SearchDialog(): React.ReactElement {
   const [open, setOpen] = useAtom(searchDialogOpenAtom)
+  const pipelineSessions = useAtomValue(pipelineSessionsAtom)
   const conversations = useAtomValue(conversationsAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
   const agentWorkspaces = useAtomValue(agentWorkspacesAtom)
@@ -174,6 +176,10 @@ export function SearchDialog(): React.ReactElement {
     if (!searchQuery) return []
     const q = searchQuery.toLowerCase()
 
+    const pipelineMatches: TitleResult[] = pipelineSessions
+      .filter((s) => s.title.toLowerCase().includes(q))
+      .map((s) => ({ id: s.id, title: s.title, type: 'pipeline' as const, archived: s.archived, updatedAt: s.updatedAt }))
+
     const chatMatches: TitleResult[] = conversations
       .filter((c) => c.title.toLowerCase().includes(q))
       .map((c) => ({ id: c.id, title: c.title, type: 'chat' as const, archived: c.archived, updatedAt: c.updatedAt }))
@@ -182,10 +188,10 @@ export function SearchDialog(): React.ReactElement {
       .filter((s) => s.title.toLowerCase().includes(q))
       .map((s) => ({ id: s.id, title: s.title, type: 'agent' as const, archived: s.archived, updatedAt: s.updatedAt }))
 
-    return [...chatMatches, ...agentMatches]
+    return [...pipelineMatches, ...chatMatches, ...agentMatches]
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, 20)
-  }, [searchQuery, conversations, agentSessions])
+  }, [searchQuery, pipelineSessions, conversations, agentSessions])
 
   // 内容搜索：debounce 300ms 后 IPC 调用，基于 searchQuery
   React.useEffect(() => {
@@ -260,7 +266,11 @@ export function SearchDialog(): React.ReactElement {
     setOpen(false)
     setActiveView('conversations')
 
-    if (result.type === 'chat') {
+    if (result.type === 'pipeline') {
+      const session = pipelineSessions.find((s) => s.id === result.id)
+      const title = session?.title ?? result.title
+      openSession('pipeline', result.id, title)
+    } else if (result.type === 'chat') {
       const conv = conversations.find((c) => c.id === result.id)
       const title = conv?.title ?? result.title
       openSession('chat', result.id, title)
@@ -269,7 +279,7 @@ export function SearchDialog(): React.ReactElement {
       const title = session?.title ?? result.title
       openSession('agent', result.id, title)
     }
-  }, [setOpen, setActiveView, openSession, conversations, agentSessions])
+  }, [setOpen, setActiveView, openSession, pipelineSessions, conversations, agentSessions])
 
   // 键盘导航
   const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
@@ -377,7 +387,9 @@ export function SearchDialog(): React.ReactElement {
                     result.archived && 'opacity-60'
                   )}
                 >
-                  {result.type === 'chat' ? (
+                  {result.type === 'pipeline' ? (
+                    <GitBranch size={14} className="flex-shrink-0 text-amber-600/70" />
+                  ) : result.type === 'chat' ? (
                     <MessageSquare size={14} className="flex-shrink-0 text-foreground/40" />
                   ) : (
                     <Bot size={14} className="flex-shrink-0 text-blue-500/70" />
@@ -425,7 +437,9 @@ export function SearchDialog(): React.ReactElement {
                     )}
                   >
                     <div className="flex items-center gap-2.5">
-                      {result.type === 'chat' ? (
+                      {result.type === 'pipeline' ? (
+                        <GitBranch size={14} className="flex-shrink-0 text-amber-600/70" />
+                      ) : result.type === 'chat' ? (
                         <MessageSquare size={14} className="flex-shrink-0 text-foreground/40" />
                       ) : (
                         <Bot size={14} className="flex-shrink-0 text-blue-500/70" />

@@ -10,6 +10,7 @@ import { useAtomValue } from 'jotai'
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { ChatView } from '@/components/chat'
 import { AgentView } from '@/components/agent'
+import { PipelineView } from '@/components/pipeline'
 import { TabErrorBoundary } from './TabErrorBoundary'
 
 export interface TabContentProps {
@@ -32,6 +33,14 @@ export function TabContent({ tabId }: TabContentProps): React.ReactElement {
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         标签页不存在
       </div>
+    )
+  }
+
+  if (tab.type === 'pipeline') {
+    return (
+      <TabErrorBoundary key={tab.sessionId} sessionId={tab.sessionId}>
+        <PipelineView sessionId={tab.sessionId} />
+      </TabErrorBoundary>
     )
   }
 

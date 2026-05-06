@@ -11,6 +11,7 @@ import { useAtomValue } from 'jotai'
 import { LeftSidebar } from './LeftSidebar'
 import { RightSidePanel } from './RightSidePanel'
 import { MainArea } from '@/components/tabs/MainArea'
+import { PipelineSidebar } from '@/components/pipeline'
 import { AppShellProvider, type AppShellContextType } from '@/contexts/AppShellContext'
 import { appModeAtom } from '@/atoms/app-mode'
 import { currentAgentSessionIdAtom, currentSessionSidePanelOpenAtom } from '@/atoms/agent-atoms'
@@ -35,7 +36,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
       <div className="shell-bg h-screen w-screen flex overflow-hidden bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
         {/* 左侧边栏：可折叠，带圆角和内边距 */}
         <div className="p-2 pr-0 relative z-[60]">
-          <LeftSidebar />
+          {appMode === 'pipeline' ? <PipelineSidebar /> : <LeftSidebar />}
         </div>
 
         {/* 中间容器：relative z-[60] 使其在 z-50 拖动区域之上 */}

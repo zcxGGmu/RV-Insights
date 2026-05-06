@@ -45,12 +45,14 @@ import {
 } from './atoms/ui-preferences'
 import { useGlobalAgentListeners } from './hooks/useGlobalAgentListeners'
 import { useGlobalChatListeners } from './hooks/useGlobalChatListeners'
+import { useGlobalPipelineListeners } from './hooks/useGlobalPipelineListeners'
 import { tabsAtom, activeTabIdAtom } from './atoms/tab-atoms'
 import type { TabItem } from './atoms/tab-atoms'
 import { chatToolsAtom } from './atoms/chat-tool-atoms'
 import { feishuBotStatesAtom } from './atoms/feishu-atoms'
 import { dingtalkBotStatesAtom } from './atoms/dingtalk-atoms'
 import { currentConversationIdAtom, channelsAtom, channelsLoadedAtom, selectedModelAtom } from './atoms/chat-atoms'
+import { currentPipelineSessionIdAtom, pipelinePendingGatesAtom, pipelineSessionsAtom } from './atoms/pipeline-atoms'
 import { appModeAtom } from './atoms/app-mode'
 import type { FeishuBotBridgeState, FeishuBridgeState, FeishuNotificationSentPayload, DingTalkBotBridgeState, DingTalkBridgeState } from '@rv-insights/shared'
 import { Toaster } from './components/ui/sonner'
@@ -374,6 +376,28 @@ function AgentListenersInitializer(): null {
   return null
 }
 
+function PipelineListenersInitializer(): null {
+  useGlobalPipelineListeners()
+  return null
+}
+
+function PipelineSessionsInitializer(): null {
+  const setSessions = useSetAtom(pipelineSessionsAtom)
+  const setPendingGates = useSetAtom(pipelinePendingGatesAtom)
+
+  useEffect(() => {
+    Promise.all([
+      window.electronAPI.listPipelineSessions(),
+      window.electronAPI.getPendingPipelineGates(),
+    ]).then(([sessions, pendingGates]) => {
+      setSessions(sessions)
+      setPendingGates(new Map(pendingGates.map((request) => [request.sessionId, request])))
+    }).catch((err: unknown) => console.error('[PipelineSessionsInitializer] 加载失败:', err))
+  }, [setSessions, setPendingGates])
+
+  return null
+}
+
 /**
  * Chat 工具初始化组件
  *
@@ -560,9 +584,10 @@ function TabStatePersistenceInitializer(): null {
   useEffect(() => {
     Promise.all([
       window.electronAPI.getSettings(),
+      window.electronAPI.listPipelineSessions(),
       window.electronAPI.listConversations(),
       window.electronAPI.listAgentSessions(),
-    ]).then(([settings, conversations, agentSessions]) => {
+    ]).then(([settings, pipelineSessions, conversations, agentSessions]) => {
       const tabState = settings.tabState
       if (!tabState?.tabs?.length) {
         restoredRef.current = true
@@ -571,6 +596,7 @@ function TabStatePersistenceInitializer(): null {
 
       // 构建有效 sessionId 集合
       const validSessionIds = new Set([
+        ...pipelineSessions.map((s) => s.id),
         ...conversations.map((c) => c.id),
         ...agentSessions.map((s) => s.id),
       ])
@@ -614,7 +640,9 @@ function TabStatePersistenceInitializer(): null {
       const activeTab = validTabs.find((t) => t.id === restoredActiveTabId)
       if (activeTab) {
         store.set(appModeAtom, activeTab.type)
-        if (activeTab.type === 'chat') {
+        if (activeTab.type === 'pipeline') {
+          store.set(currentPipelineSessionIdAtom, activeTab.sessionId)
+        } else if (activeTab.type === 'chat') {
           store.set(currentConversationIdAtom, activeTab.sessionId)
         } else {
           store.set(currentAgentSessionIdAtom, activeTab.sessionId)
@@ -692,10 +720,12 @@ if (isQuickTaskWindow) {
     <React.StrictMode>
       <ThemeInitializer />
       <AgentSettingsInitializer />
+      <PipelineSessionsInitializer />
       <NotificationsInitializer />
       <UiPreferencesInitializer />
       <ChatListenersInitializer />
       <AgentListenersInitializer />
+      <PipelineListenersInitializer />
       <ChatToolInitializer />
       <UpdaterInitializer />
       <FeishuInitializer />

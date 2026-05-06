@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { MessageSquare, Bot } from 'lucide-react'
+import { MessageSquare, Bot, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   tabsAtom,
@@ -20,6 +20,7 @@ import {
 import type { TabItem } from '@/atoms/tab-atoms'
 import { appModeAtom } from '@/atoms/app-mode'
 import { currentConversationIdAtom } from '@/atoms/chat-atoms'
+import { currentPipelineSessionIdAtom } from '@/atoms/pipeline-atoms'
 import {
   currentAgentSessionIdAtom,
   agentSessionsAtom,
@@ -38,6 +39,7 @@ export function TabSwitcher(): React.ReactElement | null {
 
   const setAppMode = useSetAtom(appModeAtom)
   const setCurrentConversationId = useSetAtom(currentConversationIdAtom)
+  const setCurrentPipelineSessionId = useSetAtom(currentPipelineSessionIdAtom)
   const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
   const agentWorkspaces = useAtomValue(agentWorkspacesAtom)
@@ -95,7 +97,10 @@ export function TabSwitcher(): React.ReactElement | null {
       const tab = tabsRef.current.find((t) => t.id === tabId)
       if (!tab) return
 
-      if (tab.type === 'chat') {
+      if (tab.type === 'pipeline') {
+        setAppMode('pipeline')
+        setCurrentPipelineSessionId(tab.sessionId)
+      } else if (tab.type === 'chat') {
         setAppMode('chat')
         setCurrentConversationId(tab.sessionId)
       } else if (tab.type === 'agent') {
@@ -123,6 +128,7 @@ export function TabSwitcher(): React.ReactElement | null {
       setActiveTabId,
       setAppMode,
       setCurrentConversationId,
+      setCurrentPipelineSessionId,
       setCurrentAgentSessionId,
       setCurrentAgentWorkspaceId,
       setUnviewedCompleted,
@@ -258,6 +264,8 @@ export function TabSwitcher(): React.ReactElement | null {
                 )}
                 {tab.type === 'agent' ? (
                   <Bot className="w-4 h-4 shrink-0 opacity-60" />
+                ) : tab.type === 'pipeline' ? (
+                  <GitBranch className="w-4 h-4 shrink-0 opacity-60" />
                 ) : (
                   <MessageSquare className="w-4 h-4 shrink-0 opacity-60" />
                 )}

@@ -6,7 +6,7 @@
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, PIPELINE_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, APP_ICON_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
@@ -99,6 +99,16 @@ import type {
   WeChatBridgeState,
   AgentQueueMessageInput,
   PendingRequestsSnapshot,
+  PipelineSessionMeta,
+  PipelineRecord,
+  PipelineStartInput,
+  PipelineResumeInput,
+  PipelineGateRequest,
+  PipelineGateResponse,
+  PipelineStateSnapshot,
+  PipelineStreamPayload,
+  PipelineStreamCompletePayload,
+  PipelineStreamErrorPayload,
 } from '@rv-insights/shared'
 import type { UserProfile, AppSettings, QuickTaskSubmitInput, QuickTaskOpenSessionData } from '../types'
 import { QUICK_TASK_IPC_CHANNELS } from '../types'
@@ -330,6 +340,56 @@ export interface ElectronAPI {
 
   /** 订阅流式工具活动事件 */
   onStreamToolActivity: (callback: (event: StreamToolActivityEvent) => void) => () => void
+
+  // ===== Pipeline 会话管理相关 =====
+
+  /** 获取 Pipeline 会话列表 */
+  listPipelineSessions: () => Promise<PipelineSessionMeta[]>
+
+  /** 创建 Pipeline 会话 */
+  createPipelineSession: (title?: string, channelId?: string, workspaceId?: string) => Promise<PipelineSessionMeta>
+
+  /** 获取 Pipeline 记录 */
+  getPipelineRecords: (sessionId: string) => Promise<PipelineRecord[]>
+
+  /** 更新 Pipeline 标题 */
+  updatePipelineTitle: (sessionId: string, title: string) => Promise<PipelineSessionMeta>
+
+  /** 删除 Pipeline 会话 */
+  deletePipelineSession: (sessionId: string) => Promise<void>
+
+  /** 切换 Pipeline 会话置顶 */
+  togglePinPipelineSession: (sessionId: string) => Promise<PipelineSessionMeta>
+
+  /** 切换 Pipeline 会话归档 */
+  toggleArchivePipelineSession: (sessionId: string) => Promise<PipelineSessionMeta>
+
+  /** 启动 Pipeline */
+  startPipeline: (input: PipelineStartInput) => Promise<void>
+
+  /** 恢复 Pipeline */
+  resumePipeline: (input: PipelineResumeInput) => Promise<void>
+
+  /** 响应 Pipeline gate */
+  respondPipelineGate: (response: PipelineGateResponse) => Promise<void>
+
+  /** 中止 Pipeline */
+  stopPipeline: (sessionId: string) => Promise<void>
+
+  /** 获取待审批 gate 列表 */
+  getPendingPipelineGates: () => Promise<PipelineGateRequest[]>
+
+  /** 获取 Pipeline 状态快照 */
+  getPipelineSessionState: (sessionId: string) => Promise<PipelineStateSnapshot>
+
+  /** 订阅 Pipeline 流式事件 */
+  onPipelineStreamEvent: (callback: (payload: PipelineStreamPayload) => void) => () => void
+
+  /** 订阅 Pipeline 流式完成事件 */
+  onPipelineStreamComplete: (callback: (payload: PipelineStreamCompletePayload) => void) => () => void
+
+  /** 订阅 Pipeline 流式错误事件 */
+  onPipelineStreamError: (callback: (payload: PipelineStreamErrorPayload) => void) => () => void
 
   // ===== Agent 会话管理相关 =====
 
@@ -1053,6 +1113,77 @@ const electronAPI: ElectronAPI = {
     const listener = (_: unknown, event: StreamToolActivityEvent): void => callback(event)
     ipcRenderer.on(CHAT_IPC_CHANNELS.STREAM_TOOL_ACTIVITY, listener)
     return () => { ipcRenderer.removeListener(CHAT_IPC_CHANNELS.STREAM_TOOL_ACTIVITY, listener) }
+  },
+
+  // Pipeline 会话管理
+  listPipelineSessions: () => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.LIST_SESSIONS)
+  },
+
+  createPipelineSession: (title?: string, channelId?: string, workspaceId?: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.CREATE_SESSION, title, channelId, workspaceId)
+  },
+
+  getPipelineRecords: (sessionId: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_RECORDS, sessionId)
+  },
+
+  updatePipelineTitle: (sessionId: string, title: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.UPDATE_TITLE, sessionId, title)
+  },
+
+  deletePipelineSession: (sessionId: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.DELETE_SESSION, sessionId)
+  },
+
+  togglePinPipelineSession: (sessionId: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.TOGGLE_PIN, sessionId)
+  },
+
+  toggleArchivePipelineSession: (sessionId: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.TOGGLE_ARCHIVE, sessionId)
+  },
+
+  startPipeline: (input: PipelineStartInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.START, input)
+  },
+
+  resumePipeline: (input: PipelineResumeInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.RESUME, input)
+  },
+
+  respondPipelineGate: (response: PipelineGateResponse) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.RESPOND_GATE, response)
+  },
+
+  stopPipeline: (sessionId: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.STOP, sessionId)
+  },
+
+  getPendingPipelineGates: () => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_PENDING_GATES)
+  },
+
+  getPipelineSessionState: (sessionId: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_SESSION_STATE, sessionId)
+  },
+
+  onPipelineStreamEvent: (callback: (payload: PipelineStreamPayload) => void) => {
+    const listener = (_: unknown, payload: PipelineStreamPayload): void => callback(payload)
+    ipcRenderer.on(PIPELINE_IPC_CHANNELS.STREAM_EVENT, listener)
+    return () => { ipcRenderer.removeListener(PIPELINE_IPC_CHANNELS.STREAM_EVENT, listener) }
+  },
+
+  onPipelineStreamComplete: (callback: (payload: PipelineStreamCompletePayload) => void) => {
+    const listener = (_: unknown, payload: PipelineStreamCompletePayload): void => callback(payload)
+    ipcRenderer.on(PIPELINE_IPC_CHANNELS.STREAM_COMPLETE, listener)
+    return () => { ipcRenderer.removeListener(PIPELINE_IPC_CHANNELS.STREAM_COMPLETE, listener) }
+  },
+
+  onPipelineStreamError: (callback: (payload: PipelineStreamErrorPayload) => void) => {
+    const listener = (_: unknown, payload: PipelineStreamErrorPayload): void => callback(payload)
+    ipcRenderer.on(PIPELINE_IPC_CHANNELS.STREAM_ERROR, listener)
+    return () => { ipcRenderer.removeListener(PIPELINE_IPC_CHANNELS.STREAM_ERROR, listener) }
   },
 
   // Agent 会话管理

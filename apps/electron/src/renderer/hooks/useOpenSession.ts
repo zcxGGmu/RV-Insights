@@ -10,6 +10,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { tabsAtom, activeTabIdAtom, openTab, type TabType } from '@/atoms/tab-atoms'
 import { appModeAtom } from '@/atoms/app-mode'
 import { currentConversationIdAtom } from '@/atoms/chat-atoms'
+import { currentPipelineSessionIdAtom } from '@/atoms/pipeline-atoms'
 import {
   currentAgentSessionIdAtom,
   agentSessionsAtom,
@@ -24,6 +25,7 @@ export function useOpenSession(): OpenSessionFn {
   const setActiveTabId = useSetAtom(activeTabIdAtom)
   const setAppMode = useSetAtom(appModeAtom)
   const setCurrentConversationId = useSetAtom(currentConversationIdAtom)
+  const setCurrentPipelineSessionId = useSetAtom(currentPipelineSessionIdAtom)
   const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
   const setCurrentAgentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
@@ -36,9 +38,15 @@ export function useOpenSession(): OpenSessionFn {
       setActiveTabId(result.activeTabId)
       setAppMode(type)
 
-      if (type === 'chat') {
+      if (type === 'pipeline') {
+        setCurrentPipelineSessionId(sessionId)
+        setCurrentConversationId(null)
+        setCurrentAgentSessionId(null)
+      } else if (type === 'chat') {
+        setCurrentPipelineSessionId(null)
         setCurrentConversationId(sessionId)
       } else {
+        setCurrentPipelineSessionId(null)
         setCurrentAgentSessionId(sessionId)
 
         // 清除该会话的"已完成未查看"标记，与 TabBar.handleActivate 保持一致
@@ -59,6 +67,6 @@ export function useOpenSession(): OpenSessionFn {
         }
       }
     },
-    [tabs, setTabs, setActiveTabId, setAppMode, setCurrentConversationId, setCurrentAgentSessionId, agentSessions, setCurrentAgentWorkspaceId, setUnviewedCompleted],
+    [tabs, setTabs, setActiveTabId, setAppMode, setCurrentConversationId, setCurrentPipelineSessionId, setCurrentAgentSessionId, agentSessions, setCurrentAgentWorkspaceId, setUnviewedCompleted],
   )
 }

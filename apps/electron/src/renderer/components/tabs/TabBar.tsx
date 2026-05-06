@@ -20,6 +20,7 @@ import {
 import type { TabItem } from '@/atoms/tab-atoms'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import { currentConversationIdAtom } from '@/atoms/chat-atoms'
+import { currentPipelineSessionIdAtom } from '@/atoms/pipeline-atoms'
 import {
   agentSessionsAtom,
   currentAgentSessionIdAtom,
@@ -39,6 +40,7 @@ export function TabBar(): React.ReactElement {
   // Tab 切换时同步 sidebar 状态
   const setAppMode = useSetAtom(appModeAtom)
   const setCurrentConversationId = useSetAtom(currentConversationIdAtom)
+  const setCurrentPipelineSessionId = useSetAtom(currentPipelineSessionIdAtom)
   const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
   const setCurrentAgentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
@@ -62,7 +64,10 @@ export function TabBar(): React.ReactElement {
     const tab = tabs.find((t) => t.id === tabId)
     if (!tab) return
 
-    if (tab.type === 'chat') {
+    if (tab.type === 'pipeline') {
+      setAppMode('pipeline')
+      setCurrentPipelineSessionId(tab.sessionId)
+    } else if (tab.type === 'chat') {
       setAppMode('chat')
       setCurrentConversationId(tab.sessionId)
     } else if (tab.type === 'agent') {
@@ -85,7 +90,7 @@ export function TabBar(): React.ReactElement {
         }).catch(console.error)
       }
     }
-  }, [setActiveTabId, tabs, agentSessions, setAppMode, setCurrentConversationId, setCurrentAgentSessionId, setCurrentAgentWorkspaceId, setUnviewedCompleted])
+  }, [setActiveTabId, tabs, agentSessions, setAppMode, setCurrentConversationId, setCurrentPipelineSessionId, setCurrentAgentSessionId, setCurrentAgentWorkspaceId, setUnviewedCompleted])
 
   const handleDragStart = React.useCallback((tabId: string, e: React.PointerEvent) => {
     if (e.button !== 0) return // 只处理左键

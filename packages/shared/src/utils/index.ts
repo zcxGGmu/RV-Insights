@@ -9,3 +9,9 @@ export function noop(): void {
 
 export { diffCapabilities } from './capabilities-diff'
 export type { CapabilityChange } from './capabilities-diff'
+export {
+  applyPipelineRecord,
+  createInitialPipelineState,
+  isPipelineTerminalStatus,
+  serializePipelineState,
+} from './pipeline-state'

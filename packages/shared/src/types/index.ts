@@ -24,6 +24,9 @@ export * from './chat'
 // Agent 相关类型
 export * from './agent'
 
+// Pipeline 相关类型
+export * from './pipeline'
+
 // Agent Provider 适配器接口
 export * from './agent-provider'
 

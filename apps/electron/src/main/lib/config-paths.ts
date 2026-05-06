@@ -46,6 +46,15 @@ export function getConfigDirName(): string {
  * 如果目录不存在则自动创建。
  */
 export function getConfigDir(): string {
+  const overrideDir = process.env.RV_INSIGHTS_CONFIG_DIR?.trim()
+  if (overrideDir) {
+    if (!existsSync(overrideDir)) {
+      mkdirSync(overrideDir, { recursive: true })
+      console.log(`[配置] 已创建覆盖配置目录: ${overrideDir}`)
+    }
+    return overrideDir
+  }
+
   const configDir = join(homedir(), getConfigDirName())
 
   if (!existsSync(configDir)) {
@@ -237,6 +246,105 @@ export function getAgentSessionsDir(): string {
  */
 export function getAgentSessionMessagesPath(id: string): string {
   return join(getAgentSessionsDir(), `${id}.jsonl`)
+}
+
+/**
+ * 获取 Pipeline 会话索引文件路径
+ *
+ * @returns ~/.rv-insights/pipeline-sessions.json
+ */
+export function getPipelineSessionsIndexPath(): string {
+  return join(getConfigDir(), 'pipeline-sessions.json')
+}
+
+/**
+ * 获取 Pipeline 会话记录目录
+ *
+ * @returns ~/.rv-insights/pipeline-sessions/
+ */
+export function getPipelineSessionsDir(): string {
+  const dir = join(getConfigDir(), 'pipeline-sessions')
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+    console.log(`[配置] 已创建 Pipeline 会话目录: ${dir}`)
+  }
+
+  return dir
+}
+
+/**
+ * 获取指定 Pipeline 会话的记录文件路径
+ *
+ * @param id 会话 ID
+ * @returns ~/.rv-insights/pipeline-sessions/{id}.jsonl
+ */
+export function getPipelineSessionRecordsPath(id: string): string {
+  return join(getPipelineSessionsDir(), `${id}.jsonl`)
+}
+
+/**
+ * 获取 Pipeline checkpoint 根目录
+ *
+ * @returns ~/.rv-insights/pipeline-checkpoints/
+ */
+export function getPipelineCheckpointsDir(): string {
+  const dir = join(getConfigDir(), 'pipeline-checkpoints')
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+    console.log(`[配置] 已创建 Pipeline Checkpoint 目录: ${dir}`)
+  }
+
+  return dir
+}
+
+/**
+ * 获取指定 Pipeline 会话的 checkpoint 目录
+ *
+ * @param sessionId 会话 ID
+ * @returns ~/.rv-insights/pipeline-checkpoints/{sessionId}/
+ */
+export function getPipelineSessionCheckpointDir(sessionId: string): string {
+  const dir = join(getPipelineCheckpointsDir(), sessionId)
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+
+  return dir
+}
+
+/**
+ * 获取 Pipeline artifacts 根目录
+ *
+ * @returns ~/.rv-insights/pipeline-artifacts/
+ */
+export function getPipelineArtifactsDir(): string {
+  const dir = join(getConfigDir(), 'pipeline-artifacts')
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+    console.log(`[配置] 已创建 Pipeline 产物目录: ${dir}`)
+  }
+
+  return dir
+}
+
+/**
+ * 获取指定 Pipeline 会话的 artifacts 目录
+ *
+ * @param sessionId 会话 ID
+ * @returns ~/.rv-insights/pipeline-artifacts/{sessionId}/
+ */
+export function getPipelineSessionArtifactsDir(sessionId: string): string {
+  const dir = join(getPipelineArtifactsDir(), sessionId)
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+
+  return dir
 }
 
 /**

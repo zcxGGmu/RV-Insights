@@ -98,7 +98,7 @@ export interface AppSettings {
 export interface PersistedTabSettings {
   tabs: Array<{
     id: string
-    type: 'chat' | 'agent'
+    type: 'pipeline' | 'chat' | 'agent'
     sessionId: string
     title: string
   }>

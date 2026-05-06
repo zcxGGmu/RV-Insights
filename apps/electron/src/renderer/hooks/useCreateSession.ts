@@ -10,6 +10,10 @@ import {
   selectedModelAtom,
 } from '@/atoms/chat-atoms'
 import {
+  currentPipelineSessionIdAtom,
+  pipelineSessionsAtom,
+} from '@/atoms/pipeline-atoms'
+import {
   agentSessionsAtom,
   agentChannelIdAtom,
   currentAgentWorkspaceIdAtom,
@@ -25,6 +29,8 @@ interface CreateSessionOptions {
 }
 
 interface CreateSessionActions {
+  /** 创建新 Pipeline 会话并打开标签页 */
+  createPipeline: (options?: CreateSessionOptions) => Promise<string | undefined>
   /** 创建新 Chat 对话并打开标签页 */
   createChat: (options?: CreateSessionOptions) => Promise<string | undefined>
   /** 创建新 Agent 会话并打开标签页 */
@@ -35,6 +41,8 @@ export function useCreateSession(): CreateSessionActions {
   const openSession = useOpenSession()
   const setActiveView = useSetAtom(activeViewAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
+  const setPipelineSessions = useSetAtom(pipelineSessionsAtom)
+  const setCurrentPipelineSessionId = useSetAtom(currentPipelineSessionIdAtom)
 
   // Chat
   const setConversations = useSetAtom(conversationsAtom)
@@ -46,6 +54,27 @@ export function useCreateSession(): CreateSessionActions {
   const setAgentSessions = useSetAtom(agentSessionsAtom)
   const agentChannelId = useAtomValue(agentChannelIdAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
+
+  const createPipeline = async (options?: CreateSessionOptions): Promise<string | undefined> => {
+    try {
+      const meta = await window.electronAPI.createPipelineSession(
+        undefined,
+        agentChannelId || undefined,
+        currentWorkspaceId || undefined,
+      )
+      setPipelineSessions((prev) => [meta, ...prev])
+      setCurrentPipelineSessionId(meta.id)
+      openSession('pipeline', meta.id, meta.title)
+      setActiveView('conversations')
+      if (options?.draft) {
+        setDraftSessionIds((prev: Set<string>) => { const next = new Set(prev); next.add(meta.id); return next })
+      }
+      return meta.id
+    } catch (error) {
+      console.error('[创建会话] 创建 Pipeline 会话失败:', error)
+      return undefined
+    }
+  }
 
   const createChat = async (options?: CreateSessionOptions): Promise<string | undefined> => {
     try {
@@ -90,5 +119,5 @@ export function useCreateSession(): CreateSessionActions {
     }
   }
 
-  return { createChat, createAgent }
+  return { createPipeline, createChat, createAgent }
 }

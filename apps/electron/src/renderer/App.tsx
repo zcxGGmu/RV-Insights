@@ -6,6 +6,7 @@ import { TutorialBanner } from './components/tutorial/TutorialBanner'
 import { EnvironmentCheckDialog } from './components/environment/EnvironmentCheckDialog'
 import { TooltipProvider } from './components/ui/tooltip'
 import { conversationsAtom } from './atoms/chat-atoms'
+import { pipelineSessionsAtom } from './atoms/pipeline-atoms'
 import { environmentCheckDialogOpenAtom } from './atoms/environment'
 import { tabsAtom, activeTabIdAtom, openTab } from './atoms/tab-atoms'
 import type { AppShellContextType } from './contexts/AppShellContext'
@@ -42,21 +43,20 @@ export default function App(): React.ReactElement {
     initialize()
   }, [])
 
-  // 完成 onboarding 回调：创建欢迎对话
+  // 完成 onboarding 回调：创建欢迎 Pipeline 会话
   const handleOnboardingComplete = async () => {
     setShowOnboarding(false)
 
     try {
-      const meta = await window.electronAPI.createWelcomeConversation()
+      const meta = await window.electronAPI.createPipelineSession('欢迎使用 RV Pipeline')
       if (meta) {
-        // 添加到对话列表
-        const conversations = store.get(conversationsAtom)
-        store.set(conversationsAtom, [meta, ...conversations])
+        const sessions = store.get(pipelineSessionsAtom)
+        store.set(pipelineSessionsAtom, [meta, ...sessions])
 
         // 打开对话标签页
         const tabs = store.get(tabsAtom)
         const result = openTab(tabs, {
-          type: 'chat',
+          type: 'pipeline',
           sessionId: meta.id,
           title: meta.title,
         })

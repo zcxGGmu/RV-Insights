@@ -9,7 +9,7 @@
 
 import * as React from 'react'
 import { useAtomValue, useAtom } from 'jotai'
-import { Lightbulb, MessageSquare, Bot } from 'lucide-react'
+import { Lightbulb, MessageSquare, Bot, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
@@ -26,6 +26,7 @@ function getGreeting(hour: number): string {
 
 /** 模式配置 */
 const MODE_CONFIG: Record<AppMode, { icon: React.ReactNode; label: string }> = {
+  pipeline: { icon: <GitBranch size={15} />, label: 'Pipeline' },
   chat: { icon: <MessageSquare size={15} />, label: 'Chat' },
   agent: { icon: <Bot size={15} />, label: 'Agent' },
 }
@@ -73,7 +74,7 @@ export function WelcomeEmptyState(): React.ReactElement {
             mode === 'agent' ? 'translate-x-0' : 'translate-x-full',
           )}
         />
-        {(['agent', 'chat'] as const).map((m) => {
+        {(['agent', 'pipeline'] as const).map((m) => {
           const config = MODE_CONFIG[m]
           const isSelected = mode === m
           return (

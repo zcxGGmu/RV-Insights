@@ -13,6 +13,7 @@ import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { Loader2 } from 'lucide-react'
 import { appModeAtom } from '@/atoms/app-mode'
+import { currentPipelineSessionIdAtom } from '@/atoms/pipeline-atoms'
 import { currentAgentWorkspaceIdAtom, agentSettingsReadyAtom } from '@/atoms/agent-atoms'
 import { tabsAtom, activeTabIdAtom, openTab } from '@/atoms/tab-atoms'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
@@ -20,12 +21,13 @@ import { useCreateSession } from '@/hooks/useCreateSession'
 
 export function WelcomeView(): React.ReactElement {
   const mode = useAtomValue(appModeAtom)
+  const setCurrentPipelineSessionId = useSetAtom(currentPipelineSessionIdAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const agentSettingsReady = useAtomValue(agentSettingsReadyAtom)
   const draftSessionIds = useAtomValue(draftSessionIdsAtom)
   const [tabs, setTabs] = useAtom(tabsAtom)
   const setActiveTabId = useSetAtom(activeTabIdAtom)
-  const { createChat, createAgent } = useCreateSession()
+  const { createPipeline, createChat, createAgent } = useCreateSession()
   const initRef = React.useRef<string | null>(null)
 
   // 将高频变化的值收集到 ref 中，避免污染 useEffect 依赖数组（否则 tabs/draftSessionIds
@@ -38,6 +40,8 @@ export function WelcomeView(): React.ReactElement {
     setActiveTabId,
     createChat,
     createAgent,
+    createPipeline,
+    setCurrentPipelineSessionId,
   })
   latestRef.current = {
     tabs,
@@ -47,6 +51,8 @@ export function WelcomeView(): React.ReactElement {
     setActiveTabId,
     createChat,
     createAgent,
+    createPipeline,
+    setCurrentPipelineSessionId,
   }
 
   React.useEffect(() => {
@@ -60,7 +66,36 @@ export function WelcomeView(): React.ReactElement {
     initRef.current = mode
 
     // 从后端 IPC 拿最新数据，避免 HMR 导致 atoms 重置为空时重复创建会话
-    if (currentMode === 'chat') {
+    if (currentMode === 'pipeline') {
+      window.electronAPI.listPipelineSessions().then((freshSessions) => {
+        if (initRef.current !== currentMode) return
+        const {
+          tabs: currentTabs,
+          draftSessionIds: currentDrafts,
+          setTabs: currentSetTabs,
+          setActiveTabId: currentSetActiveTabId,
+          createPipeline: currentCreatePipeline,
+          setCurrentPipelineSessionId: currentSetCurrentPipelineSessionId,
+        } = latestRef.current
+
+        const existing = freshSessions.find(
+          (s) => !s.archived && !currentDrafts.has(s.id),
+        )
+        if (existing) {
+          currentSetCurrentPipelineSessionId(existing.id)
+          const result = openTab(currentTabs, {
+            type: 'pipeline',
+            sessionId: existing.id,
+            title: existing.title,
+          })
+          currentSetTabs(result.tabs)
+          currentSetActiveTabId(result.activeTabId)
+          return
+        }
+
+        currentCreatePipeline({ draft: true })
+      }).catch(console.error)
+    } else if (currentMode === 'chat') {
       window.electronAPI.listConversations().then((freshConversations) => {
         // 如果 mode 已切换，丢弃过期回调
         if (initRef.current !== currentMode) return

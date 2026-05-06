@@ -12,31 +12,41 @@ import * as React from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
 import { conversationsAtom, currentConversationIdAtom } from '@/atoms/chat-atoms'
+import { pipelineSessionsAtom, currentPipelineSessionIdAtom } from '@/atoms/pipeline-atoms'
 import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atoms'
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
-import { Bot, MessageSquare } from 'lucide-react'
+import { Bot, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const modes: { value: AppMode; label: string; icon: React.ReactNode }[] = [
   { value: 'agent', label: 'Agent', icon: <Bot size={15} /> },
-  { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
+  { value: 'pipeline', label: 'Pipeline', icon: <GitBranch size={15} /> },
 ]
 
 export function ModeSwitcher(): React.ReactElement {
   const [mode, setMode] = useAtom(appModeAtom)
   const openSession = useOpenSession()
+  const pipelineSessions = useAtomValue(pipelineSessionsAtom)
   const conversations = useAtomValue(conversationsAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
+  const currentPipelineSessionId = useAtomValue(currentPipelineSessionIdAtom)
   const currentConversationId = useAtomValue(currentConversationIdAtom)
   const currentAgentSessionId = useAtomValue(currentAgentSessionIdAtom)
   const tabs = useAtomValue(tabsAtom)
 
   /** 尝试恢复目标模式下的上一个对话/会话，按优先级 fallback */
   const restoreSession = React.useCallback((targetMode: AppMode) => {
-    const isChatMode = targetMode === 'chat'
-    const sessions = isChatMode ? conversations : agentSessions
-    const lastId = isChatMode ? currentConversationId : currentAgentSessionId
+    const sessions = targetMode === 'pipeline'
+      ? pipelineSessions
+      : targetMode === 'chat'
+        ? conversations
+        : agentSessions
+    const lastId = targetMode === 'pipeline'
+      ? currentPipelineSessionId
+      : targetMode === 'chat'
+        ? currentConversationId
+        : currentAgentSessionId
 
     // 1. 上次选中的对话仍存在 → 恢复
     if (lastId) {

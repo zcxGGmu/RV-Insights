@@ -17,6 +17,7 @@ import {
   activeTabIdAtom,
   closeTab,
 } from '@/atoms/tab-atoms'
+import { pipelineRunningSessionIdsAtom } from '@/atoms/pipeline-atoms'
 import {
   agentRunningSessionIdsAtom,
   agentSidePanelOpenMapAtom,
@@ -44,6 +45,7 @@ interface UseCloseTabReturn {
 export function useCloseTab(): UseCloseTabReturn {
   const [tabs, setTabs] = useAtom(tabsAtom)
   const [activeTabId, setActiveTabId] = useAtom(activeTabIdAtom)
+  const runningPipelineIds = useAtomValue(pipelineRunningSessionIdsAtom)
   const runningSessionIds = useAtomValue(agentRunningSessionIdsAtom)
   const setPending = useSetAtom(pendingCloseTabIdAtom)
   const setWorkingDone = useSetAtom(workingDoneSessionIdsAtom)
@@ -77,7 +79,11 @@ export function useCloseTab(): UseCloseTabReturn {
 
     // Agent 类型：先通知主进程中止 SDK 子进程，再做 UI 清理
     // 这是 Issue #357 的核心修复：断开"UI 关闭 → IPC stop → claude subprocess 退出"断链
-    if (tab?.type === 'agent') {
+    if (tab?.type === 'pipeline') {
+      window.electronAPI.stopPipeline(tab.sessionId).catch((err) => {
+        console.error('[useCloseTab] stopPipeline 失败:', err)
+      })
+    } else if (tab?.type === 'agent') {
       window.electronAPI.stopAgent(tab.sessionId).catch((err) => {
         console.error('[useCloseTab] stopAgent 失败:', err)
       })
@@ -107,12 +113,13 @@ export function useCloseTab(): UseCloseTabReturn {
   const requestClose = React.useCallback((tabId: string) => {
     const tab = tabs.find((t) => t.id === tabId)
     // 流式中弹确认，避免误关丢失进度
-    if (tab?.type === 'agent' && runningSessionIds.has(tab.sessionId)) {
+    if ((tab?.type === 'pipeline' && runningPipelineIds.has(tab.sessionId))
+      || (tab?.type === 'agent' && runningSessionIds.has(tab.sessionId))) {
       setPending(tabId)
       return
     }
     executeClose(tabId)
-  }, [tabs, runningSessionIds, setPending, executeClose])
+  }, [tabs, runningPipelineIds, runningSessionIds, setPending, executeClose])
 
   return { requestClose, executeClose }
 }

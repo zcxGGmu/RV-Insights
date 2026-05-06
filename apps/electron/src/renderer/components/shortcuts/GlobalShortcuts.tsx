@@ -59,7 +59,7 @@ export function GlobalShortcuts(): null {
   const setShortcutOverrides = useSetAtom(shortcutOverridesAtom)
   const shortcutOverrides = useAtomValue(shortcutOverridesAtom)
   const setSendWithCmdEnter = useSetAtom(sendWithCmdEnterAtom)
-  const { createChat, createAgent } = useCreateSession()
+  const { createPipeline, createChat, createAgent } = useCreateSession()
 
   // Tab 管理（用于关闭标签页）
   const activeTabId = useAtomValue(activeTabIdAtom)
@@ -137,10 +137,12 @@ export function GlobalShortcuts(): null {
     useCallback(() => {
       if (appMode === 'agent') {
         createAgent({ draft: true })
+      } else if (appMode === 'pipeline') {
+        createPipeline({ draft: true })
       } else {
         createChat({ draft: true })
       }
-    }, [appMode, createAgent, createChat]),
+    }, [appMode, createAgent, createPipeline, createChat]),
   )
 
   // Cmd+B → 切换侧边栏
@@ -156,7 +158,7 @@ export function GlobalShortcuts(): null {
   useShortcut(
     'toggle-mode',
     useCallback(
-      () => setAppMode(appMode === 'chat' ? 'agent' : 'chat'),
+      () => setAppMode(appMode === 'pipeline' ? 'agent' : 'pipeline'),
       [appMode, setAppMode],
     ),
   )

@@ -1,13 +1,14 @@
 /**
  * App Mode Atom - 应用模式状态
  *
+ * - pipeline: RV Pipeline 主入口
  * - chat: 对话模式
  * - agent: Agent 模式（原 Flow）
  */
 
 import { atomWithStorage } from 'jotai/utils'
 
-export type AppMode = 'chat' | 'agent'
+export type AppMode = 'pipeline' | 'chat' | 'agent'
 
 /** App 模式，自动持久化到 localStorage */
-export const appModeAtom = atomWithStorage<AppMode>('rv-insights-app-mode', 'agent')
+export const appModeAtom = atomWithStorage<AppMode>('rv-insights-app-mode', 'pipeline')

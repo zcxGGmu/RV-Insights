@@ -13,6 +13,7 @@ import { useCallback } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { appModeAtom } from '@/atoms/app-mode'
 import { currentConversationIdAtom } from '@/atoms/chat-atoms'
+import { currentPipelineSessionIdAtom } from '@/atoms/pipeline-atoms'
 import {
   agentSessionsAtom,
   currentAgentSessionIdAtom,
@@ -26,6 +27,7 @@ export type SyncActiveTabSideEffects = (newActiveTab: TabItem | null) => void
 export function useSyncActiveTabSideEffects(): SyncActiveTabSideEffects {
   const setAppMode = useSetAtom(appModeAtom)
   const setCurrentConversationId = useSetAtom(currentConversationIdAtom)
+  const setCurrentPipelineSessionId = useSetAtom(currentPipelineSessionIdAtom)
   const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
   const setCurrentAgentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
   const setUnviewedCompleted = useSetAtom(unviewedCompletedSessionIdsAtom)
@@ -36,6 +38,15 @@ export function useSyncActiveTabSideEffects(): SyncActiveTabSideEffects {
       if (!newActiveTab) {
         // 所有标签都已关闭
         setCurrentConversationId(null)
+        setCurrentPipelineSessionId(null)
+        setCurrentAgentSessionId(null)
+        return
+      }
+
+      if (newActiveTab.type === 'pipeline') {
+        setAppMode('pipeline')
+        setCurrentPipelineSessionId(newActiveTab.sessionId)
+        setCurrentConversationId(null)
         setCurrentAgentSessionId(null)
         return
       }
@@ -43,6 +54,7 @@ export function useSyncActiveTabSideEffects(): SyncActiveTabSideEffects {
       if (newActiveTab.type === 'chat') {
         setAppMode('chat')
         setCurrentConversationId(newActiveTab.sessionId)
+        setCurrentPipelineSessionId(null)
         setCurrentAgentSessionId(null)
         return
       }
@@ -51,6 +63,7 @@ export function useSyncActiveTabSideEffects(): SyncActiveTabSideEffects {
       setAppMode('agent')
       setCurrentAgentSessionId(newActiveTab.sessionId)
       setCurrentConversationId(null)
+      setCurrentPipelineSessionId(null)
 
       // 清除该会话的"已完成未查看"标记
       setUnviewedCompleted((prev) => {
@@ -72,6 +85,7 @@ export function useSyncActiveTabSideEffects(): SyncActiveTabSideEffects {
     [
       setAppMode,
       setCurrentConversationId,
+      setCurrentPipelineSessionId,
       setCurrentAgentSessionId,
       setCurrentAgentWorkspaceId,
       setUnviewedCompleted,

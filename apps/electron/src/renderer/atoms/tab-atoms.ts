@@ -16,12 +16,16 @@ import {
   agentSessionIndicatorMapAtom,
   workingDoneSessionIdsAtom,
 } from './agent-atoms'
+import {
+  pipelineRunningSessionIdsAtom,
+  pipelineSessionIndicatorMapAtom,
+} from './pipeline-atoms'
 import type { SessionIndicatorStatus } from './agent-atoms'
 
 // ===== 类型定义 =====
 
 /** 标签页类型（Settings 不作为 Tab，保留独立视图） */
-export type TabType = 'chat' | 'agent'
+export type TabType = 'pipeline' | 'chat' | 'agent'
 
 /** 标签页数据 */
 export interface TabItem {
@@ -29,7 +33,7 @@ export interface TabItem {
   id: string
   /** 标签页类型 */
   type: TabType
-  /** Chat conversationId 或 Agent sessionId */
+  /** Pipeline/Chat/Agent sessionId */
   sessionId: string
   /** 标签页显示标题 */
   title: string
@@ -82,9 +86,12 @@ export const tabStreamingMapAtom = atom<Map<string, boolean>>((get) => {
   const tabs = get(tabsAtom)
   const chatStreaming = get(streamingConversationIdsAtom)
   const agentRunning = get(agentRunningSessionIdsAtom)
+  const pipelineRunning = get(pipelineRunningSessionIdsAtom)
   const map = new Map<string, boolean>()
   for (const tab of tabs) {
-    if (tab.type === 'chat') {
+    if (tab.type === 'pipeline') {
+      map.set(tab.id, pipelineRunning.has(tab.sessionId))
+    } else if (tab.type === 'chat') {
       map.set(tab.id, chatStreaming.has(tab.sessionId))
     } else if (tab.type === 'agent') {
       map.set(tab.id, agentRunning.has(tab.sessionId))
@@ -98,10 +105,13 @@ export const tabIndicatorMapAtom = atom<Map<string, SessionIndicatorStatus>>((ge
   const tabs = get(tabsAtom)
   const chatStreaming = get(streamingConversationIdsAtom)
   const agentIndicator = get(agentSessionIndicatorMapAtom)
+  const pipelineIndicator = get(pipelineSessionIndicatorMapAtom)
   const workingDoneIds = get(workingDoneSessionIdsAtom)
   const map = new Map<string, SessionIndicatorStatus>()
   for (const tab of tabs) {
-    if (tab.type === 'chat') {
+    if (tab.type === 'pipeline') {
+      map.set(tab.id, pipelineIndicator.get(tab.sessionId) ?? 'idle')
+    } else if (tab.type === 'chat') {
       map.set(tab.id, chatStreaming.has(tab.sessionId) ? 'running' : 'idle')
     } else if (tab.type === 'agent') {
       const status = agentIndicator.get(tab.sessionId)
