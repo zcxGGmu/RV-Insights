@@ -25,12 +25,12 @@ export function PipelineComposer({
   }
 
   return (
-    <div className="rounded-3xl bg-white/85 px-5 py-4 shadow-sm">
+    <div className="rounded-3xl border border-amber-100 bg-white px-5 py-4 shadow-sm">
       <textarea
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="输入要交给 RV Pipeline 的任务"
-        className="min-h-28 w-full resize-y rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm outline-none"
+        className="min-h-28 w-full resize-y rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-950 placeholder:text-zinc-400 outline-none focus:border-amber-300"
       />
       <div className="mt-3 flex gap-2">
         <button
@@ -43,7 +43,7 @@ export function PipelineComposer({
         <button
           disabled={!disabled}
           onClick={() => void onStop()}
-          className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 disabled:opacity-50"
+          className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
           停止
         </button>

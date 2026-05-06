@@ -52,7 +52,7 @@ import { chatToolsAtom } from './atoms/chat-tool-atoms'
 import { feishuBotStatesAtom } from './atoms/feishu-atoms'
 import { dingtalkBotStatesAtom } from './atoms/dingtalk-atoms'
 import { currentConversationIdAtom, channelsAtom, channelsLoadedAtom, selectedModelAtom } from './atoms/chat-atoms'
-import { currentPipelineSessionIdAtom, pipelinePendingGatesAtom, pipelineSessionsAtom } from './atoms/pipeline-atoms'
+import { currentPipelineSessionIdAtom, pipelinePendingGatesAtom, pipelineSessionStateMapAtom, pipelineSessionsAtom } from './atoms/pipeline-atoms'
 import { appModeAtom } from './atoms/app-mode'
 import type { FeishuBotBridgeState, FeishuBridgeState, FeishuNotificationSentPayload, DingTalkBotBridgeState, DingTalkBridgeState } from '@rv-insights/shared'
 import { Toaster } from './components/ui/sonner'
@@ -384,16 +384,32 @@ function PipelineListenersInitializer(): null {
 function PipelineSessionsInitializer(): null {
   const setSessions = useSetAtom(pipelineSessionsAtom)
   const setPendingGates = useSetAtom(pipelinePendingGatesAtom)
+  const setStateMap = useSetAtom(pipelineSessionStateMapAtom)
 
   useEffect(() => {
     Promise.all([
       window.electronAPI.listPipelineSessions(),
       window.electronAPI.getPendingPipelineGates(),
-    ]).then(([sessions, pendingGates]) => {
+    ]).then(async ([sessions, pendingGates]) => {
       setSessions(sessions)
       setPendingGates(new Map(pendingGates.map((request) => [request.sessionId, request])))
+
+      const snapshots = await Promise.all(
+        sessions.map(async (session) => {
+          try {
+            return await window.electronAPI.getPipelineSessionState(session.id)
+          } catch {
+            return null
+          }
+        }),
+      )
+      setStateMap(new Map(
+        snapshots
+          .filter((snapshot): snapshot is NonNullable<typeof snapshot> => snapshot != null)
+          .map((snapshot) => [snapshot.sessionId, snapshot]),
+      ))
     }).catch((err: unknown) => console.error('[PipelineSessionsInitializer] 加载失败:', err))
-  }, [setSessions, setPendingGates])
+  }, [setPendingGates, setSessions, setStateMap])
 
   return null
 }

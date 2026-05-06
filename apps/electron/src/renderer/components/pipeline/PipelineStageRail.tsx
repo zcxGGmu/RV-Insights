@@ -30,13 +30,13 @@ export function PipelineStageRail({
           <div
             key={node}
             className={cn(
-              'rounded-2xl px-3 py-3 text-center shadow-sm transition-colors',
-              status === 'done' && 'bg-emerald-100 text-emerald-900',
-              status === 'active' && 'bg-amber-100 text-amber-900',
-              status === 'todo' && 'bg-white/70 text-muted-foreground',
+              'rounded-2xl border px-3 py-3 text-center shadow-sm transition-colors',
+              status === 'done' && 'border-emerald-200 bg-emerald-100 text-emerald-950',
+              status === 'active' && 'border-amber-300 bg-amber-200 text-amber-950',
+              status === 'todo' && 'border-zinc-200 bg-white text-zinc-500',
             )}
           >
-            <div className="text-[11px] uppercase tracking-[0.18em] opacity-60">{node}</div>
+            <div className="text-[11px] uppercase tracking-[0.18em]">{node}</div>
           </div>
         )
       })}

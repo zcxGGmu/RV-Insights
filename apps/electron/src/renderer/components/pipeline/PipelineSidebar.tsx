@@ -6,11 +6,13 @@ import { activeViewAtom } from '@/atoms/active-view'
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
 import { agentChannelIdAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import { currentPipelineSessionIdAtom, pipelineSessionsAtom } from '@/atoms/pipeline-atoms'
+import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { ModeSwitcher } from '@/components/app-shell/ModeSwitcher'
 
 export function PipelineSidebar(): React.ReactElement {
   const sessions = useAtomValue(pipelineSessionsAtom)
+  const draftSessionIds = useAtomValue(draftSessionIdsAtom)
   const currentPipelineSessionId = useAtomValue(currentPipelineSessionIdAtom)
   const currentChannelId = useAtomValue(agentChannelIdAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
@@ -21,6 +23,10 @@ export function PipelineSidebar(): React.ReactElement {
   const setSettingsTab = useSetAtom(settingsTabAtom)
   const setSessions = useSetAtom(pipelineSessionsAtom)
   const openSession = useOpenSession()
+  const visibleSessions = React.useMemo(
+    () => sessions.filter((session) => !draftSessionIds.has(session.id)),
+    [draftSessionIds, sessions],
+  )
 
   const handleCreate = React.useCallback(async () => {
       const meta = await window.electronAPI.createPipelineSession(
@@ -68,7 +74,7 @@ export function PipelineSidebar(): React.ReactElement {
 
       <div className="mt-5 text-xs uppercase tracking-[0.22em] text-muted-foreground">Sessions</div>
       <div className="mt-3 flex-1 space-y-2 overflow-auto">
-        {sessions.map((session) => (
+        {visibleSessions.map((session) => (
           <button
             key={session.id}
             onClick={() => {
@@ -85,7 +91,7 @@ export function PipelineSidebar(): React.ReactElement {
             <div className="mt-1 text-xs opacity-70">{session.status}</div>
           </button>
         ))}
-        {sessions.length === 0 ? (
+        {visibleSessions.length === 0 ? (
           <div className="rounded-2xl bg-white/70 px-3 py-5 text-center text-sm text-muted-foreground">
             暂无 Pipeline 会话
           </div>

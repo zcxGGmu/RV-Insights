@@ -26,7 +26,7 @@ export function PipelineGateCard({
   }
 
   return (
-    <div className="rounded-3xl bg-amber-50 px-5 py-4 shadow-sm">
+    <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm">
       <div className="text-sm font-medium text-amber-900">
         等待人工审核：{request.node}
       </div>

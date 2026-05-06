@@ -45,8 +45,6 @@ export default function App(): React.ReactElement {
 
   // 完成 onboarding 回调：创建欢迎 Pipeline 会话
   const handleOnboardingComplete = async () => {
-    setShowOnboarding(false)
-
     try {
       const meta = await window.electronAPI.createPipelineSession('欢迎使用 RV Pipeline')
       if (meta) {
@@ -65,6 +63,8 @@ export default function App(): React.ReactElement {
       }
     } catch (error) {
       console.error('[App] 创建欢迎对话失败:', error)
+    } finally {
+      setShowOnboarding(false)
     }
   }
 

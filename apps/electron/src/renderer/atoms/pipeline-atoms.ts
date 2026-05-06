@@ -25,7 +25,7 @@ export const pipelineRunningSessionIdsAtom = atom<Set<string>>((get) => {
   const states = get(pipelineSessionStateMapAtom)
   const result = new Set<string>()
   for (const [sessionId, state] of states.entries()) {
-    if (state.status === 'running') {
+    if (state.status === 'running' || state.status === 'waiting_human') {
       result.add(sessionId)
     }
   }

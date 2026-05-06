@@ -30,21 +30,21 @@ export function PipelineRecords({
   records: PipelineRecord[]
 }): React.ReactElement {
   return (
-    <div className="rounded-3xl bg-white/80 px-5 py-4 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Records</div>
+    <div className="rounded-3xl border border-amber-100 bg-white px-5 py-4 shadow-sm">
+      <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">Records</div>
       <div className="mt-3 space-y-3">
         {records.map((record) => (
-          <div key={record.id} className="rounded-2xl bg-zinc-50 px-4 py-3">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <div key={record.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
               {record.type}
             </div>
-            <div className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+            <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-900">
               {renderRecord(record)}
             </div>
           </div>
         ))}
         {records.length === 0 ? (
-          <div className="rounded-2xl bg-zinc-50 px-4 py-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
             暂无记录
           </div>
         ) : null}

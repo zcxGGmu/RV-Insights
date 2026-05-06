@@ -288,6 +288,14 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         await driveResult(latestMeta, result, callbacks)
       } catch (error) {
         const message = error instanceof Error ? error.message : '未知错误'
+        appendPipelineRecord(meta.id, {
+          id: `${meta.id}-error-${Date.now()}`,
+          sessionId: meta.id,
+          type: 'error',
+          node: getPipelineSessionMeta(meta.id)?.currentNode,
+          error: message,
+          createdAt: Date.now(),
+        })
         updatePipelineSessionMeta(meta.id, {
           status: controller.signal.aborted ? 'terminated' : 'node_failed',
           pendingGate: null,

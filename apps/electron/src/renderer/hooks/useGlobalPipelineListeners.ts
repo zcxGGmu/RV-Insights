@@ -87,9 +87,12 @@ export function useGlobalPipelineListeners(): void {
       }
 
       if (
-        event.type === 'node_complete'
+        event.type === 'node_start'
+        || event.type === 'status_change'
+        || event.type === 'node_complete'
         || event.type === 'gate_waiting'
         || event.type === 'gate_resolved'
+        || event.type === 'error'
       ) {
         store.set(pipelineRecordRefreshAtom, (prev) => {
           const next = new Map(prev)
