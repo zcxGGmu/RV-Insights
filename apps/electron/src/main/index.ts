@@ -57,6 +57,7 @@ import { wechatBridge } from './lib/wechat-bridge'
 import { getWeChatConfig } from './lib/wechat-config'
 import { createQuickTaskWindow, toggleQuickTaskWindow, destroyQuickTaskWindow } from './lib/quick-task-window'
 import { registerGlobalShortcut, unregisterAllGlobalShortcuts } from './lib/global-shortcut-service'
+import { loadRendererWindow } from './lib/renderer-loader'
 
 // ===== Bridge 注册（新增 Bridge 只需在此添加一个 registerBridge 调用） =====
 
@@ -182,12 +183,20 @@ function createWindow(): void {
   })
 
   // Load the renderer
-  const isDev = !app.isPackaged
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173')
-    mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(join(__dirname, 'renderer', 'index.html'))
+  const useDevServer = process.env.RV_INSIGHTS_USE_DEV_SERVER === '1'
+
+  loadRendererWindow(mainWindow, {
+    isPackaged: app.isPackaged,
+    rendererBaseDir: __dirname,
+    useDevServer,
+  })
+
+  if (!app.isPackaged && useDevServer) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      if (mainWindow?.webContents.getURL().startsWith('http://localhost:5173')) {
+        mainWindow.webContents.openDevTools()
+      }
+    })
   }
 
   // 窗口就绪后最大化显示
@@ -199,7 +208,7 @@ function createWindow(): void {
   // 拦截页面内导航，外部链接用系统浏览器打开，防止 Electron 窗口被覆盖
   mainWindow.webContents.on('will-navigate', (event, url) => {
     // 允许开发模式下的 Vite HMR 热重载
-    if (isDev && url.startsWith('http://localhost:')) return
+    if (useDevServer && url.startsWith('http://localhost:')) return
     event.preventDefault()
     if (url.startsWith('http://') || url.startsWith('https://')) {
       shell.openExternal(url)
