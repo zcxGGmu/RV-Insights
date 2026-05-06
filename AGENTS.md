@@ -14,20 +14,20 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 项目概述
 
-RV-Insights 是一个集成通用 AI Agent 的下一代人工智能软件，采用 Electron 桌面应用架构。
+RV-Insights 是一个集成 Agent 工作流的开源软件贡献平台，采用 Electron 桌面应用架构。当前公开主入口为 `Pipeline | Agent`，旧 `chat` 代码仅作为隐藏回退保留。
 
 ## Monorepo 结构
 
 Bun workspace monorepo：
 
 ```
-rv-insights-v2/
+RV-Insights/
 ├── packages/
-│   ├── shared/     # 共享类型、IPC 通道常量、配置、工具函数 (v0.1.15)
-│   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.2.2)
+│   ├── shared/     # 共享类型、IPC 通道常量、配置、工具函数 (v0.1.18)
+│   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.2.9)
 │   └── ui/         # 共享 UI 组件 (CodeBlock, MermaidBlock) (v0.1.3)
 └── apps/
-    └── electron/   # Electron 桌面应用 (v0.9.5)
+    └── electron/   # Electron 桌面应用 (v0.0.1)
         └── src/
             ├── main/       # 主进程 + 服务层 (main/lib/)
             ├── preload/    # IPC 上下文桥接
@@ -40,26 +40,28 @@ rv-insights-v2/
 
 ### 包职责详解
 
-#### @rv-insights/shared (v0.1.15)
-- **导出模块**：`./types`、`./config`、`./utils`、`./constants/permission-rules`
-- **关键类型**：`AgentMessage`、`ChatMessage`、`Channel`、`PermissionRequest`、`FeishuConfig`
+#### @rv-insights/shared (v0.1.18)
+- **导出模块**：`./types`、`./config`、`./utils`
+- **补充说明**：`permission-rules` 当前通过包根 re-export 暴露，不存在 `./constants/permission-rules` 子路径导出
+- **关键类型**：`AgentMessage`、`ChatMessage`、`PipelineSessionMeta`、`PipelineRecord`、`Channel`、`PermissionRequest`
 - **依赖**：无运行时依赖（仅 TypeScript）
 
-#### @rv-insights/core (v0.2.2)
+#### @rv-insights/core (v0.2.9)
 - **导出模块**：`./providers`、`./highlight`、`./types`、`./utils`
 - **关键功能**：Provider 适配器注册表、代码高亮（Shiki）
 - **依赖**：`@rv-insights/shared`、`shiki`
-- **Peer 依赖**：`@anthropic-ai/Codex-agent-sdk`、`@anthropic-ai/sdk`、`@modelcontextprotocol/sdk`
+- **Peer 依赖**：`@anthropic-ai/claude-agent-sdk`、`@anthropic-ai/sdk`、`@modelcontextprotocol/sdk`
 
 #### @rv-insights/ui (v0.1.3)
 - **关键组件**：共享 React UI 组件库
 - **依赖**：`@rv-insights/core`、`beautiful-mermaid`、`shiki`、Radix UI
 - **Peer 依赖**：`react@^18.3.0`、`react-dom@^18.3.0`
 
-#### @rv-insights/electron (v0.9.5)
+#### @rv-insights/electron (v0.0.1)
 - **职责**：Electron 桌面应用主体，集成所有包
 - **关键依赖**：
-  - `@anthropic-ai/Codex-agent-sdk@0.2.120` - Agent SDK
+  - `@anthropic-ai/claude-agent-sdk@0.2.123` - Agent SDK
+  - `@langchain/langgraph@1.3.0` - Pipeline 主进程编排
   - `@larksuiteoapi/node-sdk` - 飞书集成
   - Radix UI、TipTap、Tailwind CSS
   - 文件解析：`pdf-parse`、`officeparser`、`word-extractor`
@@ -135,7 +137,8 @@ bun run generate:icons    # 生成应用图标
 | **构建工具** | Vite | 6.0.3 |
 | **打包工具** | esbuild | 0.24.0+ |
 | **分发工具** | Electron Builder | 25.1.8 |
-| **Agent SDK** | @anthropic-ai/Codex-agent-sdk | 0.2.120 |
+| **Agent SDK** | @anthropic-ai/claude-agent-sdk | 0.2.123 |
+| **Pipeline 编排** | @langchain/langgraph | 1.3.0 |
 | **飞书 SDK** | @larksuiteoapi/node-sdk | 最新 |
 
 ## 核心架构
@@ -157,6 +160,7 @@ bun run generate:icons    # 生成应用图标
 - `CHANNEL_IPC_CHANNELS` - 渠道管理
 - `CHAT_IPC_CHANNELS` - Chat 功能
 - `AGENT_IPC_CHANNELS` - Agent 功能
+- `PIPELINE_IPC_CHANNELS` - Pipeline 功能
 - `ENVIRONMENT_IPC_CHANNELS` - 环境检查
 - `PROXY_IPC_CHANNELS` - 代理设置
 - `SYSTEM_PROMPT_IPC_CHANNELS` - 系统提示词
@@ -182,6 +186,12 @@ bun run generate:icons    # 生成应用图标
 | `chat-service.ts` | Chat 流式调用编排（20KB）：Provider 适配器集成、消息持久化、AbortController |
 | `conversation-manager.ts` | 对话管理（13KB）：对话 CRUD、JSONL 消息存储、置顶、上下文分割 |
 | `channel-manager.ts` | 渠道管理（16KB）：渠道 CRUD、API Key AES-256-GCM 加密（safeStorage）、连接测试、模型获取 |
+| `pipeline-session-manager.ts` | Pipeline 会话索引与 JSONL 记录持久化 |
+| `pipeline-human-gate-service.ts` | Pipeline 人工审核等待/恢复（Promise + Map） |
+| `pipeline-graph.ts` | LangGraph 固定主链路：`explorer -> planner -> developer -> reviewer -> tester` |
+| `pipeline-node-runner.ts` | Claude Pipeline 节点执行适配层，统一复用 Agent SDK 兼容渠道 |
+| `pipeline-checkpointer.ts` | 基于 MemorySaver 的本地 checkpoint 落盘与恢复 |
+| `pipeline-service.ts` | Pipeline 生命周期编排：start / resume / gate / stop / state / stream，恢复依赖 checkpointer + 状态回填隐式完成 |
 
 #### 集成服务
 
@@ -243,10 +253,11 @@ bun run generate:icons    # 生成应用图标
 
 | Atom 文件 | 管理的状态 |
 |-----------|-----------|
+| `pipeline-atoms.ts` | Pipeline 会话列表、当前会话、状态快照、pending gate、记录刷新、running/indicator 映射 |
 | `chat-atoms.ts` | 对话列表、当前消息、流式状态（Map 结构支持多对话并行）、模型选择、上下文设置、并排模式、思考模式、待上传附件 |
 | `agent-atoms.ts` | Agent 会话列表、当前会话、流式状态（`AgentStreamState`）、工作区选择、渠道选择、权限/AskUser 请求队列（按 sessionId Map） |
 | `active-view.ts` | 主面板视图切换（'conversations' / 'settings'） |
-| `app-mode.ts` | 应用模式（Chat / Agent） |
+| `app-mode.ts` | 应用模式（公开主入口为 `Pipeline / Agent`，`chat` 为隐藏回退） |
 | `settings-tab.ts` | 设置面板当前标签页 |
 | `theme.ts` | 主题模式（light / dark / system） |
 | `user-profile.ts` | 用户档案（姓名 + 头像） |
@@ -254,8 +265,9 @@ bun run generate:icons    # 生成应用图标
 
 ### 渲染进程组件架构（`renderer/components/`）
 
-- **`app-shell/`**：三面板布局（LeftSidebar | NavigatorPanel | MainContentPanel），侧边栏含模式切换、置顶对话、日期分组列表、流式指示器
-- **`chat/`**：聊天核心 — ChatView（消息加载/流式订阅）、ChatHeader（模型选择/上下文设置）、ChatInput（Tiptap 富文本编辑器）、ChatMessages（消息列表/自动滚动）、ParallelChatMessages（并排模式）
+- **`app-shell/`**：三面板布局（LeftSidebar / PipelineSidebar | MainArea | RightSidePanel），含模式切换、标签栏、搜索和会话入口
+- **`pipeline/`**：Pipeline 主界面 — `PipelineView`、`PipelineHeader`、`PipelineStageRail`、`PipelineRecords`、`PipelineComposer`、`PipelineGateCard`
+- **`chat/`**：旧聊天核心，当前仅作为隐藏回退保留
 - **`agent/`**：Agent 模式 — AgentView（纯展示 + 交互，IPC 监听已提升到全局）、AgentHeader（渠道/模型选择）、AgentMessages（消息列表 + 工具活动）、ToolActivityItem（工具调用展示）、WorkspaceSelector（工作区切换）、PermissionBanner/AskUserBanner（权限/问答请求 UI）
 - **`settings/`**：设置面板 — GeneralSettings（用户档案）、AppearanceSettings（主题）、ChannelSettings（渠道管理）、ChannelForm（Provider 配置）、AgentSettings（Agent 渠道/工作区/MCP）、McpServerForm（MCP 服务器配置）、AboutSettings（版本/更新）、FeishuSettings（飞书集成）；含 `primitives/` 可复用表单组件
 - **`file-browser/`**：文件浏览器 — FileBrowser（工作区文件树浏览）
@@ -266,6 +278,7 @@ bun run generate:icons    # 生成应用图标
 
 | Hook | 职责 |
 |------|------|
+| `useGlobalPipelineListeners` | 全局 Pipeline IPC 监听器，在 `main.tsx` 顶层挂载，写入 session state / pending gate / record refresh / stream error |
 | `useGlobalAgentListeners` | 全局 Agent IPC 监听器，在 `main.tsx` 顶层挂载，使用 `useStore()` 直接操作 atoms。处理流式事件、完成/错误、标题更新、权限请求、AskUser 请求，永不随组件卸载销毁 |
 | `useBackgroundTasks` | 后台任务管理（Agent/Shell 任务的增删改查），按 sessionId 隔离 |
 
@@ -275,7 +288,9 @@ bun run generate:icons    # 生成应用图标
 |------|------|
 | `ThemeInitializer` | 从主进程加载主题设置、监听系统主题变化、同步到 DOM |
 | `AgentSettingsInitializer` | 加载 Agent 渠道/模型/工作区设置、订阅 MCP/文件变化事件 |
+| `PipelineSessionsInitializer` | 加载 Pipeline 会话列表、pending gates，并回填状态快照 |
 | `AgentListenersInitializer` | 挂载 `useGlobalAgentListeners`，全局 Agent IPC 监听 |
+| `PipelineListenersInitializer` | 挂载 `useGlobalPipelineListeners`，全局 Pipeline IPC 监听 |
 | `UpdaterInitializer` | 订阅主进程推送的自动更新状态变化事件 |
 
 ### 本地文件存储（`~/.rv-insights/`）
@@ -286,6 +301,13 @@ bun run generate:icons    # 生成应用图标
 ├── conversations.json      # 对话索引（元数据，轻量）
 ├── conversations/          # 消息存储
 │   └── {uuid}.jsonl        # 每对话一个 JSONL 文件，追加写入
+├── pipeline-sessions.json  # Pipeline 会话索引
+├── pipeline-sessions/      # Pipeline 事件记录
+│   └── {uuid}.jsonl        # 每会话一个 JSONL 文件
+├── pipeline-checkpoints/   # Pipeline LangGraph checkpoint
+│   └── {session-id}/
+├── pipeline-artifacts/     # Pipeline 运行产物预留目录（当前未写入实际产物）
+│   └── {session-id}/
 ├── agent-sessions.json     # Agent 会话索引
 ├── agent-sessions/         # Agent 会话消息存储
 │   └── {uuid}.jsonl        # 每会话一个 JSONL 文件
@@ -311,7 +333,8 @@ bun run generate:icons    # 生成应用图标
 
 ## 构建工具
 
-- **主进程/Preload**：esbuild (`--bundle --platform=node --format=cjs --external:electron --external:@anthropic-ai/Codex-agent-sdk`)
+- **主进程**：esbuild（`--external:electron --external:@anthropic-ai/claude-agent-sdk`）
+- **Preload**：esbuild（`--external:electron`）
 - **渲染进程**：Vite + React 插件 + Tailwind CSS + HMR
 - **开发热重载**：渲染进程 Vite HMR 即时生效；主进程/Preload 通过 electronmon 监听 dist 文件变化自动重启
 - **打包分发**：electron-builder（配置见 `electron-builder.yml`）
@@ -319,22 +342,22 @@ bun run generate:icons    # 生成应用图标
 ### 重要：打包配置注意事项
 
 **Agent SDK 打包要求（必须遵守）：**
-- `@anthropic-ai/Codex-agent-sdk` 必须使用 `--external` 参数排除在 esbuild 打包之外
-- **0.2.113+ 架构变化**：SDK 主包已不再携带 JS CLI 入口（`cli.js`）和 `vendor/ripgrep/`，改为按平台分发 native binary（`Codex` / `Codex.exe`，单文件 214-252 MB），通过 `optionalDependencies` 安装到 `@anthropic-ai/Codex-agent-sdk-{platform}-{arch}/` 子包
+- `@anthropic-ai/claude-agent-sdk` 必须使用 `--external` 参数排除在 esbuild 打包之外
+- **0.2.113+ 架构变化**：SDK 主包已不再携带 JS CLI 入口（`cli.js`）和 `vendor/ripgrep/`，改为按平台分发 native binary（`claude` / `claude.exe`，单文件 214-252 MB），通过 `optionalDependencies` 安装到 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}/` 子包
 - `apps/electron/package.json` 必须显式声明当前 CI 矩阵覆盖的平台子包为 `optionalDependencies`（darwin-arm64 / darwin-x64 / win32-x64），否则 bun workspace 不会把它们链接到 `apps/electron/node_modules/`
 - `electron-builder.yml` 的 `files` 配置要同时包含主包和所有平台子包：
   ```yaml
   files:
     - dist/**/*
     - package.json
-    - node_modules/@anthropic-ai/Codex-agent-sdk/**/*
-    - node_modules/@anthropic-ai/Codex-agent-sdk-darwin-arm64/**/*
-    - node_modules/@anthropic-ai/Codex-agent-sdk-darwin-x64/**/*
-    - node_modules/@anthropic-ai/Codex-agent-sdk-win32-x64/**/*
+    - node_modules/@anthropic-ai/claude-agent-sdk/**/*
+    - node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/**/*
+    - node_modules/@anthropic-ai/claude-agent-sdk-darwin-x64/**/*
+    - node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**/*
     - "!node_modules/@rv-insights/**"
   ```
 - SDK 主包和同级平台子包会被复制到 `app/node_modules/@anthropic-ai/`，Node.js 的模块解析能从 `app/dist/main.cjs` 找到
-- `agent-orchestrator.ts` 中 `resolveSDKCliPath()` 解析到 SDK 主包入口后，沿 `..` 到 `@anthropic-ai/` 同级目录，再拼 `Codex-agent-sdk-${platform}-${arch}/{Codex|Codex.exe}` 得到 binary 路径
+- `agent-orchestrator.ts` / `pipeline-node-runner.ts` 中 `resolveSDKCliPath()` 解析到 SDK 主包入口后，沿 `..` 到 `@anthropic-ai/` 同级目录，再拼 `claude-agent-sdk-${platform}-${arch}/{claude|claude.exe}` 得到 binary 路径
 
 **跨平台打包限制：**
 - optionalDependencies 的平台子包由包管理器按 `os`/`cpu` 字段筛选：Apple Silicon runner 只会装 darwin-arm64，不会装 darwin-x64（cpu 不匹配）
@@ -350,13 +373,13 @@ bun run generate:icons    # 生成应用图标
 1. ✅ 确认 SDK 在 esbuild 中使用 `--external` 参数
 2. ✅ 确认 SDK 主包 + 所有目标平台子包都在 `files` 配置中
 3. ✅ 确认 `apps/electron/package.json` 的 `optionalDependencies` 列出了所有目标平台子包
-4. ✅ `bun install` 后验证 `apps/electron/node_modules/@anthropic-ai/Codex-agent-sdk-{platform}-{arch}/` symlink 存在且 binary 可执行
+4. ✅ `bun install` 后验证 `apps/electron/node_modules/@anthropic-ai/claude-agent-sdk-{platform}-{arch}/` symlink 存在且 binary 可执行
 5. ✅ 本地测试打包后的应用 Agent 功能（`CSC_IDENTITY_AUTO_DISCOVERY=false bun run dist:fast`）
 
 **其他依赖的打包策略：**
-- **原则**：只有 `electron` 和 `@anthropic-ai/Codex-agent-sdk` 需要标记为 `--external`
+- **原则**：只有 `electron` 和 `@anthropic-ai/claude-agent-sdk` 需要标记为 `--external`
 - `electron`：由 Electron 运行时提供，必须 external
-- `@anthropic-ai/Codex-agent-sdk`：有特殊打包要求（含 214 MB native binary），必须 external + 在 files 中包含主包和平台子包
+- `@anthropic-ai/claude-agent-sdk`：有特殊打包要求（含 214 MB native binary），必须 external + 在 files 中包含主包和平台子包
 - **所有其他依赖**（如 `electron-updater`、`undici`、`chokidar` 等）：应该让 esbuild 打包进 `main.cjs`
   - ✅ 优点：避免遗漏子依赖，简化 electron-builder 配置
   - ❌ 如果标记为 external：必须在 `electron-builder.yml` 的 `files` 中手动列出所有子依赖
@@ -380,9 +403,9 @@ bun run generate:icons    # 生成应用图标
 
 提交代码时始终递增受影响包的 patch 版本（如 `0.1.18` → `0.1.19`），影响多个包则都要递增。
 
-## Agent SDK 集成架构
+## Claude Agent SDK 集成架构
 
-基于 `@anthropic-ai/Codex-agent-sdk@0.2.120` 实现 Agent 模式，与 Chat 模式并行。
+基于 `@anthropic-ai/claude-agent-sdk@0.2.123` 实现 Agent 模式与 Pipeline 节点执行。公开主入口是 `Pipeline | Agent`，旧 `chat` 路径仅作隐藏回退。
 
 ### 核心流程
 
@@ -432,7 +455,7 @@ React UI 更新
 
 ### SDK 版本升级注意事项
 
-**`@anthropic-ai/Codex-agent-sdk` 0.2.113+ `options.env` 语义为"替换"**
+**`@anthropic-ai/claude-agent-sdk` 0.2.113+ `options.env` 语义为"替换"**
 
 - SDK 将 `options.env` **替换** 传递给子进程（0.2.111/0.2.112 短暂改为叠加，0.2.113 恢复替换）
 - 如果传 `env` 时只给 `ANTHROPIC_*` 相关变量，子进程会丢失 `PATH` / `HOME` / `SHELL` 等关键变量，导致 SDK 调用 `npx` / `git` 等命令失败
@@ -448,7 +471,7 @@ React UI 更新
 - `0.2.111`: `options.env` 从"替换"变为"叠加"
 - `0.2.113`:
   - `options.env` 回退为"替换"
-  - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/Codex-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
+  - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
   - 详见上方"打包配置注意事项"段落
 - `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（RV-Insights 已显式传 `['user', 'project']`，不受影响）
 
@@ -467,17 +490,26 @@ React UI 更新
 
 - **会话管理**：收件箱/归档工作流
 - **权限模式**：safe / ask / allow-all
-- **Agent SDK**：@anthropic-ai/Codex-agent-sdk（[v1 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript)、[v2 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript-v2-preview)）
+- **Agent SDK**：`@anthropic-ai/claude-agent-sdk`
 - **MCP 集成**：Model Context Protocol 用于外部数据源
 - **凭证存储**：AES-256-GCM 加密
 - **配置位置**：`~/.rv-insights/`（类似 `~/.craft-agent/`）
+
+## Pipeline 集成现状
+
+- 当前 Pipeline 已落地最小可用闭环：`explorer -> planner -> developer -> reviewer -> tester`
+- 5 个节点统一走 Claude Agent SDK 兼容链路，`reviewer` 当前也是 Claude，而不是旧草稿中的 OpenAI Agents SDK
+- 人工审核通过 `pipeline-human-gate-service.ts` + LangGraph `interrupt / resume` 实现
+- 当前已接通：shared 契约、主进程 graph/checkpointer/service、IPC/preload、renderer atoms/listeners、最小可用 UI
+- 当前已知仍保留：旧 chat 路径隐藏回退、部分历史文档/README 可能滞后于现状
 
 ## 核心特性
 
 ### 已实现功能
 
+- ✅ **Pipeline 主入口**：默认 `Pipeline` 模式，基于 LangGraph 的结构化流水线与人工审核
 - ✅ **多 Provider 支持**：Anthropic、OpenAI、DeepSeek、Moonshot、智谱、MiniMax、豆包、通义千问、Google、自定义端点
-- ✅ **Agent SDK 集成**：基于 Codex Agent SDK 的完整 Agent 模式
+- ✅ **Claude Agent SDK 集成**：基于 `@anthropic-ai/claude-agent-sdk` 的 Agent 模式与 Pipeline 节点执行
 - ✅ **飞书集成**：消息同步、任务通知、OAuth 认证（68KB 核心服务）
 - ✅ **工作区管理**：多工作区隔离、MCP Server 配置、Skills 管理
 - ✅ **权限系统**：工具权限检查、用户确认流程
