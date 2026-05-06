@@ -8,6 +8,7 @@
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { app } from 'electron'
+import { loadRendererWindow } from './renderer-loader'
 
 /** 快速任务窗口单例 */
 let quickTaskWindow: BrowserWindow | null = null
@@ -46,14 +47,12 @@ export function createQuickTaskWindow(): void {
   })
 
   // 加载渲染进程（附带 query 参数区分窗口类型）
-  const isDev = !app.isPackaged
-  if (isDev) {
-    quickTaskWindow.loadURL('http://localhost:5173?window=quick-task')
-  } else {
-    quickTaskWindow.loadFile(join(__dirname, 'renderer', 'index.html'), {
-      query: { window: 'quick-task' },
-    })
-  }
+  loadRendererWindow(quickTaskWindow, {
+    isPackaged: app.isPackaged,
+    rendererBaseDir: __dirname,
+    query: { window: 'quick-task' },
+    useDevServer: process.env.RV_INSIGHTS_USE_DEV_SERVER === '1',
+  })
 
   // 失焦自动隐藏
   quickTaskWindow.on('blur', () => {
