@@ -6,15 +6,13 @@
 
 面向开源软件的 AI 辅助贡献平台，支持对话、Agent、Agent Teams **等能力**，本地优先、多供应商支持、完全开源。支持远程通过飞书机器人与 Agent 对话和交互，甚至把 RV-Insights Agent 拉进群组替你完成工作，跟同事实现 Agent 协作，让你用手机也可以处理很多必要的工作。
 
-[English version README.md](./README.en.md)
-
 ### ✦ 核心能力
 
 > **rv-pipeline** · RISC-V 开源贡献智能流水线 &nbsp;│&nbsp; **Agent** · 自主通用 Agent &nbsp;│&nbsp; **Agent Teams** · 多 Agent 协同 &nbsp;│&nbsp; **Skills & MCP** · 可扩展工具链
 >
 > **飞书远程** · 手机也能用 Agent &nbsp;│&nbsp; **记忆** · 跨会话理解你 &nbsp;│&nbsp; **多供应商** · Anthropic / OpenAI / Google / DeepSeek / MiniMax / Kimi / 智谱 &nbsp;│&nbsp; **本地优先** · 数据全在你手里
 
-## RV-Insights 截图
+## RV-Insights 功能呈现
 
 ### rv-pipeline 模式
 rv-pipeline 是面向 RISC-V 开源软件贡献的智能流水线，由 5 个阶段节点组成：Explorer（探索贡献点）→ Planner（规划方案）→ Developer（代码开发）→ Reviewer（代码审查）→ Tester（测试验证）。每个节点输出后都会暂停等待人工审核，Developer 与 Reviewer 之间支持多轮迭代，直到审查通过。底层采用 LangGraph 编排引擎，Explorer / Planner / Developer / Tester 基于 Claude Agent SDK，Reviewer 基于 OpenAI Agents SDK。
@@ -41,12 +39,6 @@ RV-Insights 支持通过使用飞书机器人的方式来远程使用 RV-Insight
 也支持将 RV-Insights Agent 拉进你的飞书群组，可以跟同事共享你积攒下来的 Skills 和 MCP 能力，利用本地的文件和飞书文档一起完成更智能的 Agent 协作，甚至可以直接用 RV-Insights Agent 来完成对外部用户的服务。
 
 ![RV-Insights Lark Demo](https://img.erlich.fun/personal-blog/uPic/nNu4wA.png)
-
-实际的配置过程很简单，但我也知道这对于任何新手来说认知压力会比较大，但请相信我克服这种恐惧，3 分钟足够。
-
-![RV-Insights Lark Config](https://img.erlich.fun/personal-blog/uPic/wTQisd.png)
-
-![RV-Insights Lark Command](https://img.erlich.fun/personal-blog/uPic/tvzfZp.png)
 
 ### 记忆能力
 RV-Insights 记忆功能，Chat 和 Agent 共享记忆，让 AI 真正了解你、记住你的偏好和习惯。
