@@ -111,5 +111,5 @@ nsis:
 # ============================================
 publish:
   provider: github
-  owner: ErlichLiu
+  owner: zcxGGmu
   repo: RV-Insights

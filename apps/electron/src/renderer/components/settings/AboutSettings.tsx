@@ -29,7 +29,9 @@ import { VersionHistory } from './VersionHistory'
 declare const __APP_VERSION__: string
 const APP_VERSION = __APP_VERSION__
 
-const GITHUB_RELEASES_URL = 'https://github.com/ErlichLiu/RV-Insights/releases'
+const GITHUB_RELEASES_URL = 'https://github.com/zcxGGmu/RV-Insights/releases'
+const PROJECT_URL = 'https://github.com/zcxGGmu/RV-Insights'
+const PRODUCT_HOMEPAGE_URL = 'https://zcxggmu.github.io/RV-Insights'
 
 /** 更新状态卡片 */
 function UpdateCard(): React.ReactElement | null {
@@ -417,7 +419,7 @@ export function AboutSettings(): React.ReactElement {
   return (
     <SettingsSection
       title="关于 RV-Insights"
-      description="集成通用 AI Agent 的下一代人工智能软件"
+      description="集成 Agent 工作流的开源软件贡献平台"
     >
       <SettingsCard>
         <SettingsRow label="版本">
@@ -434,12 +436,22 @@ export function AboutSettings(): React.ReactElement {
         </SettingsRow>
         <SettingsRow label="项目地址">
           <a
-            href="https://github.com/ErlichLiu/RV-Insights.git"
+            href={PROJECT_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-primary hover:underline"
           >
-            github.com/ErlichLiu/RV-Insights
+            {PROJECT_URL}
+          </a>
+        </SettingsRow>
+        <SettingsRow label="产品主页">
+          <a
+            href={PRODUCT_HOMEPAGE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-primary hover:underline"
+          >
+            {PRODUCT_HOMEPAGE_URL}
           </a>
         </SettingsRow>
       </SettingsCard>

@@ -103,13 +103,14 @@ export function createWelcomeConversation(): ConversationMeta | null {
     const assistantMessage: ChatMessage = {
       id: randomUUID(),
       role: 'assistant',
-      content: `你好，欢迎使用 RV-Insights！我已经阅读了完整的使用教程。你可以向我提问来快速了解 RV-Insights，比如：
+      content: `你好，欢迎使用 RV-Insights！我已经阅读了当前版本的完整教程。你可以从下面这些问题开始快速了解项目：
 
 - RV-Insights 可以做什么？
-- 如何配置 AI 供应商渠道？
-- Chat 和 Agent 模式有什么区别？
+- 如何配置 Pipeline 和 Agent 需要的渠道？
+- Pipeline 和 Agent 的区别是什么？
+- 现在为什么默认主入口是 Pipeline？
 - 什么是 Skills 和 MCP？
-- 如何远程使用 RV-Insights？
+- 本地数据会存到哪里？
 
 直接输入你的问题并发送吧！`,
       createdAt: now + 1,

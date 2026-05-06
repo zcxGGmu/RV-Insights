@@ -22,7 +22,7 @@ import {
 import { updateStatusAtom } from '@/atoms/updater'
 import { ReleaseNotesViewer } from './ReleaseNotesViewer'
 
-const GITHUB_RELEASES_URL = 'https://github.com/ErlichLiu/RV-Insights/releases'
+const GITHUB_RELEASES_URL = 'https://github.com/zcxGGmu/RV-Insights/releases'
 
 export function UpdateDialog(): React.ReactElement | null {
   const updateStatus = useAtomValue(updateStatusAtom)
