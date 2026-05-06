@@ -36,3 +36,60 @@
 - 文档覆盖 Linux / macOS / Windows 三个平台
 - 已校验文档中的核心脚本与仓库现状一致：`bun run dev`、`bun run electron:build`、`bun run electron:start`、`apps/electron` 下的 `dev:vite` / `dev:electron` / `dev:split`
 - 已把首次启动推荐路径、开发模式差异、`5173` 端口冲突排查、`.rv-insights-dev` 配置目录说明写入文档
+
+---
+
+# 设计 RISC-V Pipeline 并平替 Chat
+
+- [x] 复习现有 chat/agent 架构、pipeline 方案文档与项目 lessons
+- [x] 明确 pipeline 平替 chat 的边界、兼容要求与人工审核节奏
+- [x] 提出 2-3 个可落地集成方案并给出推荐方案
+- [x] 输出设计说明并等待人工确认
+- [x] 设计获批后写入 `docs/pipeline/` 并补充详细实施计划
+
+## Review
+
+- 已复习 `tasks/lessons.md`、`docs/pipeline/rv-pipeline-development-plan.md`
+- 已确认当前 Electron 主线仍是 `chat + agent`，`pipeline` 仅存在于 `web-console` 原型，不可直接复用到 React/Electron 主应用
+- 已确认后续输出文档统一放在 `docs/pipeline/`，不使用 skill 默认的 `docs/plans/`
+- 已确认首版目标：优先打通 `explorer -> planner -> developer -> reviewer -> tester` 编排、人审停顿、Developer/Reviewer 迭代闭环
+- 已确认首版外部探索采用最小可用集成，LangGraph 负责节点编排
+- 已确认首版 5 个节点统一采用 `Claude Agent SDK`，不再引入 OpenAI Agents SDK / Codex Reviewer 实现
+- 已完成 3 套集成方案对比，推荐“独立 pipeline 域 + 复用现有 agent 底座能力”
+- 已完成并获得确认的设计分段：
+- `mode / tab / session`
+- `LangGraph 编排与人工审核`
+- `类型、IPC 与持久化`
+- `前端 PipelineView 与交互路径`
+- `错误处理、恢复策略、测试与首版边界`
+- 已输出设计文档：`docs/pipeline/2026-05-06-rv-pipeline-design.md`
+- 已输出实施计划：`docs/pipeline/2026-05-06-rv-pipeline-implementation-plan.md`
+- 已补记 lesson：文档输出路径一旦被用户指定，后续同类文档必须统一跟随该目录
+
+---
+
+# RV Pipeline 开发执行跟踪
+
+- [x] 完成需求澄清与方案确认
+- [x] 输出设计文档 `docs/pipeline/2026-05-06-rv-pipeline-design.md`
+- [x] 输出实施计划 `docs/pipeline/2026-05-06-rv-pipeline-implementation-plan.md`
+- [ ] 调研并锁定 LangGraph / `@langchain/core` 版本
+- [ ] 新增 pipeline shared 类型、状态工具与基础测试
+- [ ] 新增 pipeline session manager 与 JSONL 持久化
+- [ ] 新增 pipeline human gate 服务与恢复逻辑
+- [ ] 新增 Claude 节点执行适配层与 LangGraph graph 骨架
+- [ ] 新增 pipeline checkpointer 与 pipeline service
+- [ ] 打通 pipeline IPC 与 preload API
+- [ ] 新增 renderer `pipeline-atoms` 与全局 listeners
+- [ ] 完成 `AppMode` / `TabType` 从 chat 切到 pipeline
+- [ ] 完成 `PipelineView`、阶段轨、记录流、人审卡片 UI
+- [ ] 完成主链路联调：`explorer -> planner -> developer -> reviewer -> tester`
+- [ ] 完成 Developer / Reviewer 驳回后迭代闭环联调
+- [ ] 完成中断恢复与重启恢复验证
+- [ ] 完成自动化测试、typecheck 与手工验收
+- [ ] 评估并在获批后同步 `README.md` / `README.en.md` / `AGENTS.md`
+
+## 开发进度结论
+
+- 当前已完成：设计和实施计划
+- 当前未完成：代码实现、联调、测试、文档同步
