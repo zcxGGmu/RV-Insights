@@ -2,6 +2,7 @@ import type {
   PipelineNodeOutputRecord,
   PipelineRecord,
   PipelineReviewResultRecord,
+  PipelineStageArtifactRecord,
   PipelineStreamEvent,
 } from '@rv-insights/shared'
 
@@ -39,6 +40,22 @@ function buildReviewResultRecord(
   }
 }
 
+function buildStageArtifactRecord(
+  sessionId: string,
+  event: Extract<PipelineStreamEvent, { type: 'node_complete' }>,
+): PipelineStageArtifactRecord | null {
+  if (!event.artifact) return null
+
+  return {
+    id: `${sessionId}-${event.node}-${event.createdAt}-artifact`,
+    sessionId,
+    type: 'stage_artifact',
+    node: event.node,
+    artifact: event.artifact,
+    createdAt: event.createdAt,
+  }
+}
+
 export function buildPipelineRecordsFromNodeComplete(
   sessionId: string,
   event: Extract<PipelineStreamEvent, { type: 'node_complete' }>,
@@ -46,6 +63,11 @@ export function buildPipelineRecordsFromNodeComplete(
   const records: PipelineRecord[] = [
     buildNodeOutputRecord(sessionId, event),
   ]
+
+  const artifactRecord = buildStageArtifactRecord(sessionId, event)
+  if (artifactRecord) {
+    records.push(artifactRecord)
+  }
 
   if (event.node === 'reviewer') {
     const reviewRecord = buildReviewResultRecord(sessionId, event)

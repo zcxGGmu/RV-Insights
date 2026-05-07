@@ -135,4 +135,84 @@ describe('pipeline-graph', () => {
     expect(completed.state.status).toBe('completed')
     expect(completed.state.lastApprovedNode).toBe('tester')
   })
+
+  test('下游节点可以读取上游阶段产物，快照保留 stageOutputs', async () => {
+    const developerContextSummaries: string[] = []
+
+    const graph = createPipelineGraph({
+      checkpointer: new MemorySaver(),
+      runNode: async (node, context) => {
+        if (node === 'developer') {
+          developerContextSummaries.push(context.stageOutputs?.planner?.summary ?? '')
+        }
+
+        if (node === 'explorer') {
+          return {
+            output: '{"summary":"已定位入口"}',
+            summary: '已定位入口',
+            approved: true,
+            stageOutput: {
+              node: 'explorer',
+              summary: '已定位入口',
+              findings: ['入口在 PipelineView'],
+              keyFiles: ['PipelineView.tsx'],
+              nextSteps: ['制定计划'],
+              content: '{"summary":"已定位入口"}',
+            },
+          }
+        }
+
+        if (node === 'planner') {
+          return {
+            output: '{"summary":"按三步实现"}',
+            summary: '按三步实现',
+            approved: true,
+            stageOutput: {
+              node: 'planner',
+              summary: '按三步实现',
+              steps: ['补测试', '改实现', '跑验证'],
+              risks: ['状态回归'],
+              verification: ['bun test'],
+              content: '{"summary":"按三步实现"}',
+            },
+          }
+        }
+
+        return {
+          output: `${node}-ok`,
+          summary: `${node}-ok`,
+          approved: true,
+        }
+      },
+    })
+
+    const explorerPause = await graph.invoke({
+      sessionId: 'session-stage-output',
+      userInput: '请实现结构化产物',
+    })
+
+    const plannerPause = await graph.resume({
+      sessionId: 'session-stage-output',
+      response: {
+        gateId: explorerPause.interrupted!.gateId,
+        sessionId: 'session-stage-output',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    const reviewerPause = await graph.resume({
+      sessionId: 'session-stage-output',
+      response: {
+        gateId: plannerPause.interrupted!.gateId,
+        sessionId: 'session-stage-output',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(developerContextSummaries).toEqual(['按三步实现'])
+    expect(reviewerPause.state.stageOutputs?.explorer?.summary).toBe('已定位入口')
+    expect(reviewerPause.state.stageOutputs?.planner?.summary).toBe('按三步实现')
+  })
 })

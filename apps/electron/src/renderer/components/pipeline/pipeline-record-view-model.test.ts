@@ -46,6 +46,33 @@ describe('buildPipelineRecordViewModel', () => {
     })
   })
 
+  test('stage_artifact 会生成结构化阶段产物卡片', () => {
+    const viewModel = buildPipelineRecordViewModel({
+      id: 'artifact-1',
+      sessionId: 'session-1',
+      type: 'stage_artifact',
+      node: 'planner',
+      artifact: {
+        node: 'planner',
+        summary: '按三步实现',
+        steps: ['补测试', '改实现'],
+        risks: ['状态回归'],
+        verification: ['bun test'],
+        content: '{"summary":"按三步实现"}',
+      },
+      createdAt: 1,
+    })
+
+    expect(viewModel).toEqual({
+      badge: '计划产物',
+      title: '计划阶段产物',
+      summary: '按三步实现',
+      details: '{"summary":"按三步实现"}',
+      bullets: ['步骤: 补测试', '步骤: 改实现', '风险: 状态回归', '验证: bun test'],
+      tone: 'accent',
+    })
+  })
+
   test('records 会拆成阶段产物和运行日志', () => {
     const groups = buildPipelineRecordGroups([
       {
@@ -71,6 +98,21 @@ describe('buildPipelineRecordViewModel', () => {
         createdAt: 3,
       },
       {
+        id: 'artifact-1',
+        sessionId: 'session-1',
+        type: 'stage_artifact',
+        node: 'explorer',
+        artifact: {
+          node: 'explorer',
+          summary: '探索结论',
+          findings: ['入口在 PipelineView'],
+          keyFiles: ['PipelineView.tsx'],
+          nextSteps: ['进入计划'],
+          content: '{"summary":"探索结论"}',
+        },
+        createdAt: 3,
+      },
+      {
         id: 'status-1',
         sessionId: 'session-1',
         type: 'status_change',
@@ -92,11 +134,12 @@ describe('buildPipelineRecordViewModel', () => {
       {
         id: 'explorer',
         title: '探索',
-        recordIds: ['output-1'],
+        recordIds: ['artifact-1'],
       },
     ])
     expect(groups.logs.map((record) => record.id)).toEqual([
       'transition-1',
+      'output-1',
       'status-1',
     ])
   })

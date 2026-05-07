@@ -135,6 +135,19 @@ export function applyPipelineStreamState(
           }
         : prev
     case 'node_complete':
+      return prev
+        ? {
+            ...prev,
+            currentNode: event.node,
+            stageOutputs: event.artifact
+              ? {
+                  ...(prev.stageOutputs ?? {}),
+                  [event.node]: event.artifact,
+                }
+              : prev.stageOutputs,
+            updatedAt: event.createdAt,
+          }
+        : prev
     case 'text_delta':
     default:
       return prev

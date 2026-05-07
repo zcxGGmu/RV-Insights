@@ -67,6 +67,59 @@ export interface PipelineGateResponse {
   createdAt: number
 }
 
+export interface PipelineExplorerStageOutput {
+  node: 'explorer'
+  summary: string
+  findings: string[]
+  keyFiles: string[]
+  nextSteps: string[]
+  content: string
+}
+
+export interface PipelinePlannerStageOutput {
+  node: 'planner'
+  summary: string
+  steps: string[]
+  risks: string[]
+  verification: string[]
+  content: string
+}
+
+export interface PipelineDeveloperStageOutput {
+  node: 'developer'
+  summary: string
+  changes: string[]
+  tests: string[]
+  risks: string[]
+  content: string
+}
+
+export interface PipelineReviewerStageOutput {
+  node: 'reviewer'
+  summary: string
+  approved: boolean
+  issues: string[]
+  content: string
+}
+
+export interface PipelineTesterStageOutput {
+  node: 'tester'
+  summary: string
+  commands: string[]
+  results: string[]
+  blockers: string[]
+  content: string
+}
+
+export type PipelineStageOutput =
+  | PipelineExplorerStageOutput
+  | PipelinePlannerStageOutput
+  | PipelineDeveloperStageOutput
+  | PipelineReviewerStageOutput
+  | PipelineTesterStageOutput
+
+export type PipelineStageOutputMap = Partial<Record<PipelineNodeKind, PipelineStageOutput>>
+
 /** 启动 Pipeline 输入 */
 export interface PipelineStartInput {
   sessionId: string
@@ -90,6 +143,7 @@ export interface PipelineStateSnapshot {
   reviewIteration: number
   lastApprovedNode?: PipelineNodeKind
   pendingGate?: PipelineGateRequest | null
+  stageOutputs?: PipelineStageOutputMap
   updatedAt: number
 }
 
@@ -132,6 +186,16 @@ export interface PipelineReviewResultRecord {
   approved: boolean
   summary: string
   issues?: string[]
+  createdAt: number
+}
+
+/** 阶段结构化产物记录 */
+export interface PipelineStageArtifactRecord {
+  id: string
+  sessionId: string
+  type: 'stage_artifact'
+  node: PipelineNodeKind
+  artifact: PipelineStageOutput
   createdAt: number
 }
 
@@ -182,6 +246,7 @@ export type PipelineRecord =
   | PipelineUserInputRecord
   | PipelineNodeTransitionRecord
   | PipelineNodeOutputRecord
+  | PipelineStageArtifactRecord
   | PipelineReviewResultRecord
   | PipelineGateRequestedRecord
   | PipelineGateDecisionRecord
@@ -208,6 +273,7 @@ export type PipelineStreamEvent =
       summary?: string
       approved?: boolean
       issues?: string[]
+      artifact?: PipelineStageOutput
       createdAt: number
     }
   | {

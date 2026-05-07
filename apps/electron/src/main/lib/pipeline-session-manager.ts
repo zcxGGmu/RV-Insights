@@ -113,7 +113,9 @@ export function appendPipelineRecord(
 
   updatePipelineSessionMeta(sessionId, {
     currentNode: 'node' in record ? record.node : current.currentNode,
-    reviewIteration: record.type === 'review_result' && !record.approved
+    reviewIteration: record.type === 'gate_decision'
+      && record.node === 'reviewer'
+      && record.action === 'reject_with_feedback'
       ? current.reviewIteration + 1
       : current.reviewIteration,
     status: record.type === 'gate_requested'

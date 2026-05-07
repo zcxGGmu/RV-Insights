@@ -18,6 +18,7 @@ import type {
   PipelineGateResponse,
   PipelineNodeKind,
   PipelineSessionStatus,
+  PipelineStageOutputMap,
   PipelineStateSnapshot,
 } from '@rv-insights/shared'
 import type {
@@ -30,6 +31,7 @@ type PipelineGraphState = PipelineStateSnapshot & {
   latestOutput?: string
   latestSummary?: string
   latestIssues?: string[]
+  stageOutputs?: PipelineStageOutputMap
   feedback?: string
 }
 
@@ -45,6 +47,7 @@ const PipelineGraphAnnotation = Annotation.Root({
   latestOutput: Annotation<string | undefined>,
   latestSummary: Annotation<string | undefined>,
   latestIssues: Annotation<string[] | undefined>,
+  stageOutputs: Annotation<PipelineStageOutputMap | undefined>,
   feedback: Annotation<string | undefined>,
 })
 
@@ -84,6 +87,7 @@ function buildContext(state: PipelineGraphState): PipelineNodeExecutionContext {
     reviewIteration: state.reviewIteration,
     lastApprovedNode: state.lastApprovedNode,
     feedback: state.feedback,
+    stageOutputs: state.stageOutputs,
   }
 }
 
@@ -95,6 +99,7 @@ function buildStateSnapshot(state: PipelineGraphState): PipelineStateSnapshot {
     reviewIteration: state.reviewIteration,
     lastApprovedNode: state.lastApprovedNode,
     pendingGate: state.pendingGate,
+    stageOutputs: state.stageOutputs ?? {},
     updatedAt: state.updatedAt,
   }
 }
@@ -128,6 +133,12 @@ function createWorkerNode(
       signal: getSignal?.(state.sessionId),
     })
     const timestamp = now()
+    const stageOutputs = result.stageOutput
+      ? {
+          ...(state.stageOutputs ?? {}),
+          [node]: result.stageOutput,
+        }
+      : state.stageOutputs
 
     if (node === 'reviewer') {
       if (result.approved === false) {
@@ -138,6 +149,7 @@ function createWorkerNode(
             latestOutput: result.output,
             latestSummary: result.summary,
             latestIssues: result.issues,
+            stageOutputs,
             status: 'waiting_human',
             updatedAt: timestamp,
           },
@@ -151,6 +163,7 @@ function createWorkerNode(
           latestOutput: result.output,
           latestSummary: result.summary,
           latestIssues: result.issues,
+          stageOutputs,
           status: 'waiting_human',
           updatedAt: timestamp,
         },
@@ -162,6 +175,7 @@ function createWorkerNode(
       latestOutput: result.output,
       latestSummary: result.summary,
       latestIssues: result.issues,
+      stageOutputs,
       status: 'running',
       updatedAt: timestamp,
     }
@@ -305,6 +319,7 @@ export function createPipelineGraph(options: CreatePipelineGraphOptions) {
         status: 'running',
         reviewIteration: 0,
         pendingGate: null,
+        stageOutputs: {},
         updatedAt: now(),
       }
 

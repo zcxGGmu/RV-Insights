@@ -4,6 +4,8 @@ import { normalizeAnthropicBaseUrlForSdk } from '@rv-insights/core'
 import type {
   JsonSchemaOutputFormat,
   PipelineNodeKind,
+  PipelineStageOutput,
+  PipelineStageOutputMap,
   PipelineStreamEvent,
   ProviderType,
   RVInsightsPermissionMode,
@@ -42,6 +44,7 @@ export interface PipelineNodeExecutionContext {
   reviewIteration: number
   lastApprovedNode?: PipelineNodeKind
   feedback?: string
+  stageOutputs?: PipelineStageOutputMap
   signal?: AbortSignal
 }
 
@@ -50,6 +53,7 @@ export interface PipelineNodeExecutionResult {
   summary: string
   approved?: boolean
   issues?: string[]
+  stageOutput?: PipelineStageOutput
 }
 
 export interface PipelineNodeRunner {
@@ -220,6 +224,24 @@ function summarizeText(text: string): string {
   return compact.length > 160 ? compact.slice(0, 160) + '...' : compact
 }
 
+function compactStageOutputsForPrompt(stageOutputs: PipelineStageOutputMap | undefined): string {
+  const entries = Object.values(stageOutputs ?? {})
+    .filter((output): output is PipelineStageOutput => Boolean(output))
+    .map((output) => {
+      const { content: _content, ...compactOutput } = output
+      return compactOutput
+    })
+
+  if (entries.length === 0) return ''
+
+  return [
+    '',
+    '上游阶段产物（JSON，仅用于保持上下文连续）：',
+    JSON.stringify(entries, null, 2),
+    '',
+  ].join('\n')
+}
+
 function buildRolePrompt(
   node: PipelineNodeKind,
   context: PipelineNodeExecutionContext,
@@ -227,6 +249,7 @@ function buildRolePrompt(
 ): string {
   const feedbackBlock = context.feedback ? `\n人工反馈：${context.feedback}\n` : ''
   const workspaceBlock = workspaceName ? `\n当前工作区：${workspaceName}\n` : '\n'
+  const stageOutputsBlock = compactStageOutputsForPrompt(context.stageOutputs)
 
   switch (node) {
     case 'explorer':
@@ -235,6 +258,7 @@ function buildRolePrompt(
         '目标：基于用户需求快速梳理任务背景、代码入口和可执行方向。',
         '输出要求：给出简洁的探索结论、关键文件/模块、下一步建议。',
         workspaceBlock,
+        stageOutputsBlock,
         feedbackBlock,
         `用户需求：${context.userInput}`,
       ].join('\n')
@@ -244,6 +268,7 @@ function buildRolePrompt(
         '目标：输出可执行的开发与验证方案，避免空泛描述。',
         '输出要求：方案步骤、风险点、验证方式。',
         workspaceBlock,
+        stageOutputsBlock,
         feedbackBlock,
         `用户需求：${context.userInput}`,
       ].join('\n')
@@ -253,6 +278,7 @@ function buildRolePrompt(
         '目标：按计划直接完成代码实现和必要测试。',
         '输出要求：说明改动、验证结果、遗留风险。',
         workspaceBlock,
+        stageOutputsBlock,
         feedbackBlock,
         `用户需求：${context.userInput}`,
         `当前 reviewer 轮次：${context.reviewIteration}`,
@@ -263,6 +289,7 @@ function buildRolePrompt(
         '目标：审查本轮开发结果，给出明确通过/驳回结论。',
         '请仅围绕正确性、回归风险、测试缺口、实现质量给出判断。',
         workspaceBlock,
+        stageOutputsBlock,
         feedbackBlock,
         `用户需求：${context.userInput}`,
         `当前 reviewer 轮次：${context.reviewIteration}`,
@@ -273,30 +300,102 @@ function buildRolePrompt(
         '目标：执行验证并输出测试结论。',
         '输出要求：运行了什么、结果如何、是否还有阻塞项。',
         workspaceBlock,
+        stageOutputsBlock,
         feedbackBlock,
         `用户需求：${context.userInput}`,
       ].join('\n')
   }
 }
 
-function reviewerOutputFormat(): JsonSchemaOutputFormat {
+function stringArraySchema(): Record<string, unknown> {
   return {
-    type: 'json_schema',
-    name: 'pipeline_reviewer_result',
-    description: 'Pipeline reviewer structured result',
-    schema: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['approved', 'summary', 'issues'],
-      properties: {
-        approved: { type: 'boolean' },
-        summary: { type: 'string' },
-        issues: {
-          type: 'array',
-          items: { type: 'string' },
+    type: 'array',
+    items: { type: 'string' },
+  }
+}
+
+function pipelineNodeOutputFormat(node: PipelineNodeKind): JsonSchemaOutputFormat {
+  const base = {
+    type: 'json_schema' as const,
+    name: `pipeline_${node}_artifact`,
+    description: `Pipeline ${node} structured artifact`,
+  }
+
+  switch (node) {
+    case 'explorer':
+      return {
+        ...base,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['summary', 'findings', 'keyFiles', 'nextSteps'],
+          properties: {
+            summary: { type: 'string' },
+            findings: stringArraySchema(),
+            keyFiles: stringArraySchema(),
+            nextSteps: stringArraySchema(),
+          },
         },
-      },
-    },
+      }
+    case 'planner':
+      return {
+        ...base,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['summary', 'steps', 'risks', 'verification'],
+          properties: {
+            summary: { type: 'string' },
+            steps: stringArraySchema(),
+            risks: stringArraySchema(),
+            verification: stringArraySchema(),
+          },
+        },
+      }
+    case 'developer':
+      return {
+        ...base,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['summary', 'changes', 'tests', 'risks'],
+          properties: {
+            summary: { type: 'string' },
+            changes: stringArraySchema(),
+            tests: stringArraySchema(),
+            risks: stringArraySchema(),
+          },
+        },
+      }
+    case 'reviewer':
+      return {
+        ...base,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['approved', 'summary', 'issues'],
+          properties: {
+            approved: { type: 'boolean' },
+            summary: { type: 'string' },
+            issues: stringArraySchema(),
+          },
+        },
+      }
+    case 'tester':
+      return {
+        ...base,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['summary', 'commands', 'results', 'blockers'],
+          properties: {
+            summary: { type: 'string' },
+            commands: stringArraySchema(),
+            results: stringArraySchema(),
+            blockers: stringArraySchema(),
+          },
+        },
+      }
   }
 }
 
@@ -308,27 +407,98 @@ function extractAssistantText(message: SDKAssistantMessage): string {
     .join('\n')
 }
 
-function parseReviewerResult(text: string): PipelineNodeExecutionResult {
+function parseJsonObject(text: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(text) as {
-      approved?: boolean
-      summary?: string
-      issues?: string[]
-    }
-
-    return {
-      output: text,
-      summary: parsed.summary ?? summarizeText(text),
-      approved: parsed.approved === true,
-      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
-    }
+    const parsed = JSON.parse(text) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    return parsed as Record<string, unknown>
   } catch {
+    return null
+  }
+}
+
+function readString(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOutput {
+  const parsed = parseJsonObject(text)
+  const summary = readString(parsed?.summary, summarizeText(text))
+
+  switch (node) {
+    case 'explorer':
+      return {
+        node,
+        summary,
+        findings: readStringArray(parsed?.findings),
+        keyFiles: readStringArray(parsed?.keyFiles),
+        nextSteps: readStringArray(parsed?.nextSteps),
+        content: text,
+      }
+    case 'planner':
+      return {
+        node,
+        summary,
+        steps: readStringArray(parsed?.steps),
+        risks: readStringArray(parsed?.risks),
+        verification: readStringArray(parsed?.verification),
+        content: text,
+      }
+    case 'developer':
+      return {
+        node,
+        summary,
+        changes: readStringArray(parsed?.changes),
+        tests: readStringArray(parsed?.tests),
+        risks: readStringArray(parsed?.risks),
+        content: text,
+      }
+    case 'reviewer':
+      return {
+        node,
+        summary,
+        approved: parsed?.approved === true,
+        issues: readStringArray(parsed?.issues),
+        content: text,
+      }
+    case 'tester':
+      return {
+        node,
+        summary,
+        commands: readStringArray(parsed?.commands),
+        results: readStringArray(parsed?.results),
+        blockers: readStringArray(parsed?.blockers),
+        content: text,
+      }
+  }
+}
+
+function buildNodeExecutionResult(node: PipelineNodeKind, text: string): PipelineNodeExecutionResult {
+  const stageOutput = buildStageOutput(node, text)
+
+  if (stageOutput.node === 'reviewer') {
     return {
       output: text,
-      summary: summarizeText(text),
-      approved: false,
-      issues: ['Reviewer 输出不是合法 JSON，按驳回处理'],
+      summary: stageOutput.summary,
+      approved: stageOutput.approved,
+      issues: stageOutput.issues,
+      stageOutput,
     }
+  }
+
+  return {
+    output: text,
+    summary: stageOutput.summary,
+    approved: true,
+    stageOutput,
   }
 }
 
@@ -400,10 +570,10 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
       forkSession: false,
       mcpServers,
       additionalDirectories,
+      outputFormat: pipelineNodeOutputFormat(node),
       ...(workspace.slug && {
         plugins: [{ type: 'local' as const, path: getAgentWorkspacePath(workspace.slug) }],
       }),
-      ...(node === 'reviewer' && { outputFormat: reviewerOutputFormat() }),
     }
 
     const signal = context.signal
@@ -451,13 +621,7 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
       signal?.removeEventListener('abort', handleAbort)
     }
 
-    const result = node === 'reviewer'
-      ? parseReviewerResult(combinedOutput)
-      : {
-          output: combinedOutput,
-          summary: summarizeText(combinedOutput),
-          approved: true,
-        }
+    const result = buildNodeExecutionResult(node, combinedOutput)
 
     this.onEvent?.({
       type: 'node_complete',
@@ -466,6 +630,7 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
       summary: result.summary,
       approved: result.approved,
       issues: result.issues,
+      artifact: result.stageOutput,
       createdAt: Date.now(),
     })
 

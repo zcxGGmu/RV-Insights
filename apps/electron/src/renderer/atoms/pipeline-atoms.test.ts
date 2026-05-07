@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { PipelineStreamPayload } from '@rv-insights/shared'
 import {
+  applyPipelineStreamState,
   applyPipelineLiveOutput,
   getPipelineLiveOutput,
   hasPipelineLiveOutputNode,
@@ -144,5 +145,35 @@ describe('applyPipelineLiveOutput', () => {
     }))
 
     expect(hasPipelineLiveOutputNode(state, 'session-1', 'reviewer')).toBe(false)
+  })
+})
+
+describe('applyPipelineStreamState', () => {
+  test('node_complete 会把结构化阶段产物写入快照', () => {
+    const state = applyPipelineStreamState({
+      sessionId: 'session-1',
+      currentNode: 'planner',
+      status: 'running',
+      reviewIteration: 0,
+      pendingGate: null,
+      updatedAt: 1,
+    }, payload({
+      type: 'node_complete',
+      node: 'planner',
+      output: '{"summary":"计划完成"}',
+      summary: '计划完成',
+      artifact: {
+        node: 'planner',
+        summary: '计划完成',
+        steps: ['补测试'],
+        risks: [],
+        verification: ['bun test'],
+        content: '{"summary":"计划完成"}',
+      },
+      createdAt: 2,
+    }))
+
+    expect(state?.stageOutputs?.planner?.summary).toBe('计划完成')
+    expect(state?.updatedAt).toBe(2)
   })
 })

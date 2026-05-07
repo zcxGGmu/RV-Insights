@@ -1,5 +1,5 @@
 import type { PipelineRecord } from '@rv-insights/shared'
-import type { PipelineNodeKind } from '@rv-insights/shared'
+import type { PipelineNodeKind, PipelineStageOutput } from '@rv-insights/shared'
 import {
   PIPELINE_NODE_ORDER,
   getPipelineNodeLabel,
@@ -22,7 +22,7 @@ export interface PipelineRecordGroup {
 }
 
 type PipelineArtifactRecord = Extract<PipelineRecord, {
-  type: 'user_input' | 'node_output' | 'review_result'
+  type: 'user_input' | 'stage_artifact' | 'node_output' | 'review_result'
 }>
 
 function formatGateAction(action: string): string {
@@ -35,6 +35,41 @@ function formatGateAction(action: string): string {
       return '重跑当前节点'
     default:
       return action
+  }
+}
+
+function prefixedItems(label: string, items: string[]): string[] {
+  return items.map((item) => `${label}: ${item}`)
+}
+
+function buildStageArtifactBullets(artifact: PipelineStageOutput): string[] {
+  switch (artifact.node) {
+    case 'explorer':
+      return [
+        ...prefixedItems('发现', artifact.findings),
+        ...prefixedItems('文件', artifact.keyFiles),
+        ...prefixedItems('下一步', artifact.nextSteps),
+      ]
+    case 'planner':
+      return [
+        ...prefixedItems('步骤', artifact.steps),
+        ...prefixedItems('风险', artifact.risks),
+        ...prefixedItems('验证', artifact.verification),
+      ]
+    case 'developer':
+      return [
+        ...prefixedItems('改动', artifact.changes),
+        ...prefixedItems('测试', artifact.tests),
+        ...prefixedItems('风险', artifact.risks),
+      ]
+    case 'reviewer':
+      return artifact.issues.map((item) => `问题: ${item}`)
+    case 'tester':
+      return [
+        ...prefixedItems('命令', artifact.commands),
+        ...prefixedItems('结果', artifact.results),
+        ...prefixedItems('阻塞', artifact.blockers),
+      ]
   }
 }
 
@@ -61,6 +96,17 @@ export function buildPipelineRecordViewModel(record: PipelineRecord): PipelineRe
         summary: record.summary ?? record.content,
         details: record.summary && record.summary !== record.content ? record.content : undefined,
         tone: 'neutral',
+      }
+    case 'stage_artifact':
+      return {
+        badge: `${getPipelineNodeLabel(record.node)}产物`,
+        title: `${getPipelineNodeLabel(record.node)}阶段产物`,
+        summary: record.artifact.summary,
+        details: record.artifact.content,
+        bullets: buildStageArtifactBullets(record.artifact),
+        tone: record.node === 'reviewer' && record.artifact.node === 'reviewer'
+          ? record.artifact.approved ? 'success' : 'warning'
+          : 'accent',
       }
     case 'review_result':
       return {
@@ -124,10 +170,17 @@ function ensureGroup(
   return next
 }
 
-function isArtifactRecord(record: PipelineRecord): record is PipelineArtifactRecord {
-  return record.type === 'user_input'
-    || record.type === 'node_output'
-    || record.type === 'review_result'
+function isArtifactRecord(
+  record: PipelineRecord,
+  stageArtifactNodes: Set<PipelineNodeKind>,
+): record is PipelineArtifactRecord {
+  if (record.type === 'user_input' || record.type === 'stage_artifact') return true
+
+  if (record.type === 'node_output' || record.type === 'review_result') {
+    return !stageArtifactNodes.has(record.node)
+  }
+
+  return false
 }
 
 function sortGroups(groups: PipelineRecordGroup[]): PipelineRecordGroup[] {
@@ -145,9 +198,14 @@ export function buildPipelineRecordGroups(records: PipelineRecord[]): {
 } {
   const artifactGroups: PipelineRecordGroup[] = []
   const logs: PipelineRecord[] = []
+  const stageArtifactNodes = new Set(
+    records
+      .filter((record): record is Extract<PipelineRecord, { type: 'stage_artifact' }> => record.type === 'stage_artifact')
+      .map((record) => record.node),
+  )
 
   for (const record of records) {
-    if (!isArtifactRecord(record)) {
+    if (!isArtifactRecord(record, stageArtifactNodes)) {
       logs.push(record)
       continue
     }

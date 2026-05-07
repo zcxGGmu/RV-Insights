@@ -3,6 +3,7 @@ import type {
   PipelineNodeKind,
   PipelineRecord,
   PipelineReviewResultRecord,
+  PipelineStageArtifactRecord,
   PipelineSessionStatus,
   PipelineStateSnapshot,
 } from '../types/pipeline'
@@ -45,17 +46,22 @@ function applyReviewResult(
   state: PipelineStateSnapshot,
   record: PipelineReviewResultRecord,
 ): PipelineStateSnapshot {
-  if (record.approved) {
-    return updateBase(state, record.createdAt, {
-      currentNode: 'reviewer',
-      status: 'waiting_human',
-    })
-  }
-
   return updateBase(state, record.createdAt, {
-    currentNode: 'developer',
-    status: 'running',
-    reviewIteration: state.reviewIteration + 1,
+    currentNode: 'reviewer',
+    status: 'waiting_human',
+  })
+}
+
+function applyStageArtifact(
+  state: PipelineStateSnapshot,
+  record: PipelineStageArtifactRecord,
+): PipelineStateSnapshot {
+  return updateBase(state, record.createdAt, {
+    currentNode: record.node,
+    stageOutputs: {
+      ...(state.stageOutputs ?? {}),
+      [record.node]: record.artifact,
+    },
   })
 }
 
@@ -102,6 +108,7 @@ export function createInitialPipelineState(
     status: 'idle',
     reviewIteration: 0,
     pendingGate: null,
+    stageOutputs: {},
     updatedAt: now,
   }
 }
@@ -123,6 +130,8 @@ export function applyPipelineRecord(
       return updateBase(state, record.createdAt, {
         currentNode: record.node,
       })
+    case 'stage_artifact':
+      return applyStageArtifact(state, record)
     case 'review_result':
       return applyReviewResult(state, record)
     case 'gate_requested':
@@ -165,6 +174,7 @@ export function serializePipelineState(
   return {
     ...state,
     pendingGate: state.pendingGate ?? null,
+    stageOutputs: state.stageOutputs ?? {},
   }
 }
 
