@@ -3,7 +3,7 @@ import { MemorySaver } from '@langchain/langgraph'
 import { createPipelineGraph } from './pipeline-graph'
 
 describe('pipeline-graph', () => {
-  test('reviewer 首次拒绝后回到 developer，并在再次通过后进入 reviewer gate', async () => {
+  test('reviewer 首次拒绝后仍进入 reviewer gate，人工驳回后回到 developer 并再次审核', async () => {
     let reviewerCount = 0
 
     const graph = createPipelineGraph({
@@ -57,8 +57,23 @@ describe('pipeline-graph', () => {
     })
 
     expect(third.interrupted?.node).toBe('reviewer')
-    expect(third.state.reviewIteration).toBe(1)
+    expect(third.state.reviewIteration).toBe(0)
     expect(third.state.currentNode).toBe('reviewer')
+
+    const fourth = await graph.resume({
+      sessionId: 'session-review-loop',
+      response: {
+        gateId: third.interrupted!.gateId,
+        sessionId: 'session-review-loop',
+        action: 'reject_with_feedback',
+        feedback: '请补测试',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(fourth.interrupted?.node).toBe('reviewer')
+    expect(fourth.state.reviewIteration).toBe(1)
+    expect(fourth.state.currentNode).toBe('reviewer')
   })
 
   test('tester 审核通过后进入 completed', async () => {

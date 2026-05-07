@@ -9,6 +9,7 @@ import type {
   PipelineStreamPayload,
 } from '@rv-insights/shared'
 import { createPipelineService } from './pipeline-service'
+import { updatePipelineSessionMeta } from './pipeline-session-manager'
 
 describe('pipeline-service', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -105,5 +106,106 @@ describe('pipeline-service', () => {
       status: 'completed',
       lastApprovedNode: 'tester',
     })
+  })
+
+  test('等待人工审核时 stop 不应继续 resume graph，并应落为 terminated', async () => {
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-stop',
+      sessionId: 'session-stop',
+      node: 'planner',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+
+    const runningState: PipelineStateSnapshot = {
+      sessionId: 'session-stop',
+      currentNode: 'planner',
+      status: 'waiting_human',
+      reviewIteration: 0,
+      pendingGate: gateRequest,
+      updatedAt: Date.now(),
+    }
+
+    const graphCalls: string[] = []
+    const events: PipelineStreamPayload[] = []
+
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          graphCalls.push('invoke')
+          return { state: runningState, interrupted: gateRequest }
+        },
+        resume: async () => {
+          graphCalls.push('resume')
+          return { state: runningState }
+        },
+        getState: async () => runningState,
+      }),
+    })
+
+    const session = service.createSession('停止测试', 'channel-1', 'workspace-1')
+    const startPromise = service.start(
+      {
+        sessionId: session.id,
+        userInput: '请在 gate 等待时停止',
+      },
+      {
+        onEvent: (payload) => events.push(payload),
+      },
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    service.stop(session.id)
+    await startPromise
+
+    expect(graphCalls).toEqual(['invoke'])
+    expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('terminated')
+    expect(events.some((payload) =>
+      payload.event.type === 'status_change' && payload.event.status === 'terminated')).toBe(true)
+  })
+
+  test('resume 路径失败时也应写回 node_failed 状态', async () => {
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-resume-error',
+      sessionId: 'session-resume-error',
+      node: 'reviewer',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('resume exploded')
+        },
+        getState: async () => ({
+          sessionId: 'session-resume-error',
+          currentNode: 'reviewer',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    const session = service.createSession('恢复失败测试', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      currentNode: 'reviewer',
+      status: 'waiting_human',
+      pendingGate: gateRequest,
+    })
+
+    await expect(service.respondGate({
+      gateId: gateRequest.gateId,
+      sessionId: session.id,
+      action: 'approve',
+      createdAt: Date.now(),
+    })).rejects.toThrow('resume exploded')
+
+    expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('node_failed')
   })
 })

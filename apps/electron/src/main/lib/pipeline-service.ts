@@ -58,6 +58,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
   const checkpointer = options.checkpointer ?? new PipelineCheckpointer()
   const activeControllers = new Map<string, AbortController>()
   const activeRunners = new Map<string, PipelineNodeRunner>()
+  const activeCallbacks = new Map<string, PipelineServiceCallbacks | undefined>()
 
   function emitEvent(
     sessionId: string,
@@ -81,6 +82,35 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       reviewIteration: state.reviewIteration,
       lastApprovedNode: state.lastApprovedNode,
       pendingGate: pendingGate ?? state.pendingGate,
+    })
+  }
+
+  function appendStatusRecord(
+    sessionId: string,
+    status: PipelineStateSnapshot['status'],
+    reason?: string,
+  ): void {
+    appendPipelineRecord(sessionId, {
+      id: `${sessionId}-status-${status}-${Date.now()}`,
+      sessionId,
+      type: 'status_change',
+      status,
+      reason,
+      createdAt: Date.now(),
+    })
+  }
+
+  function emitStatusChange(
+    sessionId: string,
+    status: PipelineStateSnapshot['status'],
+    currentNode: PipelineStateSnapshot['currentNode'],
+    callbacks?: PipelineServiceCallbacks,
+  ): void {
+    emitEvent(sessionId, callbacks ?? activeCallbacks.get(sessionId), {
+      type: 'status_change',
+      status,
+      currentNode,
+      createdAt: Date.now(),
     })
   }
 
@@ -168,6 +198,9 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
 
       const controller = activeControllers.get(meta.id)
       const response = await gateService.waitForDecision(meta.id, current.interrupted, controller?.signal)
+      if (controller?.signal.aborted) {
+        return
+      }
 
       appendPipelineRecord(meta.id, {
         id: `${meta.id}-${response.gateId}-response`,
@@ -192,6 +225,70 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         sessionId: meta.id,
         response,
       })
+    }
+  }
+
+  async function runExecution(
+    meta: PipelineSessionMeta,
+    callbacks: PipelineServiceCallbacks | undefined,
+    executor: (
+      graph: PipelineGraphController,
+      latestMeta: PipelineSessionMeta,
+      controller: AbortController,
+    ) => Promise<{ state: PipelineStateSnapshot; interrupted?: PipelineGateRequest }>,
+  ): Promise<void> {
+    if (activeControllers.has(meta.id)) {
+      throw new Error(`Pipeline 会话正在运行中: ${meta.id}`)
+    }
+
+    const controller = new AbortController()
+    activeControllers.set(meta.id, controller)
+    activeCallbacks.set(meta.id, callbacks)
+
+    try {
+      const latestMeta = getPipelineSessionMeta(meta.id)
+      if (!latestMeta) {
+        throw new Error(`未找到 Pipeline 会话: ${meta.id}`)
+      }
+
+      const graph = await Promise.resolve(createGraph(latestMeta, controller.signal, callbacks))
+      const result = await executor(graph, latestMeta, controller)
+      await driveResult(latestMeta, result, callbacks)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误'
+      const currentMeta = getPipelineSessionMeta(meta.id)
+      if (!controller.signal.aborted) {
+        appendPipelineRecord(meta.id, {
+          id: `${meta.id}-error-${Date.now()}`,
+          sessionId: meta.id,
+          type: 'error',
+          node: currentMeta?.currentNode,
+          error: message,
+          createdAt: Date.now(),
+        })
+      }
+
+      const terminalStatus = controller.signal.aborted ? 'terminated' : 'node_failed'
+      if (!controller.signal.aborted || currentMeta?.status !== 'terminated') {
+        const updatedMeta = updatePipelineSessionMeta(meta.id, {
+          status: terminalStatus,
+          pendingGate: null,
+        })
+        appendStatusRecord(meta.id, terminalStatus, controller.signal.aborted ? '操作已停止' : message)
+        emitStatusChange(meta.id, terminalStatus, updatedMeta.currentNode, callbacks)
+      }
+
+      if (!controller.signal.aborted) {
+        callbacks?.onError?.({
+          sessionId: meta.id,
+          error: message,
+        })
+        throw error
+      }
+    } finally {
+      activeControllers.delete(meta.id)
+      activeCallbacks.delete(meta.id)
+      activeRunners.delete(meta.id)
     }
   }
 
@@ -251,10 +348,6 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         throw new Error(`未找到 Pipeline 会话: ${input.sessionId}`)
       }
 
-      if (activeControllers.has(meta.id)) {
-        throw new Error(`Pipeline 会话正在运行中: ${meta.id}`)
-      }
-
       appendPipelineRecord(meta.id, {
         id: `${meta.id}-user-${Date.now()}`,
         sessionId: meta.id,
@@ -270,47 +363,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         status: 'running',
         pendingGate: null,
       })
-
-      const controller = new AbortController()
-      activeControllers.set(meta.id, controller)
-
-      try {
-        const latestMeta = getPipelineSessionMeta(meta.id)
-        if (!latestMeta) {
-          throw new Error(`未找到 Pipeline 会话: ${meta.id}`)
-        }
-
-        const graph = await Promise.resolve(createGraph(latestMeta, controller.signal, callbacks))
-        const result = await graph.invoke({
-          sessionId: meta.id,
-          userInput: input.userInput,
-        })
-        await driveResult(latestMeta, result, callbacks)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '未知错误'
-        appendPipelineRecord(meta.id, {
-          id: `${meta.id}-error-${Date.now()}`,
-          sessionId: meta.id,
-          type: 'error',
-          node: getPipelineSessionMeta(meta.id)?.currentNode,
-          error: message,
-          createdAt: Date.now(),
-        })
-        updatePipelineSessionMeta(meta.id, {
-          status: controller.signal.aborted ? 'terminated' : 'node_failed',
-          pendingGate: null,
-        })
-        callbacks?.onError?.({
-          sessionId: meta.id,
-          error: message,
-        })
-        if (!controller.signal.aborted) {
-          throw error
-        }
-      } finally {
-        activeControllers.delete(meta.id)
-        activeRunners.delete(meta.id)
-      }
+      await runExecution(meta, callbacks, async (graph) => graph.invoke({
+        sessionId: meta.id,
+        userInput: input.userInput,
+      }))
     },
 
     async respondGate(
@@ -339,13 +395,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         response,
         createdAt: Date.now(),
       })
-
-      const graph = await Promise.resolve(createGraph(meta, undefined, callbacks))
-      const result = await graph.resume({
+      await runExecution(meta, callbacks, async (graph) => graph.resume({
         sessionId: meta.id,
         response,
-      })
-      await driveResult(meta, result, callbacks)
+      }))
     },
 
     async resume(
@@ -359,12 +412,18 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     },
 
     stop(sessionId: string): void {
+      const meta = getPipelineSessionMeta(sessionId)
       activeControllers.get(sessionId)?.abort()
       activeRunners.get(sessionId)?.abort?.(sessionId)
-      updatePipelineSessionMeta(sessionId, {
+      const updatedMeta = updatePipelineSessionMeta(sessionId, {
         status: 'terminated',
         pendingGate: null,
       })
+      appendStatusRecord(sessionId, 'terminated', '操作已停止')
+      emitStatusChange(sessionId, 'terminated', updatedMeta.currentNode)
+      if (meta?.pendingGate) {
+        gateService.clearSessionPending(sessionId)
+      }
     },
 
     getPendingGates(): PipelineGateRequest[] {

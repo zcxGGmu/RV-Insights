@@ -49,6 +49,16 @@ export function useGlobalPipelineListeners(): void {
           })
         }
 
+        if (event.type === 'status_change') {
+          return upsertPipelineSession(prev, {
+            ...existing,
+            currentNode: event.currentNode,
+            status: event.status,
+            pendingGate: event.status === 'waiting_human' ? existing.pendingGate : null,
+            updatedAt: event.createdAt,
+          })
+        }
+
         if (event.type === 'node_start') {
           return upsertPipelineSession(prev, {
             ...existing,
@@ -79,6 +89,22 @@ export function useGlobalPipelineListeners(): void {
       }
 
       if (event.type === 'gate_resolved') {
+        store.set(pipelinePendingGatesAtom, (prev) => {
+          const next = new Map(prev)
+          next.delete(payload.sessionId)
+          return next
+        })
+      }
+
+      if (
+        event.type === 'status_change'
+        && (
+          event.status === 'terminated'
+          || event.status === 'node_failed'
+          || event.status === 'completed'
+          || event.status === 'recovery_failed'
+        )
+      ) {
         store.set(pipelinePendingGatesAtom, (prev) => {
           const next = new Map(prev)
           next.delete(payload.sessionId)
@@ -137,6 +163,11 @@ export function useGlobalPipelineListeners(): void {
       store.set(pipelineStreamErrorsAtom, (prev) => {
         const next = new Map(prev)
         next.set(payload.sessionId, payload.error)
+        return next
+      })
+      store.set(pipelinePendingGatesAtom, (prev) => {
+        const next = new Map(prev)
+        next.delete(payload.sessionId)
         return next
       })
     })

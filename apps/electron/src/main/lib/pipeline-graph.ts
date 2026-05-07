@@ -132,14 +132,13 @@ function createWorkerNode(
     if (node === 'reviewer') {
       if (result.approved === false) {
         return new Command({
-          goto: 'developer',
+          goto: 'gate_reviewer',
           update: {
-            currentNode: 'developer',
-            reviewIteration: state.reviewIteration + 1,
+            currentNode: 'reviewer',
             latestOutput: result.output,
             latestSummary: result.summary,
             latestIssues: result.issues,
-            status: 'running',
+            status: 'waiting_human',
             updatedAt: timestamp,
           },
         })

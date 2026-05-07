@@ -81,6 +81,7 @@ export function applyPipelineStreamState(
             ...prev,
             currentNode: event.currentNode,
             status: event.status,
+            pendingGate: event.status === 'waiting_human' ? prev.pendingGate : null,
             updatedAt: event.createdAt,
           }
         : undefined

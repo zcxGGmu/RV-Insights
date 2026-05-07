@@ -1,5 +1,7 @@
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
+import { agentChannelIdAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
+import { channelsAtom } from '@/atoms/chat-atoms'
 import type { PipelineGateRequest, PipelineRecord, PipelineSessionMeta, PipelineStateSnapshot } from '@rv-insights/shared'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
@@ -9,6 +11,8 @@ import {
   pipelineSessionsAtom,
   pipelineStreamErrorsAtom,
 } from '@/atoms/pipeline-atoms'
+import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
+import { resolvePipelineRunConfig, type PipelinePreflightError } from './pipeline-preflight'
 import { PipelineComposer } from './PipelineComposer'
 import { PipelineGateCard } from './PipelineGateCard'
 import { PipelineHeader } from './PipelineHeader'
@@ -25,12 +29,19 @@ export function PipelineView({
   const pendingGates = useAtomValue(pipelinePendingGatesAtom)
   const refreshMap = useAtomValue(pipelineRecordRefreshAtom)
   const errorMap = useAtomValue(pipelineStreamErrorsAtom)
+  const channels = useAtomValue(channelsAtom)
+  const workspaces = useAtomValue(agentWorkspacesAtom)
+  const fallbackChannelId = useAtomValue(agentChannelIdAtom)
+  const fallbackWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
   const setSessions = useSetAtom(pipelineSessionsAtom)
   const setStateMap = useSetAtom(pipelineSessionStateMapAtom)
   const setPendingGates = useSetAtom(pipelinePendingGatesAtom)
   const setErrors = useSetAtom(pipelineStreamErrorsAtom)
+  const setSettingsOpen = useSetAtom(settingsOpenAtom)
+  const setSettingsTab = useSetAtom(settingsTabAtom)
   const [records, setRecords] = React.useState<PipelineRecord[]>([])
+  const [preflightError, setPreflightError] = React.useState<PipelinePreflightError | null>(null)
 
   const session = React.useMemo<PipelineSessionMeta | null>(
     () => sessions.find((item) => item.id === sessionId) ?? null,
@@ -91,9 +102,22 @@ export function PipelineView({
   }, [sessionId, setPendingGates, setSessions, setStateMap])
 
   const handleStart = React.useCallback(async (userInput: string): Promise<void> => {
+    const resolved = resolvePipelineRunConfig({
+      sessionChannelId: session?.channelId,
+      sessionWorkspaceId: session?.workspaceId,
+      fallbackChannelId: fallbackChannelId ?? undefined,
+      fallbackWorkspaceId: fallbackWorkspaceId ?? undefined,
+      channels,
+      workspaces,
+    })
+    if (!resolved.ok) {
+      setPreflightError(resolved.error)
+      return
+    }
+
     const optimisticState: PipelineStateSnapshot = {
       sessionId,
-      currentNode: state?.currentNode ?? session?.currentNode ?? 'explorer',
+      currentNode: 'explorer',
       status: 'running',
       reviewIteration: state?.reviewIteration ?? session?.reviewIteration ?? 0,
       lastApprovedNode: state?.lastApprovedNode ?? session?.lastApprovedNode,
@@ -101,6 +125,7 @@ export function PipelineView({
       updatedAt: Date.now(),
     }
 
+    setPreflightError(null)
     setErrors((prev) => {
       if (!prev.has(sessionId)) return prev
       const next = new Map(prev)
@@ -122,6 +147,8 @@ export function PipelineView({
       item.id === sessionId
         ? {
             ...item,
+            channelId: resolved.config.channelId,
+            workspaceId: resolved.config.workspaceId,
             currentNode: optimisticState.currentNode,
             status: optimisticState.status,
             pendingGate: null,
@@ -143,13 +170,13 @@ export function PipelineView({
     void window.electronAPI.startPipeline({
       sessionId,
       userInput,
-      channelId: session?.channelId,
-      workspaceId: session?.workspaceId,
+      channelId: resolved.config.channelId,
+      workspaceId: resolved.config.workspaceId,
       threadId: session?.threadId,
     }).catch((error) => {
       console.error('[PipelineView] 启动失败:', error)
     })
-  }, [session, sessionId, setDraftSessionIds, setErrors, setSessions, setStateMap, state])
+  }, [channels, fallbackChannelId, fallbackWorkspaceId, session, sessionId, setDraftSessionIds, setErrors, setSessions, setStateMap, state, workspaces])
 
   const handleStop = React.useCallback(async (): Promise<void> => {
     await window.electronAPI.stopPipeline(sessionId)
@@ -178,6 +205,20 @@ export function PipelineView({
       {error ? (
         <div className="rounded-3xl bg-rose-50 px-5 py-4 text-sm text-rose-900 shadow-sm">
           {error}
+        </div>
+      ) : null}
+      {preflightError ? (
+        <div className="flex items-center justify-between gap-3 rounded-3xl bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm">
+          <div>{preflightError.message}</div>
+          <button
+            onClick={() => {
+              setSettingsTab(preflightError.settingsTab)
+              setSettingsOpen(true)
+            }}
+            className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-amber-900 shadow-sm"
+          >
+            前往设置
+          </button>
         </div>
       ) : null}
       {pendingGate ? (
