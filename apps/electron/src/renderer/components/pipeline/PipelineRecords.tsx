@@ -4,7 +4,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
+  CircleCheck,
   Clipboard,
+  GitCompareArrows,
   Loader2,
   Search,
 } from 'lucide-react'
@@ -30,6 +33,11 @@ import {
   buildPipelineRecordViewModel,
   type PipelineRecordGroup,
 } from './pipeline-record-view-model'
+import {
+  buildPipelineReviewComparison,
+  type PipelineReviewComparisonViewModel,
+  type PipelineReviewRoundViewModel,
+} from './pipeline-review-comparison-model'
 
 const INITIAL_ARTIFACT_LIMIT = 60
 const ARTIFACT_LOAD_STEP = 40
@@ -42,6 +50,11 @@ const TONE_CLASS_MAP = {
   warning: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
   danger: 'border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200',
   accent: 'border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+} as const
+
+const REVIEW_TONE_CLASS_MAP = {
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+  warning: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
 } as const
 
 const STAGE_FILTERS: Array<{ value: PipelineRecordStageFilter; label: string }> = [
@@ -232,6 +245,117 @@ function LiveOutputPanel({
   )
 }
 
+function ReviewRoundRow({
+  onFocusRecord,
+  round,
+}: {
+  onFocusRecord: (recordId: string) => void
+  round: PipelineReviewRoundViewModel
+}): React.ReactElement {
+  const toneClass = REVIEW_TONE_CLASS_MAP[round.tone]
+  const Icon = round.approved ? CircleCheck : CircleAlert
+
+  return (
+    <div className={`rounded-xl border px-3 py-3 ${toneClass}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Icon size={16} />
+            <span className="text-sm font-semibold">{round.roundLabel}</span>
+            <span className="rounded-full bg-background/70 px-2 py-0.5 text-[11px] font-medium">
+              {round.statusLabel}
+            </span>
+            <span className="rounded-full bg-background/70 px-2 py-0.5 text-[11px] font-medium opacity-75">
+              {round.modelStatusLabel}
+            </span>
+            <span className="rounded-full bg-background/70 px-2 py-0.5 text-[11px] font-medium">
+              {round.issueCountLabel}
+            </span>
+          </div>
+          <p className="mt-2 break-words text-sm leading-6 opacity-90 [overflow-wrap:anywhere]">{round.summary}</p>
+          {round.issues.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 opacity-85">
+              {round.issues.slice(0, 3).map((issue) => (
+                <li key={issue} className="break-words [overflow-wrap:anywhere]">
+                  {issue}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {round.feedback ? (
+            <div className="mt-2 break-words rounded-lg bg-background/70 px-3 py-2 text-xs leading-5 [overflow-wrap:anywhere]">
+              人工反馈：{round.feedback}
+            </div>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {round.decisionLabel ? (
+            <span className="rounded-full bg-background/70 px-2.5 py-1 text-xs font-medium">
+              {round.decisionLabel}
+            </span>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={`定位${round.roundLabel}审查记录`}
+            onClick={() => onFocusRecord(round.sourceRecordId)}
+          >
+            定位记录
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PipelineReviewComparisonPanel({
+  comparison,
+  onFocusRecord,
+}: {
+  comparison: PipelineReviewComparisonViewModel
+  onFocusRecord: (recordId: string) => void
+}): React.ReactElement {
+  const latestToneClass = REVIEW_TONE_CLASS_MAP[comparison.summary.latestTone]
+
+  return (
+    <section className="rounded-2xl border bg-card px-4 py-4 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-muted-foreground">
+            <GitCompareArrows size={14} />
+            REVIEW 对比
+          </div>
+          <h3 className="mt-1 text-base font-semibold text-foreground">多轮审查结论</h3>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className={`rounded-full border px-2.5 py-1 font-medium ${latestToneClass}`}>
+            {comparison.summary.latestStatusLabel}
+          </span>
+          <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+            共 {comparison.summary.totalRounds} 轮
+          </span>
+          <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-medium text-emerald-700 dark:text-emerald-200">
+            通过 {comparison.summary.approvedRounds}
+          </span>
+          <span className="rounded-full bg-amber-500/10 px-2.5 py-1 font-medium text-amber-700 dark:text-amber-200">
+            修改 {comparison.summary.rejectedRounds}
+          </span>
+        </div>
+      </div>
+      <div className="mt-3 space-y-2">
+        {comparison.rounds.map((round) => (
+          <ReviewRoundRow
+            key={round.sourceRecordId}
+            round={round}
+            onFocusRecord={onFocusRecord}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function EmptyRecordState({
   hasQuery,
   tab,
@@ -291,6 +415,8 @@ export function PipelineRecords({
   const hasMoreLogs = visibleLogs.length < filteredLogs.length
   const searchMatches = React.useMemo(() =>
     buildPipelineRecordSearchMatches(records, query), [query, records])
+  const reviewComparison = React.useMemo(() =>
+    buildPipelineReviewComparison(records), [records])
   const activeMatch = searchMatches[activeMatchIndex]
 
   React.useEffect(() => {
@@ -367,6 +493,13 @@ export function PipelineRecords({
     scrollToRecord(match.recordId)
   }, [records.length, scrollToRecord, searchMatches])
 
+  const focusReviewRecord = React.useCallback((recordId: string): void => {
+    setActiveTab('artifacts')
+    setStageFilter('reviewer')
+    setArtifactLimit(Math.max(records.length, INITIAL_ARTIFACT_LIMIT))
+    scrollToRecord(recordId)
+  }, [records.length, scrollToRecord])
+
   const handleCopyReport = React.useCallback(async (): Promise<void> => {
     try {
       const report = buildPipelineMarkdownReport({
@@ -394,6 +527,10 @@ export function PipelineRecords({
   const currentTotalCount = activeTab === 'artifacts'
     ? visibleArtifacts.totalCount
     : filteredLogs.length
+  const showReviewComparison = Boolean(activeTab === 'artifacts'
+    && reviewComparison?.shouldShowPanel
+    && !normalizedQuery
+    && (stageFilter === 'all' || stageFilter === 'reviewer'))
 
   return (
     <section className="space-y-3">
@@ -520,6 +657,12 @@ export function PipelineRecords({
         <TabsContent value="artifacts" className="mt-3 space-y-4">
           {activeTab === 'artifacts' ? (
             <>
+              {showReviewComparison && reviewComparison ? (
+                <PipelineReviewComparisonPanel
+                  comparison={reviewComparison}
+                  onFocusRecord={focusReviewRecord}
+                />
+              ) : null}
               {visibleArtifacts.groups.map((group) => (
                 <RecordGroupSection
                   key={group.id}
