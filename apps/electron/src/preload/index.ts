@@ -352,6 +352,9 @@ export interface ElectronAPI {
   /** 获取 Pipeline 记录 */
   getPipelineRecords: (sessionId: string) => Promise<PipelineRecord[]>
 
+  /** 打开 Pipeline 产物目录 */
+  openPipelineArtifactsDir: (sessionId: string) => Promise<boolean>
+
   /** 更新 Pipeline 标题 */
   updatePipelineTitle: (sessionId: string, title: string) => Promise<PipelineSessionMeta>
 
@@ -1126,6 +1129,10 @@ const electronAPI: ElectronAPI = {
 
   getPipelineRecords: (sessionId: string) => {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_RECORDS, sessionId)
+  },
+
+  openPipelineArtifactsDir: (sessionId: string) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.OPEN_ARTIFACTS_DIR, sessionId)
   },
 
   updatePipelineTitle: (sessionId: string, title: string) => {

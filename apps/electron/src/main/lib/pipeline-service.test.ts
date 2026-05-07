@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type {
@@ -8,8 +8,12 @@ import type {
   PipelineStateSnapshot,
   PipelineStreamPayload,
 } from '@rv-insights/shared'
-import { createPipelineService } from './pipeline-service'
-import { updatePipelineSessionMeta } from './pipeline-session-manager'
+import {
+  appendPipelineNodeCompleteRecords,
+  createPipelineService,
+} from './pipeline-service'
+import { getPipelineRecords, updatePipelineSessionMeta } from './pipeline-session-manager'
+import { resolvePipelineSessionArtifactsDir } from './pipeline-artifact-service'
 
 describe('pipeline-service', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -231,5 +235,72 @@ describe('pipeline-service', () => {
     const archived = service.toggleArchive(session.id)
     expect(archived.archived).toBe(true)
     expect(archived.pinned).toBe(false)
+  })
+
+  test('删除 Pipeline 会话前会校验真实 session，避免产物目录越界删除', () => {
+    const service = createPipelineService()
+    const outsideDir = join(tempConfigDir, 'outside')
+    mkdirSync(outsideDir, { recursive: true })
+    writeFileSync(join(outsideDir, 'keep.txt'), '不能被删除', 'utf-8')
+
+    expect(() => service.deleteSession('../outside')).toThrow('未找到 Pipeline 会话')
+    expect(existsSync(join(outsideDir, 'keep.txt'))).toBe(true)
+  })
+
+  test('删除真实 Pipeline 会话时会清理对应产物目录', () => {
+    const service = createPipelineService()
+    const session = service.createSession('删除产物测试', 'channel-1', 'workspace-1')
+    const artifactsDir = resolvePipelineSessionArtifactsDir(session.id)
+    writeFileSync(join(artifactsDir, 'artifact.md'), '# 产物', 'utf-8')
+
+    service.deleteSession(session.id)
+
+    expect(existsSync(artifactsDir)).toBe(false)
+  })
+
+  test('阶段产物落盘失败不应阻断 node_complete 记录追加', () => {
+    const service = createPipelineService()
+    const session = service.createSession('落盘失败降级测试', 'channel-1', 'workspace-1')
+    const originalWarn = console.warn
+    console.warn = () => undefined
+
+    try {
+      appendPipelineNodeCompleteRecords(
+        session.id,
+        {
+          type: 'node_complete',
+          node: 'planner',
+          output: '计划完成',
+          summary: '按两步实现',
+          artifact: {
+            node: 'planner',
+            summary: '按两步实现',
+            steps: ['补测试', '改实现'],
+            risks: [],
+            verification: ['bun test'],
+            content: '计划完成',
+          },
+          createdAt: 300,
+        },
+        () => {
+          throw new Error('disk full')
+        },
+      )
+    } finally {
+      console.warn = originalWarn
+    }
+
+    const records = getPipelineRecords(session.id)
+    const stageRecord = records[1]
+    expect(records.map((record) => record.type)).toEqual(['node_output', 'stage_artifact'])
+    expect(stageRecord).toMatchObject({
+      type: 'stage_artifact',
+      node: 'planner',
+    })
+    if (stageRecord?.type !== 'stage_artifact') {
+      throw new Error('未找到阶段产物记录')
+    }
+    expect(stageRecord.artifactFiles).toBeUndefined()
+    expect(service.listSessions().find((item) => item.id === session.id)?.status).not.toBe('node_failed')
   })
 })

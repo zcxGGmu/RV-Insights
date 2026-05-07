@@ -1,18 +1,18 @@
 import { rmSync } from 'node:fs'
-import { join } from 'node:path'
 import type {
   PipelineGateRequest,
   PipelineGateResponse,
   PipelineSessionMeta,
+  PipelineStageArtifactRecord,
   PipelineStartInput,
   PipelineStateSnapshot,
   PipelineStreamCompletePayload,
   PipelineStreamErrorPayload,
   PipelineStreamPayload,
+  PipelineStreamEvent,
 } from '@rv-insights/shared'
 import type { PipelineNodeRunner } from './pipeline-node-runner'
 import { PipelineCheckpointer } from './pipeline-checkpointer'
-import { getPipelineArtifactsDir } from './config-paths'
 import {
   appendPipelineRecord,
   createPipelineSession,
@@ -25,6 +25,10 @@ import {
 import { PipelineHumanGateService } from './pipeline-human-gate-service'
 import { createPipelineGraph } from './pipeline-graph'
 import { buildPipelineRecordsFromNodeComplete } from './pipeline-record-builder'
+import {
+  persistPipelineStageArtifactRecord,
+  resolvePipelineSessionArtifactsDir,
+} from './pipeline-artifact-service'
 
 export interface PipelineServiceCallbacks {
   onEvent?: (payload: PipelineStreamPayload) => void
@@ -52,6 +56,31 @@ function isTerminalState(status: PipelineStateSnapshot['status']): boolean {
   return status === 'completed'
     || status === 'terminated'
     || status === 'recovery_failed'
+}
+
+interface PipelineStageArtifactPersistor {
+  (record: PipelineStageArtifactRecord): PipelineStageArtifactRecord
+}
+
+export function appendPipelineNodeCompleteRecords(
+  sessionId: string,
+  event: Extract<PipelineStreamEvent, { type: 'node_complete' }>,
+  persistStageArtifactRecord: PipelineStageArtifactPersistor = persistPipelineStageArtifactRecord,
+): void {
+  for (const record of buildPipelineRecordsFromNodeComplete(sessionId, event)) {
+    if (record.type !== 'stage_artifact') {
+      appendPipelineRecord(sessionId, record)
+      continue
+    }
+
+    let artifactRecord = record
+    try {
+      artifactRecord = persistStageArtifactRecord(record)
+    } catch (error) {
+      console.warn('[Pipeline] 阶段产物落盘失败:', error)
+    }
+    appendPipelineRecord(sessionId, artifactRecord)
+  }
 }
 
 export function createPipelineService(options: CreatePipelineServiceOptions = {}) {
@@ -136,9 +165,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         }
 
         if (event.type === 'node_complete') {
-          for (const record of buildPipelineRecordsFromNodeComplete(meta.id, event)) {
-            appendPipelineRecord(meta.id, record)
-          }
+          appendPipelineNodeCompleteRecords(meta.id, event)
         }
 
         emitEvent(meta.id, callbacks, event)
@@ -309,13 +336,27 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     },
 
     deleteSession(sessionId: string): void {
-      gateService.clearSessionPending(sessionId)
-      void checkpointer.deleteThread(sessionId)
-      rmSync(join(getPipelineArtifactsDir(), sessionId), {
+      const meta = getPipelineSessionMeta(sessionId)
+      if (!meta) {
+        throw new Error(`未找到 Pipeline 会话: ${sessionId}`)
+      }
+
+      gateService.clearSessionPending(meta.id)
+      void checkpointer.deleteThread(meta.id)
+      rmSync(resolvePipelineSessionArtifactsDir(meta.id, { create: false }), {
         recursive: true,
         force: true,
       })
-      deletePipelineSession(sessionId)
+      deletePipelineSession(meta.id)
+    },
+
+    getArtifactsDir(sessionId: string): string {
+      const meta = getPipelineSessionMeta(sessionId)
+      if (!meta) {
+        throw new Error(`未找到 Pipeline 会话: ${sessionId}`)
+      }
+
+      return resolvePipelineSessionArtifactsDir(meta.id)
     },
 
     togglePin(sessionId: string): PipelineSessionMeta {

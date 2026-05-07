@@ -120,6 +120,21 @@ export type PipelineStageOutput =
 
 export type PipelineStageOutputMap = Partial<Record<PipelineNodeKind, PipelineStageOutput>>
 
+export type PipelineArtifactFileKind = 'markdown' | 'json'
+
+export interface PipelineArtifactFileRef {
+  kind: PipelineArtifactFileKind
+  displayName: string
+  relativePath: string
+}
+
+export interface PipelineArtifactManifest {
+  version: number
+  sessionId: string
+  files: PipelineArtifactFileRef[]
+  updatedAt: number
+}
+
 /** 启动 Pipeline 输入 */
 export interface PipelineStartInput {
   sessionId: string
@@ -196,6 +211,7 @@ export interface PipelineStageArtifactRecord {
   type: 'stage_artifact'
   node: PipelineNodeKind
   artifact: PipelineStageOutput
+  artifactFiles?: PipelineArtifactFileRef[]
   createdAt: number
 }
 
@@ -332,6 +348,7 @@ export const PIPELINE_IPC_CHANNELS = {
   STOP: 'pipeline:stop',
   GET_PENDING_GATES: 'pipeline:get-pending-gates',
   GET_SESSION_STATE: 'pipeline:get-session-state',
+  OPEN_ARTIFACTS_DIR: 'pipeline:open-artifacts-dir',
   STREAM_EVENT: 'pipeline:stream:event',
   STREAM_COMPLETE: 'pipeline:stream:complete',
   STREAM_ERROR: 'pipeline:stream:error',

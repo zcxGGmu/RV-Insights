@@ -871,6 +871,17 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.OPEN_ARTIFACTS_DIR,
+    async (_event, sessionId: string): Promise<boolean> => {
+      const errorMessage = await shell.openPath(getPipelineService().getArtifactsDir(sessionId))
+      if (errorMessage) {
+        throw new Error(`打开 Pipeline 产物目录失败: ${errorMessage}`)
+      }
+      return errorMessage.length === 0
+    }
+  )
+
+  ipcMain.handle(
     PIPELINE_IPC_CHANNELS.UPDATE_TITLE,
     async (_event, sessionId: string, title: string): Promise<PipelineSessionMeta> => {
       return getPipelineService().updateTitle(sessionId, title)

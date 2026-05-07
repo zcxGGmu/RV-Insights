@@ -7,6 +7,7 @@ import {
   CircleAlert,
   CircleCheck,
   Clipboard,
+  FolderOpen,
   GitCompareArrows,
   Loader2,
   Search,
@@ -115,9 +116,33 @@ const RecordCard = React.memo(function RecordCard({
   const viewModel = React.useMemo(() => buildPipelineRecordViewModel(record), [record])
   const toneClass = TONE_CLASS_MAP[viewModel.tone]
   const hasDetails = Boolean(viewModel.details)
+  const artifactFiles = viewModel.artifactFiles ?? []
+  const [artifactOpenFailed, setArtifactOpenFailed] = React.useState(false)
+  const artifactOpenTimer = React.useRef<number | null>(null)
   const registerElement = React.useCallback((element: HTMLElement | null) => {
     onRegisterElement(record.id, element)
   }, [onRegisterElement, record.id])
+  React.useEffect(() => () => {
+    if (artifactOpenTimer.current !== null) {
+      window.clearTimeout(artifactOpenTimer.current)
+    }
+  }, [])
+  const openArtifactsDir = React.useCallback(async (): Promise<void> => {
+    try {
+      setArtifactOpenFailed(false)
+      const opened = await window.electronAPI.openPipelineArtifactsDir(record.sessionId)
+      if (!opened) {
+        throw new Error('系统未能打开 Pipeline 产物目录')
+      }
+    } catch (error) {
+      console.error('[PipelineRecords] 打开 Pipeline 产物目录失败:', error)
+      setArtifactOpenFailed(true)
+      if (artifactOpenTimer.current !== null) {
+        window.clearTimeout(artifactOpenTimer.current)
+      }
+      artifactOpenTimer.current = window.setTimeout(() => setArtifactOpenFailed(false), 2200)
+    }
+  }, [record.sessionId])
 
   return (
     <article
@@ -152,6 +177,32 @@ const RecordCard = React.memo(function RecordCard({
             <li key={item}>{item}</li>
           ))}
         </ul>
+      ) : null}
+
+      {artifactFiles.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-background/80 px-2.5 py-1 text-[11px] font-medium opacity-80">
+            已落盘
+          </span>
+          {artifactFiles.map((file) => (
+            <span
+              key={file.relativePath}
+              className="rounded-full bg-background/80 px-2.5 py-1 text-[11px] opacity-70"
+            >
+              {file.displayName}
+            </span>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={openArtifactsDir}
+            className="bg-background/80 hover:bg-background"
+          >
+            <FolderOpen size={15} />
+            {artifactOpenFailed ? '打开失败' : '打开产物目录'}
+          </Button>
+        </div>
       ) : null}
 
       {hasDetails ? (

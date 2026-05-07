@@ -60,6 +60,13 @@ describe('buildPipelineRecordViewModel', () => {
         verification: ['bun test'],
         content: '{"summary":"按三步实现"}',
       },
+      artifactFiles: [
+        {
+          kind: 'markdown',
+          displayName: '计划阶段产物.md',
+          relativePath: 'planner-1.md',
+        },
+      ],
       createdAt: 1,
     })
 
@@ -69,6 +76,13 @@ describe('buildPipelineRecordViewModel', () => {
       summary: '按三步实现',
       details: '{"summary":"按三步实现"}',
       bullets: ['步骤: 补测试', '步骤: 改实现', '风险: 状态回归', '验证: bun test'],
+      artifactFiles: [
+        {
+          kind: 'markdown',
+          displayName: '计划阶段产物.md',
+          relativePath: 'planner-1.md',
+        },
+      ],
       tone: 'accent',
     })
   })

@@ -1,5 +1,9 @@
-import type { PipelineRecord } from '@rv-insights/shared'
-import type { PipelineNodeKind, PipelineStageOutput } from '@rv-insights/shared'
+import type {
+  PipelineArtifactFileRef,
+  PipelineNodeKind,
+  PipelineRecord,
+  PipelineStageOutput,
+} from '@rv-insights/shared'
 import {
   PIPELINE_NODE_ORDER,
   getPipelineNodeLabel,
@@ -12,6 +16,7 @@ export interface PipelineRecordViewModel {
   summary?: string
   details?: string
   bullets?: string[]
+  artifactFiles?: PipelineArtifactFileRef[]
   tone: 'neutral' | 'success' | 'warning' | 'danger' | 'accent'
 }
 
@@ -104,6 +109,7 @@ export function buildPipelineRecordViewModel(record: PipelineRecord): PipelineRe
         summary: record.artifact.summary,
         details: record.artifact.content,
         bullets: buildStageArtifactBullets(record.artifact),
+        artifactFiles: record.artifactFiles,
         tone: record.node === 'reviewer' && record.artifact.node === 'reviewer'
           ? record.artifact.approved ? 'success' : 'warning'
           : 'accent',
