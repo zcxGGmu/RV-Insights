@@ -274,6 +274,8 @@ export function PipelineView({
                 records={records}
                 liveNode={state?.currentNode}
                 liveOutput={liveOutput}
+                sessionId={sessionId}
+                sessionTitle={session?.title}
                 showLiveOutput={showLiveOutput}
               />
             </div>

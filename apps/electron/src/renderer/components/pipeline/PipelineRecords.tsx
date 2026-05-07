@@ -1,14 +1,40 @@
 import * as React from 'react'
 import type { PipelineNodeKind, PipelineRecord } from '@rv-insights/shared'
-import { Loader2 } from 'lucide-react'
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clipboard,
+  Loader2,
+  Search,
+} from 'lucide-react'
 import { MessageResponse } from '@/components/ai-elements/message'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { getPipelineNodeLabel } from './pipeline-display-model'
+import {
+  getPipelineNodeLabel,
+  PIPELINE_NODE_ORDER,
+} from './pipeline-display-model'
+import {
+  buildPipelineMarkdownReport,
+  buildPipelineRecordSearchMatches,
+  filterPipelineRecordGroups,
+  filterPipelineRecords,
+  slicePipelineRecordGroups,
+  type PipelineRecordStageFilter,
+  type PipelineRecordTab,
+} from './pipeline-record-experience-model'
 import {
   buildPipelineRecordGroups,
   buildPipelineRecordViewModel,
   type PipelineRecordGroup,
 } from './pipeline-record-view-model'
+
+const INITIAL_ARTIFACT_LIMIT = 60
+const ARTIFACT_LOAD_STEP = 40
+const INITIAL_LOG_LIMIT = 100
+const LOG_LOAD_STEP = 100
 
 const TONE_CLASS_MAP = {
   neutral: 'border-border bg-card text-card-foreground',
@@ -18,29 +44,82 @@ const TONE_CLASS_MAP = {
   accent: 'border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
 } as const
 
-function RecordCard({
+const STAGE_FILTERS: Array<{ value: PipelineRecordStageFilter; label: string }> = [
+  { value: 'all', label: '全部' },
+  { value: 'task', label: '任务' },
+  ...PIPELINE_NODE_ORDER.map((node) => ({
+    value: node,
+    label: getPipelineNodeLabel(node),
+  })),
+]
+
+function formatRecordTime(createdAt: number): string {
+  return new Date(createdAt).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
+function copyTextToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text)
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', 'true')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  try {
+    const success = document.execCommand('copy')
+    if (!success) {
+      throw new Error('复制命令未成功执行')
+    }
+    return Promise.resolve()
+  } finally {
+    document.body.removeChild(textarea)
+  }
+}
+
+const RecordCard = React.memo(function RecordCard({
+  expanded,
+  highlighted,
+  onRegisterElement,
+  onToggleExpanded,
   record,
 }: {
+  expanded: boolean
+  highlighted: boolean
+  onRegisterElement: (recordId: string, element: HTMLElement | null) => void
+  onToggleExpanded: (recordId: string) => void
   record: PipelineRecord
 }): React.ReactElement {
-  const viewModel = buildPipelineRecordViewModel(record)
-  const [expanded, setExpanded] = React.useState(false)
+  const viewModel = React.useMemo(() => buildPipelineRecordViewModel(record), [record])
   const toneClass = TONE_CLASS_MAP[viewModel.tone]
   const hasDetails = Boolean(viewModel.details)
+  const registerElement = React.useCallback((element: HTMLElement | null) => {
+    onRegisterElement(record.id, element)
+  }, [onRegisterElement, record.id])
 
   return (
-    <article className={`rounded-xl border px-4 py-3 shadow-sm ${toneClass}`}>
+    <article
+      id={`pipeline-record-${record.id}`}
+      ref={registerElement}
+      className={`rounded-xl border px-4 py-3 shadow-sm transition-shadow ${toneClass} ${
+        highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="text-xs font-medium opacity-70">
           {viewModel.badge}
         </div>
         <div className="text-[11px] opacity-50">
-          {new Date(record.createdAt).toLocaleTimeString('zh-CN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          })}
+          {formatRecordTime(record.createdAt)}
         </div>
       </div>
 
@@ -64,12 +143,15 @@ function RecordCard({
 
       {hasDetails ? (
         <div className="mt-3">
-          <button
-            onClick={() => setExpanded((prev) => !prev)}
-            className="rounded-lg bg-background/80 px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-background"
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => onToggleExpanded(record.id)}
+            className="bg-background/80 hover:bg-background"
           >
             {expanded ? '收起全文' : '展开全文'}
-          </button>
+          </Button>
           {expanded ? (
             <MessageResponse className="mt-3 rounded-xl bg-background/80 px-4 py-3 text-sm leading-6">
               {viewModel.details ?? ''}
@@ -79,12 +161,20 @@ function RecordCard({
       ) : null}
     </article>
   )
-}
+})
 
 function RecordGroupSection({
+  expandedRecordIds,
   group,
+  highlightedRecordId,
+  onRegisterElement,
+  onToggleExpanded,
 }: {
+  expandedRecordIds: Set<string>
   group: PipelineRecordGroup
+  highlightedRecordId?: string
+  onRegisterElement: (recordId: string, element: HTMLElement | null) => void
+  onToggleExpanded: (recordId: string) => void
 }): React.ReactElement {
   return (
     <section className="space-y-2">
@@ -94,7 +184,14 @@ function RecordGroupSection({
       </div>
       <div className="space-y-2">
         {group.records.map((record) => (
-          <RecordCard key={record.id} record={record} />
+          <RecordCard
+            key={record.id}
+            record={record}
+            expanded={expandedRecordIds.has(record.id)}
+            highlighted={highlightedRecordId === record.id}
+            onRegisterElement={onRegisterElement}
+            onToggleExpanded={onToggleExpanded}
+          />
         ))}
       </div>
     </section>
@@ -135,18 +232,168 @@ function LiveOutputPanel({
   )
 }
 
+function EmptyRecordState({
+  hasQuery,
+  tab,
+}: {
+  hasQuery: boolean
+  tab: PipelineRecordTab
+}): React.ReactElement {
+  const defaultText = tab === 'artifacts' ? '暂无阶段产物' : '暂无运行日志'
+  return (
+    <div className="rounded-xl border border-dashed bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+      {hasQuery ? '没有匹配记录' : defaultText}
+    </div>
+  )
+}
+
 export function PipelineRecords({
   records,
   liveNode,
   liveOutput,
+  sessionId,
+  sessionTitle,
   showLiveOutput,
 }: {
   records: PipelineRecord[]
   liveNode?: PipelineNodeKind
   liveOutput?: string
+  sessionId: string
+  sessionTitle?: string
   showLiveOutput?: boolean
 }): React.ReactElement {
+  const [activeTab, setActiveTab] = React.useState<PipelineRecordTab>('artifacts')
+  const [stageFilter, setStageFilter] = React.useState<PipelineRecordStageFilter>('all')
+  const [query, setQuery] = React.useState('')
+  const [artifactLimit, setArtifactLimit] = React.useState(INITIAL_ARTIFACT_LIMIT)
+  const [logLimit, setLogLimit] = React.useState(INITIAL_LOG_LIMIT)
+  const [expandedRecordIds, setExpandedRecordIds] = React.useState<Set<string>>(new Set())
+  const [activeMatchIndex, setActiveMatchIndex] = React.useState(0)
+  const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'failed'>('idle')
+  const recordElements = React.useRef(new Map<string, HTMLElement>())
+  const normalizedQuery = query.trim()
+
   const groups = React.useMemo(() => buildPipelineRecordGroups(records), [records])
+  const filter = React.useMemo(() => ({
+    stage: stageFilter,
+    query,
+  }), [query, stageFilter])
+  const filteredArtifacts = React.useMemo(() =>
+    filterPipelineRecordGroups(groups.artifacts, filter), [filter, groups.artifacts])
+  const filteredLogs = React.useMemo(() =>
+    filterPipelineRecords(groups.logs, filter), [filter, groups.logs])
+  const visibleArtifacts = React.useMemo(() =>
+    slicePipelineRecordGroups(filteredArtifacts, artifactLimit), [artifactLimit, filteredArtifacts])
+  const visibleLogs = React.useMemo(() => {
+    const startIndex = Math.max(0, filteredLogs.length - logLimit)
+    return filteredLogs.slice(startIndex)
+  }, [filteredLogs, logLimit])
+  const hasMoreLogs = visibleLogs.length < filteredLogs.length
+  const searchMatches = React.useMemo(() =>
+    buildPipelineRecordSearchMatches(records, query), [query, records])
+  const activeMatch = searchMatches[activeMatchIndex]
+
+  React.useEffect(() => {
+    setActiveTab('artifacts')
+    setStageFilter('all')
+    setQuery('')
+    setArtifactLimit(INITIAL_ARTIFACT_LIMIT)
+    setLogLimit(INITIAL_LOG_LIMIT)
+    setExpandedRecordIds(new Set())
+    setActiveMatchIndex(0)
+    recordElements.current.clear()
+  }, [sessionId])
+
+  React.useEffect(() => {
+    setActiveMatchIndex(0)
+  }, [query])
+
+  React.useEffect(() => {
+    setActiveMatchIndex((prev) => {
+      if (searchMatches.length === 0) return 0
+      return Math.min(prev, searchMatches.length - 1)
+    })
+  }, [searchMatches.length])
+
+  React.useEffect(() => {
+    const recordIds = new Set(records.map((record) => record.id))
+    setExpandedRecordIds((prev) => {
+      const next = new Set([...prev].filter((id) => recordIds.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [records])
+
+  const registerRecordElement = React.useCallback((recordId: string, element: HTMLElement | null): void => {
+    if (element) {
+      recordElements.current.set(recordId, element)
+    } else {
+      recordElements.current.delete(recordId)
+    }
+  }, [])
+
+  const toggleExpanded = React.useCallback((recordId: string): void => {
+    setExpandedRecordIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(recordId)) {
+        next.delete(recordId)
+      } else {
+        next.add(recordId)
+      }
+      return next
+    })
+  }, [])
+
+  const scrollToRecord = React.useCallback((recordId: string): void => {
+    window.requestAnimationFrame(() => {
+      recordElements.current.get(recordId)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+  }, [])
+
+  const jumpToMatch = React.useCallback((nextIndex: number): void => {
+    const match = searchMatches[nextIndex]
+    if (!match) return
+
+    setActiveMatchIndex(nextIndex)
+    setActiveTab(match.tab)
+    setStageFilter(match.stage)
+    if (match.tab === 'artifacts') {
+      setArtifactLimit(Math.max(records.length, INITIAL_ARTIFACT_LIMIT))
+    } else {
+      setLogLimit(Math.max(records.length, INITIAL_LOG_LIMIT))
+    }
+    scrollToRecord(match.recordId)
+  }, [records.length, scrollToRecord, searchMatches])
+
+  const handleCopyReport = React.useCallback(async (): Promise<void> => {
+    try {
+      const report = buildPipelineMarkdownReport({
+        title: sessionTitle ? `${sessionTitle} - Pipeline 报告` : 'Pipeline 会话报告',
+        records,
+        generatedAt: Date.now(),
+      })
+      await copyTextToClipboard(report)
+      setCopyStatus('copied')
+      window.setTimeout(() => setCopyStatus('idle'), 1800)
+    } catch (error) {
+      console.error('[PipelineRecords] 复制报告失败:', error)
+      setCopyStatus('failed')
+      window.setTimeout(() => setCopyStatus('idle'), 2200)
+    }
+  }, [records, sessionTitle])
+
+  const handleTabChange = React.useCallback((value: string): void => {
+    setActiveTab(value === 'logs' ? 'logs' : 'artifacts')
+  }, [])
+
+  const currentVisibleCount = activeTab === 'artifacts'
+    ? visibleArtifacts.visibleCount
+    : visibleLogs.length
+  const currentTotalCount = activeTab === 'artifacts'
+    ? visibleArtifacts.totalCount
+    : filteredLogs.length
 
   return (
     <section className="space-y-3">
@@ -154,37 +401,179 @@ export function PipelineRecords({
         <LiveOutputPanel node={liveNode} output={liveOutput ?? ''} />
       ) : null}
 
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-xs font-medium tracking-[0.18em] text-muted-foreground">阶段记录</div>
-          <h2 className="mt-1 text-lg font-semibold text-foreground">阶段产物</h2>
+      <div className="flex flex-col gap-3 rounded-2xl border bg-card px-4 py-3 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-xs font-medium tracking-[0.18em] text-muted-foreground">阶段记录</div>
+            <h2 className="mt-1 text-lg font-semibold text-foreground">阶段产物</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="tabular-nums">{records.length} 条记录</span>
+            <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/40 sm:block" />
+            <span className="tabular-nums">当前显示 {currentVisibleCount}/{currentTotalCount}</span>
+            {searchMatches.length > 0 ? (
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
+                命中 {searchMatches.length}
+              </span>
+            ) : null}
+          </div>
         </div>
-        <div className="text-xs tabular-nums text-muted-foreground">{records.length} 条记录</div>
+
+        <div className="grid gap-2 xl:grid-cols-[minmax(220px,1fr)_auto]">
+          <div className="relative">
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              aria-label="搜索 Pipeline 记录"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索阶段产物、审核反馈或运行日志"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (searchMatches.length === 0) return
+                const nextIndex = activeMatchIndex === 0 ? searchMatches.length - 1 : activeMatchIndex - 1
+                jumpToMatch(nextIndex)
+              }}
+              disabled={searchMatches.length === 0}
+              aria-label="跳转到上一个搜索结果"
+            >
+              <ChevronLeft size={15} />
+              上一个
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (searchMatches.length === 0) return
+                const nextIndex = activeMatchIndex >= searchMatches.length - 1 ? 0 : activeMatchIndex + 1
+                jumpToMatch(nextIndex)
+              }}
+              disabled={searchMatches.length === 0}
+              aria-label="跳转到下一个搜索结果"
+            >
+              下一个
+              <ChevronRight size={15} />
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleCopyReport}
+            >
+              {copyStatus === 'copied' ? <Check size={15} /> : <Clipboard size={15} />}
+              {copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败' : '复制报告'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2" role="group" aria-label="按阶段筛选记录">
+          {STAGE_FILTERS.map((item) => (
+            <Button
+              key={item.value}
+              type="button"
+              variant={stageFilter === item.value ? 'secondary' : 'ghost'}
+              size="sm"
+              aria-pressed={stageFilter === item.value}
+              onClick={() => setStageFilter(item.value)}
+              className={stageFilter === item.value ? 'bg-primary/10 text-primary hover:bg-primary/15' : ''}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+
+        {activeMatch ? (
+          <button
+            type="button"
+            onClick={() => jumpToMatch(activeMatchIndex)}
+            className="rounded-xl bg-muted px-3 py-2 text-left text-xs leading-5 text-muted-foreground transition-colors hover:bg-muted/80"
+          >
+            <span className="font-medium text-foreground">
+              {activeMatchIndex + 1}/{searchMatches.length} · {activeMatch.title}
+            </span>
+            <span className="ml-2">{activeMatch.snippet}</span>
+          </button>
+        ) : normalizedQuery ? (
+          <div className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+            未找到匹配内容
+          </div>
+        ) : null}
       </div>
 
-      <Tabs defaultValue="artifacts">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="artifacts">阶段产物</TabsTrigger>
           <TabsTrigger value="logs">运行日志</TabsTrigger>
         </TabsList>
+
         <TabsContent value="artifacts" className="mt-3 space-y-4">
-          {groups.artifacts.map((group) => (
-            <RecordGroupSection key={group.id} group={group} />
-          ))}
-          {groups.artifacts.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-              暂无阶段产物
-            </div>
+          {activeTab === 'artifacts' ? (
+            <>
+              {visibleArtifacts.groups.map((group) => (
+                <RecordGroupSection
+                  key={group.id}
+                  group={group}
+                  expandedRecordIds={expandedRecordIds}
+                  highlightedRecordId={activeMatch?.tab === 'artifacts' ? activeMatch.recordId : undefined}
+                  onRegisterElement={registerRecordElement}
+                  onToggleExpanded={toggleExpanded}
+                />
+              ))}
+              {visibleArtifacts.groups.length === 0 ? (
+                <EmptyRecordState hasQuery={Boolean(normalizedQuery)} tab="artifacts" />
+              ) : null}
+              {visibleArtifacts.hasMore ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setArtifactLimit((prev) => prev + ARTIFACT_LOAD_STEP)}
+                >
+                  显示更多阶段产物
+                </Button>
+              ) : null}
+            </>
           ) : null}
         </TabsContent>
+
         <TabsContent value="logs" className="mt-3 space-y-2">
-          {groups.logs.map((record) => (
-            <RecordCard key={record.id} record={record} />
-          ))}
-          {groups.logs.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-              暂无运行日志
-            </div>
+          {activeTab === 'logs' ? (
+            <>
+              {hasMoreLogs ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setLogLimit((prev) => prev + LOG_LOAD_STEP)}
+                >
+                  加载更早日志
+                </Button>
+              ) : null}
+              {visibleLogs.map((record) => (
+                <RecordCard
+                  key={record.id}
+                  record={record}
+                  expanded={expandedRecordIds.has(record.id)}
+                  highlighted={activeMatch?.tab === 'logs' && activeMatch.recordId === record.id}
+                  onRegisterElement={registerRecordElement}
+                  onToggleExpanded={toggleExpanded}
+                />
+              ))}
+              {visibleLogs.length === 0 ? (
+                <EmptyRecordState hasQuery={Boolean(normalizedQuery)} tab="logs" />
+              ) : null}
+            </>
           ) : null}
         </TabsContent>
       </Tabs>
