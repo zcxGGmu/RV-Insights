@@ -206,6 +206,8 @@ export type PipelineStreamEvent =
       node: PipelineNodeKind
       output: string
       summary?: string
+      approved?: boolean
+      issues?: string[]
       createdAt: number
     }
   | {

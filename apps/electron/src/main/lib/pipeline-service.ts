@@ -24,6 +24,7 @@ import {
 } from './pipeline-session-manager'
 import { PipelineHumanGateService } from './pipeline-human-gate-service'
 import { createPipelineGraph } from './pipeline-graph'
+import { buildPipelineRecordsFromNodeComplete } from './pipeline-record-builder'
 
 export interface PipelineServiceCallbacks {
   onEvent?: (payload: PipelineStreamPayload) => void
@@ -135,15 +136,9 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         }
 
         if (event.type === 'node_complete') {
-          appendPipelineRecord(meta.id, {
-            id: `${meta.id}-${event.node}-${event.createdAt}-output`,
-            sessionId: meta.id,
-            type: 'node_output',
-            node: event.node,
-            content: event.output,
-            summary: event.summary,
-            createdAt: event.createdAt,
-          })
+          for (const record of buildPipelineRecordsFromNodeComplete(meta.id, event)) {
+            appendPipelineRecord(meta.id, record)
+          }
         }
 
         emitEvent(meta.id, callbacks, event)

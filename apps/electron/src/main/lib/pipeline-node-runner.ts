@@ -463,6 +463,8 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
       node,
       output: result.output,
       summary: result.summary,
+      approved: result.approved,
+      issues: result.issues,
       createdAt: Date.now(),
     })
 
