@@ -56,7 +56,7 @@ export function PipelineSidebar(): React.ReactElement {
             setSettingsTab('agent')
             setSettingsOpen(true)
           }}
-          className="rounded-2xl bg-white/80 p-2 text-zinc-700 shadow-sm"
+          className="rounded-2xl bg-white/80 p-2 text-zinc-700 shadow-sm titlebar-no-drag"
         >
           <Settings size={16} />
         </button>
@@ -66,7 +66,7 @@ export function PipelineSidebar(): React.ReactElement {
 
       <button
         onClick={() => void handleCreate()}
-        className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white"
+        className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white titlebar-no-drag"
       >
         <Plus size={16} />
         新建 Pipeline
@@ -81,7 +81,7 @@ export function PipelineSidebar(): React.ReactElement {
               setCurrentPipelineSessionId(session.id)
               openSession('pipeline', session.id, session.title)
             }}
-            className={`w-full rounded-2xl px-3 py-3 text-left shadow-sm transition-colors ${
+            className={`w-full rounded-2xl px-3 py-3 text-left shadow-sm transition-colors titlebar-no-drag ${
               session.id === currentPipelineSessionId
                 ? 'bg-zinc-900 text-white'
                 : 'bg-white/80 text-zinc-900'

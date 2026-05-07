@@ -17,7 +17,7 @@ The core vision of RV-Insights is not to replace any particular software. Curren
 ## Screenshots
 
 ### rv-pipeline Mode
-rv-pipeline is an intelligent pipeline for RISC-V open-source contributions, consisting of 5 stages: Explorer (discover contribution points) → Planner (design plan) → Developer (code development) → Reviewer (code review) → Tester (test verification). Each node pauses after output for human approval, and Developer ↔ Reviewer supports multi-round iteration until review passes. Powered by LangGraph for orchestration; Explorer / Planner / Developer / Tester use Claude Agent SDK, Reviewer uses OpenAI Agents SDK.
+rv-pipeline is an intelligent pipeline for RISC-V open-source contributions, consisting of 5 stages: Explorer (discover contribution points) → Planner (design plan) → Developer (code development) → Reviewer (code review) → Tester (test verification). Each node pauses after output for human approval, and Developer ↔ Reviewer supports multi-round iteration until review passes. Powered by LangGraph for orchestration, and all five nodes run through the Claude Agent SDK-compatible execution path.
 
 ![RV-Insights Chat Mode](https://img.erlich.fun/personal-blog/uPic/tBXRKI.png)
 
@@ -78,15 +78,15 @@ Go to **Settings > Channels**, click **Add Channel**, select a provider, and ent
 
 ### rv-pipeline Mode
 
-rv-pipeline requires two channels:
-- **Claude channel** (for Explorer / Planner / Developer / Tester): Add an Anthropic or Claude Agent SDK-compatible provider channel
-- **OpenAI channel** (for Reviewer): Add an OpenAI or OpenAI Agents SDK-compatible provider channel
+rv-pipeline reuses the default Agent channel and workspace configuration:
+- **Channel**: First add an Anthropic or Claude Agent SDK-compatible provider channel in **Settings > Channels**
+- **Default configuration**: Then go to **Settings > Agent** to select the default channel and workspace; new Pipeline sessions reuse that configuration
 
-Go to **Settings > rv-pipeline** to select the channels and models. During pipeline execution, each node will automatically pause after output, waiting for your on-screen approval before proceeding to the next stage.
+During pipeline execution, all five nodes run through the same Claude Agent SDK-compatible path. Each node pauses after output and waits for your approval before moving to the next stage.
 
-### Agent Mode (Anthropic Only)
+### Agent Mode
 
-Agent mode requires an **Anthropic** channel. After adding one, go to **Settings > Agent** to select your Anthropic channel and preferred model (Claude Sonnet 4 / Opus 4 recommended). The agent uses [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk) under the hood.
+Agent mode requires a **Claude Agent SDK-compatible channel**. After adding one, go to **Settings > Agent** to select the default channel and preferred model (Claude Sonnet 4 / Opus 4 recommended). The agent uses [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk) under the hood.
 
 ### Special Provider Endpoints
 
@@ -107,8 +107,7 @@ MiniMax, Kimi (Moonshot), and Zhipu GLM use dedicated API endpoints — these ar
 - **Build** — Vite (renderer) + esbuild (main/preload)
 - **Language** — TypeScript
 - **Pipeline Orchestration** — LangGraph
-- **Agent SDK** — Claude Agent SDK 0.2.120
-- **Reviewer SDK** — OpenAI Agents SDK
+- **Agent SDK** — Claude Agent SDK 0.2.123
 
 ## Credits
 
