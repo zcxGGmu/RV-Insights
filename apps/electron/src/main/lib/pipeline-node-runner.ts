@@ -429,11 +429,12 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
         if (message.type === 'assistant') {
           const text = extractAssistantText(message as SDKAssistantMessage)
           if (!text) continue
-          combinedOutput += (combinedOutput ? '\n' : '') + text
+          const delta = (combinedOutput ? '\n' : '') + text
+          combinedOutput += delta
           this.onEvent?.({
             type: 'text_delta',
             node,
-            delta: text,
+            delta,
             createdAt: Date.now(),
           })
           continue

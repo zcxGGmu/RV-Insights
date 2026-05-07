@@ -1,7 +1,9 @@
 import * as React from 'react'
-import type { PipelineRecord } from '@rv-insights/shared'
+import type { PipelineNodeKind, PipelineRecord } from '@rv-insights/shared'
+import { Loader2 } from 'lucide-react'
 import { MessageResponse } from '@/components/ai-elements/message'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getPipelineNodeLabel } from './pipeline-display-model'
 import {
   buildPipelineRecordGroups,
   buildPipelineRecordViewModel,
@@ -99,18 +101,62 @@ function RecordGroupSection({
   )
 }
 
+function LiveOutputPanel({
+  node,
+  output,
+}: {
+  node: PipelineNodeKind
+  output: string
+}): React.ReactElement {
+  const nodeLabel = getPipelineNodeLabel(node)
+
+  return (
+    <section className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium tracking-[0.18em] opacity-70">实时输出</div>
+          <h3 className="mt-1 text-sm font-semibold">{nodeLabel}节点正在输出</h3>
+        </div>
+        <div className="flex items-center gap-2 rounded-full bg-background/70 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-200">
+          <Loader2 size={13} className="animate-spin" />
+          运行中
+        </div>
+      </div>
+      <div className="mt-3 rounded-xl bg-background/80 px-3 py-3">
+        {output ? (
+          <MessageResponse className="text-sm">
+            {output}
+          </MessageResponse>
+        ) : (
+          <div className="text-sm text-muted-foreground">正在等待节点输出...</div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export function PipelineRecords({
   records,
+  liveNode,
+  liveOutput,
+  showLiveOutput,
 }: {
   records: PipelineRecord[]
+  liveNode?: PipelineNodeKind
+  liveOutput?: string
+  showLiveOutput?: boolean
 }): React.ReactElement {
   const groups = React.useMemo(() => buildPipelineRecordGroups(records), [records])
 
   return (
     <section className="space-y-3">
+      {showLiveOutput && liveNode ? (
+        <LiveOutputPanel node={liveNode} output={liveOutput ?? ''} />
+      ) : null}
+
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Records</div>
+          <div className="text-xs font-medium tracking-[0.18em] text-muted-foreground">阶段记录</div>
           <h2 className="mt-1 text-lg font-semibold text-foreground">阶段产物</h2>
         </div>
         <div className="text-xs tabular-nums text-muted-foreground">{records.length} 条记录</div>

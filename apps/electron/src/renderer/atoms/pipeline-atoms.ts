@@ -1,6 +1,7 @@
 import { atom } from 'jotai'
 import type {
   PipelineGateRequest,
+  PipelineNodeKind,
   PipelineSessionMeta,
   PipelineStateSnapshot,
   PipelineStreamPayload,
@@ -23,6 +24,8 @@ export const pipelineRecordRefreshAtom = atom<Map<string, number>>(new Map())
 export const pipelineSessionStateMapAtom = atom<Map<string, PipelineStateSnapshot>>(new Map())
 export const pipelinePendingGatesAtom = atom<Map<string, PipelineGateRequest>>(new Map())
 export const pipelineStreamErrorsAtom = atom<Map<string, string>>(new Map())
+export type PipelineLiveOutputState = Map<string, Map<PipelineNodeKind, string>>
+export const pipelineLiveOutputAtom = atom<PipelineLiveOutputState>(new Map())
 
 export const pipelineRunningSessionIdsAtom = atom<Set<string>>((get) => {
   const states = get(pipelineSessionStateMapAtom)
@@ -136,4 +139,89 @@ export function applyPipelineStreamState(
     default:
       return prev
   }
+}
+
+function isTerminalStatus(status: PipelineStateSnapshot['status']): boolean {
+  return status === 'completed'
+    || status === 'terminated'
+}
+
+function updateLiveNode(
+  prev: PipelineLiveOutputState,
+  sessionId: string,
+  node: PipelineNodeKind,
+  nextValue: string | null,
+): PipelineLiveOutputState {
+  const next = new Map(prev)
+  const sessionOutput = new Map(next.get(sessionId) ?? new Map<PipelineNodeKind, string>())
+
+  if (nextValue === null) {
+    sessionOutput.delete(node)
+  } else {
+    sessionOutput.set(node, nextValue)
+  }
+
+  if (sessionOutput.size === 0) {
+    next.delete(sessionId)
+  } else {
+    next.set(sessionId, sessionOutput)
+  }
+
+  return next
+}
+
+export function applyPipelineLiveOutput(
+  prev: PipelineLiveOutputState,
+  payload: PipelineStreamPayload,
+): PipelineLiveOutputState {
+  const { event, sessionId } = payload
+
+  switch (event.type) {
+    case 'node_start':
+      return updateLiveNode(prev, sessionId, event.node, '')
+    case 'text_delta': {
+      const current = prev.get(sessionId)?.get(event.node) ?? ''
+      return updateLiveNode(prev, sessionId, event.node, current + event.delta)
+    }
+    case 'node_complete':
+      return updateLiveNode(prev, sessionId, event.node, null)
+    case 'gate_waiting':
+      return updateLiveNode(prev, sessionId, event.request.node, null)
+    case 'status_change':
+      if (!isTerminalStatus(event.status)) return prev
+      if (!prev.has(sessionId)) return prev
+      {
+        const next = new Map(prev)
+        next.delete(sessionId)
+        return next
+      }
+    default:
+      return prev
+  }
+}
+
+export function getPipelineLiveOutput(
+  state: PipelineLiveOutputState,
+  sessionId: string,
+  node: PipelineNodeKind,
+): string {
+  return state.get(sessionId)?.get(node) ?? ''
+}
+
+export function hasPipelineLiveOutputNode(
+  state: PipelineLiveOutputState,
+  sessionId: string,
+  node: PipelineNodeKind,
+): boolean {
+  return state.get(sessionId)?.has(node) ?? false
+}
+
+export function clearPipelineLiveOutputForSession(
+  state: PipelineLiveOutputState,
+  sessionId: string,
+): PipelineLiveOutputState {
+  if (!state.has(sessionId)) return state
+  const next = new Map(state)
+  next.delete(sessionId)
+  return next
 }

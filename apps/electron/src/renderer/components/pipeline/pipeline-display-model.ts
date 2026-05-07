@@ -1,4 +1,5 @@
 import type {
+  PipelineGateRequest,
   PipelineNodeKind,
   PipelineSessionMeta,
   PipelineSessionStatus,
@@ -39,6 +40,29 @@ export interface PipelineStageViewModel {
   label: string
   index: number
   status: PipelineStageVisualStatus
+}
+
+export interface PipelineGateViewModel {
+  title: string
+  nodeLabel: string
+  iterationLabel: string
+  summary?: string
+  feedbackPlaceholder: string
+  approveLabel: string
+  rejectLabel: string
+  rerunLabel: string
+  rejectRequiresFeedback: boolean
+}
+
+export interface PipelineFailureViewModel {
+  title: string
+  nodeLabel: string
+  detailLabel: string
+  message: string
+  partialOutputLabel: string
+  partialOutput?: string
+  restartLabel: string
+  settingsLabel: string
 }
 
 export const PIPELINE_NODE_ORDER: PipelineNodeKind[] = [
@@ -150,4 +174,66 @@ export function buildPipelineStageViewModels(
       status,
     }
   })
+}
+
+function approveLabelForNode(node: PipelineNodeKind): string {
+  switch (node) {
+    case 'explorer':
+      return '确认方向，进入计划'
+    case 'planner':
+      return '确认计划，进入开发'
+    case 'reviewer':
+      return '进入测试'
+    case 'tester':
+      return '确认完成'
+    case 'developer':
+    default:
+      return '通过并继续'
+  }
+}
+
+export function buildPipelineGateViewModel(request: PipelineGateRequest): PipelineGateViewModel {
+  const nodeLabel = getPipelineNodeLabel(request.node)
+
+  return {
+    title: `${nodeLabel}节点待确认`,
+    nodeLabel,
+    iterationLabel: `第 ${request.iteration + 1} 轮`,
+    summary: request.summary,
+    feedbackPlaceholder: request.feedbackHint ?? '填写反馈后可以要求修改或重跑当前节点',
+    approveLabel: approveLabelForNode(request.node),
+    rejectLabel: '要求修改',
+    rerunLabel: `重跑${nodeLabel}`,
+    rejectRequiresFeedback: true,
+  }
+}
+
+export function buildPipelineFailureViewModel({
+  state,
+  error,
+  partialOutput,
+}: {
+  state: PipelineStateSnapshot | null
+  error?: string | null
+  partialOutput?: string
+}): PipelineFailureViewModel | null {
+  if (!state || (state.status !== 'node_failed' && state.status !== 'recovery_failed')) {
+    return null
+  }
+
+  const nodeLabel = getPipelineNodeLabel(state.currentNode)
+  const title = state.status === 'recovery_failed'
+    ? `${nodeLabel}节点恢复失败`
+    : `${nodeLabel}节点执行失败`
+
+  return {
+    title,
+    nodeLabel,
+    detailLabel: '错误详情',
+    message: error?.trim() || '没有收到详细错误信息，请查看运行日志。',
+    partialOutputLabel: '失败前输出',
+    partialOutput: partialOutput?.trim() || undefined,
+    restartLabel: '重新启动 Pipeline',
+    settingsLabel: '打开 Agent 设置',
+  }
 }

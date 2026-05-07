@@ -6,6 +6,9 @@ import type { PipelineGateRequest, PipelineRecord, PipelineSessionMeta, Pipeline
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
   pipelinePendingGatesAtom,
+  getPipelineLiveOutput,
+  hasPipelineLiveOutputNode,
+  pipelineLiveOutputAtom,
   pipelineRecordRefreshAtom,
   pipelineSessionStateMapAtom,
   pipelineSessionsAtom,
@@ -14,10 +17,12 @@ import {
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
 import { resolvePipelineRunConfig, type PipelinePreflightError } from './pipeline-preflight'
 import { PipelineComposer } from './PipelineComposer'
+import { PipelineFailureCard } from './PipelineFailureCard'
 import { PipelineGateCard } from './PipelineGateCard'
 import { PipelineHeader } from './PipelineHeader'
 import { PipelineRecords } from './PipelineRecords'
 import { PipelineStageRail } from './PipelineStageRail'
+import { buildPipelineFailureViewModel } from './pipeline-display-model'
 
 export function PipelineView({
   sessionId,
@@ -29,6 +34,7 @@ export function PipelineView({
   const pendingGates = useAtomValue(pipelinePendingGatesAtom)
   const refreshMap = useAtomValue(pipelineRecordRefreshAtom)
   const errorMap = useAtomValue(pipelineStreamErrorsAtom)
+  const liveOutputMap = useAtomValue(pipelineLiveOutputAtom)
   const channels = useAtomValue(channelsAtom)
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const fallbackChannelId = useAtomValue(agentChannelIdAtom)
@@ -63,6 +69,22 @@ export function PipelineView({
   const currentTask = React.useMemo(() => {
     return [...records].reverse().find((record) => record.type === 'user_input')?.content
   }, [records])
+  const latestRecordError = React.useMemo(() => {
+    const latestErrorRecord = [...records]
+      .reverse()
+      .find((record): record is Extract<PipelineRecord, { type: 'error' }> => record.type === 'error')
+    return latestErrorRecord?.error
+  }, [records])
+  const liveOutput = state
+    ? getPipelineLiveOutput(liveOutputMap, sessionId, state.currentNode)
+    : ''
+  const showLiveOutput = state?.status === 'running'
+    && hasPipelineLiveOutputNode(liveOutputMap, sessionId, state.currentNode)
+  const failureViewModel = React.useMemo(() => buildPipelineFailureViewModel({
+    state,
+    error: error ?? latestRecordError,
+    partialOutput: liveOutput,
+  }), [error, latestRecordError, liveOutput, state])
 
   React.useEffect(() => {
     window.electronAPI.getPipelineRecords(sessionId)
@@ -190,16 +212,24 @@ export function PipelineView({
     feedback?: string,
   ): Promise<void> => {
     if (!pendingGate) return
-    void window.electronAPI.respondPipelineGate({
+    await window.electronAPI.respondPipelineGate({
       gateId: pendingGate.gateId,
       sessionId,
       action,
       feedback,
       createdAt: Date.now(),
-    }).catch((error) => {
-      console.error('[PipelineView] 响应 gate 失败:', error)
     })
   }, [pendingGate, sessionId])
+
+  const handleRestart = React.useCallback((): void => {
+    if (!currentTask || running) return
+    void handleStart(currentTask)
+  }, [currentTask, handleStart, running])
+
+  const handleOpenAgentSettings = React.useCallback((): void => {
+    setSettingsTab('agent')
+    setSettingsOpen(true)
+  }, [setSettingsOpen, setSettingsTab])
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
@@ -210,7 +240,14 @@ export function PipelineView({
             <PipelineStageRail state={state} />
           </div>
 
-          {error ? (
+          {failureViewModel ? (
+            <PipelineFailureCard
+              viewModel={failureViewModel}
+              canRestart={Boolean(currentTask) && !running}
+              onRestart={handleRestart}
+              onOpenSettings={handleOpenAgentSettings}
+            />
+          ) : error ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-900 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
               {error}
             </div>
@@ -233,7 +270,12 @@ export function PipelineView({
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0">
-              <PipelineRecords records={records} />
+              <PipelineRecords
+                records={records}
+                liveNode={state?.currentNode}
+                liveOutput={liveOutput}
+                showLiveOutput={showLiveOutput}
+              />
             </div>
             <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
               {pendingGate ? (
