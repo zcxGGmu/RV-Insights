@@ -208,4 +208,28 @@ describe('pipeline-service', () => {
 
     expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('node_failed')
   })
+
+  test('置顶已归档 Pipeline 会话时自动取消归档', () => {
+    const service = createPipelineService()
+    const session = service.createSession('置顶归档互斥测试', 'channel-1', 'workspace-1')
+
+    const archived = service.toggleArchive(session.id)
+    expect(archived.archived).toBe(true)
+
+    const pinned = service.togglePin(session.id)
+    expect(pinned.pinned).toBe(true)
+    expect(pinned.archived).toBe(false)
+  })
+
+  test('归档已置顶 Pipeline 会话时自动取消置顶', () => {
+    const service = createPipelineService()
+    const session = service.createSession('归档置顶互斥测试', 'channel-1', 'workspace-1')
+
+    const pinned = service.togglePin(session.id)
+    expect(pinned.pinned).toBe(true)
+
+    const archived = service.toggleArchive(session.id)
+    expect(archived.archived).toBe(true)
+    expect(archived.pinned).toBe(false)
+  })
 })

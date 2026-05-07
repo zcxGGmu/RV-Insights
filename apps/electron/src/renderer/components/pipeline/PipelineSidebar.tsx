@@ -1,6 +1,9 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import {
+  Archive,
+  ArchiveRestore,
+  ArrowLeft,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -25,76 +28,33 @@ import {
 } from '@/atoms/agent-atoms'
 import {
   currentPipelineSessionIdAtom,
+  pipelineSidebarViewModeAtom,
   pipelineSessionIndicatorMapAtom,
   pipelineSessionsAtom,
 } from '@/atoms/pipeline-atoms'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
-import { sidebarCollapsedAtom, tabsAtom, updateTabTitle } from '@/atoms/tab-atoms'
+import { activeTabIdAtom, closeTab, sidebarCollapsedAtom, tabsAtom, updateTabTitle } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { hasUpdateAtom } from '@/atoms/updater'
 import { hasEnvironmentIssuesAtom } from '@/atoms/environment'
 import { useOpenSession } from '@/hooks/useOpenSession'
+import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
 import { ModeSwitcher } from '@/components/app-shell/ModeSwitcher'
 import { SearchDialog } from '@/components/app-shell/SearchDialog'
 import { UserAvatar } from '@/components/chat/UserAvatar'
 import { WorkspaceSelector } from '@/components/agent/WorkspaceSelector'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { toast } from 'sonner'
 import type { PipelineSessionMeta, WorkspaceCapabilities } from '@rv-insights/shared'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
+import { buildPipelineSidebarSections, getPipelineStatusLabel } from './pipeline-session-sidebar-model'
 
-type DateGroup = '今天' | '昨天' | '更早'
 type SessionLeftAccent = 'blue' | 'orange' | 'green'
 
 const SESSION_LEFT_ACCENT_CLASS: Record<SessionLeftAccent, string> = {
   blue: 'bg-sky-500/70',
   orange: 'bg-amber-500/75',
   green: 'bg-emerald-500/75',
-}
-
-function groupByDate<T extends { updatedAt: number }>(items: T[]): Array<{ label: DateGroup; items: T[] }> {
-  const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const yesterdayStart = todayStart - 86_400_000
-
-  const today: T[] = []
-  const yesterday: T[] = []
-  const earlier: T[] = []
-
-  for (const item of items) {
-    if (item.updatedAt >= todayStart) {
-      today.push(item)
-    } else if (item.updatedAt >= yesterdayStart) {
-      yesterday.push(item)
-    } else {
-      earlier.push(item)
-    }
-  }
-
-  const groups: Array<{ label: DateGroup; items: T[] }> = []
-  if (today.length > 0) groups.push({ label: '今天', items: today })
-  if (yesterday.length > 0) groups.push({ label: '昨天', items: yesterday })
-  if (earlier.length > 0) groups.push({ label: '更早', items: earlier })
-  return groups
-}
-
-function getPipelineStatusLabel(status: PipelineSessionMeta['status']): string {
-  switch (status) {
-    case 'running':
-      return '运行中'
-    case 'waiting_human':
-      return '等待人工审核'
-    case 'node_failed':
-      return '节点失败'
-    case 'completed':
-      return '已完成'
-    case 'terminated':
-      return '已终止'
-    case 'recovery_failed':
-      return '恢复失败'
-    case 'idle':
-    default:
-      return '空闲'
-  }
 }
 
 function indicatorToAccent(indicator: SessionIndicatorStatus): SessionLeftAccent | undefined {
@@ -119,6 +79,7 @@ interface PipelineSessionItemProps {
   onSelect: () => void
   onRename: (id: string, title: string) => Promise<void>
   onTogglePin: (id: string) => Promise<void>
+  onToggleArchive: (id: string) => Promise<void>
   onMouseEnter: () => void
   onMouseLeave: () => void
 }
@@ -132,6 +93,7 @@ function PipelineSessionItem({
   onSelect,
   onRename,
   onTogglePin,
+  onToggleArchive,
   onMouseEnter,
   onMouseLeave,
 }: PipelineSessionItemProps): React.ReactElement {
@@ -264,6 +226,21 @@ function PipelineSessionItem({
           </TooltipTrigger>
           <TooltipContent side="top">重命名</TooltipContent>
         </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(event) => {
+                event.stopPropagation()
+                void onToggleArchive(session.id)
+              }}
+              className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+            >
+              {session.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{session.archived ? '取消归档' : '归档'}</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )
@@ -273,6 +250,8 @@ export function PipelineSidebar(): React.ReactElement {
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
   const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
   const [tabs, setTabs] = useAtom(tabsAtom)
+  const [activeTabId, setActiveTabId] = useAtom(activeTabIdAtom)
+  const [viewMode, setViewMode] = useAtom(pipelineSidebarViewModeAtom)
   const sessions = useAtomValue(pipelineSessionsAtom)
   const draftSessionIds = useAtomValue(draftSessionIdsAtom)
   const currentPipelineSessionId = useAtomValue(currentPipelineSessionIdAtom)
@@ -291,6 +270,7 @@ export function PipelineSidebar(): React.ReactElement {
   const setSearchOpen = useSetAtom(searchDialogOpenAtom)
   const setSessions = useSetAtom(pipelineSessionsAtom)
   const openSession = useOpenSession()
+  const syncActiveTabSideEffects = useSyncActiveTabSideEffects()
   const [hoveredId, setHoveredId] = React.useState<string | null>(null)
   const [capabilities, setCapabilities] = React.useState<WorkspaceCapabilities | null>(null)
 
@@ -322,27 +302,26 @@ export function PipelineSidebar(): React.ReactElement {
       .catch(console.error)
   }, [capabilitiesVersion, currentWorkspaceSlug])
 
-  const pinnedSessions = React.useMemo(
+  const sessionSections = React.useMemo(
+    () => buildPipelineSidebarSections({
+      sessions,
+      currentWorkspaceId,
+      draftSessionIds,
+      viewMode,
+    }),
+    [currentWorkspaceId, draftSessionIds, sessions, viewMode],
+  )
+
+  const archivedSessionCount = React.useMemo(
     () => sessions.filter((session) =>
-      session.pinned
-      && !session.archived
+      session.archived
       && !draftSessionIds.has(session.id)
       && (!currentWorkspaceId || session.workspaceId === currentWorkspaceId),
-    ),
+    ).length,
     [currentWorkspaceId, draftSessionIds, sessions],
   )
 
-  const recentSessionGroups = React.useMemo(() => {
-    const filtered = sessions.filter((session) =>
-      !session.archived
-      && !session.pinned
-      && !draftSessionIds.has(session.id)
-      && (!currentWorkspaceId || session.workspaceId === currentWorkspaceId),
-    )
-    return groupByDate(filtered)
-  }, [currentWorkspaceId, draftSessionIds, sessions])
-
-  const hasVisibleSessions = pinnedSessions.length > 0 || recentSessionGroups.length > 0
+  const hasVisibleSessions = sessionSections.length > 0
 
   const handleCreate = React.useCallback(async () => {
     const meta = await window.electronAPI.createPipelineSession(
@@ -352,10 +331,11 @@ export function PipelineSidebar(): React.ReactElement {
     )
     setSessions((prev) => [meta, ...prev])
     setCurrentPipelineSessionId(meta.id)
+    setViewMode('active')
     setAppMode('pipeline')
     setActiveView('conversations')
     openSession('pipeline', meta.id, meta.title)
-  }, [currentChannelId, currentWorkspaceId, openSession, setActiveView, setAppMode, setCurrentPipelineSessionId, setSessions])
+  }, [currentChannelId, currentWorkspaceId, openSession, setActiveView, setAppMode, setCurrentPipelineSessionId, setSessions, setViewMode])
 
   const handleSelectSession = React.useCallback((sessionId: string, title: string): void => {
     setCurrentPipelineSessionId(sessionId)
@@ -376,16 +356,48 @@ export function PipelineSidebar(): React.ReactElement {
 
   const handleTogglePin = React.useCallback(async (sessionId: string): Promise<void> => {
     try {
+      const original = sessions.find((session) => session.id === sessionId)
       const updated = await window.electronAPI.togglePinPipelineSession(sessionId)
       setSessions((prev) =>
         prev
           .map((session) => (session.id === updated.id ? updated : session))
           .sort((a, b) => b.updatedAt - a.updatedAt),
       )
+      if (original?.archived && updated.pinned && !updated.archived) {
+        toast.success('已取消归档并置顶')
+      }
     } catch (error) {
       console.error('[PipelineSidebar] 切换 Pipeline 会话置顶失败:', error)
     }
-  }, [setSessions])
+  }, [sessions, setSessions])
+
+  const handleToggleArchive = React.useCallback(async (sessionId: string): Promise<void> => {
+    try {
+      const updated = await window.electronAPI.toggleArchivePipelineSession(sessionId)
+      setSessions((prev) =>
+        prev
+          .map((session) => (session.id === updated.id ? updated : session))
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      )
+
+      if (updated.archived) {
+        const wasActive = activeTabId === sessionId
+        const tabResult = closeTab(tabs, activeTabId, sessionId)
+        setTabs(tabResult.tabs)
+        setActiveTabId(tabResult.activeTabId)
+        if (wasActive) {
+          const nextActiveTab = tabResult.activeTabId
+            ? tabResult.tabs.find((tab) => tab.id === tabResult.activeTabId) ?? null
+            : null
+          syncActiveTabSideEffects(nextActiveTab)
+        }
+      }
+
+      toast.success(updated.archived ? '已归档' : '已取消归档')
+    } catch (error) {
+      console.error('[PipelineSidebar] 切换 Pipeline 会话归档失败:', error)
+    }
+  }, [activeTabId, setActiveTabId, setSessions, setTabs, syncActiveTabSideEffects, tabs])
 
   if (sidebarCollapsed) {
     return (
@@ -496,40 +508,24 @@ export function PipelineSidebar(): React.ReactElement {
         </Tooltip>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-none min-h-0">
-        {pinnedSessions.length > 0 ? (
-          <div className="mb-1">
-            <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-              置顶
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {pinnedSessions.map((session) => (
-                <PipelineSessionItem
-                  key={`pinned-${session.id}`}
-                  session={session}
-                  active={session.id === currentPipelineSessionId}
-                  hovered={session.id === hoveredId}
-                  indicatorStatus={indicatorMap.get(session.id) ?? 'idle'}
-                  onSelect={() => handleSelectSession(session.id, session.title)}
-                  onRename={handleRename}
-                  onTogglePin={handleTogglePin}
-                  onMouseEnter={() => setHoveredId(session.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                />
-              ))}
-            </div>
+      {viewMode === 'archived' ? (
+        <div className="px-6 pt-3 pb-1">
+          <div className="text-[12px] font-medium text-foreground/40">
+            已归档 Pipeline
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        {recentSessionGroups.map((group) => (
-          <div key={group.label} className="mb-1">
+      <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-none min-h-0">
+        {sessionSections.map((section) => (
+          <div key={section.id} className="mb-1">
             <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-              {group.label}
+              {section.label}
             </div>
             <div className="flex flex-col gap-0.5">
-              {group.items.map((session) => (
+              {section.sessions.map((session) => (
                 <PipelineSessionItem
-                  key={session.id}
+                  key={`${section.id}-${session.id}`}
                   session={session}
                   active={session.id === currentPipelineSessionId}
                   hovered={session.id === hoveredId}
@@ -538,6 +534,7 @@ export function PipelineSidebar(): React.ReactElement {
                   onSelect={() => handleSelectSession(session.id, session.title)}
                   onRename={handleRename}
                   onTogglePin={handleTogglePin}
+                  onToggleArchive={handleToggleArchive}
                   onMouseEnter={() => setHoveredId(session.id)}
                   onMouseLeave={() => setHoveredId(null)}
                 />
@@ -548,9 +545,31 @@ export function PipelineSidebar(): React.ReactElement {
 
         {!hasVisibleSessions ? (
           <div className="px-2 py-3 text-[11px] text-foreground/30 text-center select-none">
-            暂无 Pipeline 会话
+            {viewMode === 'archived' ? '暂无已归档 Pipeline' : '暂无 Pipeline 会话'}
           </div>
         ) : null}
+      </div>
+
+      <div className="px-3 pb-1">
+        {viewMode === 'active' ? (
+          archivedSessionCount > 0 ? (
+            <button
+              onClick={() => setViewMode('archived')}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/40 hover:bg-foreground/[0.04] hover:text-foreground/60 transition-colors titlebar-no-drag"
+            >
+              <Archive size={13} className="text-foreground/30" />
+              <span>已归档 ({archivedSessionCount})</span>
+            </button>
+          ) : null
+        ) : (
+          <button
+            onClick={() => setViewMode('active')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/60 bg-foreground/[0.04] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors titlebar-no-drag"
+          >
+            <ArrowLeft size={13} className="text-foreground/50" />
+            <span>返回活跃 Pipeline</span>
+          </button>
+        )}
       </div>
 
       {capabilities ? (

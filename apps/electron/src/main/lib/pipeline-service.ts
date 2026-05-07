@@ -323,7 +323,11 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       if (!meta) {
         throw new Error(`未找到 Pipeline 会话: ${sessionId}`)
       }
-      return updatePipelineSessionMeta(sessionId, { pinned: !meta.pinned })
+      const nextPinned = !meta.pinned
+      return updatePipelineSessionMeta(sessionId, {
+        pinned: nextPinned,
+        ...(nextPinned && meta.archived ? { archived: false } : {}),
+      })
     },
 
     toggleArchive(sessionId: string): PipelineSessionMeta {
@@ -331,7 +335,11 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       if (!meta) {
         throw new Error(`未找到 Pipeline 会话: ${sessionId}`)
       }
-      return updatePipelineSessionMeta(sessionId, { archived: !meta.archived })
+      const nextArchived = !meta.archived
+      return updatePipelineSessionMeta(sessionId, {
+        archived: nextArchived,
+        ...(nextArchived && meta.pinned ? { pinned: false } : {}),
+      })
     },
 
     async start(
