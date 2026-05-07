@@ -60,6 +60,9 @@ export function PipelineView({
   const refreshVersion = refreshMap.get(sessionId) ?? 0
   const error = errorMap.get(sessionId)
   const running = state?.status === 'running' || state?.status === 'waiting_human'
+  const currentTask = React.useMemo(() => {
+    return [...records].reverse().find((record) => record.type === 'user_input')?.content
+  }, [records])
 
   React.useEffect(() => {
     window.electronAPI.getPipelineRecords(sessionId)
@@ -199,33 +202,53 @@ export function PipelineView({
   }, [pendingGate, sessionId])
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto bg-gradient-to-br from-orange-50 via-stone-50 to-amber-100 p-4">
-      <PipelineHeader session={session} state={state} />
-      <PipelineStageRail state={state} />
-      {error ? (
-        <div className="rounded-3xl bg-rose-50 px-5 py-4 text-sm text-rose-900 shadow-sm">
-          {error}
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      <div className="flex-1 overflow-auto bg-muted/25 p-4">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4">
+          <PipelineHeader session={session} state={state} />
+          <div className="overflow-x-auto">
+            <PipelineStageRail state={state} />
+          </div>
+
+          {error ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-900 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+              {error}
+            </div>
+          ) : null}
+
+          {preflightError ? (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              <div>{preflightError.message}</div>
+              <button
+                onClick={() => {
+                  setSettingsTab(preflightError.settingsTab)
+                  setSettingsOpen(true)
+                }}
+                className="rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-background/80"
+              >
+                前往设置
+              </button>
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="min-w-0">
+              <PipelineRecords records={records} />
+            </div>
+            <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+              {pendingGate ? (
+                <PipelineGateCard request={pendingGate as PipelineGateRequest} onRespond={handleRespond} />
+              ) : null}
+              <PipelineComposer
+                disabled={running}
+                currentTask={currentTask}
+                onSubmit={handleStart}
+                onStop={handleStop}
+              />
+            </aside>
+          </div>
         </div>
-      ) : null}
-      {preflightError ? (
-        <div className="flex items-center justify-between gap-3 rounded-3xl bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm">
-          <div>{preflightError.message}</div>
-          <button
-            onClick={() => {
-              setSettingsTab(preflightError.settingsTab)
-              setSettingsOpen(true)
-            }}
-            className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-amber-900 shadow-sm"
-          >
-            前往设置
-          </button>
-        </div>
-      ) : null}
-      {pendingGate ? (
-        <PipelineGateCard request={pendingGate as PipelineGateRequest} onRespond={handleRespond} />
-      ) : null}
-      <PipelineComposer disabled={running} onSubmit={handleStart} onStop={handleStop} />
-      <PipelineRecords records={records} />
+      </div>
     </div>
   )
 }

@@ -1,0 +1,153 @@
+import type {
+  PipelineNodeKind,
+  PipelineSessionMeta,
+  PipelineSessionStatus,
+  PipelineStateSnapshot,
+} from '@rv-insights/shared'
+
+export type PipelineDisplayTone =
+  | 'neutral'
+  | 'running'
+  | 'waiting'
+  | 'failed'
+  | 'success'
+
+export interface PipelineStatusDisplay {
+  label: string
+  tone: PipelineDisplayTone
+}
+
+export interface PipelineHeaderViewModel {
+  title: string
+  eyebrow: string
+  statusLabel: string
+  statusTone: PipelineDisplayTone
+  nodeLabel: string
+  summary: string
+  metaItems: string[]
+}
+
+export type PipelineStageVisualStatus =
+  | 'done'
+  | 'active'
+  | 'waiting'
+  | 'failed'
+  | 'todo'
+
+export interface PipelineStageViewModel {
+  node: PipelineNodeKind
+  label: string
+  index: number
+  status: PipelineStageVisualStatus
+}
+
+export const PIPELINE_NODE_ORDER: PipelineNodeKind[] = [
+  'explorer',
+  'planner',
+  'developer',
+  'reviewer',
+  'tester',
+]
+
+const NODE_LABELS: Record<PipelineNodeKind, string> = {
+  explorer: '探索',
+  planner: '计划',
+  developer: '开发',
+  reviewer: '审查',
+  tester: '测试',
+}
+
+const STATUS_DISPLAY: Record<PipelineSessionStatus, PipelineStatusDisplay> = {
+  idle: { label: '未启动', tone: 'neutral' },
+  running: { label: '运行中', tone: 'running' },
+  waiting_human: { label: '等待人工审核', tone: 'waiting' },
+  node_failed: { label: '节点失败', tone: 'failed' },
+  completed: { label: '已完成', tone: 'success' },
+  terminated: { label: '已停止', tone: 'neutral' },
+  recovery_failed: { label: '恢复失败', tone: 'failed' },
+}
+
+function nodeIndex(node: PipelineNodeKind | undefined): number {
+  return node ? PIPELINE_NODE_ORDER.indexOf(node) : -1
+}
+
+function buildSummary(status: PipelineSessionStatus, nodeLabel: string): string {
+  switch (status) {
+    case 'running':
+      return `${nodeLabel}执行中`
+    case 'waiting_human':
+      return `等待确认${nodeLabel}节点`
+    case 'node_failed':
+      return `${nodeLabel}节点失败`
+    case 'completed':
+      return 'Pipeline 已完成'
+    case 'terminated':
+      return 'Pipeline 已停止'
+    case 'recovery_failed':
+      return `${nodeLabel}恢复失败`
+    case 'idle':
+    default:
+      return '准备启动'
+  }
+}
+
+export function getPipelineNodeLabel(node: PipelineNodeKind): string {
+  return NODE_LABELS[node]
+}
+
+export function getPipelineStatusDisplay(status: PipelineSessionStatus): PipelineStatusDisplay {
+  return STATUS_DISPLAY[status]
+}
+
+export function buildPipelineHeaderViewModel({
+  session,
+  state,
+}: {
+  session: PipelineSessionMeta | null
+  state: PipelineStateSnapshot | null
+}): PipelineHeaderViewModel {
+  const status = state?.status ?? session?.status ?? 'idle'
+  const currentNode = state?.currentNode ?? session?.currentNode ?? 'explorer'
+  const nodeLabel = getPipelineNodeLabel(currentNode)
+  const display = getPipelineStatusDisplay(status)
+  const reviewIteration = state?.reviewIteration ?? session?.reviewIteration ?? 0
+  const metaItems = [`第 ${reviewIteration + 1} 轮`]
+
+  return {
+    title: session?.title ?? '新 Pipeline 会话',
+    eyebrow: 'RV Pipeline',
+    statusLabel: display.label,
+    statusTone: display.tone,
+    nodeLabel,
+    summary: buildSummary(status, nodeLabel),
+    metaItems,
+  }
+}
+
+export function buildPipelineStageViewModels(
+  state: PipelineStateSnapshot | null,
+): PipelineStageViewModel[] {
+  const lastApprovedIndex = nodeIndex(state?.lastApprovedNode)
+  const currentIndex = nodeIndex(state?.currentNode)
+
+  return PIPELINE_NODE_ORDER.map((node, index) => {
+    let status: PipelineStageVisualStatus = lastApprovedIndex >= index ? 'done' : 'todo'
+
+    if (state?.status === 'completed' && currentIndex >= index) {
+      status = 'done'
+    } else if (state?.status === 'node_failed' || state?.status === 'recovery_failed') {
+      status = currentIndex === index ? 'failed' : status
+    } else if (state?.status === 'waiting_human') {
+      status = currentIndex === index ? 'waiting' : status
+    } else if (state?.status === 'running') {
+      status = currentIndex === index ? 'active' : status
+    }
+
+    return {
+      node,
+      label: getPipelineNodeLabel(node),
+      index,
+      status,
+    }
+  })
+}

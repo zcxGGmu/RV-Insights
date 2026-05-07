@@ -1,13 +1,19 @@
 import * as React from 'react'
 import type { PipelineRecord } from '@rv-insights/shared'
-import { buildPipelineRecordViewModel } from './pipeline-record-view-model'
+import { MessageResponse } from '@/components/ai-elements/message'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  buildPipelineRecordGroups,
+  buildPipelineRecordViewModel,
+  type PipelineRecordGroup,
+} from './pipeline-record-view-model'
 
 const TONE_CLASS_MAP = {
-  neutral: 'border-zinc-200 bg-zinc-50 text-zinc-900',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-950',
-  warning: 'border-amber-200 bg-amber-50 text-amber-950',
-  danger: 'border-rose-200 bg-rose-50 text-rose-950',
-  accent: 'border-sky-200 bg-sky-50 text-sky-950',
+  neutral: 'border-border bg-card text-card-foreground',
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+  warning: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+  danger: 'border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200',
+  accent: 'border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
 } as const
 
 function RecordCard({
@@ -21,9 +27,9 @@ function RecordCard({
   const hasDetails = Boolean(viewModel.details)
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
+    <article className={`rounded-xl border px-4 py-3 shadow-sm ${toneClass}`}>
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] uppercase tracking-[0.18em] opacity-60">
+        <div className="text-xs font-medium opacity-70">
           {viewModel.badge}
         </div>
         <div className="text-[11px] opacity-50">
@@ -41,7 +47,7 @@ function RecordCard({
       </div>
 
       {viewModel.summary ? (
-        <div className="mt-1 whitespace-pre-wrap text-sm opacity-90">
+        <div className="mt-1 whitespace-pre-wrap text-sm leading-6 opacity-90">
           {viewModel.summary}
         </div>
       ) : null}
@@ -58,18 +64,38 @@ function RecordCard({
         <div className="mt-3">
           <button
             onClick={() => setExpanded((prev) => !prev)}
-            className="rounded-xl bg-white/70 px-3 py-1.5 text-xs font-medium shadow-sm"
+            className="rounded-lg bg-background/80 px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-background"
           >
             {expanded ? '收起全文' : '展开全文'}
           </button>
           {expanded ? (
-            <pre className="mt-3 whitespace-pre-wrap rounded-2xl bg-white/70 px-4 py-3 text-sm leading-6 text-zinc-900">
-              {viewModel.details}
-            </pre>
+            <MessageResponse className="mt-3 rounded-xl bg-background/80 px-4 py-3 text-sm leading-6">
+              {viewModel.details ?? ''}
+            </MessageResponse>
           ) : null}
         </div>
       ) : null}
-    </div>
+    </article>
+  )
+}
+
+function RecordGroupSection({
+  group,
+}: {
+  group: PipelineRecordGroup
+}): React.ReactElement {
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{group.title}</h3>
+        <span className="text-xs tabular-nums text-muted-foreground">{group.records.length}</span>
+      </div>
+      <div className="space-y-2">
+        {group.records.map((record) => (
+          <RecordCard key={record.id} record={record} />
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -78,19 +104,44 @@ export function PipelineRecords({
 }: {
   records: PipelineRecord[]
 }): React.ReactElement {
+  const groups = React.useMemo(() => buildPipelineRecordGroups(records), [records])
+
   return (
-    <div className="rounded-3xl border border-amber-100 bg-white px-5 py-4 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">Records</div>
-      <div className="mt-3 space-y-3">
-        {records.map((record) => (
-          <RecordCard key={record.id} record={record} />
-        ))}
-        {records.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
-            暂无记录
-          </div>
-        ) : null}
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Records</div>
+          <h2 className="mt-1 text-lg font-semibold text-foreground">阶段产物</h2>
+        </div>
+        <div className="text-xs tabular-nums text-muted-foreground">{records.length} 条记录</div>
       </div>
-    </div>
+
+      <Tabs defaultValue="artifacts">
+        <TabsList>
+          <TabsTrigger value="artifacts">阶段产物</TabsTrigger>
+          <TabsTrigger value="logs">运行日志</TabsTrigger>
+        </TabsList>
+        <TabsContent value="artifacts" className="mt-3 space-y-4">
+          {groups.artifacts.map((group) => (
+            <RecordGroupSection key={group.id} group={group} />
+          ))}
+          {groups.artifacts.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+              暂无阶段产物
+            </div>
+          ) : null}
+        </TabsContent>
+        <TabsContent value="logs" className="mt-3 space-y-2">
+          {groups.logs.map((record) => (
+            <RecordCard key={record.id} record={record} />
+          ))}
+          {groups.logs.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+              暂无运行日志
+            </div>
+          ) : null}
+        </TabsContent>
+      </Tabs>
+    </section>
   )
 }

@@ -1,20 +1,45 @@
 import * as React from 'react'
-import type { PipelineNodeKind, PipelineStateSnapshot } from '@rv-insights/shared'
+import type { PipelineStateSnapshot } from '@rv-insights/shared'
+import {
+  AlertCircle,
+  Check,
+  Circle,
+  Loader2,
+  PauseCircle,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buildPipelineStageViewModels, type PipelineStageVisualStatus } from './pipeline-display-model'
 
-const NODES: PipelineNodeKind[] = [
-  'explorer',
-  'planner',
-  'developer',
-  'reviewer',
-  'tester',
-]
+const STEP_TONE_CLASS: Record<PipelineStageVisualStatus, string> = {
+  done: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300',
+  active: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/15 dark:text-sky-300',
+  waiting: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300',
+  failed: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300',
+  todo: 'border-border bg-background text-muted-foreground',
+}
 
-function nodeStatus(node: PipelineNodeKind, state: PipelineStateSnapshot | null): 'done' | 'active' | 'todo' {
-  if (!state) return 'todo'
-  if (state.lastApprovedNode === node) return 'done'
-  if (state.currentNode === node) return 'active'
-  return 'todo'
+const CONNECTOR_CLASS: Record<PipelineStageVisualStatus, string> = {
+  done: 'bg-emerald-200 dark:bg-emerald-500/35',
+  active: 'bg-sky-200 dark:bg-sky-500/35',
+  waiting: 'bg-amber-200 dark:bg-amber-500/35',
+  failed: 'bg-rose-200 dark:bg-rose-500/35',
+  todo: 'bg-border',
+}
+
+function StageIcon({ status }: { status: PipelineStageVisualStatus }): React.ReactElement {
+  switch (status) {
+    case 'done':
+      return <Check size={14} />
+    case 'active':
+      return <Loader2 size={14} className="animate-spin" />
+    case 'waiting':
+      return <PauseCircle size={14} />
+    case 'failed':
+      return <AlertCircle size={14} />
+    case 'todo':
+    default:
+      return <Circle size={10} />
+  }
 }
 
 export function PipelineStageRail({
@@ -22,24 +47,41 @@ export function PipelineStageRail({
 }: {
   state: PipelineStateSnapshot | null
 }): React.ReactElement {
+  const stages = buildPipelineStageViewModels(state)
+
   return (
-    <div className="grid grid-cols-5 gap-2">
-      {NODES.map((node) => {
-        const status = nodeStatus(node, state)
-        return (
-          <div
-            key={node}
-            className={cn(
-              'rounded-2xl border px-3 py-3 text-center shadow-sm transition-colors',
-              status === 'done' && 'border-emerald-200 bg-emerald-100 text-emerald-950',
-              status === 'active' && 'border-amber-300 bg-amber-200 text-amber-950',
-              status === 'todo' && 'border-zinc-200 bg-white text-zinc-500',
-            )}
-          >
-            <div className="text-[11px] uppercase tracking-[0.18em]">{node}</div>
-          </div>
-        )
-      })}
+    <div className="rounded-2xl border bg-card px-4 py-4 shadow-sm">
+      <div className="flex min-w-[620px] items-center">
+        {stages.map((stage, index) => (
+          <React.Fragment key={stage.node}>
+            {index > 0 ? (
+              <div
+                className={cn(
+                  'mx-2 h-px flex-1 transition-colors',
+                  CONNECTOR_CLASS[stages[index - 1]?.status ?? 'todo'],
+                )}
+              />
+            ) : null}
+            <div className="flex min-w-[96px] flex-col items-center gap-2">
+              <div
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-full border transition-colors',
+                  STEP_TONE_CLASS[stage.status],
+                )}
+                aria-label={`${stage.label}：${stage.status}`}
+              >
+                <StageIcon status={stage.status} />
+              </div>
+              <div className="text-center">
+                <div className="text-[13px] font-medium text-foreground">{stage.label}</div>
+                <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  {stage.node}
+                </div>
+              </div>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   )
 }

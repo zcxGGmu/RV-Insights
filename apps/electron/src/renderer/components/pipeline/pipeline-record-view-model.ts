@@ -1,4 +1,10 @@
 import type { PipelineRecord } from '@rv-insights/shared'
+import type { PipelineNodeKind } from '@rv-insights/shared'
+import {
+  PIPELINE_NODE_ORDER,
+  getPipelineNodeLabel,
+  getPipelineStatusDisplay,
+} from './pipeline-display-model'
 
 export interface PipelineRecordViewModel {
   badge: string
@@ -9,9 +15,15 @@ export interface PipelineRecordViewModel {
   tone: 'neutral' | 'success' | 'warning' | 'danger' | 'accent'
 }
 
-function formatNodeLabel(node: string): string {
-  return node.toUpperCase()
+export interface PipelineRecordGroup {
+  id: PipelineNodeKind | 'task'
+  title: string
+  records: PipelineRecord[]
 }
+
+type PipelineArtifactRecord = Extract<PipelineRecord, {
+  type: 'user_input' | 'node_output' | 'review_result'
+}>
 
 function formatGateAction(action: string): string {
   switch (action) {
@@ -30,61 +42,126 @@ export function buildPipelineRecordViewModel(record: PipelineRecord): PipelineRe
   switch (record.type) {
     case 'user_input':
       return {
-        badge: 'USER_INPUT',
+        badge: '任务',
         title: '用户任务',
         summary: record.content,
         tone: 'accent',
       }
     case 'node_transition':
       return {
-        badge: 'NODE_TRANSITION',
-        title: `进入节点 ${formatNodeLabel(record.toNode)}`,
-        summary: record.fromNode ? `从 ${formatNodeLabel(record.fromNode)} 切换` : '开始执行该阶段',
+        badge: '流程',
+        title: `进入${getPipelineNodeLabel(record.toNode)}节点`,
+        summary: record.fromNode ? `从${getPipelineNodeLabel(record.fromNode)}切换` : '开始执行该阶段',
         tone: 'neutral',
       }
     case 'node_output':
       return {
-        badge: formatNodeLabel(record.node),
-        title: `${formatNodeLabel(record.node)} 输出`,
+        badge: getPipelineNodeLabel(record.node),
+        title: `${getPipelineNodeLabel(record.node)}输出`,
         summary: record.summary ?? record.content,
         details: record.summary && record.summary !== record.content ? record.content : undefined,
         tone: 'neutral',
       }
     case 'review_result':
       return {
-        badge: 'REVIEW',
-        title: record.approved ? 'Reviewer 通过' : 'Reviewer 需要修改',
+        badge: '审查结论',
+        title: record.approved ? '审查通过' : '审查需要修改',
         summary: record.summary,
         bullets: record.issues,
         tone: record.approved ? 'success' : 'warning',
       }
     case 'gate_requested':
       return {
-        badge: 'HUMAN_GATE',
-        title: `等待人工审核：${formatNodeLabel(record.node)}`,
+        badge: '人工审核',
+        title: `等待人工审核：${getPipelineNodeLabel(record.node)}`,
         summary: record.summary ?? '等待人工确认后继续',
         tone: 'warning',
       }
     case 'gate_decision':
       return {
-        badge: 'GATE_DECISION',
-        title: `${formatNodeLabel(record.node)} 审核结果：${formatGateAction(record.action)}`,
+        badge: '审核结果',
+        title: `${getPipelineNodeLabel(record.node)}审核结果：${formatGateAction(record.action)}`,
         summary: record.feedback,
         tone: record.action === 'approve' ? 'success' : 'warning',
       }
-    case 'status_change':
+    case 'status_change': {
+      const statusDisplay = getPipelineStatusDisplay(record.status)
       return {
-        badge: 'STATUS',
-        title: `状态切换为 ${record.status}`,
+        badge: '状态',
+        title: `状态切换为${statusDisplay.label}`,
         summary: record.reason,
         tone: record.status === 'completed' ? 'success' : record.status === 'terminated' || record.status === 'node_failed' ? 'warning' : 'neutral',
       }
+    }
     case 'error':
       return {
-        badge: 'ERROR',
-        title: record.node ? `${formatNodeLabel(record.node)} 执行失败` : 'Pipeline 执行失败',
+        badge: '错误',
+        title: record.node ? `${getPipelineNodeLabel(record.node)}执行失败` : 'Pipeline 执行失败',
         summary: record.error,
         tone: 'danger',
       }
+  }
+}
+
+function findGroup(groups: PipelineRecordGroup[], id: PipelineRecordGroup['id']): PipelineRecordGroup | undefined {
+  return groups.find((group) => group.id === id)
+}
+
+function ensureGroup(
+  groups: PipelineRecordGroup[],
+  id: PipelineRecordGroup['id'],
+  title: string,
+): PipelineRecordGroup {
+  const existing = findGroup(groups, id)
+  if (existing) return existing
+
+  const next: PipelineRecordGroup = {
+    id,
+    title,
+    records: [],
+  }
+  groups.push(next)
+  return next
+}
+
+function isArtifactRecord(record: PipelineRecord): record is PipelineArtifactRecord {
+  return record.type === 'user_input'
+    || record.type === 'node_output'
+    || record.type === 'review_result'
+}
+
+function sortGroups(groups: PipelineRecordGroup[]): PipelineRecordGroup[] {
+  const order = new Map<PipelineRecordGroup['id'], number>([
+    ['task', -1],
+    ...PIPELINE_NODE_ORDER.map((node, index) => [node, index] as const),
+  ])
+
+  return [...groups].sort((a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99))
+}
+
+export function buildPipelineRecordGroups(records: PipelineRecord[]): {
+  artifacts: PipelineRecordGroup[]
+  logs: PipelineRecord[]
+} {
+  const artifactGroups: PipelineRecordGroup[] = []
+  const logs: PipelineRecord[] = []
+
+  for (const record of records) {
+    if (!isArtifactRecord(record)) {
+      logs.push(record)
+      continue
+    }
+
+    if (record.type === 'user_input') {
+      ensureGroup(artifactGroups, 'task', '任务输入').records.push(record)
+      continue
+    }
+
+    ensureGroup(artifactGroups, record.node, getPipelineNodeLabel(record.node)).records.push(record)
+  }
+
+  return {
+    artifacts: sortGroups(artifactGroups),
+    logs,
   }
 }
