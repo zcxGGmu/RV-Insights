@@ -1,5 +1,6 @@
-import type { PipelineSessionMeta, PipelineSessionStatus } from '@rv-insights/shared'
+import type { PipelineNodeKind, PipelineSessionMeta, PipelineSessionStatus } from '@rv-insights/shared'
 import type { PipelineSidebarViewMode } from '@/atoms/pipeline-atoms'
+import { getPipelineNodeLabel } from './pipeline-display-model'
 
 type DateGroup = '今天' | '昨天' | '更早'
 
@@ -15,6 +16,15 @@ export interface BuildPipelineSidebarSectionsInput {
   draftSessionIds: Set<string>
   viewMode: PipelineSidebarViewMode
   now?: number
+}
+
+export type PipelineSidebarSessionTone = 'neutral' | 'running' | 'waiting' | 'failed' | 'success'
+
+export interface PipelineSidebarSessionSummary {
+  statusLabel: string
+  detailLabel: string
+  signalLabel?: string
+  tone: PipelineSidebarSessionTone
 }
 
 function sortByUpdatedAtDesc(sessions: PipelineSessionMeta[]): PipelineSessionMeta[] {
@@ -75,6 +85,53 @@ export function getPipelineStatusLabel(status: PipelineSessionStatus): string {
     case 'idle':
     default:
       return '空闲'
+  }
+}
+
+function getPipelineSidebarTone(status: PipelineSessionStatus): PipelineSidebarSessionTone {
+  switch (status) {
+    case 'running':
+      return 'running'
+    case 'waiting_human':
+      return 'waiting'
+    case 'node_failed':
+    case 'recovery_failed':
+      return 'failed'
+    case 'completed':
+      return 'success'
+    case 'terminated':
+    case 'idle':
+    default:
+      return 'neutral'
+  }
+}
+
+function getPipelineSignalLabel(status: PipelineSessionStatus): string | undefined {
+  switch (status) {
+    case 'waiting_human':
+      return '待处理'
+    case 'node_failed':
+    case 'recovery_failed':
+      return '需处理'
+    case 'running':
+      return '运行中'
+    default:
+      return undefined
+  }
+}
+
+function buildNodeRoundDetail(node: PipelineNodeKind, reviewIteration: number): string {
+  return `${getPipelineNodeLabel(node)} · 第 ${reviewIteration + 1} 轮`
+}
+
+export function buildPipelineSidebarSessionSummary(
+  session: PipelineSessionMeta,
+): PipelineSidebarSessionSummary {
+  return {
+    statusLabel: getPipelineStatusLabel(session.status),
+    detailLabel: buildNodeRoundDetail(session.currentNode, session.reviewIteration),
+    signalLabel: getPipelineSignalLabel(session.status),
+    tone: getPipelineSidebarTone(session.status),
   }
 }
 

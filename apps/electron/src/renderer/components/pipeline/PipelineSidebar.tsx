@@ -3,7 +3,10 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import {
   Archive,
   ArchiveRestore,
+  AlertCircle,
   ArrowLeft,
+  Clock3,
+  Loader2,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -47,7 +50,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { toast } from 'sonner'
 import type { PipelineSessionMeta, WorkspaceCapabilities } from '@rv-insights/shared'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
-import { buildPipelineSidebarSections, getPipelineStatusLabel } from './pipeline-session-sidebar-model'
+import {
+  buildPipelineSidebarSections,
+  buildPipelineSidebarSessionSummary,
+  type PipelineSidebarSessionTone,
+} from './pipeline-session-sidebar-model'
 
 type SessionLeftAccent = 'blue' | 'orange' | 'green'
 
@@ -55,6 +62,14 @@ const SESSION_LEFT_ACCENT_CLASS: Record<SessionLeftAccent, string> = {
   blue: 'bg-sky-500/70',
   orange: 'bg-amber-500/75',
   green: 'bg-emerald-500/75',
+}
+
+const SUMMARY_SIGNAL_CLASS: Record<PipelineSidebarSessionTone, string> = {
+  neutral: 'bg-muted text-muted-foreground',
+  running: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  waiting: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  failed: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+  success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
 }
 
 function indicatorToAccent(indicator: SessionIndicatorStatus): SessionLeftAccent | undefined {
@@ -102,6 +117,14 @@ function PipelineSessionItem({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const justStartedEditing = React.useRef(false)
   const leftAccent = indicatorToAccent(indicatorStatus)
+  const summary = React.useMemo(() => buildPipelineSidebarSessionSummary(session), [session])
+  const SignalIcon = summary.tone === 'running'
+    ? Loader2
+    : summary.tone === 'waiting'
+      ? Clock3
+      : summary.tone === 'failed'
+        ? AlertCircle
+        : null
 
   const startEdit = (): void => {
     setEditTitle(session.title)
@@ -184,8 +207,23 @@ function PipelineSessionItem({
               {showPinIcon ? <Pin size={11} className="flex-shrink-0 text-primary/60" /> : null}
               <span className="truncate">{session.title}</span>
             </div>
-            <div className="mt-0.5 text-[11px] leading-4 text-foreground/40">
-              {getPipelineStatusLabel(session.status)}
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-foreground/45">
+              <span className="truncate">{summary.detailLabel}</span>
+              {summary.signalLabel ? (
+                <span
+                  className={cn(
+                    'inline-flex flex-shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                    SUMMARY_SIGNAL_CLASS[summary.tone],
+                  )}
+                >
+                  {SignalIcon ? (
+                    <SignalIcon size={10} className={summary.tone === 'running' ? 'animate-spin' : ''} />
+                  ) : null}
+                  {summary.signalLabel}
+                </span>
+              ) : (
+                <span className="truncate">{summary.statusLabel}</span>
+              )}
             </div>
           </>
         )}

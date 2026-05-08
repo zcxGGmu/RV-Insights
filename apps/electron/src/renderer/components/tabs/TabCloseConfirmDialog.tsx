@@ -1,9 +1,9 @@
 /**
- * TabCloseConfirmDialog — Agent Tab 关闭时的确认对话框
+ * TabCloseConfirmDialog — 运行中 Tab 关闭时的确认对话框
  *
  * 单例：在 TabBar 内渲染一次即可。
  * 状态通过 pendingCloseTabIdAtom 驱动，任何调用 useCloseTab().requestClose()
- * 的地方在 Agent 流式中都会触发此对话框。
+ * 的地方在 Agent / Pipeline 流式中都会触发此对话框。
  */
 
 import * as React from 'react'
@@ -20,15 +20,17 @@ import {
 } from '@/components/ui/alert-dialog'
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { pendingCloseTabIdAtom, useCloseTab } from '@/hooks/useCloseTab'
+import { buildTabCloseConfirmCopy } from './tab-close-confirm-model'
 
 export function TabCloseConfirmDialog(): React.ReactElement {
   const [pendingId, setPendingId] = useAtom(pendingCloseTabIdAtom)
   const tabs = useAtomValue(tabsAtom)
   const { executeClose } = useCloseTab()
 
-  const tabTitle = pendingId
-    ? tabs.find((t) => t.id === pendingId)?.title ?? ''
-    : ''
+  const pendingTab = pendingId
+    ? tabs.find((t) => t.id === pendingId)
+    : undefined
+  const copy = buildTabCloseConfirmCopy(pendingTab)
 
   const handleConfirm = (): void => {
     if (pendingId) executeClose(pendingId)
@@ -44,12 +46,10 @@ export function TabCloseConfirmDialog(): React.ReactElement {
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Agent 还在执行任务</AlertDialogTitle>
+          <AlertDialogTitle>{copy.title}</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                {tabTitle ? `「${tabTitle}」` : '该 Agent'} 还在运行，关闭标签页将立即中止当前任务，未保存的进度可能会丢失。
-              </p>
+              <p>{copy.description}</p>
               <p>确认关闭吗？</p>
             </div>
           </AlertDialogDescription>
@@ -60,7 +60,7 @@ export function TabCloseConfirmDialog(): React.ReactElement {
             onClick={handleConfirm}
             className="bg-destructive text-white hover:bg-destructive/90"
           >
-            关闭并中止
+            {copy.confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

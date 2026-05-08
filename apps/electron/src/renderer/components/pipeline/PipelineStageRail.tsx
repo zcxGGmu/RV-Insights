@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { PipelineStateSnapshot } from '@rv-insights/shared'
+import type { PipelineNodeKind, PipelineStateSnapshot } from '@rv-insights/shared'
 import {
   AlertCircle,
   Check,
@@ -43,8 +43,10 @@ function StageIcon({ status }: { status: PipelineStageVisualStatus }): React.Rea
 }
 
 export function PipelineStageRail({
+  onSelectStage,
   state,
 }: {
+  onSelectStage?: (node: PipelineNodeKind) => void
   state: PipelineStateSnapshot | null
 }): React.ReactElement {
   const stages = buildPipelineStageViewModels(state)
@@ -62,8 +64,12 @@ export function PipelineStageRail({
                 )}
               />
             ) : null}
-            <div className="flex min-w-[96px] flex-col items-center gap-2">
-              <div
+            <button
+              type="button"
+              onClick={() => onSelectStage?.(stage.node)}
+              className="flex min-w-[96px] flex-col items-center gap-2 rounded-xl px-1 py-1 text-center outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span
                 className={cn(
                   'flex size-9 items-center justify-center rounded-full border transition-colors',
                   STEP_TONE_CLASS[stage.status],
@@ -71,14 +77,14 @@ export function PipelineStageRail({
                 aria-label={`${stage.label}：${stage.status}`}
               >
                 <StageIcon status={stage.status} />
-              </div>
-              <div className="text-center">
-                <div className="text-[13px] font-medium text-foreground">{stage.label}</div>
-                <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              </span>
+              <span className="text-center">
+                <span className="block text-[13px] font-medium text-foreground">{stage.label}</span>
+                <span className="mt-0.5 block text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                   {stage.node}
-                </div>
-              </div>
-            </div>
+                </span>
+              </span>
+            </button>
           </React.Fragment>
         ))}
       </div>

@@ -28,6 +28,23 @@ export interface PipelineRecordSearchMatch {
   snippet: string
 }
 
+export interface PipelineRecordNavigationTarget {
+  recordId: string
+  tab: PipelineRecordTab
+  stage: PipelineRecordStageFilter
+}
+
+export interface PipelineExternalFocusFilterInput {
+  query: string
+  stage: PipelineRecordStageFilter
+  targetStage: PipelineRecordStageFilter
+}
+
+export interface PipelineExternalFocusFilter {
+  query: string
+  stage: PipelineRecordStageFilter
+}
+
 export interface PipelineMarkdownReportInput {
   title: string
   records: PipelineRecord[]
@@ -40,7 +57,7 @@ function hasRecordNode(record: PipelineRecord): record is PipelineRecord & { nod
   return 'node' in record
 }
 
-function getRecordStage(record: PipelineRecord): PipelineRecordStageFilter | 'system' {
+export function getPipelineRecordStage(record: PipelineRecord): PipelineRecordStageFilter | 'system' {
   if (record.type === 'user_input') return 'task'
   if (record.type === 'node_transition') return record.toNode
   if (hasRecordNode(record)) return record.node
@@ -96,7 +113,7 @@ export function recordMatchesQuery(record: PipelineRecord, query: string): boole
 
 export function recordMatchesStage(record: PipelineRecord, stage: PipelineRecordStageFilter): boolean {
   if (stage === 'all') return true
-  return getRecordStage(record) === stage
+  return getPipelineRecordStage(record) === stage
 }
 
 export function filterPipelineRecords(
@@ -172,7 +189,7 @@ export function buildPipelineRecordSearchMatches(
     .filter((record) => recordMatchesQuery(record, normalized))
     .map((record) => {
       const viewModel = buildPipelineRecordViewModel(record)
-      const stage = getRecordStage(record)
+      const stage = getPipelineRecordStage(record)
       return {
         recordId: record.id,
         tab: artifactIds.has(record.id) ? 'artifacts' : 'logs',
@@ -181,6 +198,57 @@ export function buildPipelineRecordSearchMatches(
         snippet: buildSnippet(record, normalized),
       }
     })
+}
+
+export function buildPipelineRecordFocusTarget(
+  records: PipelineRecord[],
+  recordId: string,
+): PipelineRecordNavigationTarget | null {
+  const groups = buildPipelineRecordGroups(records)
+  const artifactIds = new Set(flattenPipelineRecordGroups(groups.artifacts).map((record) => record.id))
+  const record = records.find((item) => item.id === recordId)
+  if (!record) return null
+
+  const stage = getPipelineRecordStage(record)
+  return {
+    recordId,
+    tab: artifactIds.has(recordId) ? 'artifacts' : 'logs',
+    stage: stage === 'system' ? 'all' : stage,
+  }
+}
+
+export function buildPipelineStageNavigationTarget(
+  records: PipelineRecord[],
+  stage: PipelineNodeKind,
+): PipelineRecordNavigationTarget | null {
+  const groups = buildPipelineRecordGroups(records)
+  const artifactRecord = flattenPipelineRecordGroups(groups.artifacts)
+    .find((record) => getPipelineRecordStage(record) === stage)
+  if (artifactRecord) {
+    return {
+      recordId: artifactRecord.id,
+      tab: 'artifacts',
+      stage,
+    }
+  }
+
+  const logRecord = groups.logs.find((record) => getPipelineRecordStage(record) === stage)
+  if (!logRecord) return null
+
+  return {
+    recordId: logRecord.id,
+    tab: 'logs',
+    stage,
+  }
+}
+
+export function buildPipelineExternalFocusFilter(
+  input: PipelineExternalFocusFilterInput,
+): PipelineExternalFocusFilter {
+  return {
+    query: '',
+    stage: input.targetStage,
+  }
 }
 
 function formatReportTime(timestamp: number): string {

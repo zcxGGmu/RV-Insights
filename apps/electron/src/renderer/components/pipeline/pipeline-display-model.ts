@@ -46,6 +46,8 @@ export interface PipelineGateViewModel {
   title: string
   nodeLabel: string
   iterationLabel: string
+  priorityLabel: string
+  primaryActionHint: string
   summary?: string
   feedbackPlaceholder: string
   approveLabel: string
@@ -61,6 +63,9 @@ export interface PipelineFailureViewModel {
   message: string
   partialOutputLabel: string
   partialOutput?: string
+  locateErrorLabel: string
+  copyErrorLabel: string
+  artifactsLabel: string
   restartLabel: string
   settingsLabel: string
 }
@@ -194,14 +199,17 @@ function approveLabelForNode(node: PipelineNodeKind): string {
 
 export function buildPipelineGateViewModel(request: PipelineGateRequest): PipelineGateViewModel {
   const nodeLabel = getPipelineNodeLabel(request.node)
+  const approveLabel = approveLabelForNode(request.node)
 
   return {
     title: `${nodeLabel}节点待确认`,
     nodeLabel,
     iterationLabel: `第 ${request.iteration + 1} 轮`,
+    priorityLabel: '待你处理',
+    primaryActionHint: approveLabel,
     summary: request.summary,
     feedbackPlaceholder: request.feedbackHint ?? '填写反馈后可以要求修改或重跑当前节点',
-    approveLabel: approveLabelForNode(request.node),
+    approveLabel,
     rejectLabel: '要求修改',
     rerunLabel: `重跑${nodeLabel}`,
     rejectRequiresFeedback: true,
@@ -233,6 +241,9 @@ export function buildPipelineFailureViewModel({
     message: error?.trim() || '没有收到详细错误信息，请查看运行日志。',
     partialOutputLabel: '失败前输出',
     partialOutput: partialOutput?.trim() || undefined,
+    locateErrorLabel: '定位错误记录',
+    copyErrorLabel: '复制错误',
+    artifactsLabel: '打开产物目录',
     restartLabel: '重新启动 Pipeline',
     settingsLabel: '打开 Agent 设置',
   }

@@ -54,26 +54,34 @@ export function PipelineGateCard({
   }
 
   return (
-    <div className="rounded-2xl border bg-card px-4 py-4 text-card-foreground shadow-sm">
+    <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="text-xs font-medium text-amber-700 dark:text-amber-200">
             审核面板
           </div>
-          <div className="mt-1 text-sm font-semibold text-foreground">
+          <div className="mt-1 text-base font-semibold">
             {viewModel.title}
           </div>
+          <div className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+            {viewModel.primaryActionHint}
+          </div>
         </div>
-        <div className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-          {viewModel.iterationLabel}
+        <div className="flex flex-shrink-0 flex-col items-end gap-1">
+          <div className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-200">
+            {viewModel.priorityLabel}
+          </div>
+          <div className="text-xs text-amber-700/80 dark:text-amber-200/80">
+            {viewModel.iterationLabel}
+          </div>
         </div>
       </div>
       {viewModel.summary ? (
-        <p className="mt-3 rounded-xl bg-muted/50 px-3 py-2 text-sm leading-6 text-foreground">
+        <p className="mt-3 rounded-xl bg-background/80 px-3 py-2 text-sm leading-6 text-foreground">
           {viewModel.summary}
         </p>
       ) : null}
-      <label htmlFor={`pipeline-gate-feedback-${request.gateId}`} className="mt-4 block text-xs font-medium text-muted-foreground">
+      <label htmlFor={`pipeline-gate-feedback-${request.gateId}`} className="mt-4 block text-xs font-medium text-amber-700 dark:text-amber-200">
         反馈
       </label>
       <textarea
@@ -85,7 +93,7 @@ export function PipelineGateCard({
           if (submitError) setSubmitError(null)
         }}
         placeholder={viewModel.feedbackPlaceholder}
-        className="mt-2 min-h-24 w-full rounded-xl border bg-background px-3 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
+        className="mt-2 min-h-24 w-full rounded-xl border border-amber-200 bg-background px-3 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary dark:border-amber-500/30"
       />
       {feedbackError ? (
         <div className="mt-2 text-xs text-rose-600 dark:text-rose-300">

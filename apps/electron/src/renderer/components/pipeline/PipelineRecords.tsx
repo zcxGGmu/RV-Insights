@@ -21,11 +21,15 @@ import {
   PIPELINE_NODE_ORDER,
 } from './pipeline-display-model'
 import {
+  buildPipelineExternalFocusFilter,
   buildPipelineMarkdownReport,
+  buildPipelineRecordFocusTarget,
   buildPipelineRecordSearchMatches,
+  buildPipelineStageNavigationTarget,
   filterPipelineRecordGroups,
   filterPipelineRecords,
   slicePipelineRecordGroups,
+  type PipelineRecordNavigationTarget,
   type PipelineRecordStageFilter,
   type PipelineRecordTab,
 } from './pipeline-record-experience-model'
@@ -44,6 +48,10 @@ const INITIAL_ARTIFACT_LIMIT = 60
 const ARTIFACT_LOAD_STEP = 40
 const INITIAL_LOG_LIMIT = 100
 const LOG_LOAD_STEP = 100
+
+export type PipelineRecordsFocusRequest =
+  | { nonce: number; type: 'stage'; node: PipelineNodeKind }
+  | { nonce: number; type: 'record'; recordId: string }
 
 const TONE_CLASS_MAP = {
   neutral: 'border-border bg-card text-card-foreground',
@@ -423,6 +431,7 @@ function EmptyRecordState({
 }
 
 export function PipelineRecords({
+  focusRequest,
   records,
   liveNode,
   liveOutput,
@@ -430,6 +439,7 @@ export function PipelineRecords({
   sessionTitle,
   showLiveOutput,
 }: {
+  focusRequest?: PipelineRecordsFocusRequest | null
   records: PipelineRecord[]
   liveNode?: PipelineNodeKind
   liveOutput?: string
@@ -445,7 +455,9 @@ export function PipelineRecords({
   const [expandedRecordIds, setExpandedRecordIds] = React.useState<Set<string>>(new Set())
   const [activeMatchIndex, setActiveMatchIndex] = React.useState(0)
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'failed'>('idle')
+  const [focusedRecordId, setFocusedRecordId] = React.useState<string | null>(null)
   const recordElements = React.useRef(new Map<string, HTMLElement>())
+  const handledFocusNonceRef = React.useRef(0)
   const normalizedQuery = query.trim()
 
   const groups = React.useMemo(() => buildPipelineRecordGroups(records), [records])
@@ -469,6 +481,7 @@ export function PipelineRecords({
   const reviewComparison = React.useMemo(() =>
     buildPipelineReviewComparison(records), [records])
   const activeMatch = searchMatches[activeMatchIndex]
+  const highlightedRecordId = activeMatch?.recordId ?? focusedRecordId
 
   React.useEffect(() => {
     setActiveTab('artifacts')
@@ -478,6 +491,8 @@ export function PipelineRecords({
     setLogLimit(INITIAL_LOG_LIMIT)
     setExpandedRecordIds(new Set())
     setActiveMatchIndex(0)
+    setFocusedRecordId(null)
+    handledFocusNonceRef.current = 0
     recordElements.current.clear()
   }, [sessionId])
 
@@ -522,34 +537,84 @@ export function PipelineRecords({
 
   const scrollToRecord = React.useCallback((recordId: string): void => {
     window.requestAnimationFrame(() => {
-      recordElements.current.get(recordId)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
+      window.requestAnimationFrame(() => {
+        recordElements.current.get(recordId)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        })
       })
     })
   }, [])
+
+  const focusNavigationTarget = React.useCallback((
+    target: PipelineRecordNavigationTarget,
+    options: { clearQuery?: boolean } = {},
+  ): void => {
+    setActiveTab(target.tab)
+    if (options.clearQuery) {
+      const nextFilter = buildPipelineExternalFocusFilter({
+        query,
+        stage: stageFilter,
+        targetStage: target.stage,
+      })
+      setQuery(nextFilter.query)
+      setStageFilter(nextFilter.stage)
+      setActiveMatchIndex(0)
+    } else {
+      setStageFilter(target.stage)
+    }
+    setFocusedRecordId(target.recordId)
+    if (target.tab === 'artifacts') {
+      setArtifactLimit(Math.max(records.length, INITIAL_ARTIFACT_LIMIT))
+    } else {
+      setLogLimit(Math.max(records.length, INITIAL_LOG_LIMIT))
+    }
+    scrollToRecord(target.recordId)
+  }, [query, records.length, scrollToRecord, stageFilter])
+
+  React.useEffect(() => {
+    if (!focusRequest) return
+    if (handledFocusNonceRef.current === focusRequest.nonce) return
+
+    const target = focusRequest.type === 'stage'
+      ? buildPipelineStageNavigationTarget(records, focusRequest.node)
+      : buildPipelineRecordFocusTarget(records, focusRequest.recordId)
+
+    if (target) {
+      handledFocusNonceRef.current = focusRequest.nonce
+      focusNavigationTarget(target, { clearQuery: true })
+      return
+    }
+
+    if (focusRequest.type === 'stage') {
+      const nextFilter = buildPipelineExternalFocusFilter({
+        query,
+        stage: stageFilter,
+        targetStage: focusRequest.node,
+      })
+      setActiveTab('artifacts')
+      setQuery(nextFilter.query)
+      setStageFilter(nextFilter.stage)
+      setActiveMatchIndex(0)
+      setFocusedRecordId(null)
+    }
+  }, [focusNavigationTarget, focusRequest, query, records, stageFilter])
 
   const jumpToMatch = React.useCallback((nextIndex: number): void => {
     const match = searchMatches[nextIndex]
     if (!match) return
 
     setActiveMatchIndex(nextIndex)
-    setActiveTab(match.tab)
-    setStageFilter(match.stage)
-    if (match.tab === 'artifacts') {
-      setArtifactLimit(Math.max(records.length, INITIAL_ARTIFACT_LIMIT))
-    } else {
-      setLogLimit(Math.max(records.length, INITIAL_LOG_LIMIT))
-    }
-    scrollToRecord(match.recordId)
-  }, [records.length, scrollToRecord, searchMatches])
+    focusNavigationTarget(match)
+  }, [focusNavigationTarget, searchMatches])
 
   const focusReviewRecord = React.useCallback((recordId: string): void => {
-    setActiveTab('artifacts')
-    setStageFilter('reviewer')
-    setArtifactLimit(Math.max(records.length, INITIAL_ARTIFACT_LIMIT))
-    scrollToRecord(recordId)
-  }, [records.length, scrollToRecord])
+    focusNavigationTarget({
+      recordId,
+      tab: 'artifacts',
+      stage: 'reviewer',
+    })
+  }, [focusNavigationTarget])
 
   const handleCopyReport = React.useCallback(async (): Promise<void> => {
     try {
@@ -719,7 +784,7 @@ export function PipelineRecords({
                   key={group.id}
                   group={group}
                   expandedRecordIds={expandedRecordIds}
-                  highlightedRecordId={activeMatch?.tab === 'artifacts' ? activeMatch.recordId : undefined}
+                  highlightedRecordId={activeTab === 'artifacts' ? highlightedRecordId ?? undefined : undefined}
                   onRegisterElement={registerRecordElement}
                   onToggleExpanded={toggleExpanded}
                 />
@@ -759,7 +824,7 @@ export function PipelineRecords({
                   key={record.id}
                   record={record}
                   expanded={expandedRecordIds.has(record.id)}
-                  highlighted={activeMatch?.tab === 'logs' && activeMatch.recordId === record.id}
+                  highlighted={activeTab === 'logs' && highlightedRecordId === record.id}
                   onRegisterElement={registerRecordElement}
                   onToggleExpanded={toggleExpanded}
                 />

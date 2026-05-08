@@ -110,6 +110,8 @@ describe('pipeline display model', () => {
     })).toMatchObject({
       title: '计划节点待确认',
       iterationLabel: '第 1 轮',
+      priorityLabel: '待你处理',
+      primaryActionHint: '确认计划，进入开发',
       approveLabel: '确认计划，进入开发',
       rejectLabel: '要求修改',
       rerunLabel: '重跑计划',
@@ -149,6 +151,9 @@ describe('pipeline display model', () => {
       message: '构建失败',
       partialOutputLabel: '失败前输出',
       partialOutput: '最后一段输出',
+      locateErrorLabel: '定位错误记录',
+      copyErrorLabel: '复制错误',
+      artifactsLabel: '打开产物目录',
       restartLabel: '重新启动 Pipeline',
       settingsLabel: '打开 Agent 设置',
     })

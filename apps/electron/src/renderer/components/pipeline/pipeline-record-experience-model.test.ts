@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import type { PipelineRecord } from '@rv-insights/shared'
 import {
+  buildPipelineExternalFocusFilter,
   buildPipelineMarkdownReport,
+  buildPipelineRecordFocusTarget,
   buildPipelineRecordSearchMatches,
+  buildPipelineStageNavigationTarget,
   filterPipelineRecordGroups,
   filterPipelineRecords,
   flattenPipelineRecordGroups,
@@ -123,6 +126,51 @@ describe('pipeline-record-experience-model', () => {
         stage: 'reviewer',
       },
     ])
+  })
+
+  test('StageRail 节点点击会映射到 Records 阶段筛选和可定位记录', () => {
+    expect(buildPipelineStageNavigationTarget(records, 'planner')).toEqual({
+      recordId: 'planner-artifact',
+      stage: 'planner',
+      tab: 'artifacts',
+    })
+
+    expect(buildPipelineStageNavigationTarget(records, 'reviewer')).toEqual({
+      recordId: 'review-log',
+      stage: 'reviewer',
+      tab: 'logs',
+    })
+  })
+
+  test('失败卡定位错误记录时会切到运行日志并保留阶段上下文', () => {
+    const target = buildPipelineRecordFocusTarget([
+      ...records,
+      {
+        id: 'developer-error',
+        sessionId: 'session-1',
+        type: 'error',
+        node: 'developer',
+        error: '构建失败',
+        createdAt: 6,
+      },
+    ], 'developer-error')
+
+    expect(target).toEqual({
+      recordId: 'developer-error',
+      stage: 'developer',
+      tab: 'logs',
+    })
+  })
+
+  test('外部定位会清空搜索条件，避免目标记录被当前搜索词过滤掉', () => {
+    expect(buildPipelineExternalFocusFilter({
+      query: '不匹配目标记录的关键词',
+      stage: 'all',
+      targetStage: 'developer',
+    })).toEqual({
+      query: '',
+      stage: 'developer',
+    })
   })
 
   test('运行日志过滤保留无节点状态记录的全局可见性', () => {

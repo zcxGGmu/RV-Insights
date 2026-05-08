@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { agentChannelIdAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
-import type { PipelineGateRequest, PipelineRecord, PipelineSessionMeta, PipelineStateSnapshot } from '@rv-insights/shared'
+import type { PipelineGateRequest, PipelineNodeKind, PipelineRecord, PipelineSessionMeta, PipelineStateSnapshot } from '@rv-insights/shared'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
   pipelinePendingGatesAtom,
@@ -21,6 +21,7 @@ import { PipelineFailureCard } from './PipelineFailureCard'
 import { PipelineGateCard } from './PipelineGateCard'
 import { PipelineHeader } from './PipelineHeader'
 import { PipelineRecords } from './PipelineRecords'
+import type { PipelineRecordsFocusRequest } from './PipelineRecords'
 import { PipelineStageRail } from './PipelineStageRail'
 import { buildPipelineFailureViewModel } from './pipeline-display-model'
 import {
@@ -52,8 +53,10 @@ export function PipelineView({
   const setSettingsTab = useSetAtom(settingsTabAtom)
   const [records, setRecords] = React.useState<PipelineRecord[]>([])
   const [preflightError, setPreflightError] = React.useState<PipelinePreflightError | null>(null)
+  const [recordsFocusRequest, setRecordsFocusRequest] = React.useState<PipelineRecordsFocusRequest | null>(null)
   const recordsCursorRef = React.useRef(0)
   const recordsLoadSeqRef = React.useRef(0)
+  const recordsFocusSeqRef = React.useRef(0)
 
   const session = React.useMemo<PipelineSessionMeta | null>(
     () => sessions.find((item) => item.id === sessionId) ?? null,
@@ -75,12 +78,12 @@ export function PipelineView({
   const currentTask = React.useMemo(() => {
     return [...records].reverse().find((record) => record.type === 'user_input')?.content
   }, [records])
-  const latestRecordError = React.useMemo(() => {
-    const latestErrorRecord = [...records]
+  const latestErrorRecord = React.useMemo(() => {
+    return [...records]
       .reverse()
       .find((record): record is Extract<PipelineRecord, { type: 'error' }> => record.type === 'error')
-    return latestErrorRecord?.error
   }, [records])
+  const latestRecordError = latestErrorRecord?.error
   const liveOutput = state
     ? getPipelineLiveOutput(liveOutputMap, sessionId, state.currentNode)
     : ''
@@ -298,6 +301,32 @@ export function PipelineView({
     void handleStart(currentTask)
   }, [currentTask, handleStart, running])
 
+  const requestStageFocus = React.useCallback((node: PipelineNodeKind): void => {
+    recordsFocusSeqRef.current += 1
+    setRecordsFocusRequest({
+      nonce: recordsFocusSeqRef.current,
+      type: 'stage',
+      node,
+    })
+  }, [])
+
+  const requestErrorFocus = React.useCallback((): void => {
+    if (!latestErrorRecord) return
+    recordsFocusSeqRef.current += 1
+    setRecordsFocusRequest({
+      nonce: recordsFocusSeqRef.current,
+      type: 'record',
+      recordId: latestErrorRecord.id,
+    })
+  }, [latestErrorRecord])
+
+  const handleOpenArtifactsDir = React.useCallback(async (): Promise<void> => {
+    const opened = await window.electronAPI.openPipelineArtifactsDir(sessionId)
+    if (!opened) {
+      throw new Error('系统未能打开 Pipeline 产物目录')
+    }
+  }, [sessionId])
+
   const handleOpenAgentSettings = React.useCallback((): void => {
     setSettingsTab('agent')
     setSettingsOpen(true)
@@ -309,13 +338,16 @@ export function PipelineView({
         <div className="mx-auto flex max-w-7xl flex-col gap-4">
           <PipelineHeader session={session} state={state} />
           <div className="overflow-x-auto">
-            <PipelineStageRail state={state} />
+            <PipelineStageRail state={state} onSelectStage={requestStageFocus} />
           </div>
 
           {failureViewModel ? (
             <PipelineFailureCard
               viewModel={failureViewModel}
+              canLocateError={Boolean(latestErrorRecord)}
               canRestart={Boolean(currentTask) && !running}
+              onLocateError={requestErrorFocus}
+              onOpenArtifactsDir={handleOpenArtifactsDir}
               onRestart={handleRestart}
               onOpenSettings={handleOpenAgentSettings}
             />
@@ -343,6 +375,7 @@ export function PipelineView({
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0">
               <PipelineRecords
+                focusRequest={recordsFocusRequest}
                 records={records}
                 liveNode={state?.currentNode}
                 liveOutput={liveOutput}
@@ -351,7 +384,7 @@ export function PipelineView({
                 showLiveOutput={showLiveOutput}
               />
             </div>
-            <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+            <aside className="order-first space-y-4 xl:order-none xl:sticky xl:top-4 xl:self-start">
               {pendingGate ? (
                 <PipelineGateCard request={pendingGate as PipelineGateRequest} onRespond={handleRespond} />
               ) : null}

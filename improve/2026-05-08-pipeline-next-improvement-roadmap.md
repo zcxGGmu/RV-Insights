@@ -722,11 +722,13 @@ bun test packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main
 
 目标：用户清楚当前该做什么，失败后能定位和恢复。
 
-- [ ] Gate 面板在窄屏更显眼
-- [ ] StageRail 点击联动 Records 阶段筛选
-- [ ] FailureCard 增加定位错误、复制错误、打开产物目录
-- [ ] Sidebar 增强当前节点、轮次、等待/失败信号
-- [ ] Pipeline 关闭确认文案独立于 Agent
+更新：2026-05-08 已完成 Phase C，覆盖移动端审核面板优先展示、StageRail 到 Records 的阶段定位、失败卡定位/复制/产物入口、Sidebar 节点轮次信号和 Pipeline 独立关闭确认。
+
+- [x] Gate 面板在窄屏更显眼
+- [x] StageRail 点击联动 Records 阶段筛选
+- [x] FailureCard 增加定位错误、复制错误、打开产物目录
+- [x] Sidebar 增强当前节点、轮次、等待/失败信号
+- [x] Pipeline 关闭确认文案独立于 Agent
 
 验收：
 

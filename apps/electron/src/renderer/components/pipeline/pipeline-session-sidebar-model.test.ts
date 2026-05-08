@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { PipelineSessionMeta, PipelineSessionStatus } from '@rv-insights/shared'
 import {
+  buildPipelineSidebarSessionSummary,
   buildPipelineSidebarSections,
   getPipelineStatusLabel,
 } from './pipeline-session-sidebar-model'
@@ -98,5 +99,33 @@ describe('getPipelineStatusLabel', () => {
     ['recovery_failed', '恢复失败'],
   ] satisfies Array<[PipelineSessionStatus, string]>)('%s 显示为 %s', (status, label) => {
     expect(getPipelineStatusLabel(status)).toBe(label)
+  })
+})
+
+describe('buildPipelineSidebarSessionSummary', () => {
+  test('展示当前节点、轮次和等待信号', () => {
+    expect(buildPipelineSidebarSessionSummary(makeSession('waiting', {
+      currentNode: 'reviewer',
+      status: 'waiting_human',
+      reviewIteration: 1,
+    }))).toEqual({
+      statusLabel: '等待人工审核',
+      detailLabel: '审查 · 第 2 轮',
+      signalLabel: '待处理',
+      tone: 'waiting',
+    })
+  })
+
+  test('失败会话展示失败信号并保留节点定位', () => {
+    expect(buildPipelineSidebarSessionSummary(makeSession('failed', {
+      currentNode: 'tester',
+      status: 'recovery_failed',
+      reviewIteration: 2,
+    }))).toEqual({
+      statusLabel: '恢复失败',
+      detailLabel: '测试 · 第 3 轮',
+      signalLabel: '需处理',
+      tone: 'failed',
+    })
   })
 })
