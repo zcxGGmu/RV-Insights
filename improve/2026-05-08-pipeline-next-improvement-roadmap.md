@@ -760,13 +760,13 @@ bun test packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main
 
 目标：减少长期维护成本。
 
-更新：2026-05-08 已完成 Phase E 的核心收敛项，覆盖状态权威边界、records replay 与 session meta patch 对齐、Pipeline runner prompt 拆分，以及 structured output 严格校验。Pipeline / Agent 共享 lifecycle 与 sidebar 抽象仍保留为后续按重复问题逐步提取，暂不做无明确收益的大范围重构。
+更新：2026-05-08 已完成 Phase E 的核心收敛项，覆盖状态权威边界、records replay 与 session meta patch 对齐、Pipeline runner prompt 拆分，以及 structured output 严格校验。共享抽象已先落在低风险 sidebar 基础行为：抽取通用 updatedAt 排序与今天 / 昨天 / 更早日期分组，供 Pipeline、Agent、Chat 侧边栏复用；Agent Working 分区、Pipeline 阶段状态和 lifecycle 编排仍保持独立，等待出现明确重复问题后再继续提取。
 
 - [x] 明确 graph snapshot、shared reducer、session meta 的权威边界
 - [x] 让 records replay 和 session meta 对齐
 - [x] 拆分 Pipeline runner 的 system prompt / user prompt
 - [x] structured output 增加严格校验与错误类型
-- [ ] 逐步抽象 Pipeline / Agent 共享 lifecycle 和 sidebar 行为
+- [x] 逐步抽象 Pipeline / Agent 共享 lifecycle 和 sidebar 行为
 
 验收：
 

@@ -65,6 +65,7 @@ import { useOpenSession } from '@/hooks/useOpenSession'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
 import { WorkspaceSelector } from '@/components/agent/WorkspaceSelector'
 import { MoveSessionDialog } from '@/components/agent/MoveSessionDialog'
+import { buildDateSidebarSections } from './sidebar-section-model'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -119,36 +120,6 @@ type SidebarItemId = 'pinned' | 'all-chats'
 const ITEM_TO_VIEW: Record<SidebarItemId, ActiveView> = {
   pinned: 'conversations',
   'all-chats': 'conversations',
-}
-
-/** 日期分组标签 */
-type DateGroup = '今天' | '昨天' | '更早'
-
-/** 按 updatedAt 将项目分为 今天 / 昨天 / 更早 三组 */
-function groupByDate<T extends { updatedAt: number }>(items: T[]): Array<{ label: DateGroup; items: T[] }> {
-  const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const yesterdayStart = todayStart - 86_400_000
-
-  const today: T[] = []
-  const yesterday: T[] = []
-  const earlier: T[] = []
-
-  for (const item of items) {
-    if (item.updatedAt >= todayStart) {
-      today.push(item)
-    } else if (item.updatedAt >= yesterdayStart) {
-      yesterday.push(item)
-    } else {
-      earlier.push(item)
-    }
-  }
-
-  const groups: Array<{ label: DateGroup; items: T[] }> = []
-  if (today.length > 0) groups.push({ label: '今天', items: today })
-  if (yesterday.length > 0) groups.push({ label: '昨天', items: yesterday })
-  if (earlier.length > 0) groups.push({ label: '更早', items: earlier })
-  return groups
 }
 
 export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
@@ -363,7 +334,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       const filtered = viewMode === 'archived'
         ? conversations.filter((c) => c.archived && !draftSessionIds.has(c.id))
         : conversations.filter((c) => !c.archived && !c.pinned && !draftSessionIds.has(c.id))
-      return groupByDate(filtered)
+      return buildDateSidebarSections(filtered)
     },
     [conversations, viewMode, draftSessionIds]
   )
@@ -785,7 +756,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
 
   /** Agent 会话按日期分组 */
   const agentSessionGroups = React.useMemo(
-    () => groupByDate(filteredAgentSessions),
+    () => buildDateSidebarSections(filteredAgentSessions),
     [filteredAgentSessions]
   )
 

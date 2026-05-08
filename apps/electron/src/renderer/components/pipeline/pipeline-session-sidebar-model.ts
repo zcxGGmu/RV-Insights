@@ -1,8 +1,10 @@
 import type { PipelineNodeKind, PipelineSessionMeta, PipelineSessionStatus } from '@rv-insights/shared'
 import type { PipelineSidebarViewMode } from '@/atoms/pipeline-atoms'
+import {
+  buildDateSidebarSections,
+  sortByUpdatedAtDesc,
+} from '@/components/app-shell/sidebar-section-model'
 import { getPipelineNodeLabel } from './pipeline-display-model'
-
-type DateGroup = '今天' | '昨天' | '更早'
 
 export interface PipelineSidebarSection {
   id: string
@@ -27,38 +29,15 @@ export interface PipelineSidebarSessionSummary {
   tone: PipelineSidebarSessionTone
 }
 
-function sortByUpdatedAtDesc(sessions: PipelineSessionMeta[]): PipelineSessionMeta[] {
-  return [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)
-}
-
 function groupByDate(
   sessions: PipelineSessionMeta[],
   nowValue: number,
 ): PipelineSidebarSection[] {
-  const now = new Date(nowValue)
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const yesterdayStart = todayStart - 86_400_000
-  const groups: Record<DateGroup, PipelineSessionMeta[]> = {
-    今天: [],
-    昨天: [],
-    更早: [],
-  }
-
-  for (const session of sortByUpdatedAtDesc(sessions)) {
-    if (session.updatedAt >= todayStart) {
-      groups.今天.push(session)
-    } else if (session.updatedAt >= yesterdayStart) {
-      groups.昨天.push(session)
-    } else {
-      groups.更早.push(session)
-    }
-  }
-
-  return [
-    { id: 'date-today', label: '今天', sessions: groups.今天 },
-    { id: 'date-yesterday', label: '昨天', sessions: groups.昨天 },
-    { id: 'date-earlier', label: '更早', sessions: groups.更早 },
-  ].filter((section) => section.sessions.length > 0)
+  return buildDateSidebarSections(sessions, { now: nowValue }).map((section) => ({
+    id: section.id,
+    label: section.label,
+    sessions: section.items,
+  }))
 }
 
 function isSameWorkspace(
