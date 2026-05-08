@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { PipelineStageArtifactRecord } from '@rv-insights/shared'
 import {
   persistPipelineStageArtifactRecord,
+  readPipelineArtifactContent,
   readPipelineArtifactManifest,
   resolvePipelineSessionArtifactsDir,
 } from './pipeline-artifact-service'
@@ -62,6 +63,11 @@ describe('pipeline-artifact-service', () => {
         displayName: '计划阶段产物.json',
         relativePath: 'planner-100.json',
       },
+      {
+        kind: 'content',
+        displayName: '计划原始内容.txt',
+        relativePath: 'planner-100.content.txt',
+      },
     ])
 
     const artifactDir = join(tempConfigDir, 'pipeline-artifacts', 'session-1')
@@ -76,6 +82,69 @@ describe('pipeline-artifact-service', () => {
       node: 'planner',
       summary: '按三步实现',
     })
+  })
+
+  test('大阶段产物正文只写入 content 文件，record / JSON / Markdown 只保留预览和引用', () => {
+    const uniqueTail = '只应存在于 content 文件的唯一尾部'
+    const longContent = `${'很长的阶段正文'.repeat(1200)}${uniqueTail}`
+    const record: PipelineStageArtifactRecord = {
+      id: 'session-large-developer-300-artifact',
+      sessionId: 'session-large',
+      type: 'stage_artifact',
+      node: 'developer',
+      artifact: {
+        node: 'developer',
+        summary: '实现完成',
+        changes: ['拆分正文'],
+        tests: ['bun test'],
+        risks: [],
+        content: longContent,
+      },
+      createdAt: 300,
+    }
+
+    const persisted = persistPipelineStageArtifactRecord(record)
+    const artifactDir = join(tempConfigDir, 'pipeline-artifacts', 'session-large')
+    const jsonContent = readFileSync(join(artifactDir, 'developer-300.json'), 'utf-8')
+    const markdownContent = readFileSync(join(artifactDir, 'developer-300.md'), 'utf-8')
+    const rawContent = readFileSync(join(artifactDir, 'developer-300.content.txt'), 'utf-8')
+
+    expect(persisted.artifact.content).not.toContain(uniqueTail)
+    expect(persisted.artifactContentRef).toMatchObject({
+      kind: 'content',
+      relativePath: 'developer-300.content.txt',
+    })
+    expect(persisted.artifactFiles?.map((file) => file.kind)).toEqual(['markdown', 'json', 'content'])
+    expect(jsonContent).not.toContain(uniqueTail)
+    expect(markdownContent).not.toContain(uniqueTail)
+    expect(rawContent).toBe(longContent)
+  })
+
+  test('readPipelineArtifactContent 会校验相对路径并读取 content 文件', () => {
+    const record: PipelineStageArtifactRecord = {
+      id: 'session-read-tester-400-artifact',
+      sessionId: 'session-read',
+      type: 'stage_artifact',
+      node: 'tester',
+      artifact: {
+        node: 'tester',
+        summary: '验证完成',
+        commands: ['bun test'],
+        results: ['通过'],
+        blockers: [],
+        content: '完整验证正文',
+      },
+      createdAt: 400,
+    }
+
+    const persisted = persistPipelineStageArtifactRecord(record)
+
+    expect(readPipelineArtifactContent('session-read', persisted.artifactContentRef!)).toBe('完整验证正文')
+    expect(() => readPipelineArtifactContent('session-read', {
+      kind: 'content',
+      displayName: '越界.txt',
+      relativePath: '../escape.txt',
+    })).toThrow('无效 Pipeline 产物文件引用')
   })
 
   test('重复持久化同一条阶段产物时 manifest 会按相对路径去重', () => {
@@ -102,6 +171,7 @@ describe('pipeline-artifact-service', () => {
     expect(manifest.files.map((file) => file.relativePath)).toEqual([
       'reviewer-200.md',
       'reviewer-200.json',
+      'reviewer-200.content.txt',
     ])
   })
 

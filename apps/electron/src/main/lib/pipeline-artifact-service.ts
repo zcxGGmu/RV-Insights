@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type {
+  PipelineArtifactContentRef,
   PipelineArtifactFileRef,
   PipelineArtifactManifest,
   PipelineNodeKind,
@@ -11,6 +12,7 @@ import { getPipelineArtifactsDir } from './config-paths'
 import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file'
 
 const MANIFEST_VERSION = 1
+const ARTIFACT_CONTENT_PREVIEW_LIMIT = 4000
 
 const NODE_LABELS: Record<PipelineNodeKind, string> = {
   explorer: '探索',
@@ -61,11 +63,15 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function isArtifactFileRef(value: unknown): value is PipelineArtifactFileRef {
   if (!isObject(value)) return false
-  if (value.kind !== 'markdown' && value.kind !== 'json') return false
+  if (value.kind !== 'markdown' && value.kind !== 'json' && value.kind !== 'content') return false
   if (typeof value.displayName !== 'string' || !value.displayName.trim()) return false
   if (typeof value.relativePath !== 'string' || !value.relativePath.trim()) return false
   if (value.relativePath.includes('..') || isAbsolute(value.relativePath)) return false
   return true
+}
+
+function isArtifactContentRef(value: unknown): value is PipelineArtifactContentRef {
+  return isArtifactFileRef(value) && value.kind === 'content'
 }
 
 function createEmptyManifest(sessionId: string): PipelineArtifactManifest {
@@ -190,7 +196,35 @@ function buildArtifactFiles(record: PipelineStageArtifactRecord): PipelineArtifa
       displayName: `${nodeLabel}阶段产物.json`,
       relativePath: `${baseName}.json`,
     },
+    {
+      kind: 'content',
+      displayName: `${nodeLabel}原始内容.txt`,
+      relativePath: `${baseName}.content.txt`,
+    },
   ]
+}
+
+function buildArtifactContentPreview(content: string): string {
+  if (content.length <= ARTIFACT_CONTENT_PREVIEW_LIMIT) return content
+  return [
+    content.slice(0, ARTIFACT_CONTENT_PREVIEW_LIMIT).trimEnd(),
+    '',
+    `[完整内容已写入产物文件，预览截断于 ${ARTIFACT_CONTENT_PREVIEW_LIMIT} 字符]`,
+  ].join('\n')
+}
+
+function withArtifactContentPreview(
+  record: PipelineStageArtifactRecord,
+  contentRef: PipelineArtifactContentRef,
+): PipelineStageArtifactRecord {
+  return {
+    ...record,
+    artifact: {
+      ...record.artifact,
+      content: buildArtifactContentPreview(record.artifact.content),
+    },
+    artifactContentRef: contentRef,
+  }
 }
 
 function upsertManifestFiles(
@@ -217,13 +251,24 @@ export function persistPipelineStageArtifactRecord(
   const files = buildArtifactFiles(record)
   const markdownFile = files.find((file) => file.kind === 'markdown')
   const jsonFile = files.find((file) => file.kind === 'json')
+  const contentFile = files.find((file): file is PipelineArtifactContentRef => file.kind === 'content')
+  const persistedRecord = contentFile
+    ? withArtifactContentPreview(record, contentFile)
+    : record
 
   if (markdownFile) {
-    writeFileSync(join(artifactDir, markdownFile.relativePath), buildArtifactMarkdown(record), 'utf-8')
+    writeFileSync(join(artifactDir, markdownFile.relativePath), buildArtifactMarkdown(persistedRecord), 'utf-8')
   }
 
   if (jsonFile) {
-    writeFileSync(join(artifactDir, jsonFile.relativePath), JSON.stringify(record.artifact, null, 2), 'utf-8')
+    writeFileSync(join(artifactDir, jsonFile.relativePath), JSON.stringify({
+      ...persistedRecord.artifact,
+      contentRef: persistedRecord.artifactContentRef,
+    }, null, 2), 'utf-8')
+  }
+
+  if (contentFile) {
+    writeFileSync(join(artifactDir, contentFile.relativePath), record.artifact.content, 'utf-8')
   }
 
   const manifest = upsertManifestFiles(
@@ -234,7 +279,44 @@ export function persistPipelineStageArtifactRecord(
   writePipelineArtifactManifest(manifest)
 
   return {
-    ...record,
+    ...persistedRecord,
     artifactFiles: files,
   }
+}
+
+function resolvePipelineArtifactFilePath(
+  sessionId: string,
+  file: PipelineArtifactFileRef,
+): string {
+  if (!isArtifactFileRef(file)) {
+    throw new Error('无效 Pipeline 产物文件引用')
+  }
+
+  const root = resolvePipelineSessionArtifactsDir(sessionId)
+  const target = resolve(root, file.relativePath)
+  const relativeTarget = relative(root, target)
+  if (
+    relativeTarget === ''
+    || relativeTarget === '..'
+    || relativeTarget.startsWith(`..${sep}`)
+    || isAbsolute(relativeTarget)
+  ) {
+    throw new Error('Pipeline 产物文件越界')
+  }
+  return target
+}
+
+export function readPipelineArtifactContent(
+  sessionId: string,
+  ref: PipelineArtifactContentRef,
+): string {
+  if (!isArtifactContentRef(ref)) {
+    throw new Error('无效 Pipeline 产物文件引用')
+  }
+
+  const filePath = resolvePipelineArtifactFilePath(sessionId, ref)
+  if (!existsSync(filePath)) {
+    throw new Error(`Pipeline 产物内容文件不存在: ${ref.relativePath}`)
+  }
+  return readFileSync(filePath, 'utf-8')
 }

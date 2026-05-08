@@ -740,13 +740,15 @@ bun test packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main
 
 目标：多轮 review、长日志、大产物仍然稳定。
 
-更新：2026-05-08 已完成 Phase D 的低风险性能项，覆盖 records tail / page API UI 接入确认、搜索防抖、主进程异步 JSONL 流式分页搜索和轻量命中摘要。大内容剥离、artifact lazy load 与报告按需读取会影响历史记录兼容和产物读取边界，保留为后续独立阶段。
+更新：2026-05-08 已完成 Phase D 的低风险性能项，覆盖 records tail / page API UI 接入确认、搜索防抖、主进程异步 JSONL 流式分页搜索和轻量命中摘要。
+
+更新：2026-05-08 已补完 Phase D 大产物尾项，stage artifact 正文剥离到 content 文件，record / JSON / Markdown 只保存预览和引用；UI 展开全文与复制报告按需读取 content 文件。
 
 - [x] records tail / page API 接入 UI
 - [x] 搜索改为 debounce + 主进程分页搜索
-- [ ] 大内容从 record 中剥离为文件引用
-- [ ] 展开全文 lazy load artifact content
-- [ ] 报告生成按需读取 artifact 文件
+- [x] 大内容从 record 中剥离为文件引用
+- [x] 展开全文 lazy load artifact content
+- [x] 报告生成按需读取 artifact 文件
 
 验收：
 

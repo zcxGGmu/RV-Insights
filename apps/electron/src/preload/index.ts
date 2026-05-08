@@ -99,6 +99,7 @@ import type {
   WeChatBridgeState,
   AgentQueueMessageInput,
   PendingRequestsSnapshot,
+  PipelineArtifactContentInput,
   PipelineSessionMeta,
   PipelineRecord,
   PipelineRecordsTailInput,
@@ -361,6 +362,9 @@ export interface ElectronAPI {
 
   /** 搜索 Pipeline 记录 */
   searchPipelineRecords: (input: PipelineRecordsSearchInput) => Promise<PipelineRecordsSearchResult>
+
+  /** 读取 Pipeline 阶段产物正文 */
+  readPipelineArtifactContent: (input: PipelineArtifactContentInput) => Promise<string>
 
   /** 打开 Pipeline 产物目录 */
   openPipelineArtifactsDir: (sessionId: string) => Promise<boolean>
@@ -1153,6 +1157,10 @@ const electronAPI: ElectronAPI = {
 
   searchPipelineRecords: (input: PipelineRecordsSearchInput) => {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.SEARCH_RECORDS, input)
+  },
+
+  readPipelineArtifactContent: (input: PipelineArtifactContentInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.READ_ARTIFACT_CONTENT, input)
   },
 
   openPipelineArtifactsDir: (sessionId: string) => {

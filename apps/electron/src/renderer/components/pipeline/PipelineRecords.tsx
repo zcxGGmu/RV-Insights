@@ -4,6 +4,7 @@ import type {
   PipelineRecord,
   PipelineRecordsSearchMatch as SharedPipelineRecordsSearchMatch,
   PipelineRecordsSearchResult,
+  PipelineStageArtifactRecord,
 } from '@rv-insights/shared'
 import {
   Check,
@@ -127,6 +128,35 @@ function copyTextToClipboard(text: string): Promise<void> {
   }
 }
 
+function hasLazyArtifactContent(
+  record: PipelineRecord,
+): record is PipelineStageArtifactRecord & { artifactContentRef: NonNullable<PipelineStageArtifactRecord['artifactContentRef']> } {
+  return record.type === 'stage_artifact' && Boolean(record.artifactContentRef)
+}
+
+async function hydratePipelineRecordsForReport(records: PipelineRecord[]): Promise<PipelineRecord[]> {
+  return Promise.all(records.map(async (record) => {
+    if (!hasLazyArtifactContent(record)) return record
+
+    try {
+      const content = await window.electronAPI.readPipelineArtifactContent({
+        sessionId: record.sessionId,
+        ref: record.artifactContentRef,
+      })
+      return {
+        ...record,
+        artifact: {
+          ...record.artifact,
+          content,
+        },
+      }
+    } catch (error) {
+      console.warn('[PipelineRecords] 读取 Pipeline 产物正文失败，报告使用预览内容:', error)
+      return record
+    }
+  }))
+}
+
 const RecordCard = React.memo(function RecordCard({
   expanded,
   highlighted,
@@ -142,9 +172,13 @@ const RecordCard = React.memo(function RecordCard({
 }): React.ReactElement {
   const viewModel = React.useMemo(() => buildPipelineRecordViewModel(record), [record])
   const toneClass = TONE_CLASS_MAP[viewModel.tone]
-  const hasDetails = Boolean(viewModel.details)
+  const shouldLazyLoadDetails = hasLazyArtifactContent(record)
+  const hasDetails = Boolean(viewModel.details) || shouldLazyLoadDetails
   const artifactFiles = viewModel.artifactFiles ?? []
   const [artifactOpenFailed, setArtifactOpenFailed] = React.useState(false)
+  const [lazyDetails, setLazyDetails] = React.useState<string | null>(null)
+  const [lazyDetailsLoading, setLazyDetailsLoading] = React.useState(false)
+  const [lazyDetailsFailed, setLazyDetailsFailed] = React.useState(false)
   const artifactOpenTimer = React.useRef<number | null>(null)
   const registerElement = React.useCallback((element: HTMLElement | null) => {
     onRegisterElement(record.id, element)
@@ -154,6 +188,12 @@ const RecordCard = React.memo(function RecordCard({
       window.clearTimeout(artifactOpenTimer.current)
     }
   }, [])
+  React.useEffect(() => {
+    setLazyDetails(null)
+    setLazyDetailsLoading(false)
+    setLazyDetailsFailed(false)
+  }, [record.id])
+
   const openArtifactsDir = React.useCallback(async (): Promise<void> => {
     try {
       setArtifactOpenFailed(false)
@@ -170,6 +210,31 @@ const RecordCard = React.memo(function RecordCard({
       artifactOpenTimer.current = window.setTimeout(() => setArtifactOpenFailed(false), 2200)
     }
   }, [record.sessionId])
+  const loadArtifactDetails = React.useCallback(async (): Promise<void> => {
+    if (!hasLazyArtifactContent(record) || lazyDetails !== null || lazyDetailsLoading) return
+
+    try {
+      setLazyDetailsFailed(false)
+      setLazyDetailsLoading(true)
+      const content = await window.electronAPI.readPipelineArtifactContent({
+        sessionId: record.sessionId,
+        ref: record.artifactContentRef,
+      })
+      setLazyDetails(content)
+    } catch (error) {
+      console.error('[PipelineRecords] 读取 Pipeline 产物正文失败:', error)
+      setLazyDetailsFailed(true)
+    } finally {
+      setLazyDetailsLoading(false)
+    }
+  }, [lazyDetails, lazyDetailsLoading, record])
+  const toggleDetails = React.useCallback(() => {
+    if (!expanded && shouldLazyLoadDetails) {
+      void loadArtifactDetails()
+    }
+    onToggleExpanded(record.id)
+  }, [expanded, loadArtifactDetails, onToggleExpanded, record.id, shouldLazyLoadDetails])
+  const displayedDetails = lazyDetails ?? viewModel.details ?? ''
 
   return (
     <article
@@ -238,14 +303,18 @@ const RecordCard = React.memo(function RecordCard({
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => onToggleExpanded(record.id)}
+            onClick={toggleDetails}
             className="bg-background/80 hover:bg-background"
           >
             {expanded ? '收起全文' : '展开全文'}
           </Button>
           {expanded ? (
             <MessageResponse className="mt-3 rounded-xl bg-background/80 px-4 py-3 text-sm leading-6">
-              {viewModel.details ?? ''}
+              {lazyDetailsLoading
+                ? '正在读取完整产物正文...'
+                : lazyDetailsFailed
+                  ? displayedDetails || '完整产物正文读取失败，请打开产物目录查看。'
+                  : displayedDetails}
             </MessageResponse>
           ) : null}
         </div>
@@ -686,9 +755,10 @@ export function PipelineRecords({
 
   const handleCopyReport = React.useCallback(async (): Promise<void> => {
     try {
+      const reportRecords = await hydratePipelineRecordsForReport(records)
       const report = buildPipelineMarkdownReport({
         title: sessionTitle ? `${sessionTitle} - Pipeline 报告` : 'Pipeline 会话报告',
-        records,
+        records: reportRecords,
         generatedAt: Date.now(),
       })
       await copyTextToClipboard(report)

@@ -85,6 +85,7 @@ import type {
   WeChatConfig,
   WeChatBridgeState,
   SDKMessage,
+  PipelineArtifactContentInput,
   PipelineSessionMeta,
   PipelineRecord,
   PipelineRecordsTailInput,
@@ -883,6 +884,13 @@ export function registerIpcHandlers(): void {
     PIPELINE_IPC_CHANNELS.SEARCH_RECORDS,
     async (_event, input: PipelineRecordsSearchInput): Promise<PipelineRecordsSearchResult> => {
       return getPipelineService().searchRecords(input)
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.READ_ARTIFACT_CONTENT,
+    async (_event, input: PipelineArtifactContentInput): Promise<string> => {
+      return getPipelineService().readArtifactContent(input)
     }
   )
 

@@ -1,5 +1,6 @@
 import { rmSync } from 'node:fs'
 import type {
+  PipelineArtifactContentInput,
   PipelineGateRequest,
   PipelineGateResponse,
   PipelineRecordsTailInput,
@@ -33,6 +34,7 @@ import { createPipelineGraph } from './pipeline-graph'
 import { buildPipelineRecordsFromNodeComplete } from './pipeline-record-builder'
 import {
   persistPipelineStageArtifactRecord,
+  readPipelineArtifactContent,
   resolvePipelineSessionArtifactsDir,
 } from './pipeline-artifact-service'
 
@@ -464,6 +466,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
 
     async searchRecords(input: PipelineRecordsSearchInput): Promise<PipelineRecordsSearchResult> {
       return searchPipelineRecordsPage(input)
+    },
+
+    readArtifactContent(input: PipelineArtifactContentInput): string {
+      return readPipelineArtifactContent(input.sessionId, input.ref)
     },
 
     updateTitle(sessionId: string, title: string): PipelineSessionMeta {
