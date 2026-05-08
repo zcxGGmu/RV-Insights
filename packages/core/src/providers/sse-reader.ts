@@ -12,6 +12,61 @@
 
 import type { ProviderAdapter, ProviderRequest, StreamEventCallback, ThinkingBlock, ToolCall } from './types.ts'
 
+/** 共享请求的默认绝对超时时间（毫秒） */
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000
+
+interface ManagedRequestSignal {
+  signal: AbortSignal
+  isTimedOut: () => boolean
+  cleanup: () => void
+}
+
+function createManagedRequestSignal(
+  signal?: AbortSignal,
+  timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
+): ManagedRequestSignal {
+  const controller = new AbortController()
+  let timedOut = false
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  let externalAbortHandler: (() => void) | null = null
+
+  if (signal) {
+    externalAbortHandler = () => {
+      if (!controller.signal.aborted) {
+        controller.abort()
+      }
+    }
+    signal.addEventListener('abort', externalAbortHandler, { once: true })
+    if (signal.aborted) {
+      externalAbortHandler()
+    }
+  }
+
+  if (timeoutMs > 0 && Number.isFinite(timeoutMs)) {
+    timeoutId = setTimeout(() => {
+      timedOut = true
+      if (!controller.signal.aborted) {
+        controller.abort()
+      }
+    }, timeoutMs)
+  }
+
+  return {
+    signal: controller.signal,
+    isTimedOut: () => timedOut,
+    cleanup: () => {
+      if (timeoutId != null) {
+        clearTimeout(timeoutId)
+        timeoutId = null
+      }
+      if (signal && externalAbortHandler) {
+        signal.removeEventListener('abort', externalAbortHandler)
+        externalAbortHandler = null
+      }
+    },
+  }
+}
+
 // ===== 流式请求 =====
 
 /** streamSSE 的输入选项 */
@@ -26,6 +81,8 @@ export interface StreamSSEOptions {
   signal?: AbortSignal
   /** 自定义 fetch 函数（代理等场景下由调用方注入） */
   fetchFn?: typeof globalThis.fetch
+  /** 绝对超时时间（毫秒），默认 60s */
+  requestTimeoutMs?: number
 }
 
 /** streamSSE 的返回结果 */
@@ -60,148 +117,163 @@ export interface StreamSSEResult {
  * 7. 返回完整内容
  */
 export async function streamSSE(options: StreamSSEOptions): Promise<StreamSSEResult> {
-  const { request, adapter, onEvent, signal, fetchFn = fetch } = options
-
-  // 1. 发起请求（支持通过 fetchFn 注入代理）
-  const response = await fetchFn(request.url, {
-    method: 'POST',
-    headers: request.headers,
-    body: request.body,
-    signal,
-  })
-
-  // 2. 错误检查
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`${adapter.providerType} API 错误 (${response.status}): ${text.slice(0, 300)}`)
-  }
-
-  if (!response.body) {
-    throw new Error('响应体为空')
-  }
-
-  // 3. 读取流
-  let content = ''
-  let reasoning = ''
-  let stopReason: string | undefined
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  // 工具调用追踪
-  const pendingToolCalls = new Map<string, { id: string; name: string; args: string; metadata?: Record<string, unknown> }>()
-  let currentToolCallId: string | undefined
-
-  // 思考块追踪（Anthropic 协议：每个 thinking 块由多个 thinking_delta + signature_delta 组成）
-  const thinkingBlocks: ThinkingBlock[] = []
-  let currentThinking: ThinkingBlock | null = null
+  const { request, adapter, onEvent, signal, fetchFn = fetch, requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS } = options
+  const managedSignal = createManagedRequestSignal(signal, requestTimeoutMs)
 
   try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+    // 1. 发起请求（支持通过 fetchFn 注入代理）
+    const response = await fetchFn(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: request.body,
+      signal: managedSignal.signal,
+    })
 
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      // 保留最后一个可能不完整的行
-      buffer = lines.pop() || ''
+    // 2. 错误检查
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      throw new Error(`${adapter.providerType} API 错误 (${response.status}): ${text.slice(0, 300)}`)
+    }
 
-      for (const line of lines) {
-        // SSE 规范：冒号后的空格是可选的，兼容 "data: {...}" 和 "data:{...}" 两种格式
-        let data: string
-        if (line.startsWith('data: ')) {
-          data = line.slice(6).trim()
-        } else if (line.startsWith('data:')) {
-          data = line.slice(5).trim()
-        } else {
-          continue
-        }
-        if (data === '[DONE]' || !data) continue
+    if (!response.body) {
+      throw new Error('响应体为空')
+    }
 
-        // 4. 委托给 adapter 解析供应商特定 JSON
-        const events = adapter.parseSSELine(data)
+    // 3. 读取流
+    let content = ''
+    let reasoning = ''
+    let stopReason: string | undefined
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
 
-        for (const event of events) {
-          if (event.type === 'chunk') {
-            content += event.delta
-          } else if (event.type === 'reasoning') {
-            reasoning += event.delta
-            // 同步追加到当前思考块
-            if (currentThinking) {
-              currentThinking.thinking += event.delta
-            } else {
-              // 容错：有些 Provider 不发 content_block_start，直接发 thinking_delta
-              currentThinking = { thinking: event.delta }
-              thinkingBlocks.push(currentThinking)
-            }
-          } else if (event.type === 'reasoning_signature') {
-            if (currentThinking) {
-              currentThinking.signature = (currentThinking.signature ?? '') + event.signature
-            } else {
-              // 容错：signature_delta 出现时没有活跃思考块，自建一个
-              currentThinking = { thinking: '', signature: event.signature }
-              thinkingBlocks.push(currentThinking)
-            }
-          } else if (event.type === 'reasoning_block_start') {
-            currentThinking = { thinking: '' }
-            thinkingBlocks.push(currentThinking)
-          } else if (event.type === 'reasoning_block_stop') {
-            currentThinking = null
-          } else if (event.type === 'tool_call_start') {
-            currentToolCallId = event.toolCallId
-            pendingToolCalls.set(event.toolCallId, {
-              id: event.toolCallId,
-              name: event.toolName,
-              args: '',
-              metadata: event.metadata,
-            })
-          } else if (event.type === 'tool_call_delta') {
-            const tcId = event.toolCallId || currentToolCallId
-            if (tcId) {
-              const pending = pendingToolCalls.get(tcId)
-              if (pending) {
-                pending.args += event.argumentsDelta
-              }
-            }
-          } else if (event.type === 'done' && event.stopReason) {
-            stopReason = event.stopReason
+    // 工具调用追踪
+    const pendingToolCalls = new Map<string, { id: string; name: string; args: string; metadata?: Record<string, unknown> }>()
+    let currentToolCallId: string | undefined
+
+    // 思考块追踪（Anthropic 协议：每个 thinking 块由多个 thinking_delta + signature_delta 组成）
+    const thinkingBlocks: ThinkingBlock[] = []
+    let currentThinking: ThinkingBlock | null = null
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        // 保留最后一个可能不完整的行
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          // SSE 规范：冒号后的空格是可选的，兼容 "data: {...}" 和 "data:{...}" 两种格式
+          let data: string
+          if (line.startsWith('data: ')) {
+            data = line.slice(6).trim()
+          } else if (line.startsWith('data:')) {
+            data = line.slice(5).trim()
+          } else {
+            continue
           }
-          onEvent(event)
+          if (data === '[DONE]' || !data) continue
+
+          // 4. 委托给 adapter 解析供应商特定 JSON
+          const events = adapter.parseSSELine(data)
+
+          for (const event of events) {
+            if (event.type === 'chunk') {
+              content += event.delta
+            } else if (event.type === 'reasoning') {
+              reasoning += event.delta
+              // 同步追加到当前思考块
+              if (currentThinking) {
+                currentThinking.thinking += event.delta
+              } else {
+                // 容错：有些 Provider 不发 content_block_start，直接发 thinking_delta
+                currentThinking = { thinking: event.delta }
+                thinkingBlocks.push(currentThinking)
+              }
+            } else if (event.type === 'reasoning_signature') {
+              if (currentThinking) {
+                currentThinking.signature = (currentThinking.signature ?? '') + event.signature
+              } else {
+                // 容错：signature_delta 出现时没有活跃思考块，自建一个
+                currentThinking = { thinking: '', signature: event.signature }
+                thinkingBlocks.push(currentThinking)
+              }
+            } else if (event.type === 'reasoning_block_start') {
+              currentThinking = { thinking: '' }
+              thinkingBlocks.push(currentThinking)
+            } else if (event.type === 'reasoning_block_stop') {
+              currentThinking = null
+            } else if (event.type === 'tool_call_start') {
+              currentToolCallId = event.toolCallId
+              pendingToolCalls.set(event.toolCallId, {
+                id: event.toolCallId,
+                name: event.toolName,
+                args: '',
+                metadata: event.metadata,
+              })
+            } else if (event.type === 'tool_call_delta') {
+              const tcId = event.toolCallId || currentToolCallId
+              if (tcId) {
+                const pending = pendingToolCalls.get(tcId)
+                if (pending) {
+                  pending.args += event.argumentsDelta
+                }
+              }
+            } else if (event.type === 'done' && event.stopReason) {
+              stopReason = event.stopReason
+            }
+            onEvent(event)
+          }
         }
       }
+    } catch (error) {
+      if (managedSignal.isTimedOut()) {
+        throw new Error(`${adapter.providerType} API 请求超时 (${requestTimeoutMs}ms)`)
+      }
+      throw error
+    } finally {
+      reader.releaseLock()
     }
+
+    // 将 pending 工具调用解析为最终结果
+    const toolCalls: ToolCall[] = []
+    for (const [, pending] of pendingToolCalls) {
+      try {
+        toolCalls.push({
+          id: pending.id,
+          name: pending.name,
+          arguments: pending.args ? JSON.parse(pending.args) : {},
+          metadata: pending.metadata,
+        })
+      } catch {
+        // JSON 解析失败仍保留工具调用（空参数）
+        toolCalls.push({
+          id: pending.id,
+          name: pending.name,
+          arguments: {},
+          metadata: pending.metadata,
+        })
+      }
+    }
+
+    // 有工具调用但无显式 stopReason 时自动推断
+    if (toolCalls.length > 0 && !stopReason) {
+      stopReason = 'tool_use'
+    }
+
+    onEvent({ type: 'done', stopReason })
+    return { content, reasoning, thinkingBlocks, toolCalls, stopReason }
+  } catch (error) {
+    if (managedSignal.isTimedOut()) {
+      throw new Error(`${adapter.providerType} API 请求超时 (${requestTimeoutMs}ms)`)
+    }
+    throw error
   } finally {
-    reader.releaseLock()
+    managedSignal.cleanup()
   }
-
-  // 将 pending 工具调用解析为最终结果
-  const toolCalls: ToolCall[] = []
-  for (const [, pending] of pendingToolCalls) {
-    try {
-      toolCalls.push({
-        id: pending.id,
-        name: pending.name,
-        arguments: pending.args ? JSON.parse(pending.args) : {},
-        metadata: pending.metadata,
-      })
-    } catch {
-      // JSON 解析失败仍保留工具调用（空参数）
-      toolCalls.push({
-        id: pending.id,
-        name: pending.name,
-        arguments: {},
-        metadata: pending.metadata,
-      })
-    }
-  }
-
-  // 有工具调用但无显式 stopReason 时自动推断
-  if (toolCalls.length > 0 && !stopReason) {
-    stopReason = 'tool_use'
-  }
-
-  onEvent({ type: 'done', stopReason })
-  return { content, reasoning, thinkingBlocks, toolCalls, stopReason }
 }
 
 // ===== 非流式标题请求 =====
@@ -217,12 +289,16 @@ export async function fetchTitle(
   request: ProviderRequest,
   adapter: ProviderAdapter,
   fetchFn: typeof globalThis.fetch = fetch,
+  options?: { signal?: AbortSignal; requestTimeoutMs?: number },
 ): Promise<string | null> {
+  const requestTimeoutMs = options?.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+  const managedSignal = createManagedRequestSignal(options?.signal, requestTimeoutMs)
   try {
     const response = await fetchFn(request.url, {
       method: 'POST',
       headers: request.headers,
       body: request.body,
+      signal: managedSignal.signal,
     })
 
     if (!response.ok) {
@@ -237,7 +313,13 @@ export async function fetchTitle(
     const data: unknown = await response.json()
     return adapter.parseTitleResponse(data)
   } catch (error) {
+    if (managedSignal.isTimedOut()) {
+      console.warn(`[fetchTitle] 请求超时 (${requestTimeoutMs}ms)`)
+      return null
+    }
     console.error('[fetchTitle] 异常:', error)
     return null
+  } finally {
+    managedSignal.cleanup()
   }
 }

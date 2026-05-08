@@ -1,6 +1,6 @@
 {
   "name": "@rv-insights/core",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "license": "Apache-2.0",
   "description": "rv-insights core types,storage and core logic with agents",
   "type": "module",
@@ -26,6 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "typescript": "^5.0.0",
     "@types/uuid": "^11.0.0"
   }
