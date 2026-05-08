@@ -21,6 +21,7 @@ import {
   getSdkConfigDir,
 } from './config-paths'
 import { getAgentWorkspace } from './agent-workspace-manager'
+import { buildSearchSnippet, findFirstJsonlMatch } from './jsonl-search'
 
 // 在模块加载时一次性设置 SDK 配置目录，避免在 forkSession 等异步调用中临时修改/恢复
 // process.env 导致的并发安全问题（异步操作的 await 间隙其他代码可能读到错误值）
@@ -1050,7 +1051,7 @@ export function autoArchiveAgentSessions(daysThreshold: number): number {
  * @param query 搜索关键词
  * @returns 匹配结果列表
  */
-export function searchAgentSessionMessages(query: string): AgentMessageSearchResult[] {
+export async function searchAgentSessionMessages(query: string): Promise<AgentMessageSearchResult[]> {
   if (!query || query.length < 2) return []
 
   const index = readIndex()
@@ -1062,54 +1063,67 @@ export function searchAgentSessionMessages(query: string): AgentMessageSearchRes
     if (results.length >= maxResults) break
 
     const filePath = getAgentSessionMessagesPath(session.id)
-    if (!existsSync(filePath)) continue
-
     try {
-      const raw = readFileSync(filePath, 'utf-8')
-      const lines = raw.split('\n').filter((line) => line.trim())
+      const match = await findFirstJsonlMatch<Record<string, unknown>, AgentMessageSearchResult>(
+        filePath,
+        async (parsed) => {
+          // 兼容旧 AgentMessage 和新 SDKMessage 格式
+          const roleCandidate = typeof parsed.role === 'string'
+            ? parsed.role
+            : typeof parsed.message === 'object' && parsed.message !== null && typeof (parsed.message as { role?: unknown }).role === 'string'
+              ? (parsed.message as { role: string }).role
+              : 'assistant'
+          const role: AgentMessageSearchResult['role'] =
+            roleCandidate === 'user'
+            || roleCandidate === 'assistant'
+            || roleCandidate === 'status'
+            || roleCandidate === 'tool'
+              ? roleCandidate
+              : 'assistant'
+          const messageId =
+            (typeof parsed.id === 'string' && parsed.id)
+            || (typeof parsed.uuid === 'string' && parsed.uuid)
+            || (
+              typeof parsed.message === 'object'
+              && parsed.message !== null
+              && typeof (parsed.message as { id?: unknown }).id === 'string'
+              ? (parsed.message as { id: string }).id
+              : ''
+            )
 
-      for (const line of lines) {
-        const parsed = JSON.parse(line)
-        // 兼容旧 AgentMessage 和新 SDKMessage 格式
-        const role = parsed.role ?? parsed.message?.role ?? 'assistant'
-        const messageId = parsed.id ?? parsed.uuid ?? parsed.message?.id ?? ''
+          let textContent = ''
+          if (typeof parsed.content === 'string') {
+            // 旧 AgentMessage 格式: {role, content: "..."}
+            textContent = parsed.content
+          } else if (
+            typeof parsed.message === 'object'
+            && parsed.message !== null
+            && Array.isArray((parsed.message as { content?: unknown }).content)
+          ) {
+            // 新 SDKMessage 格式: {type, message: {content: [{type:"text", text:"..."}]}}
+            textContent = ((parsed.message as { content: Array<{ type?: string; text?: string }> }).content)
+              .filter((block) => block.type === 'text' && typeof block.text === 'string')
+              .map((block) => block.text as string)
+              .join('\n')
+          }
+          if (!textContent) return null
 
-        let textContent = ''
-        if (typeof parsed.content === 'string') {
-          // 旧 AgentMessage 格式: {role, content: "..."}
-          textContent = parsed.content
-        } else if (Array.isArray(parsed.message?.content)) {
-          // 新 SDKMessage 格式: {type, message: {content: [{type:"text", text:"..."}]}}
-          textContent = parsed.message.content
-            .filter((b: { type: string; text?: string }) => b.type === 'text' && b.text)
-            .map((b: { text: string }) => b.text)
-            .join('\n')
-        }
-        if (!textContent) continue
+          const snippet = buildSearchSnippet(textContent, query, queryLower)
+          if (!snippet) return null
 
-        const contentLower = textContent.toLowerCase()
-        const matchIndex = contentLower.indexOf(queryLower)
-        if (matchIndex === -1) continue
-        const snippetStart = Math.max(0, matchIndex - 40)
-        const snippetEnd = Math.min(textContent.length, matchIndex + query.length + 40)
-        const snippet = (snippetStart > 0 ? '...' : '') +
-          textContent.slice(snippetStart, snippetEnd) +
-          (snippetEnd < textContent.length ? '...' : '')
-        const matchStart = matchIndex - snippetStart + (snippetStart > 0 ? 3 : 0)
+          return {
+            sessionId: session.id,
+            sessionTitle: session.title,
+            messageId,
+            role,
+            archived: session.archived,
+            ...snippet,
+          }
+        },
+      )
 
-        results.push({
-          sessionId: session.id,
-          sessionTitle: session.title,
-          messageId,
-          role,
-          snippet,
-          matchStart,
-          matchLength: query.length,
-          archived: session.archived,
-        })
-
-        // 每个会话只取 1 条匹配
-        break
+      if (match) {
+        results.push(match)
       }
     } catch {
       // 跳过读取失败的文件

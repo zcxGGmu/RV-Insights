@@ -16,6 +16,7 @@ import {
 } from './config-paths'
 import { deleteConversationAttachments, deleteAttachment } from './attachment-service'
 import type { ConversationMeta, ChatMessage, RecentMessagesResult, MessageSearchResult } from '@rv-insights/shared'
+import { buildSearchSnippet, findFirstJsonlMatch } from './jsonl-search'
 
 /**
  * 对话索引文件格式
@@ -403,7 +404,7 @@ export function autoArchiveConversations(daysThreshold: number): number {
  * @param query 搜索关键词
  * @returns 匹配结果列表
  */
-export function searchConversationMessages(query: string): MessageSearchResult[] {
+export async function searchConversationMessages(query: string): Promise<MessageSearchResult[]> {
   if (!query || query.length < 2) return []
 
   const index = readIndex()
@@ -415,41 +416,27 @@ export function searchConversationMessages(query: string): MessageSearchResult[]
     if (results.length >= maxResults) break
 
     const filePath = getConversationMessagesPath(conv.id)
-    if (!existsSync(filePath)) continue
-
     try {
-      const raw = readFileSync(filePath, 'utf-8')
-      const lines = raw.split('\n').filter((line) => line.trim())
+      const match = await findFirstJsonlMatch<ChatMessage, MessageSearchResult>(
+        filePath,
+        async (msg) => {
+          if (!msg.content) return null
+          const snippet = buildSearchSnippet(msg.content, query, queryLower)
+          if (!snippet) return null
 
-      for (const line of lines) {
-        const msg = JSON.parse(line) as ChatMessage
-        if (!msg.content) continue
+          return {
+            conversationId: conv.id,
+            conversationTitle: conv.title,
+            messageId: msg.id,
+            role: msg.role,
+            archived: conv.archived,
+            ...snippet,
+          }
+        },
+      )
 
-        const contentLower = msg.content.toLowerCase()
-        const matchIndex = contentLower.indexOf(queryLower)
-        if (matchIndex === -1) continue
-
-        // 提取匹配上下文 snippet（匹配词前后各约 40 字符）
-        const snippetStart = Math.max(0, matchIndex - 40)
-        const snippetEnd = Math.min(msg.content.length, matchIndex + query.length + 40)
-        const snippet = (snippetStart > 0 ? '...' : '') +
-          msg.content.slice(snippetStart, snippetEnd) +
-          (snippetEnd < msg.content.length ? '...' : '')
-        const matchStart = matchIndex - snippetStart + (snippetStart > 0 ? 3 : 0)
-
-        results.push({
-          conversationId: conv.id,
-          conversationTitle: conv.title,
-          messageId: msg.id,
-          role: msg.role,
-          snippet,
-          matchStart,
-          matchLength: query.length,
-          archived: conv.archived,
-        })
-
-        // 每个对话只取 1 条匹配
-        break
+      if (match) {
+        results.push(match)
       }
     } catch {
       // 跳过读取失败的文件
