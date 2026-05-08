@@ -12,7 +12,7 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的功能提交：`85c92dec`
+- 最新已纳入进度同步的功能提交：`85c92dec`（本轮 `ipc.ts` 拆分第一阶段待提交）
 - 同步日期：`2026-05-08`
 
 说明：
@@ -31,6 +31,7 @@
 | `65b55efe` | Provider 请求层统一超时 | 已完成 | `streamSSE()` / `fetchTitle()` 已统一接入绝对超时 |
 | `ed922257` | 全局消息搜索流式化 | 已完成 | Chat / Agent 搜索改为逐行流式扫描，去掉整文件同步扫描热点 |
 | `85c92dec` | `safeStorage` 降级告警可视化 | 部分完成 | 已有用户可见告警和“未加密”标记，但还没有替代加密方案 |
+| `待提交` | `ipc.ts` 拆分第一阶段（channel） | 部分完成 | 已新增 `ipc/channel-handlers.ts` 并迁移 `CHANNEL_IPC_CHANNELS` 注册，`ipc.ts` 先完成首个高频模块收口 |
 
 ---
 
@@ -56,12 +57,16 @@
   结果：
   当前 `AgentView` 已不再是订阅放大热点。
 
-- [ ] `ipc.ts` 巨型注册函数拆分
-  现状：未完成。
+- [~] `ipc.ts` 巨型注册函数拆分
+  现状：部分完成（第一阶段已完成）。
+  已完成：
+  `channel` handlers 已抽离到 `apps/electron/src/main/ipc/channel-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerChannelIpcHandlers()`。
+  未完成：
+  `settings` / `agent` / `pipeline` / 机器人相关 handlers 仍在 `ipc.ts`。
   关键文件：
   `apps/electron/src/main/ipc.ts`
   建议：
-  先按高变更模块拆 `channel`、`agent`、`settings`、`pipeline`。
+  延续当前顺序，先拆 `settings`，再拆 `agent`，最后拆 `pipeline` / 机器人相关 handlers。
 
 - [ ] `agent-orchestrator.ts` 渐进拆分
   现状：未完成。
@@ -146,19 +151,18 @@
 
 ### 当前推荐的下一个阶段
 
-`ipc.ts` 拆分
+`ipc.ts` 拆分第二阶段（settings handlers）
 
 原因：
-- 这是当前剩余项里性价比最高的结构性改造
-- 会直接降低后续做 IPC 输入校验、设置页扩展和主进程维护的成本
-- 拆完后再做 `agent-orchestrator.ts` 和 `feishu-bridge.ts`，上下文更干净
+- 第一阶段 `channel` 已完成，保持同一重构链路连续推进风险最低
+- `settings` handlers 与主题广播逻辑边界清晰，适合作为第二刀
+- 完成 `settings` 后再继续 `agent` / `pipeline`，可以减少一次性改动面
 
 ### 建议切分顺序
 
-1. 拆 `channel` handlers
-2. 拆 `settings` handlers
-3. 拆 `agent` handlers
-4. 最后拆 `pipeline` / 机器人相关 handlers
+1. 拆 `settings` handlers
+2. 拆 `agent` handlers
+3. 最后拆 `pipeline` / 机器人相关 handlers
 
 ### 起点文件
 
@@ -166,11 +170,13 @@
 - 可新建目录：
   `apps/electron/src/main/ipc/`
 
-建议第一批文件：
-- `index.ts`
+当前已落地：
 - `channel-handlers.ts`
+
+下一批建议文件：
 - `settings-handlers.ts`
 - `agent-handlers.ts`
+- `pipeline-handlers.ts`（或按 `pipeline` / `bot-hub` 进一步拆分）
 
 ---
 
@@ -190,10 +196,11 @@
 
 - `safeStorage` 降级告警可视化
   已有告警和标记，未有替代加密方案
+- `ipc.ts` 拆分
+  第一阶段 `channel` 已完成，剩余 `settings / agent / pipeline / 机器人` handlers 待继续拆分
 
 ### 未完成
 
-- `ipc.ts` 拆分
 - `agent-orchestrator.ts` 渐进拆分
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试

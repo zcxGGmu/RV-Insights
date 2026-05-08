@@ -7,18 +7,12 @@
 import { ipcMain, nativeTheme, shell, dialog, BrowserWindow, app } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, PIPELINE_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
+import { IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, PIPELINE_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, APP_ICON_IPC_CHANNELS } from '../types'
 import type { QuickTaskSubmitInput } from '../types'
 import type {
   RuntimeStatus,
   GitRepoStatus,
-  Channel,
-  ChannelCreateInput,
-  ChannelUpdateInput,
-  ChannelTestResult,
-  FetchModelsInput,
-  FetchModelsResult,
   ConversationMeta,
   ChatMessage,
   ChatSendInput,
@@ -101,15 +95,6 @@ import type {
 import type { UserProfile, AppSettings } from '../types'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
 import { registerUpdaterIpc } from './lib/updater/updater-ipc'
-import {
-  listChannels,
-  createChannel,
-  updateChannel,
-  deleteChannel,
-  testChannel,
-  testChannelDirect,
-  fetchModels,
-} from './lib/channel-manager'
 import {
   listConversations,
   createConversation,
@@ -218,6 +203,7 @@ import { getWeChatConfig } from './lib/wechat-config'
 import { wechatBridge } from './lib/wechat-bridge'
 import { getPipelineService } from './lib/pipeline-service'
 import { pipelineStreamBus } from './lib/pipeline-stream-bus'
+import { registerChannelIpcHandlers } from './ipc/channel-handlers'
 
 /** 文件浏览器中需要隐藏的系统文件 */
 const HIDDEN_FS_ENTRIES = new Set(['.DS_Store', 'Thumbs.db'])
@@ -303,61 +289,7 @@ export function registerIpcHandlers(): void {
   )
 
   // ===== 渠道管理相关 =====
-
-  // 获取所有渠道（apiKey 保持加密态）
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.LIST,
-    async (): Promise<Channel[]> => {
-      return listChannels()
-    }
-  )
-
-  // 创建渠道
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.CREATE,
-    async (_, input: ChannelCreateInput): Promise<Channel> => {
-      return createChannel(input)
-    }
-  )
-
-  // 更新渠道
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.UPDATE,
-    async (_, id: string, input: ChannelUpdateInput): Promise<Channel> => {
-      return updateChannel(id, input)
-    }
-  )
-
-  // 删除渠道
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.DELETE,
-    async (_, id: string): Promise<void> => {
-      return deleteChannel(id)
-    }
-  )
-  // 测试渠道连接
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.TEST,
-    async (_, channelId: string): Promise<ChannelTestResult> => {
-      return testChannel(channelId)
-    }
-  )
-
-  // 直接测试连接（无需已保存渠道，传入明文凭证）
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.TEST_DIRECT,
-    async (_, input: FetchModelsInput): Promise<ChannelTestResult> => {
-      return testChannelDirect(input)
-    }
-  )
-
-  // 从供应商拉取可用模型列表（直接传入凭证，无需已保存渠道）
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.FETCH_MODELS,
-    async (_, input: FetchModelsInput): Promise<FetchModelsResult> => {
-      return fetchModels(input)
-    }
-  )
+  registerChannelIpcHandlers()
 
   // ===== 对话管理相关 =====
 
