@@ -8,7 +8,6 @@
  */
 
 import { useEffect } from 'react'
-import { unstable_batchedUpdates } from 'react-dom'
 import { useStore } from 'jotai'
 import {
   agentStreamingStatesAtom,
@@ -45,10 +44,11 @@ import {
 } from '@/atoms/notifications'
 import { appModeAtom } from '@/atoms/app-mode'
 import { tabsAtom, activeTabIdAtom, openTab, updateTabTitle } from '@/atoms/tab-atoms'
+import { createAgentSessionRefreshController } from './agent-session-refresh-controller'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 import type { NotificationSoundType } from '@/types/settings'
 import { toast } from 'sonner'
-import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock } from '@rv-insights/shared'
+import type { AgentSessionMeta, AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock } from '@rv-insights/shared'
 
 /** 触发右侧文件浏览器自动定位的写入类工具集合 */
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Update'])
@@ -321,28 +321,60 @@ export function useGlobalAgentListeners(): void {
         }
       )
     }
-    // ===== 0. 初始化：从持久化 meta 恢复 stoppedByUser 状态 =====
-    window.electronAPI.listAgentSessions().then((sessions) => {
+
+    const syncStoppedByUserSessions = (sessions: AgentSessionMeta[]): void => {
       const stoppedIds = new Set<string>(
-        sessions.filter((s) => s.stoppedByUser).map((s) => s.id)
+        sessions.filter((session) => session.stoppedByUser).map((session) => session.id),
       )
-      if (stoppedIds.size > 0) {
-        store.set(stoppedByUserSessionsAtom, stoppedIds)
+      store.set(stoppedByUserSessionsAtom, stoppedIds)
+    }
+
+    const applySessionSnapshot = (
+      sessions: AgentSessionMeta[],
+      options?: {
+        syncStoppedByUser?: boolean
+        syncTitles?: boolean
+      },
+    ): void => {
+      const prevSessions = store.get(agentSessionsAtom)
+      store.set(agentSessionsAtom, sessions)
+
+      if (options?.syncStoppedByUser) {
+        syncStoppedByUserSessions(sessions)
       }
-    }).catch(console.error)
+
+      if (options?.syncTitles) {
+        for (const session of sessions) {
+          const prev = prevSessions.find((candidate) => candidate.id === session.id)
+          if (prev && prev.title !== session.title) {
+            store.set(tabsAtom, (tabs) => updateTabTitle(tabs, session.id, session.title))
+          }
+        }
+      }
+    }
+
+    const sessionRefreshController = createAgentSessionRefreshController({
+      run: async (options) => {
+        const sessions = await window.electronAPI.listAgentSessions()
+        applySessionSnapshot(sessions, options)
+      },
+    })
+
+    // ===== 0. 初始化：从持久化 meta 恢复 stoppedByUser 状态 =====
+    window.electronAPI
+      .listAgentSessions()
+      .then((sessions) => applySessionSnapshot(sessions, { syncStoppedByUser: true }))
+      .catch(console.error)
 
     // ===== 1. 流式事件 =====
     const cleanupEvent = window.electronAPI.onAgentStreamEvent(
       (streamEvent: AgentStreamEvent) => {
-        unstable_batchedUpdates(() => {
         const { sessionId, payload } = streamEvent
 
         // 如果收到未知会话的事件（跨工作区场景），立即刷新会话列表
         const knownSessions = store.get(agentSessionsAtom)
         if (!knownSessions.some((s) => s.id === sessionId)) {
-          window.electronAPI.listAgentSessions()
-            .then((sessions) => store.set(agentSessionsAtom, sessions))
-            .catch(console.error)
+          sessionRefreshController.schedule({ delayMs: 400 })
         }
 
         // Phase 2: 直接累积 SDKMessage 到 liveMessagesMapAtom（跳过 replay 消息，避免与持久化消息重复）
@@ -498,7 +530,6 @@ export function useGlobalAgentListeners(): void {
             })
           } else if (event.type === 'prompt_suggestion') {
             // 存储提示建议到 atom
-            console.log(`[GlobalAgentListeners] 收到建议: sessionId=${sessionId}, suggestion="${event.suggestion.slice(0, 50)}..."`)
             store.set(agentPromptSuggestionsAtom, (prev) => {
               const map = new Map(prev)
               map.set(sessionId, event.suggestion)
@@ -574,7 +605,6 @@ export function useGlobalAgentListeners(): void {
             })
           } else if (event.type === 'permission_mode_changed') {
             // 权限模式变更（如 Plan 模式退出时切换到完全自动）
-            console.log(`[GlobalAgentListeners] 权限模式变更: ${event.mode}`)
             store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@rv-insights/shared').RVInsightsPermissionMode>) => {
               const next = new Map(prev)
               next.set(sessionId, event.mode)
@@ -582,14 +612,12 @@ export function useGlobalAgentListeners(): void {
             })
           }
         }
-        }) // unstable_batchedUpdates
       }
     )
 
     // ===== 2. 流式完成 =====
     const cleanupComplete = window.electronAPI.onAgentStreamComplete(
       (data: AgentStreamCompletePayload) => {
-        unstable_batchedUpdates(() => {
         // 发送桌面通知（任务完成，始终播放提示音）
         const enabled = store.get(notificationsEnabledAtom)
         const soundEnabled = store.get(notificationSoundEnabledAtom)
@@ -699,16 +727,7 @@ export function useGlobalAgentListeners(): void {
           // 与 streamingState 清理同步，避免「实时消息已清 → 持久化消息未到」的空档闪烁
 
           // 刷新会话列表并同步 stoppedByUser 状态
-          window.electronAPI
-            .listAgentSessions()
-            .then((sessions) => {
-              store.set(agentSessionsAtom, sessions)
-              // 从持久化 meta 对齐 stoppedByUser 状态
-              store.set(stoppedByUserSessionsAtom, new Set<string>(
-                sessions.filter((s) => s.stoppedByUser).map((s) => s.id)
-              ))
-            })
-            .catch(console.error)
+          sessionRefreshController.schedule({ syncStoppedByUser: true })
 
           // 注意：流式状态的完全清除由 AgentView 在消息加载完成后执行，
           // 确保不会出现「气泡消失 → 持久化消息尚未加载」的空档闪烁
@@ -719,14 +738,12 @@ export function useGlobalAgentListeners(): void {
           bumpRefresh()
         }
         finalize()
-        }) // unstable_batchedUpdates
       }
     )
 
     // ===== 3. 流式错误 =====
     const cleanupError = window.electronAPI.onAgentStreamError(
       (data: { sessionId: string; error: string }) => {
-        unstable_batchedUpdates(() => {
         console.error('[GlobalAgentListeners] 流式错误:', data.error)
 
         // 存储错误消息
@@ -745,26 +762,12 @@ export function useGlobalAgentListeners(): void {
             return map
           })
         }
-        }) // unstable_batchedUpdates
       }
     )
 
     // ===== 4. 标题更新 =====
     const cleanupTitleUpdated = window.electronAPI.onAgentTitleUpdated(() => {
-      window.electronAPI
-        .listAgentSessions()
-        .then((sessions) => {
-          const prevSessions = store.get(agentSessionsAtom)
-          store.set(agentSessionsAtom, sessions)
-          // 同步更新标签页标题（比较新旧标题，有变化才更新）
-          for (const session of sessions) {
-            const prev = prevSessions.find((s) => s.id === session.id)
-            if (prev && prev.title !== session.title) {
-              store.set(tabsAtom, (tabs) => updateTabTitle(tabs, session.id, session.title))
-            }
-          }
-        })
-        .catch(console.error)
+      sessionRefreshController.schedule({ syncTitles: true })
     })
 
     // 定期清理 60s 前的「最近修改」标记，避免 atom 无限增长
@@ -792,6 +795,7 @@ export function useGlobalAgentListeners(): void {
       cleanupError()
       cleanupTitleUpdated()
       clearInterval(pruneTimer)
+      sessionRefreshController.dispose()
     }
   }, [store]) // store 引用稳定，effect 只执行一次
 }

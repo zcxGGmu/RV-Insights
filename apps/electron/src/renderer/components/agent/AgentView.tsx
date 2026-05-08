@@ -74,6 +74,18 @@ import {
   allPendingAskUserRequestsAtom,
   allPendingExitPlanRequestsAtom,
   finalizeStreamingActivities,
+  sessionStreamingStateFamily,
+  sessionLiveMessagesFamily,
+  sessionStreamErrorFamily,
+  sessionPromptSuggestionFamily,
+  sessionChannelIdFamily,
+  sessionModelIdFamily,
+  sessionDraftFamily,
+  sessionDraftHtmlFamily,
+  sessionAttachedDirsFamily,
+  sessionMessageRefreshFamily,
+  sessionPathFamily,
+  sessionPermissionModeFamily,
 } from '@/atoms/agent-atoms'
 import type { AgentContextStatus } from '@/atoms/agent-atoms'
 import { settingsOpenAtom } from '@/atoms/settings-tab'
@@ -84,9 +96,6 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import type { AgentSendInput, AgentMessage, AgentPendingFile, ModelOption, SDKMessage } from '@rv-insights/shared'
 import { fileToBase64 } from '@/lib/file-utils'
-
-/** 稳定的空 SDKMessage 数组引用，避免 ?? [] 每次创建新引用 */
-const EMPTY_SDK_MESSAGES: SDKMessage[] = []
 
 // ===== 思考模式 Hover Popover =====
 
@@ -172,25 +181,22 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const [messages, setMessages] = React.useState<AgentMessage[]>([])
   const [persistedSDKMessages, setPersistedSDKMessages] = React.useState<SDKMessage[]>([])
   const setStreamingStates = useSetAtom(agentStreamingStatesAtom)
-  const streamingStates = useAtomValue(agentStreamingStatesAtom)
-  const streamState = streamingStates.get(sessionId)
+  const streamState = useAtomValue(sessionStreamingStateFamily(sessionId))
   const streaming = streamState?.running ?? false
   const stoppedByUserSessions = useAtomValue(stoppedByUserSessionsAtom)
   const sendWithCmdEnter = useAtomValue(sendWithCmdEnterAtom)
   const stoppedByUser = stoppedByUserSessions.has(sessionId)
-  const liveMessagesMap = useAtomValue(liveMessagesMapAtom)
+  const liveMessages = useAtomValue(sessionLiveMessagesFamily(sessionId))
   const setLiveMessagesMap = useSetAtom(liveMessagesMapAtom)
-  // 稳定化空数组引用，避免 ?? [] 每次创建新引用导致下游 useMemo 链不必要重算
-  const liveMessages = liveMessagesMap.get(sessionId) ?? EMPTY_SDK_MESSAGES
   // Per-session 渠道/模型配置（优先读 session map，回退到全局默认值）
-  const sessionChannelMap = useAtomValue(agentSessionChannelMapAtom)
-  const sessionModelMap = useAtomValue(agentSessionModelMapAtom)
+  const sessionChannelId = useAtomValue(sessionChannelIdFamily(sessionId))
+  const sessionModelId = useAtomValue(sessionModelIdFamily(sessionId))
   const setSessionChannelMap = useSetAtom(agentSessionChannelMapAtom)
   const setSessionModelMap = useSetAtom(agentSessionModelMapAtom)
   const [defaultChannelId, setDefaultChannelId] = useAtom(agentChannelIdAtom)
   const [defaultModelId, setDefaultModelId] = useAtom(agentModelIdAtom)
-  const agentChannelId = sessionChannelMap.get(sessionId) ?? defaultChannelId
-  const agentModelId = sessionModelMap.get(sessionId) ?? defaultModelId
+  const agentChannelId = sessionChannelId ?? defaultChannelId
+  const agentModelId = sessionModelId ?? defaultModelId
   const agentChannelIds = useAtomValue(agentChannelIdsAtom)
   const setAgentChannelIds = useSetAtom(agentChannelIdsAtom)
   const [agentThinking, setAgentThinking] = useAtom(agentThinkingAtom)
@@ -215,7 +221,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   // 已有会话首次打开时，从全局默认值初始化 per-session map
   React.useEffect(() => {
     if (!sessionId) return
-    if (!sessionChannelMap.has(sessionId) && defaultChannelId) {
+    if (!sessionChannelId && defaultChannelId) {
       setSessionChannelMap((prev) => {
         if (prev.has(sessionId)) return prev
         const map = new Map(prev)
@@ -223,7 +229,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         return map
       })
     }
-    if (!sessionModelMap.has(sessionId) && defaultModelId) {
+    if (!sessionModelId && defaultModelId) {
       setSessionModelMap((prev) => {
         if (prev.has(sessionId)) return prev
         const map = new Map(prev)
@@ -231,7 +237,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         return map
       })
     }
-  }, [sessionId, sessionChannelMap, sessionModelMap, defaultChannelId, defaultModelId, setSessionChannelMap, setSessionModelMap])
+  }, [sessionId, sessionChannelId, sessionModelId, defaultChannelId, defaultModelId, setSessionChannelMap, setSessionModelMap])
 
   const contextStatus: AgentContextStatus = {
     isCompacting: streamState?.isCompacting ?? false,
@@ -239,29 +245,25 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     contextWindow: streamState?.contextWindow,
   }
   const setAgentStreamErrors = useSetAtom(agentStreamErrorsAtom)
-  const streamErrors = useAtomValue(agentStreamErrorsAtom)
-  const agentError = streamErrors.get(sessionId) ?? null
+  const agentError = useAtomValue(sessionStreamErrorFamily(sessionId)) ?? null
   const planModeSessions = useAtomValue(agentPlanModeSessionsAtom)
   const isPlanMode = planModeSessions.has(sessionId)
-  const permissionModeMap = useAtomValue(agentPermissionModeMapAtom)
+  const sessionPermissionMode = useAtomValue(sessionPermissionModeFamily(sessionId))
   const defaultPermissionMode = useAtomValue(agentDefaultPermissionModeAtom)
-  const permissionMode = permissionModeMap.get(sessionId) ?? defaultPermissionMode
+  const permissionMode = sessionPermissionMode ?? defaultPermissionMode
   const isPermissionPlanMode = permissionMode === 'plan'
   const store = useStore()
-  const suggestionsMap = useAtomValue(agentPromptSuggestionsAtom)
-  const suggestion = suggestionsMap.get(sessionId) ?? null
+  const suggestion = useAtomValue(sessionPromptSuggestionFamily(sessionId)) ?? null
   const setPromptSuggestions = useSetAtom(agentPromptSuggestionsAtom)
   const setAgentSessions = useSetAtom(agentSessionsAtom)
   const openSession = useOpenSession()
   const setAttachedDirsMap = useSetAtom(agentAttachedDirectoriesMapAtom)
-  const attachedDirsMap = useAtomValue(agentAttachedDirectoriesMapAtom)
-  const attachedDirs = attachedDirsMap.get(sessionId) ?? []
+  const attachedDirs = useAtomValue(sessionAttachedDirsFamily(sessionId))
   const wsAttachedDirsMap = useAtomValue(workspaceAttachedDirectoriesMapAtom)
   const wsAttachedDirs = currentWorkspaceId ? (wsAttachedDirsMap.get(currentWorkspaceId) ?? []) : []
 
-  const draftsMap = useAtomValue(agentSessionDraftsAtom)
+  const inputContent = useAtomValue(sessionDraftFamily(sessionId))
   const setDraftsMap = useSetAtom(agentSessionDraftsAtom)
-  const inputContent = draftsMap.get(sessionId) ?? ''
   const setInputContent = React.useCallback((value: string) => {
     setDraftsMap((prev) => {
       const map = new Map(prev)
@@ -273,9 +275,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       return map
     })
   }, [sessionId, setDraftsMap])
-  const draftHtmlMap = useAtomValue(agentSessionDraftHtmlAtom)
+  const inputHtmlContent = useAtomValue(sessionDraftHtmlFamily(sessionId))
   const setDraftHtmlMap = useSetAtom(agentSessionDraftHtmlAtom)
-  const inputHtmlContent = draftHtmlMap.get(sessionId) ?? ''
   const setInputHtmlContent = React.useCallback((html: string) => {
     setDraftHtmlMap((prev) => {
       const map = new Map(prev)
@@ -287,9 +288,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       return map
     })
   }, [sessionId, setDraftHtmlMap])
-  const sessionPathMap = useAtomValue(agentSessionPathMapAtom)
+  const sessionPath = useAtomValue(sessionPathFamily(sessionId)) ?? null
   const setSessionPathMap = useSetAtom(agentSessionPathMapAtom)
-  const sessionPath = sessionPathMap.get(sessionId) ?? null
   const [workspaceFilesPath, setWorkspaceFilesPath] = React.useState<string | null>(null)
   const [isDragOver, setIsDragOver] = React.useState(false)
   const [errorCopied, setErrorCopied] = React.useState(false)
@@ -402,8 +402,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   }, [attachedDirs, wsAttachedDirs, workspaceFilesPath])
 
   // 监听消息刷新版本号
-  const refreshMap = useAtomValue(agentMessageRefreshAtom)
-  const refreshVersion = refreshMap.get(sessionId) ?? 0
+  const refreshVersion = useAtomValue(sessionMessageRefreshFamily(sessionId))
 
   // 消息是否已完成首次加载（用于 auto-send 等待）
   const [messagesLoaded, setMessagesLoaded] = React.useState(false)

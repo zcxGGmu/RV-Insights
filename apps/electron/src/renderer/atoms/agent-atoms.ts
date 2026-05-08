@@ -78,6 +78,8 @@ export interface TeammateState {
 
 /** 工具历史最大记录数 */
 const MAX_TOOL_HISTORY = 20
+const EMPTY_SDK_MESSAGES: SDKMessage[] = []
+const EMPTY_ATTACHED_DIRECTORIES: string[] = []
 
 /**
  * 将流式状态中未完成的 toolActivities 和 running teammates 标记为终态。
@@ -949,6 +951,56 @@ export interface BackgroundTask {
  */
 export const backgroundTasksAtomFamily = atomFamily((sessionId: string) =>
   atom<BackgroundTask[]>([])
+)
+
+// ===== 按 sessionId 隔离的派生 atoms（避免全局 Map 变化触发无关会话重渲染） =====
+
+export const sessionStreamingStateFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentStreamingStatesAtom).get(sessionId))
+)
+
+export const sessionLiveMessagesFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(liveMessagesMapAtom).get(sessionId) ?? EMPTY_SDK_MESSAGES)
+)
+
+export const sessionStreamErrorFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentStreamErrorsAtom).get(sessionId))
+)
+
+export const sessionPromptSuggestionFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentPromptSuggestionsAtom).get(sessionId))
+)
+
+export const sessionChannelIdFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentSessionChannelMapAtom).get(sessionId))
+)
+
+export const sessionModelIdFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentSessionModelMapAtom).get(sessionId))
+)
+
+export const sessionDraftFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentSessionDraftsAtom).get(sessionId) ?? '')
+)
+
+export const sessionDraftHtmlFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentSessionDraftHtmlAtom).get(sessionId) ?? '')
+)
+
+export const sessionAttachedDirsFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentAttachedDirectoriesMapAtom).get(sessionId) ?? EMPTY_ATTACHED_DIRECTORIES)
+)
+
+export const sessionMessageRefreshFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentMessageRefreshAtom).get(sessionId) ?? 0)
+)
+
+export const sessionPathFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentSessionPathMapAtom).get(sessionId))
+)
+
+export const sessionPermissionModeFamily = atomFamily((sessionId: string) =>
+  atom((get) => get(agentPermissionModeMapAtom).get(sessionId))
 )
 
 // ===== 用户打断状态 =====
