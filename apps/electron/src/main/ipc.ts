@@ -4,11 +4,11 @@
  * 负责注册主进程和渲染进程之间的通信处理器
  */
 
-import { ipcMain, nativeTheme, shell, dialog, BrowserWindow, app } from 'electron'
+import { ipcMain, shell, dialog, BrowserWindow, app } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, PIPELINE_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
-import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, APP_ICON_IPC_CHANNELS } from '../types'
+import { QUICK_TASK_IPC_CHANNELS } from '../types'
 import type { QuickTaskSubmitInput } from '../types'
 import type {
   RuntimeStatus,
@@ -92,7 +92,6 @@ import type {
   PipelineGateResponse,
   PipelineStateSnapshot,
 } from '@rv-insights/shared'
-import type { UserProfile, AppSettings } from '../types'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
 import { registerUpdaterIpc } from './lib/updater/updater-ipc'
 import {
@@ -117,7 +116,6 @@ import {
 } from './lib/attachment-service'
 import { extractTextFromAttachment } from './lib/document-parser'
 import { getTutorialContent, createWelcomeConversation } from './lib/tutorial-service'
-import { getUserProfile, updateUserProfile } from './lib/user-profile-service'
 import { getSettings, updateSettings } from './lib/settings-service'
 import { checkEnvironment } from './lib/environment-checker'
 import { fetchInstallerManifest, findInstallerSource } from './lib/installer-manifest'
@@ -204,6 +202,7 @@ import { wechatBridge } from './lib/wechat-bridge'
 import { getPipelineService } from './lib/pipeline-service'
 import { pipelineStreamBus } from './lib/pipeline-stream-bus'
 import { registerChannelIpcHandlers } from './ipc/channel-handlers'
+import { registerSettingsIpcHandlers } from './ipc/settings-handlers'
 
 /** 文件浏览器中需要隐藏的系统文件 */
 const HIDDEN_FS_ENTRIES = new Set(['.DS_Store', 'Thumbs.db'])
@@ -290,6 +289,9 @@ export function registerIpcHandlers(): void {
 
   // ===== 渠道管理相关 =====
   registerChannelIpcHandlers()
+
+  // ===== 用户档案 / 应用设置 / 图标 =====
+  registerSettingsIpcHandlers({ resolveAppIconPath })
 
   // ===== 对话管理相关 =====
 
@@ -573,114 +575,6 @@ export function registerIpcHandlers(): void {
     CHAT_IPC_CHANNELS.EXTRACT_ATTACHMENT_TEXT,
     async (_, localPath: string): Promise<string> => {
       return extractTextFromAttachment(localPath)
-    }
-  )
-
-  // ===== 用户档案相关 =====
-
-  // 获取用户档案
-  ipcMain.handle(
-    USER_PROFILE_IPC_CHANNELS.GET,
-    async (): Promise<UserProfile> => {
-      return getUserProfile()
-    }
-  )
-
-  // 更新用户档案
-  ipcMain.handle(
-    USER_PROFILE_IPC_CHANNELS.UPDATE,
-    async (_, updates: Partial<UserProfile>): Promise<UserProfile> => {
-      return updateUserProfile(updates)
-    }
-  )
-
-  // ===== 应用设置相关 =====
-
-  // 获取应用设置
-  ipcMain.handle(
-    SETTINGS_IPC_CHANNELS.GET,
-    async (): Promise<AppSettings> => {
-      return getSettings()
-    }
-  )
-
-  // 更新应用设置
-  ipcMain.handle(
-    SETTINGS_IPC_CHANNELS.UPDATE,
-    async (event, updates: Partial<AppSettings>): Promise<AppSettings> => {
-      const result = await updateSettings(updates)
-
-      // 主题相关设置变化时，广播给所有窗口（跨窗口同步，如 Quick Task 面板）
-      if (updates.themeMode !== undefined || updates.themeStyle !== undefined) {
-        const payload = { themeMode: result.themeMode, themeStyle: result.themeStyle }
-        BrowserWindow.getAllWindows().forEach((win) => {
-          // 跳过发起者窗口，避免重复应用
-          if (win.webContents.id !== event.sender.id) {
-            win.webContents.send(SETTINGS_IPC_CHANNELS.ON_THEME_SETTINGS_CHANGED, payload)
-          }
-        })
-      }
-
-      return result
-    }
-  )
-
-  // 同步更新应用设置（用于 beforeunload 场景）
-  ipcMain.on(
-    SETTINGS_IPC_CHANNELS.UPDATE_SYNC,
-    (event, updates: Partial<AppSettings>) => {
-      try {
-        updateSettings(updates)
-        event.returnValue = true
-      } catch {
-        event.returnValue = false
-      }
-    }
-  )
-
-  // 获取系统主题（是否深色模式）
-  ipcMain.handle(
-    SETTINGS_IPC_CHANNELS.GET_SYSTEM_THEME,
-    async (): Promise<boolean> => {
-      return nativeTheme.shouldUseDarkColors
-    }
-  )
-
-  // 监听系统主题变化，推送给所有渲染进程窗口
-  nativeTheme.on('updated', () => {
-    const isDark = nativeTheme.shouldUseDarkColors
-    console.log(`[设置] 系统主题变化: ${isDark ? '深色' : '浅色'}`)
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(SETTINGS_IPC_CHANNELS.ON_SYSTEM_THEME_CHANGED, isDark)
-    })
-  })
-
-  // ===== 应用图标切换 =====
-
-  ipcMain.handle(
-    APP_ICON_IPC_CHANNELS.SET,
-    async (_, variantId: string): Promise<boolean> => {
-      try {
-        // 解析图标文件路径
-        const iconPath = resolveAppIconPath(variantId)
-        if (!iconPath || !existsSync(iconPath)) {
-          console.warn('[图标] 图标文件不存在:', iconPath)
-          return false
-        }
-
-        // macOS: 设置 Dock 图标
-        if (process.platform === 'darwin' && app.dock) {
-          app.dock.setIcon(iconPath)
-        }
-
-        // 持久化到设置
-        await updateSettings({ appIconVariant: variantId })
-        console.log(`[图标] 已切换到: ${variantId}`)
-        return true
-      } catch (error) {
-        console.error('[图标] 切换失败:', error)
-        return false
-      }
     }
   )
 
