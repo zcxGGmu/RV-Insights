@@ -162,9 +162,6 @@ export interface ElectronAPI {
   /** 删除渠道 */
   deleteChannel: (id: string) => Promise<void>
 
-  /** 解密获取明文 API Key（仅在用户查看时调用） */
-  decryptApiKey: (channelId: string) => Promise<string>
-
   /** 测试渠道连接 */
   testChannel: (channelId: string) => Promise<ChannelTestResult>
 
@@ -745,8 +742,6 @@ export interface ElectronAPI {
 
   /** 获取飞书配置 */
   getFeishuConfig: () => Promise<FeishuConfig>
-  /** 获取解密后的 App Secret */
-  getDecryptedFeishuSecret: () => Promise<string>
   /** 保存飞书配置（appSecret 为明文） */
   saveFeishuConfig: (input: FeishuConfigInput) => Promise<FeishuConfig>
   /** 测试飞书连接 */
@@ -778,8 +773,6 @@ export interface ElectronAPI {
   getFeishuMultiConfig: () => Promise<import('@rv-insights/shared').FeishuMultiBotConfig>
   /** 保存单个 Bot 配置 */
   saveFeishuBotConfig: (input: import('@rv-insights/shared').FeishuBotConfigInput) => Promise<import('@rv-insights/shared').FeishuBotConfig>
-  /** 获取单个 Bot 解密后的 App Secret */
-  getDecryptedFeishuBotSecret: (botId: string) => Promise<string>
   /** 删除 Bot */
   removeFeishuBot: (botId: string) => Promise<boolean>
   /** 启动单个 Bot */
@@ -793,8 +786,6 @@ export interface ElectronAPI {
 
   /** 获取钉钉配置 */
   getDingTalkConfig: () => Promise<DingTalkConfig>
-  /** 获取解密后的 Client Secret */
-  getDecryptedDingTalkSecret: () => Promise<string>
   /** 保存钉钉配置（clientSecret 为明文） */
   saveDingTalkConfig: (input: DingTalkConfigInput) => Promise<DingTalkConfig>
   /** 测试钉钉连接 */
@@ -814,8 +805,6 @@ export interface ElectronAPI {
   getDingTalkMultiConfig: () => Promise<import('@rv-insights/shared').DingTalkMultiBotConfig>
   /** 保存单个 Bot 配置 */
   saveDingTalkBotConfig: (input: import('@rv-insights/shared').DingTalkBotConfigInput) => Promise<import('@rv-insights/shared').DingTalkBotConfig>
-  /** 获取单个 Bot 解密后的 Client Secret */
-  getDecryptedDingTalkBotSecret: (botId: string) => Promise<string>
   /** 删除 Bot */
   removeDingTalkBot: (botId: string) => Promise<boolean>
   /** 启动单个 Bot */
@@ -896,10 +885,6 @@ const electronAPI: ElectronAPI = {
 
   deleteChannel: (id: string) => {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.DELETE, id)
-  },
-
-  decryptApiKey: (channelId: string) => {
-    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.DECRYPT_KEY, channelId)
   },
 
   testChannel: (channelId: string) => {
@@ -1674,10 +1659,6 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.GET_CONFIG)
   },
 
-  getDecryptedFeishuSecret: () => {
-    return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.GET_DECRYPTED_SECRET)
-  },
-
   saveFeishuConfig: (input: FeishuConfigInput) => {
     return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.SAVE_CONFIG, input)
   },
@@ -1740,10 +1721,6 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.SAVE_BOT_CONFIG, input)
   },
 
-  getDecryptedFeishuBotSecret: (botId: string) => {
-    return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.GET_BOT_DECRYPTED_SECRET, botId)
-  },
-
   removeFeishuBot: (botId: string) => {
     return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.REMOVE_BOT, botId)
   },
@@ -1798,10 +1775,6 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(DINGTALK_IPC_CHANNELS.GET_CONFIG)
   },
 
-  getDecryptedDingTalkSecret: () => {
-    return ipcRenderer.invoke(DINGTALK_IPC_CHANNELS.GET_DECRYPTED_SECRET)
-  },
-
   saveDingTalkConfig: (input: DingTalkConfigInput) => {
     return ipcRenderer.invoke(DINGTALK_IPC_CHANNELS.SAVE_CONFIG, input)
   },
@@ -1836,10 +1809,6 @@ const electronAPI: ElectronAPI = {
 
   saveDingTalkBotConfig: (input: import('@rv-insights/shared').DingTalkBotConfigInput) => {
     return ipcRenderer.invoke(DINGTALK_IPC_CHANNELS.SAVE_BOT_CONFIG, input)
-  },
-
-  getDecryptedDingTalkBotSecret: (botId: string) => {
-    return ipcRenderer.invoke(DINGTALK_IPC_CHANNELS.GET_BOT_DECRYPTED_SECRET, botId)
   },
 
   removeDingTalkBot: (botId: string) => {

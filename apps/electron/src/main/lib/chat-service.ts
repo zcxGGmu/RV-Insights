@@ -558,14 +558,11 @@ const MAX_TITLE_LENGTH = 20
  */
 export async function generateTitle(input: GenerateTitleInput): Promise<string | null> {
   const { userMessage, channelId, modelId } = input
-  console.log('[标题生成] 开始生成标题:', { channelId, modelId, userMessage: userMessage.slice(0, 50) })
 
   // 短消息直接使用原文作为标题，避免 AI 幻觉
   const trimmedMessage = userMessage.trim()
   if (trimmedMessage.length <= SHORT_MESSAGE_THRESHOLD) {
-    const shortTitle = trimmedMessage.slice(0, MAX_TITLE_LENGTH)
-    console.log('[标题生成] 消息过短，直接使用原文作为标题:', shortTitle)
-    return shortTitle
+    return trimmedMessage.slice(0, MAX_TITLE_LENGTH)
   }
 
   // 查找渠道
@@ -604,9 +601,7 @@ export async function generateTitle(input: GenerateTitleInput): Promise<string |
 
     // 截断到最大长度并清理引号
     const cleaned = title.trim().replace(/^["'""'']+|["'""'']+$/g, '').trim()
-    const result = cleaned.slice(0, MAX_TITLE_LENGTH) || null
-    console.log('[标题生成] 成功生成标题:', result)
-    return result
+    return cleaned.slice(0, MAX_TITLE_LENGTH) || null
   } catch (error) {
     console.warn('[标题生成] 请求失败:', error)
     return null

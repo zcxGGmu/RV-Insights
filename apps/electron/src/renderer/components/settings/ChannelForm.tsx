@@ -151,23 +151,9 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
   const [testResult, setTestResult] = React.useState<ChannelTestResult | null>(null)
   const [fetchingModels, setFetchingModels] = React.useState(false)
   const [fetchResult, setFetchResult] = React.useState<FetchModelsResult | null>(null)
-  const [apiKeyLoaded, setApiKeyLoaded] = React.useState(false)
   const [showExitDialog, setShowExitDialog] = React.useState(false)
 
   const setChannelFormDirty = useSetAtom(channelFormDirtyAtom)
-
-  /** 编辑模式下加载明文 API Key */
-  React.useEffect(() => {
-    if (isEdit && channel && !apiKeyLoaded) {
-      window.electronAPI.decryptApiKey(channel.id).then((key) => {
-        setApiKey(key)
-        setApiKeyLoaded(true)
-      }).catch((error) => {
-        console.error('[模型配置表单] 解密 API Key 失败:', error)
-        setApiKeyLoaded(true)
-      })
-    }
-  }, [isEdit, channel, apiKeyLoaded])
 
   // ===== Auto-save（仅编辑模式） =====
   const autoSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -216,17 +202,14 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
     }, AUTO_SAVE_DELAY)
   }, [isEdit, doAutoSave])
 
-  // API Key 加载完成后标记初始化
+  // 初始化完成后标记 ready，避免挂载阶段触发 auto-save
   React.useEffect(() => {
-    if (isEdit && apiKeyLoaded) {
-      // 延迟标记，避免加载时触发
-      const t = setTimeout(() => { initializedRef.current = true }, 100)
-      return () => clearTimeout(t)
-    }
-    if (!isEdit) {
+    initializedRef.current = false
+    const timer = setTimeout(() => {
       initializedRef.current = true
-    }
-  }, [isEdit, apiKeyLoaded])
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [isEdit, channel?.id])
 
   // 监听字段变化触发 auto-save
   React.useEffect(() => {
@@ -491,7 +474,14 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
           {/* API Key + 测试连接同行 */}
           <div className="px-4 py-3 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-foreground">API Key</div>
+              <div className="space-y-0.5">
+                <div className="text-sm font-medium text-foreground">API Key</div>
+                {isEdit && (
+                  <div className="text-xs text-muted-foreground">
+                    出于安全原因，已保存的 API Key 不会回显；留空表示不修改。
+                  </div>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="sm"

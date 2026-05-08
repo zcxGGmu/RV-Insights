@@ -609,10 +609,9 @@ export class AgentOrchestrator {
    * 生成 Agent 会话标题
    *
    * 使用 Provider 适配器系统，支持所有渠道。任何错误返回 null。
-   */
+  */
   async generateTitle(input: AgentGenerateTitleInput): Promise<string | null> {
     const { userMessage, channelId, modelId } = input
-    console.log('[Agent 标题生成] 开始生成标题:', { channelId, modelId, userMessage: userMessage.slice(0, 50) })
 
     try {
       const channels = listChannels()
@@ -640,10 +639,7 @@ export class AgentOrchestrator {
       }
 
       const cleaned = title.trim().replace(/^["'""''「《]+|["'""''」》]+$/g, '').trim()
-      const result = cleaned.slice(0, MAX_TITLE_LENGTH) || null
-
-      console.log(`[Agent 标题生成] 生成标题成功: "${result}"`)
-      return result
+      return cleaned.slice(0, MAX_TITLE_LENGTH) || null
     } catch (error) {
       console.warn('[Agent 标题生成] 生成失败:', error)
       return null
@@ -671,7 +667,6 @@ export class AgentOrchestrator {
 
       updateAgentSessionMeta(sessionId, { title })
       callbacks.onTitleUpdated(title)
-      console.log(`[Agent 编排] 自动标题生成完成: "${title}"`)
     } catch (error) {
       console.warn('[Agent 编排] 自动标题生成失败:', error)
     }

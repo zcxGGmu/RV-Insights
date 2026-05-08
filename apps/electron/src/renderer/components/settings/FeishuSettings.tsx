@@ -493,20 +493,6 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
   const [testResult, setTestResult] = React.useState<FeishuTestResult | null>(null)
   const [expanded, setExpanded] = React.useState(!bot.appId) // 新建的 Bot 默认展开
 
-  // 加载已有 secret（使用 bot-specific API）
-  React.useEffect(() => {
-    if (bot.appSecret && bot.id) {
-      window.electronAPI.getDecryptedFeishuBotSecret?.(bot.id)
-        .then((s: string) => { if (s) setAppSecret(s) })
-        .catch(() => {
-          // 回退到旧 API（兼容迁移前的首个 Bot）
-          window.electronAPI.getDecryptedFeishuSecret?.()
-            .then((s: string) => { if (s) setAppSecret(s) })
-            .catch(() => {})
-        })
-    }
-  }, [bot.id, bot.appSecret])
-
   const statusConfig = state ? STATUS_CONFIG[state.status] : STATUS_CONFIG.disconnected
   const isConnected = state?.status === 'connected' || state?.status === 'connecting'
 
@@ -651,9 +637,10 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
           />
           <SettingsSecretInput
             label="App Secret"
+            description={bot.appSecret ? '出于安全原因，已保存的 App Secret 不会回显；留空表示不修改。' : undefined}
             value={appSecret}
             onChange={setAppSecret}
-            placeholder="输入 App Secret"
+            placeholder={bot.appSecret ? '留空则不修改' : '输入 App Secret'}
           />
 
           <div className="flex items-center gap-3">

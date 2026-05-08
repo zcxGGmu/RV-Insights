@@ -106,7 +106,6 @@ import {
   createChannel,
   updateChannel,
   deleteChannel,
-  decryptApiKey,
   testChannel,
   testChannelDirect,
   fetchModels,
@@ -207,15 +206,13 @@ import { watchAttachedDirectory, unwatchAttachedDirectory } from './lib/workspac
 import {
   getFeishuConfig,
   saveFeishuConfig,
-  getDecryptedAppSecret,
   getFeishuMultiBotConfig,
   saveFeishuBotConfig,
   removeFeishuBot,
-  getDecryptedBotAppSecret,
 } from './lib/feishu-config'
 import { feishuBridgeManager } from './lib/feishu-bridge-manager'
 import { presenceService } from './lib/feishu-presence'
-import { getDingTalkConfig, saveDingTalkConfig, getDecryptedClientSecret, getDingTalkMultiBotConfig, saveDingTalkBotConfig, removeDingTalkBot, getDecryptedBotClientSecret } from './lib/dingtalk-config'
+import { getDingTalkConfig, saveDingTalkConfig, getDingTalkMultiBotConfig, saveDingTalkBotConfig, removeDingTalkBot } from './lib/dingtalk-config'
 import { dingtalkBridgeManager } from './lib/dingtalk-bridge-manager'
 import { getWeChatConfig } from './lib/wechat-config'
 import { wechatBridge } from './lib/wechat-bridge'
@@ -338,15 +335,6 @@ export function registerIpcHandlers(): void {
       return deleteChannel(id)
     }
   )
-
-  // 解密 API Key（仅在用户查看时调用）
-  ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.DECRYPT_KEY,
-    async (_, channelId: string): Promise<string> => {
-      return decryptApiKey(channelId)
-    }
-  )
-
   // 测试渠道连接
   ipcMain.handle(
     CHANNEL_IPC_CHANNELS.TEST,
@@ -2295,14 +2283,6 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 获取解密后的 App Secret
-  ipcMain.handle(
-    FEISHU_IPC_CHANNELS.GET_DECRYPTED_SECRET,
-    async (): Promise<string> => {
-      return getDecryptedAppSecret()
-    }
-  )
-
   // 保存飞书配置（旧格式，操作 bots[0]）
   ipcMain.handle(
     FEISHU_IPC_CHANNELS.SAVE_CONFIG,
@@ -2381,14 +2361,6 @@ export function registerIpcHandlers(): void {
     async (_, botId: string) => {
       feishuBridgeManager.stopBot(botId)
       return removeFeishuBot(botId)
-    }
-  )
-
-  // 获取单个 Bot 解密 Secret
-  ipcMain.handle(
-    FEISHU_IPC_CHANNELS.GET_BOT_DECRYPTED_SECRET,
-    async (_, botId: string) => {
-      return getDecryptedBotAppSecret(botId)
     }
   )
 
@@ -2479,14 +2451,6 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 获取解密后的 Client Secret（旧 API，向后兼容）
-  ipcMain.handle(
-    DINGTALK_IPC_CHANNELS.GET_DECRYPTED_SECRET,
-    async (): Promise<string> => {
-      return getDecryptedClientSecret()
-    }
-  )
-
   // 保存钉钉配置（旧 API，向后兼容）
   ipcMain.handle(
     DINGTALK_IPC_CHANNELS.SAVE_CONFIG,
@@ -2566,13 +2530,6 @@ export function registerIpcHandlers(): void {
   )
 
   // 获取单个 Bot 解密 Secret
-  ipcMain.handle(
-    DINGTALK_IPC_CHANNELS.GET_BOT_DECRYPTED_SECRET,
-    async (_, botId: string) => {
-      return getDecryptedBotClientSecret(botId)
-    }
-  )
-
   // 启动单个 Bot
   ipcMain.handle(
     DINGTALK_IPC_CHANNELS.START_BOT,

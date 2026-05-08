@@ -232,20 +232,6 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
   const [testResult, setTestResult] = React.useState<DingTalkTestResult | null>(null)
   const [expanded, setExpanded] = React.useState(!bot.clientId) // 新建的 Bot 默认展开
 
-  // 加载已有 secret（使用 bot-specific API）
-  React.useEffect(() => {
-    if (bot.clientSecret && bot.id) {
-      window.electronAPI.getDecryptedDingTalkBotSecret?.(bot.id)
-        .then((s: string) => { if (s) setClientSecret(s) })
-        .catch(() => {
-          // 回退到旧 API（兼容迁移前的首个 Bot）
-          window.electronAPI.getDecryptedDingTalkSecret?.()
-            .then((s: string) => { if (s) setClientSecret(s) })
-            .catch(() => {})
-        })
-    }
-  }, [bot.id, bot.clientSecret])
-
   const statusConfig = state ? STATUS_CONFIG[state.status] : STATUS_CONFIG.disconnected
   const isConnected = state?.status === 'connected' || state?.status === 'connecting'
 
@@ -351,9 +337,10 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
           />
           <SettingsSecretInput
             label="Client Secret (AppSecret)"
+            description={bot.clientSecret ? '出于安全原因，已保存的 Client Secret 不会回显；留空表示不修改。' : undefined}
             value={clientSecret}
             onChange={setClientSecret}
-            placeholder="输入 Client Secret"
+            placeholder={bot.clientSecret ? '留空则不修改' : '输入 Client Secret'}
           />
 
           <div className="flex items-center gap-3">
