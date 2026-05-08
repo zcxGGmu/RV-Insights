@@ -7,6 +7,7 @@ import {
   createPipelineSession,
   getPipelineRecords,
   getPipelineRecordsTail,
+  getPipelineSessionMeta,
   listPipelineSessions,
   searchPipelineRecordsPage,
 } from './pipeline-session-manager'
@@ -103,6 +104,45 @@ describe('pipeline-session-manager', () => {
       nextIndex: 0,
       hasMore: false,
     })
+  })
+
+  test('appendPipelineRecord 复用 shared replay patch 更新 pendingGate 和终态', () => {
+    const session = createPipelineSession('replay patch 测试', 'channel-1', 'workspace-1')
+
+    appendPipelineRecord(session.id, {
+      id: 'gate-request',
+      sessionId: session.id,
+      type: 'gate_requested',
+      node: 'tester',
+      gateId: 'gate-1',
+      title: '测试待确认',
+      summary: '验证通过',
+      feedbackHint: '确认后完成',
+      iteration: 1,
+      createdAt: 1,
+    })
+
+    const waitingMeta = getPipelineSessionMeta(session.id)
+    expect(waitingMeta?.status).toBe('waiting_human')
+    expect(waitingMeta?.pendingGate).toMatchObject({
+      gateId: 'gate-1',
+      title: '测试待确认',
+      iteration: 1,
+    })
+
+    appendPipelineRecord(session.id, {
+      id: 'gate-decision',
+      sessionId: session.id,
+      type: 'gate_decision',
+      node: 'tester',
+      action: 'approve',
+      createdAt: 2,
+    })
+
+    const completedMeta = getPipelineSessionMeta(session.id)
+    expect(completedMeta?.status).toBe('completed')
+    expect(completedMeta?.lastApprovedNode).toBe('tester')
+    expect(completedMeta?.pendingGate).toBeNull()
   })
 
   test('searchPipelineRecordsPage 支持阶段过滤和稳定分页', async () => {

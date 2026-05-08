@@ -758,10 +758,12 @@ bun test packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main
 
 目标：减少长期维护成本。
 
-- [ ] 明确 graph snapshot、shared reducer、session meta 的权威边界
-- [ ] 让 records replay 和 session meta 对齐
-- [ ] 拆分 Pipeline runner 的 system prompt / user prompt
-- [ ] structured output 增加严格校验与错误类型
+更新：2026-05-08 已完成 Phase E 的核心收敛项，覆盖状态权威边界、records replay 与 session meta patch 对齐、Pipeline runner prompt 拆分，以及 structured output 严格校验。Pipeline / Agent 共享 lifecycle 与 sidebar 抽象仍保留为后续按重复问题逐步提取，暂不做无明确收益的大范围重构。
+
+- [x] 明确 graph snapshot、shared reducer、session meta 的权威边界
+- [x] 让 records replay 和 session meta 对齐
+- [x] 拆分 Pipeline runner 的 system prompt / user prompt
+- [x] structured output 增加严格校验与错误类型
 - [ ] 逐步抽象 Pipeline / Agent 共享 lifecycle 和 sidebar 行为
 
 验收：

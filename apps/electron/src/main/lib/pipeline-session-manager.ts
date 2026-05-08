@@ -18,7 +18,12 @@ import type {
   PipelineRecordsSearchResult,
   PipelineSessionMeta,
 } from '@rv-insights/shared'
-import { createInitialPipelineState } from '@rv-insights/shared'
+import {
+  applyPipelineRecord,
+  buildPipelineSessionStatePatch,
+  createInitialPipelineState,
+  createPipelineStateFromSessionMeta,
+} from '@rv-insights/shared'
 import {
   getPipelineSessionRecordsPath,
   getPipelineSessionsDir,
@@ -131,19 +136,11 @@ export function appendPipelineRecord(
   const current = getPipelineSessionMeta(sessionId)
   if (!current) return
 
-  updatePipelineSessionMeta(sessionId, {
-    currentNode: 'node' in record ? record.node : current.currentNode,
-    reviewIteration: record.type === 'gate_decision'
-      && record.node === 'reviewer'
-      && record.action === 'reject_with_feedback'
-      ? current.reviewIteration + 1
-      : current.reviewIteration,
-    status: record.type === 'gate_requested'
-      ? 'waiting_human'
-      : record.type === 'error'
-        ? 'node_failed'
-        : current.status,
-  })
+  const nextState = applyPipelineRecord(
+    createPipelineStateFromSessionMeta(current),
+    record,
+  )
+  updatePipelineSessionMeta(sessionId, buildPipelineSessionStatePatch(nextState))
 }
 
 export function getPipelineRecords(sessionId: string): PipelineRecord[] {

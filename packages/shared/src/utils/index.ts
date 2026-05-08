@@ -11,7 +11,11 @@ export { diffCapabilities } from './capabilities-diff'
 export type { CapabilityChange } from './capabilities-diff'
 export {
   applyPipelineRecord,
+  buildPipelineSessionStatePatch,
   createInitialPipelineState,
+  createPipelineStateFromSessionMeta,
   isPipelineTerminalStatus,
+  replayPipelineRecords,
   serializePipelineState,
 } from './pipeline-state'
+export type { PipelineSessionStatePatch } from './pipeline-state'

@@ -271,7 +271,10 @@ export interface PipelineGateRequestedRecord {
   type: 'gate_requested'
   node: PipelineNodeKind
   gateId: string
+  title?: string
   summary?: string
+  feedbackHint?: string
+  iteration?: number
   createdAt: number
 }
 

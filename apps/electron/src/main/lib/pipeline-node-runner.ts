@@ -64,6 +64,26 @@ export interface PipelineNodeRunner {
   abort?(sessionId: string): void
 }
 
+export interface PipelineNodePrompts {
+  systemPrompt: string
+  userPrompt: string
+}
+
+export class PipelineStructuredOutputError extends Error {
+  readonly code = 'PIPELINE_STRUCTURED_OUTPUT_INVALID'
+  readonly node: PipelineNodeKind
+  readonly issues: string[]
+  readonly output: string
+
+  constructor(node: PipelineNodeKind, issues: string[], output: string) {
+    super(`Pipeline ${node} 结构化输出解析失败: ${issues.join('；')}`)
+    this.name = 'PipelineStructuredOutputError'
+    this.node = node
+    this.issues = issues
+    this.output = output
+  }
+}
+
 export interface ClaudePipelineNodeRunnerOptions {
   channelId?: string
   workspaceId?: string
@@ -219,11 +239,6 @@ function resolveModel(channelId?: string): string {
   return enabled?.id ?? channel?.models[0]?.id ?? DEFAULT_MODEL
 }
 
-function summarizeText(text: string): string {
-  const compact = text.replace(/\s+/g, ' ').trim()
-  return compact.length > 160 ? compact.slice(0, 160) + '...' : compact
-}
-
 function compactStageOutputsForPrompt(stageOutputs: PipelineStageOutputMap | undefined): string {
   const entries = Object.values(stageOutputs ?? {})
     .filter((output): output is PipelineStageOutput => Boolean(output))
@@ -242,68 +257,72 @@ function compactStageOutputsForPrompt(stageOutputs: PipelineStageOutputMap | und
   ].join('\n')
 }
 
-function buildRolePrompt(
-  node: PipelineNodeKind,
-  context: PipelineNodeExecutionContext,
-  workspaceName?: string,
-): string {
-  const feedbackBlock = context.feedback ? `\n人工反馈：${context.feedback}\n` : ''
-  const workspaceBlock = workspaceName ? `\n当前工作区：${workspaceName}\n` : '\n'
-  const stageOutputsBlock = compactStageOutputsForPrompt(context.stageOutputs)
-
+function buildSystemPrompt(node: PipelineNodeKind): string {
   switch (node) {
     case 'explorer':
       return [
         '你是 RV Pipeline 的 Explorer 节点。',
         '目标：基于用户需求快速梳理任务背景、代码入口和可执行方向。',
         '输出要求：给出简洁的探索结论、关键文件/模块、下一步建议。',
-        workspaceBlock,
-        stageOutputsBlock,
-        feedbackBlock,
-        `用户需求：${context.userInput}`,
+        '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
       ].join('\n')
     case 'planner':
       return [
         '你是 RV Pipeline 的 Planner 节点。',
         '目标：输出可执行的开发与验证方案，避免空泛描述。',
         '输出要求：方案步骤、风险点、验证方式。',
-        workspaceBlock,
-        stageOutputsBlock,
-        feedbackBlock,
-        `用户需求：${context.userInput}`,
+        '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
       ].join('\n')
     case 'developer':
       return [
         '你是 RV Pipeline 的 Developer 节点。',
         '目标：按计划直接完成代码实现和必要测试。',
         '输出要求：说明改动、验证结果、遗留风险。',
-        workspaceBlock,
-        stageOutputsBlock,
-        feedbackBlock,
-        `用户需求：${context.userInput}`,
-        `当前 reviewer 轮次：${context.reviewIteration}`,
+        '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
       ].join('\n')
     case 'reviewer':
       return [
         '你是 RV Pipeline 的 Reviewer 节点。',
         '目标：审查本轮开发结果，给出明确通过/驳回结论。',
         '请仅围绕正确性、回归风险、测试缺口、实现质量给出判断。',
-        workspaceBlock,
-        stageOutputsBlock,
-        feedbackBlock,
-        `用户需求：${context.userInput}`,
-        `当前 reviewer 轮次：${context.reviewIteration}`,
+        '必须严格遵守结构化输出 schema，approved 字段必须是 boolean。',
       ].join('\n')
     case 'tester':
       return [
         '你是 RV Pipeline 的 Tester 节点。',
         '目标：执行验证并输出测试结论。',
         '输出要求：运行了什么、结果如何、是否还有阻塞项。',
-        workspaceBlock,
-        stageOutputsBlock,
-        feedbackBlock,
-        `用户需求：${context.userInput}`,
+        '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
       ].join('\n')
+  }
+}
+
+function buildUserPrompt(
+  node: PipelineNodeKind,
+  context: PipelineNodeExecutionContext,
+  workspaceName?: string,
+): string {
+  return [
+    workspaceName ? `当前工作区：${workspaceName}` : undefined,
+    compactStageOutputsForPrompt(context.stageOutputs).trim() || undefined,
+    context.feedback ? `人工反馈：${context.feedback}` : undefined,
+    `用户需求：${context.userInput}`,
+    node === 'developer' || node === 'reviewer'
+      ? `当前 reviewer 轮次：${context.reviewIteration}`
+      : undefined,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join('\n\n')
+}
+
+export function buildPipelineNodePrompts(
+  node: PipelineNodeKind,
+  context: PipelineNodeExecutionContext,
+  workspaceName?: string,
+): PipelineNodePrompts {
+  return {
+    systemPrompt: buildSystemPrompt(node),
+    userPrompt: buildUserPrompt(node, context, workspaceName),
   }
 }
 
@@ -417,71 +436,134 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
   }
 }
 
-function readString(value: unknown, fallback: string): string {
-  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+function readRequiredString(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): string {
+  const value = parsed[field]
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim()
+  }
+  issues.push(`缺少或非法字段: ${field}`)
+  return ''
 }
 
-function readStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value
+function readRequiredStringArray(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): string[] {
+  const value = parsed[field]
+  if (!Array.isArray(value)) {
+    issues.push(`缺少或非法字段: ${field}`)
+    return []
+  }
+
+  const items = value
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim())
     .filter(Boolean)
+  if (items.length !== value.length) {
+    issues.push(`字段包含非字符串项: ${field}`)
+  }
+  return items
 }
 
-function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOutput {
-  const parsed = parseJsonObject(text)
-  const summary = readString(parsed?.summary, summarizeText(text))
+function readRequiredBoolean(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): boolean {
+  const value = parsed[field]
+  if (typeof value === 'boolean') return value
+  issues.push(`缺少或非法字段: ${field}`)
+  return false
+}
 
-  switch (node) {
-    case 'explorer':
-      return {
-        node,
-        summary,
-        findings: readStringArray(parsed?.findings),
-        keyFiles: readStringArray(parsed?.keyFiles),
-        nextSteps: readStringArray(parsed?.nextSteps),
-        content: text,
-      }
-    case 'planner':
-      return {
-        node,
-        summary,
-        steps: readStringArray(parsed?.steps),
-        risks: readStringArray(parsed?.risks),
-        verification: readStringArray(parsed?.verification),
-        content: text,
-      }
-    case 'developer':
-      return {
-        node,
-        summary,
-        changes: readStringArray(parsed?.changes),
-        tests: readStringArray(parsed?.tests),
-        risks: readStringArray(parsed?.risks),
-        content: text,
-      }
-    case 'reviewer':
-      return {
-        node,
-        summary,
-        approved: parsed?.approved === true,
-        issues: readStringArray(parsed?.issues),
-        content: text,
-      }
-    case 'tester':
-      return {
-        node,
-        summary,
-        commands: readStringArray(parsed?.commands),
-        results: readStringArray(parsed?.results),
-        blockers: readStringArray(parsed?.blockers),
-        content: text,
-      }
+function parseStructuredOutput(node: PipelineNodeKind, text: string): Record<string, unknown> {
+  const parsed = parseJsonObject(text)
+  if (!parsed) {
+    throw new PipelineStructuredOutputError(node, ['输出不是合法 JSON 对象'], text)
+  }
+  return parsed
+}
+
+function throwIfInvalid(node: PipelineNodeKind, issues: string[], text: string): void {
+  if (issues.length > 0) {
+    throw new PipelineStructuredOutputError(node, issues, text)
   }
 }
 
-function buildNodeExecutionResult(node: PipelineNodeKind, text: string): PipelineNodeExecutionResult {
+function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOutput {
+  const parsed = parseStructuredOutput(node, text)
+  const issues: string[] = []
+  const summary = readRequiredString(parsed, 'summary', issues)
+
+  switch (node) {
+    case 'explorer': {
+      const output = {
+        node,
+        summary,
+        findings: readRequiredStringArray(parsed, 'findings', issues),
+        keyFiles: readRequiredStringArray(parsed, 'keyFiles', issues),
+        nextSteps: readRequiredStringArray(parsed, 'nextSteps', issues),
+        content: text,
+      }
+      throwIfInvalid(node, issues, text)
+      return output
+    }
+    case 'planner': {
+      const output = {
+        node,
+        summary,
+        steps: readRequiredStringArray(parsed, 'steps', issues),
+        risks: readRequiredStringArray(parsed, 'risks', issues),
+        verification: readRequiredStringArray(parsed, 'verification', issues),
+        content: text,
+      }
+      throwIfInvalid(node, issues, text)
+      return output
+    }
+    case 'developer': {
+      const output = {
+        node,
+        summary,
+        changes: readRequiredStringArray(parsed, 'changes', issues),
+        tests: readRequiredStringArray(parsed, 'tests', issues),
+        risks: readRequiredStringArray(parsed, 'risks', issues),
+        content: text,
+      }
+      throwIfInvalid(node, issues, text)
+      return output
+    }
+    case 'reviewer': {
+      const output = {
+        node,
+        summary,
+        approved: readRequiredBoolean(parsed, 'approved', issues),
+        issues: readRequiredStringArray(parsed, 'issues', issues),
+        content: text,
+      }
+      throwIfInvalid(node, issues, text)
+      return output
+    }
+    case 'tester': {
+      const output = {
+        node,
+        summary,
+        commands: readRequiredStringArray(parsed, 'commands', issues),
+        results: readRequiredStringArray(parsed, 'results', issues),
+        blockers: readRequiredStringArray(parsed, 'blockers', issues),
+        content: text,
+      }
+      throwIfInvalid(node, issues, text)
+      return output
+    }
+  }
+}
+
+export function buildNodeExecutionResult(node: PipelineNodeKind, text: string): PipelineNodeExecutionResult {
   const stageOutput = buildStageOutput(node, text)
 
   if (stageOutput.node === 'reviewer') {
@@ -548,7 +630,7 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
     const permissionMode = workspace.slug
       ? getWorkspacePermissionMode(workspace.slug)
       : 'auto'
-    const prompt = buildRolePrompt(node, context, workspace.name)
+    const prompts = buildPipelineNodePrompts(node, context, workspace.name)
     const model = resolveModel(channelId)
     const env = await buildSdkEnv(apiKey, channel.baseUrl, channel.provider)
     const mcpServers = buildMcpServers(workspace.slug)
@@ -558,14 +640,14 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
 
     const queryOptions: ClaudeAgentQueryOptions = {
       sessionId: context.sessionId,
-      prompt,
+      prompt: prompts.userPrompt,
       model,
       cwd: workspace.cwd,
       sdkCliPath: resolveSDKCliPath(),
       env,
       sdkPermissionMode: permissionModeToSdk(permissionMode),
       allowDangerouslySkipPermissions: permissionMode === 'bypassPermissions',
-      systemPrompt: buildRolePrompt(node, context, workspace.name),
+      systemPrompt: prompts.systemPrompt,
       persistSession: false,
       forkSession: false,
       mcpServers,

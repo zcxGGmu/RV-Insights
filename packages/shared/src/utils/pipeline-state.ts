@@ -4,6 +4,7 @@ import type {
   PipelineRecord,
   PipelineReviewResultRecord,
   PipelineStageArtifactRecord,
+  PipelineSessionMeta,
   PipelineSessionStatus,
   PipelineStateSnapshot,
 } from '../types/pipeline'
@@ -114,6 +115,27 @@ export function createInitialPipelineState(
 }
 
 /**
+ * 从会话索引缓存构造 Pipeline 状态快照。
+ *
+ * 运行中以 graph snapshot 为权威；历史回放以 records reducer 为权威；
+ * session meta 只作为查询索引和缓存，因此进入 reducer 前需要显式转换。
+ */
+export function createPipelineStateFromSessionMeta(
+  meta: PipelineSessionMeta,
+): PipelineStateSnapshot {
+  return {
+    sessionId: meta.id,
+    currentNode: meta.currentNode,
+    status: meta.status,
+    reviewIteration: meta.reviewIteration,
+    lastApprovedNode: meta.lastApprovedNode,
+    pendingGate: meta.pendingGate ?? null,
+    stageOutputs: {},
+    updatedAt: meta.updatedAt,
+  }
+}
+
+/**
  * 将一条 Pipeline 记录推进到当前状态
  */
 export function applyPipelineRecord(
@@ -137,12 +159,15 @@ export function applyPipelineRecord(
     case 'gate_requested':
       return updateBase(state, record.createdAt, {
         currentNode: record.node,
+        reviewIteration: record.iteration ?? state.reviewIteration,
         pendingGate: {
           gateId: record.gateId,
           sessionId: record.sessionId,
           node: record.node,
+          title: record.title,
           summary: record.summary,
-          iteration: state.reviewIteration,
+          feedbackHint: record.feedbackHint,
+          iteration: record.iteration ?? state.reviewIteration,
           createdAt: record.createdAt,
         },
         status: 'waiting_human',
@@ -152,16 +177,57 @@ export function applyPipelineRecord(
     case 'status_change':
       return updateBase(state, record.createdAt, {
         status: record.status,
+        pendingGate: record.status === 'waiting_human' ? state.pendingGate : null,
       })
     case 'error':
       return updateBase(state, record.createdAt, {
         currentNode: record.node ?? state.currentNode,
         status: 'node_failed',
+        pendingGate: null,
       })
     case 'user_input':
       return updateBase(state, record.createdAt, {})
     default:
       return state
+  }
+}
+
+/**
+ * 从 Pipeline records 回放完整状态。
+ */
+export function replayPipelineRecords(
+  sessionId: string,
+  records: readonly PipelineRecord[],
+  now = Date.now(),
+): PipelineStateSnapshot {
+  return serializePipelineState(
+    records.reduce(
+      (state, record) => applyPipelineRecord(state, record),
+      createInitialPipelineState(sessionId, records[0]?.createdAt ?? now),
+    ),
+  )
+}
+
+export interface PipelineSessionStatePatch {
+  currentNode: PipelineNodeKind
+  status: PipelineSessionStatus
+  reviewIteration: number
+  lastApprovedNode?: PipelineNodeKind
+  pendingGate: PipelineStateSnapshot['pendingGate']
+}
+
+/**
+ * 将权威状态转换为 session meta 可缓存字段。
+ */
+export function buildPipelineSessionStatePatch(
+  state: PipelineStateSnapshot,
+): PipelineSessionStatePatch {
+  return {
+    currentNode: state.currentNode,
+    status: state.status,
+    reviewIteration: state.reviewIteration,
+    lastApprovedNode: state.lastApprovedNode,
+    pendingGate: state.pendingGate ?? null,
   }
 }
 

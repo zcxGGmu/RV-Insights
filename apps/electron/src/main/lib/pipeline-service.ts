@@ -333,7 +333,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         type: 'gate_requested',
         node: current.interrupted.node,
         gateId: current.interrupted.gateId,
+        title: current.interrupted.title,
         summary: current.interrupted.summary,
+        feedbackHint: current.interrupted.feedbackHint,
+        iteration: current.interrupted.iteration,
         createdAt: current.interrupted.createdAt,
       })
       emitEvent(meta.id, callbacks, {
