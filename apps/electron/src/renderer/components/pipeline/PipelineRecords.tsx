@@ -1,5 +1,10 @@
 import * as React from 'react'
-import type { PipelineNodeKind, PipelineRecord } from '@rv-insights/shared'
+import type {
+  PipelineNodeKind,
+  PipelineRecord,
+  PipelineRecordsSearchMatch as SharedPipelineRecordsSearchMatch,
+  PipelineRecordsSearchResult,
+} from '@rv-insights/shared'
 import {
   Check,
   ChevronLeft,
@@ -24,7 +29,6 @@ import {
   buildPipelineExternalFocusFilter,
   buildPipelineMarkdownReport,
   buildPipelineRecordFocusTarget,
-  buildPipelineRecordSearchMatches,
   buildPipelineStageNavigationTarget,
   filterPipelineRecordGroups,
   filterPipelineRecords,
@@ -48,10 +52,25 @@ const INITIAL_ARTIFACT_LIMIT = 60
 const ARTIFACT_LOAD_STEP = 40
 const INITIAL_LOG_LIMIT = 100
 const LOG_LOAD_STEP = 100
+const SEARCH_PAGE_SIZE = 50
 
 export type PipelineRecordsFocusRequest =
   | { nonce: number; type: 'stage'; node: PipelineNodeKind }
   | { nonce: number; type: 'record'; recordId: string }
+
+function createEmptySearchResult(
+  sessionId: string,
+  query = '',
+): PipelineRecordsSearchResult {
+  return {
+    sessionId,
+    query,
+    matches: [],
+    total: 0,
+    nextOffset: 0,
+    hasMore: false,
+  }
+}
 
 const TONE_CLASS_MAP = {
   neutral: 'border-border bg-card text-card-foreground',
@@ -450,6 +469,11 @@ export function PipelineRecords({
   const [activeTab, setActiveTab] = React.useState<PipelineRecordTab>('artifacts')
   const [stageFilter, setStageFilter] = React.useState<PipelineRecordStageFilter>('all')
   const [query, setQuery] = React.useState('')
+  const [debouncedQuery, setDebouncedQuery] = React.useState('')
+  const [searchPageOffset, setSearchPageOffset] = React.useState(0)
+  const [searchResult, setSearchResult] = React.useState<PipelineRecordsSearchResult>(() =>
+    createEmptySearchResult(sessionId),
+  )
   const [artifactLimit, setArtifactLimit] = React.useState(INITIAL_ARTIFACT_LIMIT)
   const [logLimit, setLogLimit] = React.useState(INITIAL_LOG_LIMIT)
   const [expandedRecordIds, setExpandedRecordIds] = React.useState<Set<string>>(new Set())
@@ -457,14 +481,15 @@ export function PipelineRecords({
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'failed'>('idle')
   const [focusedRecordId, setFocusedRecordId] = React.useState<string | null>(null)
   const recordElements = React.useRef(new Map<string, HTMLElement>())
+  const searchLoadSeqRef = React.useRef(0)
   const handledFocusNonceRef = React.useRef(0)
-  const normalizedQuery = query.trim()
+  const normalizedQuery = debouncedQuery.trim()
 
   const groups = React.useMemo(() => buildPipelineRecordGroups(records), [records])
   const filter = React.useMemo(() => ({
     stage: stageFilter,
-    query,
-  }), [query, stageFilter])
+    query: debouncedQuery,
+  }), [debouncedQuery, stageFilter])
   const filteredArtifacts = React.useMemo(() =>
     filterPipelineRecordGroups(groups.artifacts, filter), [filter, groups.artifacts])
   const filteredLogs = React.useMemo(() =>
@@ -476,10 +501,9 @@ export function PipelineRecords({
     return filteredLogs.slice(startIndex)
   }, [filteredLogs, logLimit])
   const hasMoreLogs = visibleLogs.length < filteredLogs.length
-  const searchMatches = React.useMemo(() =>
-    buildPipelineRecordSearchMatches(records, query), [query, records])
   const reviewComparison = React.useMemo(() =>
     buildPipelineReviewComparison(records), [records])
+  const searchMatches: SharedPipelineRecordsSearchMatch[] = searchResult.matches
   const activeMatch = searchMatches[activeMatchIndex]
   const highlightedRecordId = activeMatch?.recordId ?? focusedRecordId
 
@@ -487,6 +511,9 @@ export function PipelineRecords({
     setActiveTab('artifacts')
     setStageFilter('all')
     setQuery('')
+    setDebouncedQuery('')
+    setSearchPageOffset(0)
+    setSearchResult(createEmptySearchResult(sessionId))
     setArtifactLimit(INITIAL_ARTIFACT_LIMIT)
     setLogLimit(INITIAL_LOG_LIMIT)
     setExpandedRecordIds(new Set())
@@ -497,8 +524,43 @@ export function PipelineRecords({
   }, [sessionId])
 
   React.useEffect(() => {
-    setActiveMatchIndex(0)
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query)
+    }, 250)
+
+    return () => window.clearTimeout(timer)
   }, [query])
+
+  React.useEffect(() => {
+    setSearchPageOffset(0)
+    setActiveMatchIndex(0)
+  }, [debouncedQuery, sessionId, stageFilter])
+
+  React.useEffect(() => {
+    const searchId = searchLoadSeqRef.current + 1
+    searchLoadSeqRef.current = searchId
+
+    if (!normalizedQuery) {
+      setSearchResult(createEmptySearchResult(sessionId, debouncedQuery))
+      return
+    }
+
+    window.electronAPI.searchPipelineRecords({
+      sessionId,
+      query: debouncedQuery,
+      stage: stageFilter,
+      offset: searchPageOffset,
+      limit: SEARCH_PAGE_SIZE,
+    }).then((result) => {
+      if (searchLoadSeqRef.current !== searchId) return
+      setSearchResult(result)
+    }).catch((error: unknown) => {
+      console.error('[PipelineRecords] 搜索 Pipeline 记录失败:', error)
+      if (searchLoadSeqRef.current === searchId) {
+        setSearchResult(createEmptySearchResult(sessionId, debouncedQuery))
+      }
+    })
+  }, [debouncedQuery, normalizedQuery, searchPageOffset, sessionId, stageFilter])
 
   React.useEffect(() => {
     setActiveMatchIndex((prev) => {
@@ -558,7 +620,10 @@ export function PipelineRecords({
         targetStage: target.stage,
       })
       setQuery(nextFilter.query)
+      setDebouncedQuery(nextFilter.query)
       setStageFilter(nextFilter.stage)
+      setSearchPageOffset(0)
+      setSearchResult(createEmptySearchResult(sessionId, nextFilter.query))
       setActiveMatchIndex(0)
     } else {
       setStageFilter(target.stage)
@@ -570,7 +635,7 @@ export function PipelineRecords({
       setLogLimit(Math.max(records.length, INITIAL_LOG_LIMIT))
     }
     scrollToRecord(target.recordId)
-  }, [query, records.length, scrollToRecord, stageFilter])
+  }, [query, records.length, scrollToRecord, sessionId, stageFilter])
 
   React.useEffect(() => {
     if (!focusRequest) return
@@ -594,11 +659,14 @@ export function PipelineRecords({
       })
       setActiveTab('artifacts')
       setQuery(nextFilter.query)
+      setDebouncedQuery(nextFilter.query)
       setStageFilter(nextFilter.stage)
+      setSearchPageOffset(0)
+      setSearchResult(createEmptySearchResult(sessionId, nextFilter.query))
       setActiveMatchIndex(0)
       setFocusedRecordId(null)
     }
-  }, [focusNavigationTarget, focusRequest, query, records, stageFilter])
+  }, [focusNavigationTarget, focusRequest, query, records, sessionId, stageFilter])
 
   const jumpToMatch = React.useCallback((nextIndex: number): void => {
     const match = searchMatches[nextIndex]
@@ -647,6 +715,9 @@ export function PipelineRecords({
     && reviewComparison?.shouldShowPanel
     && !normalizedQuery
     && (stageFilter === 'all' || stageFilter === 'reviewer'))
+  const hasPreviousSearchPage = searchPageOffset > 0
+  const searchResultStart = searchPageOffset + 1
+  const searchResultEnd = searchPageOffset + searchMatches.length
 
   return (
     <section className="space-y-3">
@@ -664,9 +735,9 @@ export function PipelineRecords({
             <span className="tabular-nums">{records.length} 条记录</span>
             <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/40 sm:block" />
             <span className="tabular-nums">当前显示 {currentVisibleCount}/{currentTotalCount}</span>
-            {searchMatches.length > 0 ? (
+            {searchResult.total > 0 ? (
               <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
-                命中 {searchMatches.length}
+                命中 {searchResult.total}
               </span>
             ) : null}
           </div>
@@ -718,6 +789,36 @@ export function PipelineRecords({
               下一个
               <ChevronRight size={15} />
             </Button>
+            {normalizedQuery ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchPageOffset((prev) => Math.max(0, prev - SEARCH_PAGE_SIZE))
+                    setActiveMatchIndex(0)
+                  }}
+                  disabled={!hasPreviousSearchPage}
+                  aria-label="加载上一页搜索结果"
+                >
+                  上页结果
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchPageOffset(searchResult.nextOffset)
+                    setActiveMatchIndex(0)
+                  }}
+                  disabled={!searchResult.hasMore}
+                  aria-label="加载下一页搜索结果"
+                >
+                  下页结果
+                </Button>
+              </>
+            ) : null}
             <Button
               type="button"
               variant="secondary"
@@ -753,9 +854,14 @@ export function PipelineRecords({
             className="rounded-xl bg-muted px-3 py-2 text-left text-xs leading-5 text-muted-foreground transition-colors hover:bg-muted/80"
           >
             <span className="font-medium text-foreground">
-              {activeMatchIndex + 1}/{searchMatches.length} · {activeMatch.title}
+              {searchPageOffset + activeMatchIndex + 1}/{searchResult.total} · {activeMatch.title}
             </span>
             <span className="ml-2">{activeMatch.snippet}</span>
+            {searchResult.total > searchMatches.length ? (
+              <span className="ml-2 text-muted-foreground">
+                当前页 {searchResultStart}-{searchResultEnd}
+              </span>
+            ) : null}
           </button>
         ) : normalizedQuery ? (
           <div className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">

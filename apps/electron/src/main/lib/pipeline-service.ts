@@ -4,6 +4,8 @@ import type {
   PipelineGateResponse,
   PipelineRecordsTailInput,
   PipelineRecordsTailResult,
+  PipelineRecordsSearchInput,
+  PipelineRecordsSearchResult,
   PipelineSessionMeta,
   PipelineStageArtifactRecord,
   PipelineStartInput,
@@ -23,6 +25,7 @@ import {
   getPipelineRecordsTail,
   getPipelineSessionMeta,
   listPipelineSessions,
+  searchPipelineRecordsPage,
   updatePipelineSessionMeta,
 } from './pipeline-session-manager'
 import { PipelineHumanGateService } from './pipeline-human-gate-service'
@@ -454,6 +457,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
 
     getRecordsTail(input: PipelineRecordsTailInput): PipelineRecordsTailResult {
       return getPipelineRecordsTail(input)
+    },
+
+    async searchRecords(input: PipelineRecordsSearchInput): Promise<PipelineRecordsSearchResult> {
+      return searchPipelineRecordsPage(input)
     },
 
     updateTitle(sessionId: string, title: string): PipelineSessionMeta {

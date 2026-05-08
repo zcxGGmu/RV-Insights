@@ -165,6 +165,40 @@ export interface PipelineRecordsTailResult {
   hasMore: boolean
 }
 
+export type PipelineRecordSearchStage = 'all' | 'task' | PipelineNodeKind
+
+export type PipelineRecordSearchTab = 'artifacts' | 'logs'
+
+/** Pipeline 记录分页搜索输入 */
+export interface PipelineRecordsSearchInput {
+  sessionId: string
+  query: string
+  stage?: PipelineRecordSearchStage
+  offset?: number
+  limit?: number
+}
+
+/** Pipeline 记录分页搜索命中项 */
+export interface PipelineRecordsSearchMatch {
+  recordId: string
+  recordType: PipelineRecord['type']
+  tab: PipelineRecordSearchTab
+  stage: PipelineRecordSearchStage
+  title: string
+  snippet: string
+  createdAt: number
+}
+
+/** Pipeline 记录分页搜索结果 */
+export interface PipelineRecordsSearchResult {
+  sessionId: string
+  query: string
+  matches: PipelineRecordsSearchMatch[]
+  total: number
+  nextOffset: number
+  hasMore: boolean
+}
+
 /** 当前 Pipeline 运行快照 */
 export interface PipelineStateSnapshot {
   sessionId: string
@@ -354,6 +388,7 @@ export const PIPELINE_IPC_CHANNELS = {
   CREATE_SESSION: 'pipeline:create-session',
   GET_RECORDS: 'pipeline:get-records',
   GET_RECORDS_TAIL: 'pipeline:get-records-tail',
+  SEARCH_RECORDS: 'pipeline:search-records',
   UPDATE_TITLE: 'pipeline:update-title',
   DELETE_SESSION: 'pipeline:delete-session',
   TOGGLE_PIN: 'pipeline:toggle-pin',

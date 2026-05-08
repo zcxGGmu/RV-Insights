@@ -89,6 +89,8 @@ import type {
   PipelineRecord,
   PipelineRecordsTailInput,
   PipelineRecordsTailResult,
+  PipelineRecordsSearchInput,
+  PipelineRecordsSearchResult,
   PipelineStartInput,
   PipelineResumeInput,
   PipelineGateRequest,
@@ -874,6 +876,13 @@ export function registerIpcHandlers(): void {
     PIPELINE_IPC_CHANNELS.GET_RECORDS_TAIL,
     async (_event, input: PipelineRecordsTailInput): Promise<PipelineRecordsTailResult> => {
       return getPipelineService().getRecordsTail(input)
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.SEARCH_RECORDS,
+    async (_event, input: PipelineRecordsSearchInput): Promise<PipelineRecordsSearchResult> => {
+      return getPipelineService().searchRecords(input)
     }
   )
 

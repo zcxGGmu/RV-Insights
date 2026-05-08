@@ -103,6 +103,8 @@ import type {
   PipelineRecord,
   PipelineRecordsTailInput,
   PipelineRecordsTailResult,
+  PipelineRecordsSearchInput,
+  PipelineRecordsSearchResult,
   PipelineStartInput,
   PipelineResumeInput,
   PipelineGateRequest,
@@ -356,6 +358,9 @@ export interface ElectronAPI {
 
   /** 获取 Pipeline 增量记录 */
   getPipelineRecordsTail: (input: PipelineRecordsTailInput) => Promise<PipelineRecordsTailResult>
+
+  /** 搜索 Pipeline 记录 */
+  searchPipelineRecords: (input: PipelineRecordsSearchInput) => Promise<PipelineRecordsSearchResult>
 
   /** 打开 Pipeline 产物目录 */
   openPipelineArtifactsDir: (sessionId: string) => Promise<boolean>
@@ -1144,6 +1149,10 @@ const electronAPI: ElectronAPI = {
 
   getPipelineRecordsTail: (input: PipelineRecordsTailInput) => {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_RECORDS_TAIL, input)
+  },
+
+  searchPipelineRecords: (input: PipelineRecordsSearchInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.SEARCH_RECORDS, input)
   },
 
   openPipelineArtifactsDir: (sessionId: string) => {
