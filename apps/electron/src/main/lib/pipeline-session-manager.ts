@@ -6,7 +6,12 @@
 
 import { appendFileSync, existsSync, readFileSync, rmSync, unlinkSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import type { PipelineRecord, PipelineSessionMeta } from '@rv-insights/shared'
+import type {
+  PipelineRecord,
+  PipelineRecordsTailInput,
+  PipelineRecordsTailResult,
+  PipelineSessionMeta,
+} from '@rv-insights/shared'
 import { createInitialPipelineState } from '@rv-insights/shared'
 import {
   getPipelineSessionRecordsPath,
@@ -135,6 +140,29 @@ export function getPipelineRecords(sessionId: string): PipelineRecord[] {
     .split('\n')
     .filter((line) => line.trim().length > 0)
     .map((line) => JSON.parse(line) as PipelineRecord)
+}
+
+export function getPipelineRecordsTail(
+  input: PipelineRecordsTailInput,
+): PipelineRecordsTailResult {
+  const records = getPipelineRecords(input.sessionId)
+  const afterIndex = Math.min(
+    records.length,
+    Math.max(0, Math.floor(input.afterIndex ?? 0)),
+  )
+  const limit = Math.min(
+    500,
+    Math.max(1, Math.floor(input.limit ?? 200)),
+  )
+  const nextRecords = records.slice(afterIndex, afterIndex + limit)
+  const nextIndex = afterIndex + nextRecords.length
+
+  return {
+    sessionId: input.sessionId,
+    records: nextRecords,
+    nextIndex,
+    hasMore: nextIndex < records.length,
+  }
 }
 
 export function searchPipelineRecords(

@@ -23,6 +23,10 @@ import { PipelineHeader } from './PipelineHeader'
 import { PipelineRecords } from './PipelineRecords'
 import { PipelineStageRail } from './PipelineStageRail'
 import { buildPipelineFailureViewModel } from './pipeline-display-model'
+import {
+  mergePipelineRecordsTail,
+  shouldApplyPipelineRecordsTailLoad,
+} from './pipeline-record-tail-model'
 
 export function PipelineView({
   sessionId,
@@ -48,6 +52,8 @@ export function PipelineView({
   const setSettingsTab = useSetAtom(settingsTabAtom)
   const [records, setRecords] = React.useState<PipelineRecord[]>([])
   const [preflightError, setPreflightError] = React.useState<PipelinePreflightError | null>(null)
+  const recordsCursorRef = React.useRef(0)
+  const recordsLoadSeqRef = React.useRef(0)
 
   const session = React.useMemo<PipelineSessionMeta | null>(
     () => sessions.find((item) => item.id === sessionId) ?? null,
@@ -87,9 +93,52 @@ export function PipelineView({
   }), [error, latestRecordError, liveOutput, state])
 
   React.useEffect(() => {
-    window.electronAPI.getPipelineRecords(sessionId)
-      .then(setRecords)
-      .catch(console.error)
+    recordsCursorRef.current = 0
+    recordsLoadSeqRef.current += 1
+    setRecords([])
+  }, [sessionId])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadRecordsTail(): Promise<void> {
+      const loadId = recordsLoadSeqRef.current + 1
+      recordsLoadSeqRef.current = loadId
+      const afterIndex = recordsCursorRef.current
+      let result = await window.electronAPI.getPipelineRecordsTail({
+        sessionId,
+        afterIndex,
+        limit: 300,
+      })
+      const recordsBatch = [...result.records]
+
+      while (result.hasMore) {
+        result = await window.electronAPI.getPipelineRecordsTail({
+          sessionId,
+          afterIndex: result.nextIndex,
+          limit: 300,
+        })
+        recordsBatch.push(...result.records)
+      }
+
+      if (cancelled) return
+      if (!shouldApplyPipelineRecordsTailLoad({
+        loadId,
+        latestLoadId: recordsLoadSeqRef.current,
+        afterIndex,
+        currentCursor: recordsCursorRef.current,
+      })) {
+        return
+      }
+
+      recordsCursorRef.current = result.nextIndex
+      setRecords((prev) => mergePipelineRecordsTail(prev, recordsBatch, afterIndex))
+    }
+
+    loadRecordsTail().catch(console.error)
+    return () => {
+      cancelled = true
+    }
   }, [sessionId, refreshVersion])
 
   React.useEffect(() => {
@@ -181,17 +230,6 @@ export function PipelineView({
           }
         : item
     )))
-    setRecords((prev) => [
-      ...prev,
-      {
-        id: `local-user-${Date.now()}`,
-        sessionId,
-        type: 'user_input',
-        content: userInput,
-        createdAt: Date.now(),
-      },
-    ])
-
     void window.electronAPI.startPipeline({
       sessionId,
       userInput,

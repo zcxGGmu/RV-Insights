@@ -87,14 +87,13 @@ import type {
   SDKMessage,
   PipelineSessionMeta,
   PipelineRecord,
+  PipelineRecordsTailInput,
+  PipelineRecordsTailResult,
   PipelineStartInput,
   PipelineResumeInput,
   PipelineGateRequest,
   PipelineGateResponse,
   PipelineStateSnapshot,
-  PipelineStreamPayload,
-  PipelineStreamCompletePayload,
-  PipelineStreamErrorPayload,
 } from '@rv-insights/shared'
 import type { UserProfile, AppSettings } from '../types'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
@@ -218,6 +217,7 @@ import { dingtalkBridgeManager } from './lib/dingtalk-bridge-manager'
 import { getWeChatConfig } from './lib/wechat-config'
 import { wechatBridge } from './lib/wechat-bridge'
 import { getPipelineService } from './lib/pipeline-service'
+import { pipelineStreamBus } from './lib/pipeline-stream-bus'
 
 /** 文件浏览器中需要隐藏的系统文件 */
 const HIDDEN_FS_ENTRIES = new Set(['.DS_Store', 'Thumbs.db'])
@@ -871,6 +871,13 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.GET_RECORDS_TAIL,
+    async (_event, input: PipelineRecordsTailInput): Promise<PipelineRecordsTailResult> => {
+      return getPipelineService().getRecordsTail(input)
+    }
+  )
+
+  ipcMain.handle(
     PIPELINE_IPC_CHANNELS.OPEN_ARTIFACTS_DIR,
     async (_event, sessionId: string): Promise<boolean> => {
       const errorMessage = await shell.openPath(getPipelineService().getArtifactsDir(sessionId))
@@ -911,52 +918,36 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     PIPELINE_IPC_CHANNELS.START,
-    async (event, input: PipelineStartInput): Promise<void> => {
-      await getPipelineService().start(input, {
-        onEvent: (payload: PipelineStreamPayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_EVENT, payload)
-        },
-        onComplete: (payload: PipelineStreamCompletePayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_COMPLETE, payload)
-        },
-        onError: (payload: PipelineStreamErrorPayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_ERROR, payload)
-        },
-      })
+    async (_event, input: PipelineStartInput): Promise<void> => {
+      await getPipelineService().start(input, pipelineStreamBus.createCallbacks())
     }
   )
 
   ipcMain.handle(
     PIPELINE_IPC_CHANNELS.RESUME,
-    async (event, input: PipelineResumeInput): Promise<void> => {
-      await getPipelineService().resume(input, {
-        onEvent: (payload: PipelineStreamPayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_EVENT, payload)
-        },
-        onComplete: (payload: PipelineStreamCompletePayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_COMPLETE, payload)
-        },
-        onError: (payload: PipelineStreamErrorPayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_ERROR, payload)
-        },
-      })
+    async (_event, input: PipelineResumeInput): Promise<void> => {
+      await getPipelineService().resume(input, pipelineStreamBus.createCallbacks())
     }
   )
 
   ipcMain.handle(
     PIPELINE_IPC_CHANNELS.RESPOND_GATE,
-    async (event, response: PipelineGateResponse): Promise<void> => {
-      await getPipelineService().respondGate(response, {
-        onEvent: (payload: PipelineStreamPayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_EVENT, payload)
-        },
-        onComplete: (payload: PipelineStreamCompletePayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_COMPLETE, payload)
-        },
-        onError: (payload: PipelineStreamErrorPayload) => {
-          event.sender.send(PIPELINE_IPC_CHANNELS.STREAM_ERROR, payload)
-        },
-      })
+    async (_event, response: PipelineGateResponse): Promise<void> => {
+      await getPipelineService().respondGate(response, pipelineStreamBus.createCallbacks())
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.SUBSCRIBE_STREAM,
+    async (event): Promise<void> => {
+      pipelineStreamBus.subscribe(event.sender)
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.UNSUBSCRIBE_STREAM,
+    async (event): Promise<void> => {
+      pipelineStreamBus.unsubscribe(event.sender.id)
     }
   )
 

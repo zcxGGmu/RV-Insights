@@ -6,6 +6,7 @@ import {
   appendPipelineRecord,
   createPipelineSession,
   getPipelineRecords,
+  getPipelineRecordsTail,
   listPipelineSessions,
 } from './pipeline-session-manager'
 
@@ -52,5 +53,54 @@ describe('pipeline-session-manager', () => {
     const sessions = listPipelineSessions()
     expect(sessions[0]?.id).toBe(second.id)
     expect(sessions[1]?.id).toBe(first.id)
+  })
+
+  test('getPipelineRecordsTail 会按 append 顺序返回增量 records', () => {
+    const session = createPipelineSession('增量记录测试', 'channel-1', 'workspace-1')
+
+    for (let index = 0; index < 3; index += 1) {
+      appendPipelineRecord(session.id, {
+        id: `record-${index}`,
+        sessionId: session.id,
+        type: 'user_input',
+        content: `任务 ${index}`,
+        createdAt: index + 1,
+      })
+    }
+
+    const firstPage = getPipelineRecordsTail({
+      sessionId: session.id,
+      afterIndex: 0,
+      limit: 2,
+    })
+    const secondPage = getPipelineRecordsTail({
+      sessionId: session.id,
+      afterIndex: firstPage.nextIndex,
+      limit: 2,
+    })
+
+    expect(firstPage.records.map((record) => record.id)).toEqual(['record-0', 'record-1'])
+    expect(firstPage.nextIndex).toBe(2)
+    expect(firstPage.hasMore).toBe(true)
+    expect(secondPage.records.map((record) => record.id)).toEqual(['record-2'])
+    expect(secondPage.nextIndex).toBe(3)
+    expect(secondPage.hasMore).toBe(false)
+  })
+
+  test('getPipelineRecordsTail 对空会话返回稳定 cursor', () => {
+    const session = createPipelineSession('空记录测试', 'channel-1', 'workspace-1')
+
+    const result = getPipelineRecordsTail({
+      sessionId: session.id,
+      afterIndex: 20,
+      limit: 20,
+    })
+
+    expect(result).toMatchObject({
+      sessionId: session.id,
+      records: [],
+      nextIndex: 0,
+      hasMore: false,
+    })
   })
 })

@@ -18,6 +18,10 @@ export function useGlobalPipelineListeners(): void {
   const store = useStore()
 
   useEffect(() => {
+    void window.electronAPI.subscribePipelineStream().catch((error: unknown) => {
+      console.error('[Pipeline] 订阅 stream 广播失败:', error)
+    })
+
     const offEvent = window.electronAPI.onPipelineStreamEvent((payload) => {
       const event = payload.event
       store.set(pipelineSessionStateMapAtom, (prev) => {
@@ -208,6 +212,9 @@ export function useGlobalPipelineListeners(): void {
       offEvent()
       offComplete()
       offError()
+      void window.electronAPI.unsubscribePipelineStream().catch((error: unknown) => {
+        console.error('[Pipeline] 取消订阅 stream 广播失败:', error)
+      })
     }
   }, [store])
 }

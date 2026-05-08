@@ -104,6 +104,17 @@ function buildStateSnapshot(state: PipelineGraphState): PipelineStateSnapshot {
   }
 }
 
+interface PipelineGraphCheckpointSnapshot {
+  tasks: Array<{ interrupts: Array<{ value?: unknown }> }>
+}
+
+function extractPendingGateFromSnapshot(snapshot: PipelineGraphCheckpointSnapshot): PipelineGateRequest | undefined {
+  return snapshot.tasks
+    .flatMap((task) => task.interrupts)
+    .map((interrupt) => interrupt.value)
+    .find((value): value is PipelineGateRequest => value != null)
+}
+
 function createGateRequest(
   state: PipelineGraphState,
   node: PipelineNodeKind,
@@ -286,7 +297,24 @@ export function createPipelineGraph(options: CreatePipelineGraphOptions) {
   async function getSnapshot(sessionId: string): Promise<PipelineStateSnapshot> {
     const snapshot = await graph.getState(graphConfig(sessionId))
     const values = snapshot.values as PipelineGraphState
-    return buildStateSnapshot(values)
+    if (!values || typeof values.sessionId !== 'string') {
+      throw new Error(`未找到 Pipeline checkpoint state: ${sessionId}`)
+    }
+
+    const state = buildStateSnapshot(values)
+    const pendingGate = extractPendingGateFromSnapshot(snapshot)
+    if (!pendingGate) {
+      return state
+    }
+
+    return {
+      ...state,
+      currentNode: pendingGate.node,
+      status: 'waiting_human',
+      reviewIteration: pendingGate.iteration,
+      pendingGate,
+      updatedAt: Math.max(state.updatedAt, pendingGate.createdAt),
+    }
   }
 
   async function extractResult(
@@ -303,7 +331,7 @@ export function createPipelineGraph(options: CreatePipelineGraphOptions) {
     }
 
     const snapshot = await graph.getState(graphConfig(sessionId))
-    const gate = snapshot.tasks.flatMap((task) => task.interrupts).find(Boolean)?.value as PipelineGateRequest | undefined
+    const gate = extractPendingGateFromSnapshot(snapshot)
     return {
       state,
       interrupted: gate,

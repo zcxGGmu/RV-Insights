@@ -2,6 +2,8 @@ import { rmSync } from 'node:fs'
 import type {
   PipelineGateRequest,
   PipelineGateResponse,
+  PipelineRecordsTailInput,
+  PipelineRecordsTailResult,
   PipelineSessionMeta,
   PipelineStageArtifactRecord,
   PipelineStartInput,
@@ -18,6 +20,7 @@ import {
   createPipelineSession,
   deletePipelineSession,
   getPipelineRecords,
+  getPipelineRecordsTail,
   getPipelineSessionMeta,
   listPipelineSessions,
   updatePipelineSessionMeta,
@@ -47,6 +50,7 @@ interface CreatePipelineServiceOptions {
     meta: PipelineSessionMeta,
     signal?: AbortSignal,
     callbacks?: PipelineServiceCallbacks,
+    mode?: 'execute' | 'read',
   ) => PipelineGraphController | Promise<PipelineGraphController>
   gateService?: PipelineHumanGateService
   checkpointer?: PipelineCheckpointer
@@ -56,6 +60,10 @@ function isTerminalState(status: PipelineStateSnapshot['status']): boolean {
   return status === 'completed'
     || status === 'terminated'
     || status === 'recovery_failed'
+}
+
+function isReconcileCandidate(status: PipelineSessionMeta['status']): boolean {
+  return status === 'running' || status === 'waiting_human'
 }
 
 interface PipelineStageArtifactPersistor {
@@ -89,6 +97,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
   const activeControllers = new Map<string, AbortController>()
   const activeRunners = new Map<string, PipelineNodeRunner>()
   const activeCallbacks = new Map<string, PipelineServiceCallbacks | undefined>()
+  let reconcileSessionsPromise: Promise<PipelineSessionMeta[]> | null = null
 
   function emitEvent(
     sessionId: string,
@@ -144,6 +153,91 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     })
   }
 
+  function markRecoveryFailed(
+    meta: PipelineSessionMeta,
+    reason: string,
+  ): PipelineSessionMeta {
+    const latestMeta = getPipelineSessionMeta(meta.id) ?? meta
+    if (latestMeta.status === 'recovery_failed') {
+      return latestMeta
+    }
+
+    const updatedMeta = updatePipelineSessionMeta(meta.id, {
+      status: 'recovery_failed',
+      pendingGate: null,
+    })
+    appendStatusRecord(meta.id, 'recovery_failed', reason)
+    return updatedMeta
+  }
+
+  async function reconcileWaitingHumanSession(
+    meta: PipelineSessionMeta,
+  ): Promise<PipelineSessionMeta> {
+    if (checkpointer.hasCorruptedThread(meta.id)) {
+      return markRecoveryFailed(meta, 'checkpoint 损坏，无法恢复 Pipeline')
+    }
+
+    try {
+      const graph = await Promise.resolve(createGraph(meta))
+      const snapshot = await graph.getState(meta.id)
+
+      if (snapshot.status === 'waiting_human' && snapshot.pendingGate) {
+        return updatePipelineSessionMeta(meta.id, {
+          currentNode: snapshot.pendingGate.node,
+          status: 'waiting_human',
+          reviewIteration: snapshot.reviewIteration,
+          lastApprovedNode: snapshot.lastApprovedNode,
+          pendingGate: snapshot.pendingGate,
+        })
+      }
+
+      if (snapshot.status === 'running') {
+        return markRecoveryFailed(meta, 'checkpoint 未处于待审核状态，无法恢复运行中节点')
+      }
+
+      return updatePipelineSessionMeta(meta.id, {
+        currentNode: snapshot.currentNode,
+        status: snapshot.status,
+        reviewIteration: snapshot.reviewIteration,
+        lastApprovedNode: snapshot.lastApprovedNode,
+        pendingGate: null,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知 checkpoint 错误'
+      return markRecoveryFailed(meta, `checkpoint 恢复失败: ${message}`)
+    }
+  }
+
+  async function reconcileSession(meta: PipelineSessionMeta): Promise<PipelineSessionMeta> {
+    if (!isReconcileCandidate(meta.status) || activeControllers.has(meta.id)) {
+      return meta
+    }
+
+    if (meta.status === 'running') {
+      return markRecoveryFailed(meta, '应用重启后无法恢复运行中节点')
+    }
+
+    return reconcileWaitingHumanSession(meta)
+  }
+
+  async function reconcileSessions(): Promise<PipelineSessionMeta[]> {
+    if (reconcileSessionsPromise) {
+      return reconcileSessionsPromise
+    }
+
+    reconcileSessionsPromise = (async () => {
+      for (const session of listPipelineSessions()) {
+        await reconcileSession(session)
+      }
+
+      return listPipelineSessions()
+    })().finally(() => {
+      reconcileSessionsPromise = null
+    })
+
+    return reconcileSessionsPromise
+  }
+
   function assertGateResponseMatchesPending(
     meta: PipelineSessionMeta,
     response: PipelineGateResponse,
@@ -172,6 +266,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     meta: PipelineSessionMeta,
     signal?: AbortSignal,
     callbacks?: PipelineServiceCallbacks,
+    mode: 'execute' | 'read' = 'read',
   ): Promise<PipelineGraphController> {
     const { ClaudePipelineNodeRunner } = await import('./pipeline-node-runner')
     const runner = new ClaudePipelineNodeRunner({
@@ -196,7 +291,9 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       },
     })
 
-    activeRunners.set(meta.id, runner)
+    if (mode === 'execute') {
+      activeRunners.set(meta.id, runner)
+    }
 
     return createPipelineGraph({
       checkpointer,
@@ -266,7 +363,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       const latestMeta = getPipelineSessionMeta(meta.id)
       if (!latestMeta) return
 
-      const graph = await Promise.resolve(createGraph(latestMeta, controller?.signal, callbacks))
+      const graph = await Promise.resolve(createGraph(latestMeta, controller?.signal, callbacks, 'execute'))
       current = await graph.resume({
         sessionId: meta.id,
         response,
@@ -297,7 +394,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         throw new Error(`未找到 Pipeline 会话: ${meta.id}`)
       }
 
-      const graph = await Promise.resolve(createGraph(latestMeta, controller.signal, callbacks))
+      const graph = await Promise.resolve(createGraph(latestMeta, controller.signal, callbacks, 'execute'))
       const result = await executor(graph, latestMeta, controller)
       await driveResult(latestMeta, result, callbacks)
     } catch (error) {
@@ -339,8 +436,8 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
   }
 
   return {
-    listSessions(): PipelineSessionMeta[] {
-      return listPipelineSessions()
+    async listSessions(): Promise<PipelineSessionMeta[]> {
+      return reconcileSessions()
     },
 
     createSession(
@@ -353,6 +450,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
 
     getRecords(sessionId: string) {
       return getPipelineRecords(sessionId)
+    },
+
+    getRecordsTail(input: PipelineRecordsTailInput): PipelineRecordsTailResult {
+      return getPipelineRecordsTail(input)
     },
 
     updateTitle(sessionId: string, title: string): PipelineSessionMeta {

@@ -136,6 +136,33 @@ describe('pipeline-graph', () => {
     expect(completed.state.lastApprovedNode).toBe('tester')
   })
 
+  test('getState 会从 checkpoint interrupt 回填 pendingGate', async () => {
+    const checkpointer = new MemorySaver()
+    const graph = createPipelineGraph({
+      checkpointer,
+      runNode: async (node) => ({
+        output: `${node}-ok`,
+        summary: `${node}-ok`,
+        approved: true,
+      }),
+    })
+
+    const interrupted = await graph.invoke({
+      sessionId: 'session-state-gate',
+      userInput: '请执行到人工审核',
+    })
+
+    const state = await graph.getState('session-state-gate')
+
+    expect(interrupted.interrupted?.node).toBe('explorer')
+    expect(state.status).toBe('waiting_human')
+    expect(state.pendingGate).toMatchObject({
+      gateId: interrupted.interrupted?.gateId,
+      sessionId: 'session-state-gate',
+      node: 'explorer',
+    })
+  })
+
   test('下游节点可以读取上游阶段产物，快照保留 stageOutputs', async () => {
     const developerContextSummaries: string[] = []
 

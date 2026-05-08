@@ -387,10 +387,8 @@ function PipelineSessionsInitializer(): null {
   const setStateMap = useSetAtom(pipelineSessionStateMapAtom)
 
   useEffect(() => {
-    Promise.all([
-      window.electronAPI.listPipelineSessions(),
-      window.electronAPI.getPendingPipelineGates(),
-    ]).then(async ([sessions, pendingGates]) => {
+    window.electronAPI.listPipelineSessions().then(async (sessions) => {
+      const pendingGates = await window.electronAPI.getPendingPipelineGates()
       setSessions(sessions)
       setPendingGates(new Map(pendingGates.map((request) => [request.sessionId, request])))
 

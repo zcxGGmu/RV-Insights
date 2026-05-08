@@ -705,10 +705,12 @@ bun test packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main
 
 目标：窗口刷新、应用重启、checkpoint 异常都能给出可靠状态。
 
-- [ ] 启动时 reconcile running / waiting_human session
-- [ ] 损坏 checkpoint 降级为 recovery_failed
-- [ ] Pipeline stream 改为主进程 event bus 广播
-- [ ] 增加 records tail / events since 补偿接口
+更新：2026-05-08 已完成 Phase B，覆盖启动 reconcile、损坏 checkpoint 降级、stream event bus 广播、records tail 补偿读取与 UI 增量刷新。
+
+- [x] 启动时 reconcile running / waiting_human session
+- [x] 损坏 checkpoint 降级为 recovery_failed
+- [x] Pipeline stream 改为主进程 event bus 广播
+- [x] 增加 records tail / events since 补偿接口
 
 验收：
 

@@ -14,6 +14,7 @@ import {
 } from './pipeline-service'
 import { getPipelineRecords, updatePipelineSessionMeta } from './pipeline-session-manager'
 import { resolvePipelineSessionArtifactsDir } from './pipeline-artifact-service'
+import { getPipelineSessionCheckpointDir } from './config-paths'
 
 describe('pipeline-service', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -255,7 +256,7 @@ describe('pipeline-service', () => {
     await startPromise
 
     expect(graphCalls).toEqual(['invoke'])
-    expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('terminated')
+    expect((await service.listSessions()).find((item) => item.id === session.id)?.status).toBe('terminated')
     expect(events.some((payload) =>
       payload.event.type === 'status_change' && payload.event.status === 'terminated')).toBe(true)
   })
@@ -305,7 +306,7 @@ describe('pipeline-service', () => {
       createdAt: Date.now(),
     })).rejects.toThrow('resume exploded')
 
-    expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('node_failed')
+    expect((await service.listSessions()).find((item) => item.id === session.id)?.status).toBe('node_failed')
   })
 
   test('陈旧 gate 响应不应恢复 graph 或写入 gate decision', async () => {
@@ -376,7 +377,7 @@ describe('pipeline-service', () => {
 
     expect(graphCalls).toEqual([])
     expect(getPipelineRecords(session.id).filter((record) => record.type === 'gate_decision')).toHaveLength(0)
-    expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('waiting_human')
+    expect((await service.listSessions()).find((item) => item.id === session.id)?.status).toBe('waiting_human')
   })
 
   test('没有 pending gate 的重复响应应安全忽略，不应恢复 graph', async () => {
@@ -470,7 +471,7 @@ describe('pipeline-service', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(() => service.deleteSession(session.id)).toThrow('Pipeline 会话正在运行中')
-    expect(service.listSessions().some((item) => item.id === session.id)).toBe(true)
+    expect((await service.listSessions()).some((item) => item.id === session.id)).toBe(true)
 
     invokeController.resolve?.({
       state: {
@@ -530,7 +531,7 @@ describe('pipeline-service', () => {
     expect(existsSync(artifactsDir)).toBe(false)
   })
 
-  test('阶段产物落盘失败不应阻断 node_complete 记录追加', () => {
+  test('阶段产物落盘失败不应阻断 node_complete 记录追加', async () => {
     const service = createPipelineService()
     const session = service.createSession('落盘失败降级测试', 'channel-1', 'workspace-1')
     const originalWarn = console.warn
@@ -573,6 +574,257 @@ describe('pipeline-service', () => {
       throw new Error('未找到阶段产物记录')
     }
     expect(stageRecord.artifactFiles).toBeUndefined()
-    expect(service.listSessions().find((item) => item.id === session.id)?.status).not.toBe('node_failed')
+    expect((await service.listSessions()).find((item) => item.id === session.id)?.status).not.toBe('node_failed')
+  })
+
+  test('listSessions 会将无 active runner 的遗留 running 会话降级为 recovery_failed', async () => {
+    const service = createPipelineService()
+    const session = service.createSession('遗留运行会话', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      status: 'running',
+      currentNode: 'developer',
+      pendingGate: null,
+    })
+
+    const sessions = await service.listSessions()
+    const reconciled = sessions.find((item) => item.id === session.id)
+    const statusRecords = getPipelineRecords(session.id).filter((record) => record.type === 'status_change')
+
+    expect(reconciled).toMatchObject({
+      status: 'recovery_failed',
+      pendingGate: null,
+    })
+    expect(statusRecords.at(-1)).toMatchObject({
+      type: 'status_change',
+      status: 'recovery_failed',
+    })
+  })
+
+  test('listSessions 会从 checkpoint 快照回填 waiting_human 的 pending gate', async () => {
+    const pendingGate: PipelineGateRequest = {
+      gateId: 'gate-recovered',
+      sessionId: 'session-from-checkpoint',
+      node: 'planner',
+      iteration: 2,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('resume 不应被调用')
+        },
+        getState: async (sessionId: string) => ({
+          sessionId,
+          currentNode: 'planner',
+          status: 'waiting_human',
+          reviewIteration: 2,
+          pendingGate: {
+            ...pendingGate,
+            sessionId,
+          },
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+    const session = service.createSession('恢复审核会话', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      status: 'waiting_human',
+      currentNode: 'planner',
+      reviewIteration: 0,
+      pendingGate: null,
+    })
+
+    const sessions = await service.listSessions()
+    const reconciled = sessions.find((item) => item.id === session.id)
+
+    expect(reconciled).toMatchObject({
+      status: 'waiting_human',
+      currentNode: 'planner',
+      reviewIteration: 2,
+    })
+    expect(reconciled?.pendingGate).toMatchObject({
+      gateId: 'gate-recovered',
+      sessionId: session.id,
+      node: 'planner',
+    })
+    expect(service.getPendingGates()).toContainEqual(expect.objectContaining({
+      gateId: 'gate-recovered',
+      sessionId: session.id,
+    }))
+  })
+
+  test('listSessions 不应使用旧 meta pendingGate 覆盖已完成 checkpoint', async () => {
+    const service = createPipelineService({
+      createGraph: (meta) => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('resume 不应被调用')
+        },
+        getState: async () => ({
+          sessionId: meta.id,
+          currentNode: 'tester',
+          status: 'completed',
+          reviewIteration: 0,
+          lastApprovedNode: 'tester',
+          pendingGate: null,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+    const session = service.createSession('旧 gate 不应复活', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      status: 'waiting_human',
+      currentNode: 'reviewer',
+      pendingGate: {
+        gateId: 'gate-stale-meta',
+        sessionId: session.id,
+        node: 'reviewer',
+        iteration: 0,
+        createdAt: Date.now(),
+      },
+    })
+
+    const sessions = await service.listSessions()
+    const reconciled = sessions.find((item) => item.id === session.id)
+
+    expect(reconciled).toMatchObject({
+      status: 'completed',
+      currentNode: 'tester',
+      pendingGate: null,
+      lastApprovedNode: 'tester',
+    })
+    expect(service.getPendingGates()).not.toContainEqual(expect.objectContaining({
+      gateId: 'gate-stale-meta',
+    }))
+  })
+
+  test('listSessions 读取 checkpoint 失败时不应信任 meta pendingGate', async () => {
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('resume 不应被调用')
+        },
+        getState: async () => {
+          throw new Error('checkpoint missing')
+        },
+      }),
+    })
+    const session = service.createSession('旧 gate 但 checkpoint 丢失', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      status: 'waiting_human',
+      currentNode: 'planner',
+      pendingGate: {
+        gateId: 'gate-stale-without-checkpoint',
+        sessionId: session.id,
+        node: 'planner',
+        iteration: 0,
+        createdAt: Date.now(),
+      },
+    })
+
+    const sessions = await service.listSessions()
+
+    expect(sessions.find((item) => item.id === session.id)).toMatchObject({
+      status: 'recovery_failed',
+      pendingGate: null,
+    })
+    expect(service.getPendingGates()).not.toContainEqual(expect.objectContaining({
+      gateId: 'gate-stale-without-checkpoint',
+    }))
+  })
+
+  test('listSessions 遇到不可恢复 checkpoint 时只降级对应会话', async () => {
+    const service = createPipelineService({
+      createGraph: (meta) => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('resume 不应被调用')
+        },
+        getState: async () => {
+          if (meta.title === '损坏 checkpoint') {
+            throw new Error('checkpoint corrupted')
+          }
+          return {
+            sessionId: meta.id,
+            currentNode: 'reviewer',
+            status: 'waiting_human',
+            reviewIteration: 1,
+            pendingGate: {
+              gateId: 'gate-ok',
+              sessionId: meta.id,
+              node: 'reviewer',
+              iteration: 1,
+              createdAt: Date.now(),
+            },
+            updatedAt: Date.now(),
+          }
+        },
+      }),
+    })
+    const corrupted = service.createSession('损坏 checkpoint', 'channel-1', 'workspace-1')
+    const healthy = service.createSession('健康 checkpoint', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(corrupted.id, {
+      status: 'waiting_human',
+      currentNode: 'developer',
+      pendingGate: null,
+    })
+    updatePipelineSessionMeta(healthy.id, {
+      status: 'waiting_human',
+      currentNode: 'reviewer',
+      pendingGate: null,
+    })
+
+    const sessions = await service.listSessions()
+
+    expect(sessions.find((item) => item.id === corrupted.id)).toMatchObject({
+      status: 'recovery_failed',
+      pendingGate: null,
+    })
+    expect(sessions.find((item) => item.id === healthy.id)).toMatchObject({
+      status: 'waiting_human',
+      pendingGate: expect.objectContaining({ gateId: 'gate-ok' }),
+    })
+  })
+
+  test('listSessions 遇到损坏 checkpoint 文件时降级为 recovery_failed', async () => {
+    const setupService = createPipelineService()
+    const session = setupService.createSession('损坏文件 checkpoint', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      status: 'waiting_human',
+      currentNode: 'reviewer',
+      pendingGate: {
+        gateId: 'gate-corrupted-file',
+        sessionId: session.id,
+        node: 'reviewer',
+        iteration: 0,
+        createdAt: Date.now(),
+      },
+    })
+    const checkpointDir = getPipelineSessionCheckpointDir(session.id)
+    mkdirSync(checkpointDir, { recursive: true })
+    writeFileSync(join(checkpointDir, 'memory-saver.json'), '{broken', 'utf-8')
+
+    const originalWarn = console.warn
+    console.warn = () => undefined
+    try {
+      const service = createPipelineService()
+      const sessions = await service.listSessions()
+      expect(sessions.find((item) => item.id === session.id)).toMatchObject({
+        status: 'recovery_failed',
+        pendingGate: null,
+      })
+    } finally {
+      console.warn = originalWarn
+    }
   })
 })

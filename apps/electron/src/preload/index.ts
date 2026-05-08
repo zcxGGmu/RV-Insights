@@ -101,6 +101,8 @@ import type {
   PendingRequestsSnapshot,
   PipelineSessionMeta,
   PipelineRecord,
+  PipelineRecordsTailInput,
+  PipelineRecordsTailResult,
   PipelineStartInput,
   PipelineResumeInput,
   PipelineGateRequest,
@@ -352,6 +354,9 @@ export interface ElectronAPI {
   /** 获取 Pipeline 记录 */
   getPipelineRecords: (sessionId: string) => Promise<PipelineRecord[]>
 
+  /** 获取 Pipeline 增量记录 */
+  getPipelineRecordsTail: (input: PipelineRecordsTailInput) => Promise<PipelineRecordsTailResult>
+
   /** 打开 Pipeline 产物目录 */
   openPipelineArtifactsDir: (sessionId: string) => Promise<boolean>
 
@@ -384,6 +389,12 @@ export interface ElectronAPI {
 
   /** 获取 Pipeline 状态快照 */
   getPipelineSessionState: (sessionId: string) => Promise<PipelineStateSnapshot>
+
+  /** 订阅主进程 Pipeline stream 广播 */
+  subscribePipelineStream: () => Promise<void>
+
+  /** 取消订阅主进程 Pipeline stream 广播 */
+  unsubscribePipelineStream: () => Promise<void>
 
   /** 订阅 Pipeline 流式事件 */
   onPipelineStreamEvent: (callback: (payload: PipelineStreamPayload) => void) => () => void
@@ -1131,6 +1142,10 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_RECORDS, sessionId)
   },
 
+  getPipelineRecordsTail: (input: PipelineRecordsTailInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_RECORDS_TAIL, input)
+  },
+
   openPipelineArtifactsDir: (sessionId: string) => {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.OPEN_ARTIFACTS_DIR, sessionId)
   },
@@ -1173,6 +1188,14 @@ const electronAPI: ElectronAPI = {
 
   getPipelineSessionState: (sessionId: string) => {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_SESSION_STATE, sessionId)
+  },
+
+  subscribePipelineStream: () => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.SUBSCRIBE_STREAM)
+  },
+
+  unsubscribePipelineStream: () => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.UNSUBSCRIBE_STREAM)
   },
 
   onPipelineStreamEvent: (callback: (payload: PipelineStreamPayload) => void) => {

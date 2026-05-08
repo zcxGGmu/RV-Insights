@@ -150,6 +150,21 @@ export interface PipelineResumeInput {
   response?: PipelineGateResponse
 }
 
+/** Pipeline 记录增量读取输入 */
+export interface PipelineRecordsTailInput {
+  sessionId: string
+  afterIndex?: number
+  limit?: number
+}
+
+/** Pipeline 记录增量读取结果 */
+export interface PipelineRecordsTailResult {
+  sessionId: string
+  records: PipelineRecord[]
+  nextIndex: number
+  hasMore: boolean
+}
+
 /** 当前 Pipeline 运行快照 */
 export interface PipelineStateSnapshot {
   sessionId: string
@@ -338,6 +353,7 @@ export const PIPELINE_IPC_CHANNELS = {
   LIST_SESSIONS: 'pipeline:list-sessions',
   CREATE_SESSION: 'pipeline:create-session',
   GET_RECORDS: 'pipeline:get-records',
+  GET_RECORDS_TAIL: 'pipeline:get-records-tail',
   UPDATE_TITLE: 'pipeline:update-title',
   DELETE_SESSION: 'pipeline:delete-session',
   TOGGLE_PIN: 'pipeline:toggle-pin',
@@ -349,6 +365,8 @@ export const PIPELINE_IPC_CHANNELS = {
   GET_PENDING_GATES: 'pipeline:get-pending-gates',
   GET_SESSION_STATE: 'pipeline:get-session-state',
   OPEN_ARTIFACTS_DIR: 'pipeline:open-artifacts-dir',
+  SUBSCRIBE_STREAM: 'pipeline:stream:subscribe',
+  UNSUBSCRIBE_STREAM: 'pipeline:stream:unsubscribe',
   STREAM_EVENT: 'pipeline:stream:event',
   STREAM_COMPLETE: 'pipeline:stream:complete',
   STREAM_ERROR: 'pipeline:stream:error',

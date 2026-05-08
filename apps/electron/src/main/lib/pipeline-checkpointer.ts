@@ -65,6 +65,7 @@ function resolveThreadId(config: RunnableConfig): string | undefined {
 
 export class PipelineCheckpointer extends MemorySaver {
   private readonly baseDir: string
+  private readonly corruptedThreadIds = new Set<string>()
 
   constructor(baseDir = getPipelineCheckpointsDir()) {
     super()
@@ -89,6 +90,7 @@ export class PipelineCheckpointer extends MemorySaver {
         Object.assign(this.storage, decodeValue(parsed.storage))
         Object.assign(this.writes, decodeValue(parsed.writes))
       } catch (error) {
+        this.corruptedThreadIds.add(entry.name)
         console.warn(`[Pipeline Checkpointer] 读取 ${filePath} 失败:`, error)
       }
     }
@@ -135,9 +137,14 @@ export class PipelineCheckpointer extends MemorySaver {
 
   override async deleteThread(threadId: string): Promise<void> {
     await super.deleteThread(threadId)
+    this.corruptedThreadIds.delete(threadId)
     rmSync(getPipelineSessionCheckpointDir(threadId), {
       recursive: true,
       force: true,
     })
+  }
+
+  hasCorruptedThread(threadId: string): boolean {
+    return this.corruptedThreadIds.has(threadId)
   }
 }
