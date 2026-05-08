@@ -12,8 +12,8 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的功能提交：`b8b83dc3`
-- 同步日期：`2026-05-08`
+- 最新已纳入进度同步的功能提交：`本次提交（ipc.ts 拆分第三阶段：agent）`
+- 同步日期：`2026-05-09`
 
 说明：
 - 本文档只记录功能 / 工程项状态
@@ -32,7 +32,8 @@
 | `ed922257` | 全局消息搜索流式化 | 已完成 | Chat / Agent 搜索改为逐行流式扫描，去掉整文件同步扫描热点 |
 | `85c92dec` | `safeStorage` 降级告警可视化 | 部分完成 | 已有用户可见告警和“未加密”标记，但还没有替代加密方案 |
 | `b8b83dc3` | `ipc.ts` 拆分第一阶段（channel） | 部分完成 | 已新增 `ipc/channel-handlers.ts` 并迁移 `CHANNEL_IPC_CHANNELS` 注册，`ipc.ts` 先完成首个高频模块收口 |
-| `待提交` | `ipc.ts` 拆分第二阶段（settings） | 部分完成 | 已新增 `ipc/settings-handlers.ts` 并迁移 `USER_PROFILE` / `SETTINGS` / `APP_ICON` 注册，`ipc.ts` settings 逻辑已独立收口 |
+| `0efb2156` | `ipc.ts` 拆分第二阶段（settings） | 部分完成 | 已新增 `ipc/settings-handlers.ts` 并迁移 `USER_PROFILE` / `SETTINGS` / `APP_ICON` 注册，`ipc.ts` settings 逻辑已独立收口 |
+| `本次提交` | `ipc.ts` 拆分第三阶段（agent） | 部分完成 | 已新增 `ipc/agent-handlers.ts` 并迁移 `AGENT_IPC_CHANNELS` 注册，`ipc.ts` 中 agent 逻辑已独立收口 |
 
 ---
 
@@ -59,16 +60,17 @@
   当前 `AgentView` 已不再是订阅放大热点。
 
 - [~] `ipc.ts` 巨型注册函数拆分
-  现状：部分完成（第二阶段已完成）。
+  现状：部分完成（第三阶段已完成）。
   已完成：
   `channel` handlers 已抽离到 `apps/electron/src/main/ipc/channel-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerChannelIpcHandlers()`。
   `settings` handlers 已抽离到 `apps/electron/src/main/ipc/settings-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerSettingsIpcHandlers()`。
+  `agent` handlers 已抽离到 `apps/electron/src/main/ipc/agent-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerAgentIpcHandlers()`。
   未完成：
-  `agent` / `pipeline` / 机器人相关 handlers 仍在 `ipc.ts`。
+  `pipeline` / 机器人相关 handlers 仍在 `ipc.ts`。
   关键文件：
   `apps/electron/src/main/ipc.ts`
   建议：
-  延续当前顺序，先拆 `agent`，最后拆 `pipeline` / 机器人相关 handlers。
+  延续当前顺序，完成最后一刀：`pipeline` / 机器人相关 handlers 拆分。
 
 - [ ] `agent-orchestrator.ts` 渐进拆分
   现状：未完成。
@@ -153,17 +155,16 @@
 
 ### 当前推荐的下一个阶段
 
-`ipc.ts` 拆分第三阶段（agent handlers）
+`ipc.ts` 拆分第四阶段（pipeline / 机器人 handlers）
 
 原因：
-- 第一、二阶段 `channel` + `settings` 已完成，继续同一链路风险最低
-- `agent` handlers 体量高、依赖集中，单独拆分可减少与 `pipeline` / 机器人逻辑的耦合风险
-- 先收口 `agent`，再拆 `pipeline` / 机器人，能够保持每次提交的可审查粒度
+- 第一、二、三阶段 `channel` + `settings` + `agent` 已完成，重构链路已验证可行
+- `pipeline` 与机器人集成仍与主注册函数耦合，保留体量较大
+- 继续按“单阶段单提交”拆分可保持评审与回滚粒度
 
 ### 建议切分顺序
 
-1. 拆 `agent` handlers
-2. 最后拆 `pipeline` / 机器人相关 handlers
+1. 拆 `pipeline` / 机器人相关 handlers
 
 ### 起点文件
 
@@ -174,9 +175,9 @@
 当前已落地：
 - `channel-handlers.ts`
 - `settings-handlers.ts`
+- `agent-handlers.ts`
 
 下一批建议文件：
-- `agent-handlers.ts`
 - `pipeline-handlers.ts`（或按 `pipeline` / `bot-hub` 进一步拆分）
 
 ---
@@ -198,7 +199,7 @@
 - `safeStorage` 降级告警可视化
   已有告警和标记，未有替代加密方案
 - `ipc.ts` 拆分
-  第一、二阶段 `channel / settings` 已完成，剩余 `agent / pipeline / 机器人` handlers 待继续拆分
+  第一、二、三阶段 `channel / settings / agent` 已完成，剩余 `pipeline / 机器人` handlers 待继续拆分
 
 ### 未完成
 
