@@ -858,24 +858,8 @@ export class AgentOrchestrator {
     this.activeSessions.set(sessionId, runGeneration)
 
     // 3. 构建环境变量
-    // 同步凭证到 process.env（SDK in-process 代码可能直接读取 process.env）
-    // 先清理再注入，确保 SDK 无论从 env 选项还是 process.env 都拿到正确值
-    delete process.env.ANTHROPIC_API_KEY
-    delete process.env.ANTHROPIC_AUTH_TOKEN
-    delete process.env.ANTHROPIC_BASE_URL
-    delete process.env.ANTHROPIC_CUSTOM_HEADERS
-    if (channel.provider === 'kimi-coding') {
-      // Kimi Coding Plan：只用 Bearer + 必须带 User-Agent
-      process.env.ANTHROPIC_AUTH_TOKEN = apiKey
-      process.env.ANTHROPIC_CUSTOM_HEADERS = 'User-Agent: KimiCLI/1.3'
-    } else {
-      process.env.ANTHROPIC_API_KEY = apiKey
-    }
-    // 使用与 buildSdkEnv 相同的规范化逻辑，确保 process.env 和 sdkEnv 中的 URL 一致
-    if (channel.baseUrl && channel.baseUrl !== 'https://api.anthropic.com') {
-      process.env.ANTHROPIC_BASE_URL = normalizeAnthropicBaseUrlForSdk(channel.baseUrl)
-    }
-
+    // 不再同步凭证到 process.env：SDK 0.2.113+ 通过 options.env 传递给子进程，
+    // 主进程内不直接发起 HTTP 请求。直接赋值 process.env 在多会话并发时存在竞态条件。
     const sdkEnv = await this.buildSdkEnv(apiKey, channel.baseUrl, channel.provider)
 
     // 4. 读取已有的 SDK session ID（用于 resume）
