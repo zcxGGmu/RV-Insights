@@ -3,6 +3,7 @@ import type { PipelineStreamPayload } from '@rv-insights/shared'
 import {
   applyPipelineStreamState,
   applyPipelineLiveOutput,
+  applyPipelineStreamErrorState,
   getPipelineLiveOutput,
   hasPipelineLiveOutputNode,
   type PipelineLiveOutputState,
@@ -175,5 +176,33 @@ describe('applyPipelineStreamState', () => {
 
     expect(state?.stageOutputs?.planner?.summary).toBe('计划完成')
     expect(state?.updatedAt).toBe(2)
+  })
+
+  test('stream error 会把已有快照落为失败态并清理 pending gate', () => {
+    const state = applyPipelineStreamErrorState({
+      sessionId: 'session-1',
+      currentNode: 'developer',
+      status: 'waiting_human',
+      reviewIteration: 1,
+      pendingGate: {
+        gateId: 'gate-1',
+        sessionId: 'session-1',
+        node: 'developer',
+        iteration: 1,
+        createdAt: 1,
+      },
+      updatedAt: 1,
+    }, {
+      sessionId: 'session-1',
+      error: '启动失败',
+    }, 3)
+
+    expect(state).toMatchObject({
+      sessionId: 'session-1',
+      currentNode: 'developer',
+      status: 'node_failed',
+      pendingGate: null,
+      updatedAt: 3,
+    })
   })
 })

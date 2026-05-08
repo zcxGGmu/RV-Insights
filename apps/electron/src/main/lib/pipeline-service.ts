@@ -144,6 +144,30 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     })
   }
 
+  function assertGateResponseMatchesPending(
+    meta: PipelineSessionMeta,
+    response: PipelineGateResponse,
+  ): PipelineGateRequest | null {
+    const pendingGate = meta.pendingGate
+    if (!pendingGate) {
+      return null
+    }
+
+    if (meta.status !== 'waiting_human') {
+      throw new Error(`Pipeline gate 状态不匹配，当前状态: ${meta.status}`)
+    }
+
+    if (pendingGate.gateId !== response.gateId) {
+      throw new Error('Pipeline gate 已过期或不匹配，请刷新后重试')
+    }
+
+    if (pendingGate.sessionId !== response.sessionId) {
+      throw new Error('Pipeline gate 会话不匹配，请刷新后重试')
+    }
+
+    return pendingGate
+  }
+
   async function buildDefaultGraph(
     meta: PipelineSessionMeta,
     signal?: AbortSignal,
@@ -340,6 +364,9 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       if (!meta) {
         throw new Error(`未找到 Pipeline 会话: ${sessionId}`)
       }
+      if (activeControllers.has(meta.id)) {
+        throw new Error(`Pipeline 会话正在运行中，请先停止: ${meta.id}`)
+      }
 
       gateService.clearSessionPending(meta.id)
       void checkpointer.deleteThread(meta.id)
@@ -424,12 +451,19 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       if (!meta) {
         throw new Error(`未找到 Pipeline 会话: ${response.sessionId}`)
       }
+      const pendingGate = assertGateResponseMatchesPending(meta, response)
+      if (!pendingGate) {
+        return
+      }
+      if (activeControllers.has(meta.id)) {
+        return
+      }
 
       appendPipelineRecord(meta.id, {
         id: `${meta.id}-${response.gateId}-response`,
         sessionId: meta.id,
         type: 'gate_decision',
-        node: meta.pendingGate?.node ?? meta.currentNode,
+        node: pendingGate.node,
         action: response.action,
         feedback: response.feedback,
         createdAt: response.createdAt,

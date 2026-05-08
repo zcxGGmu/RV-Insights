@@ -4,6 +4,7 @@ import type {
   PipelineNodeKind,
   PipelineSessionMeta,
   PipelineStateSnapshot,
+  PipelineStreamErrorPayload,
   PipelineStreamPayload,
 } from '@rv-insights/shared'
 import type { SessionIndicatorStatus } from './agent-atoms'
@@ -151,6 +152,22 @@ export function applyPipelineStreamState(
     case 'text_delta':
     default:
       return prev
+  }
+}
+
+export function applyPipelineStreamErrorState(
+  prev: PipelineStateSnapshot | undefined,
+  payload: PipelineStreamErrorPayload,
+  createdAt = Date.now(),
+): PipelineStateSnapshot | undefined {
+  if (!prev) return prev
+
+  return {
+    ...prev,
+    sessionId: payload.sessionId,
+    status: 'node_failed',
+    pendingGate: null,
+    updatedAt: createdAt,
   }
 }
 

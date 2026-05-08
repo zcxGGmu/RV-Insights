@@ -200,8 +200,42 @@ export function PipelineView({
       threadId: session?.threadId,
     }).catch((error) => {
       console.error('[PipelineView] 启动失败:', error)
+      const message = error instanceof Error ? error.message : '启动 Pipeline 失败'
+      const failedAt = Date.now()
+      const failedState: PipelineStateSnapshot = {
+        ...optimisticState,
+        status: 'node_failed',
+        pendingGate: null,
+        updatedAt: failedAt,
+      }
+      setErrors((prev) => {
+        const next = new Map(prev)
+        next.set(sessionId, message)
+        return next
+      })
+      setPendingGates((prev) => {
+        if (!prev.has(sessionId)) return prev
+        const next = new Map(prev)
+        next.delete(sessionId)
+        return next
+      })
+      setStateMap((prev) => {
+        const next = new Map(prev)
+        next.set(sessionId, failedState)
+        return next
+      })
+      setSessions((prev) => prev.map((item) => (
+        item.id === sessionId
+          ? {
+              ...item,
+              status: failedState.status,
+              pendingGate: null,
+              updatedAt: failedAt,
+            }
+          : item
+      )))
     })
-  }, [channels, fallbackChannelId, fallbackWorkspaceId, session, sessionId, setDraftSessionIds, setErrors, setSessions, setStateMap, state, workspaces])
+  }, [channels, fallbackChannelId, fallbackWorkspaceId, session, sessionId, setDraftSessionIds, setErrors, setPendingGates, setSessions, setStateMap, state, workspaces])
 
   const handleStop = React.useCallback(async (): Promise<void> => {
     await window.electronAPI.stopPipeline(sessionId)

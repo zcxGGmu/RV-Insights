@@ -112,6 +112,98 @@ describe('pipeline-service', () => {
     })
   })
 
+  test('内存 gate 已消费但 resume 未结束时，重复响应不应写入重复 gate decision', async () => {
+    let sessionId = ''
+    let gateRequest: PipelineGateRequest = {
+      gateId: 'gate-race',
+      sessionId,
+      node: 'reviewer',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    let markResumeStarted: () => void = () => undefined
+    let finishResume: () => void = () => undefined
+    const resumeStarted = new Promise<void>((resolve) => {
+      markResumeStarted = resolve
+    })
+    const graphCalls: string[] = []
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          graphCalls.push('invoke')
+          return {
+            state: {
+              sessionId,
+              currentNode: 'reviewer',
+              status: 'waiting_human',
+              reviewIteration: 0,
+              pendingGate: gateRequest,
+              updatedAt: Date.now(),
+            },
+            interrupted: gateRequest,
+          }
+        },
+        resume: async () => {
+          graphCalls.push('resume')
+          markResumeStarted()
+          return new Promise<{ state: PipelineStateSnapshot }>((resolve) => {
+            finishResume = () => resolve({
+              state: {
+                sessionId,
+                currentNode: 'tester',
+                status: 'completed',
+                reviewIteration: 0,
+                lastApprovedNode: 'tester',
+                pendingGate: null,
+                updatedAt: Date.now(),
+              },
+            })
+          })
+        },
+        getState: async () => ({
+          sessionId,
+          currentNode: 'reviewer',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    const session = service.createSession('gate 竞态测试', 'channel-1', 'workspace-1')
+    sessionId = session.id
+    gateRequest = {
+      ...gateRequest,
+      sessionId,
+    }
+    const response: PipelineGateResponse = {
+      gateId: gateRequest.gateId,
+      sessionId,
+      action: 'approve',
+      createdAt: Date.now(),
+    }
+    const startPromise = service.start({
+      sessionId,
+      userInput: '触发人工审核',
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await service.respondGate(response)
+    await resumeStarted
+
+    expect(getPipelineRecords(sessionId).filter((record) => record.type === 'gate_decision')).toHaveLength(1)
+    await service.respondGate({
+      ...response,
+      createdAt: Date.now(),
+    })
+    expect(getPipelineRecords(sessionId).filter((record) => record.type === 'gate_decision')).toHaveLength(1)
+
+    finishResume()
+    await startPromise
+    expect(graphCalls).toEqual(['invoke', 'resume'])
+  })
+
   test('等待人工审核时 stop 不应继续 resume graph，并应落为 terminated', async () => {
     const gateRequest: PipelineGateRequest = {
       gateId: 'gate-stop',
@@ -200,7 +292,10 @@ describe('pipeline-service', () => {
     updatePipelineSessionMeta(session.id, {
       currentNode: 'reviewer',
       status: 'waiting_human',
-      pendingGate: gateRequest,
+      pendingGate: {
+        ...gateRequest,
+        sessionId: session.id,
+      },
     })
 
     await expect(service.respondGate({
@@ -211,6 +306,183 @@ describe('pipeline-service', () => {
     })).rejects.toThrow('resume exploded')
 
     expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('node_failed')
+  })
+
+  test('陈旧 gate 响应不应恢复 graph 或写入 gate decision', async () => {
+    const pendingGate: PipelineGateRequest = {
+      gateId: 'gate-current',
+      sessionId: 'session-stale-gate',
+      node: 'planner',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const graphCalls: string[] = []
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          graphCalls.push('invoke')
+          return {
+            state: {
+              sessionId: 'session-stale-gate',
+              currentNode: 'planner',
+              status: 'waiting_human',
+              reviewIteration: 0,
+              pendingGate,
+              updatedAt: Date.now(),
+            },
+            interrupted: pendingGate,
+          }
+        },
+        resume: async () => {
+          graphCalls.push('resume')
+          return {
+            state: {
+              sessionId: 'session-stale-gate',
+              currentNode: 'tester',
+              status: 'completed',
+              reviewIteration: 0,
+              pendingGate: null,
+              updatedAt: Date.now(),
+            },
+          }
+        },
+        getState: async () => ({
+          sessionId: 'session-stale-gate',
+          currentNode: 'planner',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    const session = service.createSession('陈旧 gate 测试', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      currentNode: 'planner',
+      status: 'waiting_human',
+      pendingGate: {
+        ...pendingGate,
+        sessionId: session.id,
+      },
+    })
+
+    await expect(service.respondGate({
+      gateId: 'gate-stale',
+      sessionId: session.id,
+      action: 'approve',
+      createdAt: Date.now(),
+    })).rejects.toThrow('Pipeline gate 已过期')
+
+    expect(graphCalls).toEqual([])
+    expect(getPipelineRecords(session.id).filter((record) => record.type === 'gate_decision')).toHaveLength(0)
+    expect(service.listSessions().find((item) => item.id === session.id)?.status).toBe('waiting_human')
+  })
+
+  test('没有 pending gate 的重复响应应安全忽略，不应恢复 graph', async () => {
+    const graphCalls: string[] = []
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          graphCalls.push('invoke')
+          return {
+            state: {
+              sessionId: 'session-duplicate-gate',
+              currentNode: 'tester',
+              status: 'completed',
+              reviewIteration: 0,
+              pendingGate: null,
+              updatedAt: Date.now(),
+            },
+          }
+        },
+        resume: async () => {
+          graphCalls.push('resume')
+          return {
+            state: {
+              sessionId: 'session-duplicate-gate',
+              currentNode: 'tester',
+              status: 'completed',
+              reviewIteration: 0,
+              pendingGate: null,
+              updatedAt: Date.now(),
+            },
+          }
+        },
+        getState: async () => ({
+          sessionId: 'session-duplicate-gate',
+          currentNode: 'tester',
+          status: 'completed',
+          reviewIteration: 0,
+          pendingGate: null,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    const session = service.createSession('重复 gate 响应测试', 'channel-1', 'workspace-1')
+    updatePipelineSessionMeta(session.id, {
+      currentNode: 'tester',
+      status: 'completed',
+      pendingGate: null,
+    })
+
+    await service.respondGate({
+      gateId: 'gate-already-done',
+      sessionId: session.id,
+      action: 'approve',
+      createdAt: Date.now(),
+    })
+
+    expect(graphCalls).toEqual([])
+    expect(getPipelineRecords(session.id).filter((record) => record.type === 'gate_decision')).toHaveLength(0)
+  })
+
+  test('运行中的 Pipeline 会话不能直接删除', async () => {
+    const invokeController: {
+      resolve?: (value: { state: PipelineStateSnapshot }) => void
+    } = {}
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => new Promise<{ state: PipelineStateSnapshot }>((resolve) => {
+          invokeController.resolve = resolve
+        }),
+        resume: async () => {
+          throw new Error('resume 不应被调用')
+        },
+        getState: async () => ({
+          sessionId: 'session-active-delete',
+          currentNode: 'developer',
+          status: 'running',
+          reviewIteration: 0,
+          pendingGate: null,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    const session = service.createSession('运行中删除保护测试', 'channel-1', 'workspace-1')
+    const startPromise = service.start({
+      sessionId: session.id,
+      userInput: '保持运行',
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(() => service.deleteSession(session.id)).toThrow('Pipeline 会话正在运行中')
+    expect(service.listSessions().some((item) => item.id === session.id)).toBe(true)
+
+    invokeController.resolve?.({
+      state: {
+        sessionId: session.id,
+        currentNode: 'tester',
+        status: 'completed',
+        reviewIteration: 0,
+        pendingGate: null,
+        updatedAt: Date.now(),
+      },
+    })
+    await startPromise
   })
 
   test('置顶已归档 Pipeline 会话时自动取消归档', () => {

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useStore } from 'jotai'
 import {
+  applyPipelineStreamErrorState,
   applyPipelineStreamState,
   applyPipelineLiveOutput,
   clearPipelineLiveOutputForSession,
@@ -166,14 +167,39 @@ export function useGlobalPipelineListeners(): void {
     })
 
     const offError = window.electronAPI.onPipelineStreamError((payload) => {
+      const createdAt = Date.now()
       store.set(pipelineStreamErrorsAtom, (prev) => {
         const next = new Map(prev)
         next.set(payload.sessionId, payload.error)
         return next
       })
+      store.set(pipelineSessionStateMapAtom, (prev) => {
+        const next = new Map(prev)
+        const updated = applyPipelineStreamErrorState(next.get(payload.sessionId), payload, createdAt)
+        if (updated) {
+          next.set(payload.sessionId, updated)
+        }
+        return next
+      })
+      store.set(pipelineSessionsAtom, (prev) => {
+        const existing = prev.find((session) => session.id === payload.sessionId)
+        if (!existing) return prev
+
+        return upsertPipelineSession(prev, {
+          ...existing,
+          status: 'node_failed',
+          pendingGate: null,
+          updatedAt: createdAt,
+        })
+      })
       store.set(pipelinePendingGatesAtom, (prev) => {
         const next = new Map(prev)
         next.delete(payload.sessionId)
+        return next
+      })
+      store.set(pipelineRecordRefreshAtom, (prev) => {
+        const next = new Map(prev)
+        next.set(payload.sessionId, (prev.get(payload.sessionId) ?? 0) + 1)
         return next
       })
     })

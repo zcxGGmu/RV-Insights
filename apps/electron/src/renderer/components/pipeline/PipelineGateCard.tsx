@@ -11,13 +11,24 @@ export function PipelineGateCard({
 }): React.ReactElement {
   const [feedback, setFeedback] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
+  const [submittedGateId, setSubmittedGateId] = React.useState<string | null>(null)
   const [feedbackError, setFeedbackError] = React.useState<string | null>(null)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
   const viewModel = buildPipelineGateViewModel(request)
+  const locked = submitting || submittedGateId === request.gateId
+
+  React.useEffect(() => {
+    setSubmittedGateId(null)
+    setSubmitting(false)
+    setSubmitError(null)
+    setFeedbackError(null)
+  }, [request.gateId])
 
   const handleSubmit = async (
     action: 'approve' | 'reject_with_feedback' | 'rerun_node',
   ): Promise<void> => {
+    if (locked) return
+
     const trimmedFeedback = feedback.trim()
     if (action === 'reject_with_feedback' && viewModel.rejectRequiresFeedback && !trimmedFeedback) {
       setFeedbackError('请填写需要修改的具体反馈。')
@@ -29,12 +40,14 @@ export function PipelineGateCard({
     setSubmitError(null)
     try {
       await onRespond(action, trimmedFeedback || undefined)
+      setSubmittedGateId(request.gateId)
       if (action !== 'approve') {
         setFeedback('')
       }
     } catch (error) {
       console.error('[PipelineGateCard] 响应审核失败:', error)
       setSubmitError(error instanceof Error ? error.message : '提交审核失败，请稍后重试。')
+      setSubmittedGateId(null)
     } finally {
       setSubmitting(false)
     }
@@ -84,23 +97,28 @@ export function PipelineGateCard({
           {submitError}
         </div>
       ) : null}
+      {submittedGateId === request.gateId ? (
+        <div className="mt-2 text-xs text-muted-foreground">
+          已提交审核响应，正在等待 Pipeline 恢复。
+        </div>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <button
-          disabled={submitting}
+          disabled={locked}
           onClick={() => void handleSubmit('approve')}
           className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
         >
-          {viewModel.approveLabel}
+          {locked ? '处理中' : viewModel.approveLabel}
         </button>
         <button
-          disabled={submitting}
+          disabled={locked}
           onClick={() => void handleSubmit('reject_with_feedback')}
           className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
         >
           {viewModel.rejectLabel}
         </button>
         <button
-          disabled={submitting}
+          disabled={locked}
           onClick={() => void handleSubmit('rerun_node')}
           className="rounded-lg border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted/60 disabled:opacity-50"
         >

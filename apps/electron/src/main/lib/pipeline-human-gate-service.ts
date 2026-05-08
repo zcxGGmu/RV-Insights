@@ -48,6 +48,7 @@ export class PipelineHumanGateService {
   respond(response: PipelineGateResponse): boolean {
     const pending = this.pendingRequests.get(response.gateId)
     if (!pending) return false
+    if (pending.request.sessionId !== response.sessionId) return false
 
     pending.resolve(response)
     this.pendingRequests.delete(response.gateId)
