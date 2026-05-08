@@ -9,6 +9,7 @@
  * 5. Shell 环境检测（Windows - Git Bash / WSL）
  */
 
+import { safeStorage } from 'electron'
 import type { RuntimeStatus, RuntimeInitOptions, ShellEnvironmentStatus } from '@rv-insights/shared'
 import { loadShellEnv } from './shell-env'
 import { detectNodeRuntime } from './node-detector'
@@ -119,11 +120,16 @@ export async function initializeRuntime(options: RuntimeInitOptions = {}): Promi
   }
 
   // 构建运行时状态
+  const credentialStorageAvailable = safeStorage.isEncryptionAvailable()
   const runtimeStatus: RuntimeStatus = {
     node: nodeStatus,
     bun: bunStatus,
     git: gitStatus,
     shell: shellEnvironmentStatus,
+    credentialStorage: {
+      available: credentialStorageAvailable,
+      mode: credentialStorageAvailable ? 'safeStorage' : 'plaintext-fallback',
+    },
     envLoaded,
     initializedAt: Date.now(),
   }
@@ -141,6 +147,7 @@ export async function initializeRuntime(options: RuntimeInitOptions = {}): Promi
     shell: shellEnvironmentStatus
       ? `${shellEnvironmentStatus.recommended ? '✅' : '⚠️'} ${shellEnvironmentStatus.recommended || '无可用环境'}`
       : '⏭️ 跳过（非 Windows）',
+    credentialStorage: runtimeStatus.credentialStorage.available ? '✅ safeStorage' : '⚠️ 明文回退',
     envLoaded: envLoaded ? '✅' : '⚠️ 未加载或不需要',
   })
 

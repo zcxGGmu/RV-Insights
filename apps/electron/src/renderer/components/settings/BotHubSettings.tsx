@@ -17,6 +17,7 @@ import { DingTalkSettings } from './DingTalkSettings'
 import { WeChatSettings } from './WeChatSettings'
 import { BotDefaultSettings } from './BotDefaultSettings'
 import { RVInsightsLogoSettings } from './RVInsightsLogoSettings'
+import { CredentialStorageWarning } from './CredentialStorageWarning'
 import feishuLogo from '@/assets/bots/feishu.png'
 import dingtalkLogo from '@/assets/bots/dingding.png'
 import wechatLogo from '@/assets/bots/wechat.png'
@@ -199,6 +200,11 @@ export function BotHubSettings(): React.ReactElement {
       {/* 右侧内容面板 */}
       <ScrollArea className="flex-1 min-w-0">
         <div className="px-6 py-4">
+          {(selectedPlatform === 'feishu' || selectedPlatform === 'dingtalk' || selectedPlatform === 'wechat') && (
+            <div className="mb-4">
+              <CredentialStorageWarning scopeLabel="远程连接平台凭证" />
+            </div>
+          )}
           {renderPlatformPanel(selectedPlatform)}
         </div>
       </ScrollArea>

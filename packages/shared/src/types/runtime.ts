@@ -139,6 +139,16 @@ export interface ShellEnvironmentStatus {
 }
 
 /**
+ * 凭证存储状态
+ */
+export interface CredentialStorageStatus {
+  /** 系统级加密是否可用 */
+  available: boolean
+  /** 当前凭证存储模式 */
+  mode: 'safeStorage' | 'plaintext-fallback'
+}
+
+/**
  * 完整运行时状态
  */
 export interface RuntimeStatus {
@@ -150,6 +160,8 @@ export interface RuntimeStatus {
   git: GitRuntimeStatus
   /** Shell 环境状态（仅 Windows 平台）*/
   shell?: ShellEnvironmentStatus
+  /** 凭证存储状态 */
+  credentialStorage: CredentialStorageStatus
   /** Shell 环境变量是否已加载（仅 macOS 相关）*/
   envLoaded: boolean
   /** 初始化时间戳 */

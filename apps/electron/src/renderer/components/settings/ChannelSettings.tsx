@@ -12,6 +12,7 @@ import { useAtom, useSetAtom } from 'jotai'
 import { Plus, Pencil, Trash2, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@rv-insights/shared'
 import type { Channel } from '@rv-insights/shared'
 import { getChannelLogo, RVInsightsLogo } from '@/lib/model-logo'
@@ -29,6 +30,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ChannelForm } from './ChannelForm'
+import { CredentialStorageWarning } from './CredentialStorageWarning'
 
 /** 组件视图模式 */
 type ViewMode = 'list' | 'create' | 'edit'
@@ -43,6 +45,25 @@ export function ChannelSettings(): React.ReactElement {
   const [agentChannelIds, setAgentChannelIds] = useAtom(agentChannelIdsAtom)
   const setGlobalChannels = useSetAtom(channelsAtom)
   const [deleteTarget, setDeleteTarget] = React.useState<Channel | null>(null)
+  const [encryptionAvailable, setEncryptionAvailable] = React.useState(true)
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    window.electronAPI.getRuntimeStatus()
+      .then((status) => {
+        if (cancelled) return
+        setEncryptionAvailable(status?.credentialStorage.available ?? true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setEncryptionAvailable(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   /** 加载渠道列表 */
   const loadChannels = React.useCallback(async (): Promise<Channel[]> => {
@@ -188,6 +209,7 @@ export function ChannelSettings(): React.ReactElement {
           </Button>
         }
       >
+        <CredentialStorageWarning scopeLabel="模型配置与渠道凭证" />
         <SettingsCard>
           <RVInsightsProviderCard />
         </SettingsCard>
@@ -205,6 +227,7 @@ export function ChannelSettings(): React.ReactElement {
               <ChannelRow
                 key={channel.id}
                 channel={channel}
+                encryptionAvailable={encryptionAvailable}
                 onEdit={() => {
                   setEditingChannel(channel)
                   setViewMode('edit')
@@ -270,12 +293,13 @@ export function ChannelSettings(): React.ReactElement {
 
 interface ChannelRowProps {
   channel: Channel
+  encryptionAvailable: boolean
   onEdit: () => void
   onDelete: () => void
   onToggle: () => void
 }
 
-function ChannelRow({ channel, onEdit, onDelete, onToggle }: ChannelRowProps): React.ReactElement {
+function ChannelRow({ channel, encryptionAvailable, onEdit, onDelete, onToggle }: ChannelRowProps): React.ReactElement {
   const enabledCount = channel.models.filter((m) => m.enabled).length
   const description = [
     PROVIDER_LABELS[channel.provider],
@@ -287,7 +311,16 @@ function ChannelRow({ channel, onEdit, onDelete, onToggle }: ChannelRowProps): R
 
   return (
     <SettingsRow
-      label={channel.name}
+      label={
+        <div className="flex items-center gap-2">
+          <span>{channel.name}</span>
+          {!encryptionAvailable && (
+            <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+              未加密
+            </Badge>
+          )}
+        </div>
+      }
       icon={<img src={getChannelLogo(channel.baseUrl)} alt="" className="w-8 h-8 rounded" />}
       description={description}
       className="group"

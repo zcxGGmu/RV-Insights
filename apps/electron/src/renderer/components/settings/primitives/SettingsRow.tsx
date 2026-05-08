@@ -11,7 +11,7 @@ import { LABEL_CLASS, DESCRIPTION_CLASS, ROW_CLASS } from './SettingsUIConstants
 
 interface SettingsRowProps {
   /** 行标签 */
-  label: string
+  label: React.ReactNode
   /** 标签左侧图标（可选） */
   icon?: React.ReactNode
   /** 行描述（可选） */
