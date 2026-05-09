@@ -12,7 +12,7 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的功能提交：`待提交`
+- 最新已纳入进度同步的功能提交：`089fc890`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -40,7 +40,7 @@
 | `78597ccc` | `agent-orchestrator.ts` 渐进拆分第一阶段 | 部分完成 | 已新增 `agent-orchestrator/sdk-environment.ts`，迁移 SDK env 构建与 CLI 路径解析，并补最小测试 |
 | `addd254f` | `agent-orchestrator.ts` 渐进拆分第二阶段 | 部分完成 | 已新增 `agent-orchestrator/retryable-error-classifier.ts`，迁移自动重试错误分类，并补纯函数测试 |
 | `5919394e` | `agent-orchestrator.ts` 渐进拆分第三阶段 | 部分完成 | 已新增 `agent-orchestrator/teams-coordinator.ts`，抽离 Teams 状态追踪、Watchdog idle 判断与 resume prompt 构建 |
-| `待提交` | `agent-orchestrator.ts` 渐进拆分第四阶段 | 部分完成 | `TeamsCoordinator` 已接管二次 resume query 的 options 构造、SDK message 遍历、replay 过滤与可持久化消息收集 |
+| `089fc890` | `agent-orchestrator.ts` 渐进拆分第四阶段 | 部分完成 | `TeamsCoordinator` 已接管二次 resume query 的 options 构造、SDK message 遍历、replay 过滤与可持久化消息收集 |
 
 ---
 
