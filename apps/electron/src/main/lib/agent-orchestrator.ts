@@ -983,6 +983,7 @@ export class AgentOrchestrator {
         }
 
         let shouldRetryFromError = false
+        let shouldStopForRetryExhausted = false
 
         try {
           // 获取异步迭代器（手动 .next() 以支持 Promise.race 中断）
@@ -1095,7 +1096,8 @@ export class AgentOrchestrator {
                 }
 
                 // 判断是否可自动重试
-                if (isAutoRetryableTypedError(typedError) && attempt <= MAX_AUTO_RETRIES) {
+                const isRetryableTypedError = isAutoRetryableTypedError(typedError)
+                if (isRetryableTypedError && attempt <= MAX_AUTO_RETRIES) {
                   lastRetryableError = typedError.title
                     ? `${typedError.title}: ${typedError.message}`
                     : typedError.message
@@ -1103,6 +1105,12 @@ export class AgentOrchestrator {
                   this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
                   accumulatedMessages.length = 0
                   shouldRetryFromError = true
+                  break
+                }
+                if (isRetryableTypedError && attempt > MAX_AUTO_RETRIES && lastRetryableError) {
+                  this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
+                  accumulatedMessages.length = 0
+                  shouldStopForRetryExhausted = true
                   break
                 }
 
@@ -1205,6 +1213,10 @@ export class AgentOrchestrator {
           // 错误 break 触发了 → 继续循环
           if (shouldRetryFromError) {
             continue
+          }
+
+          if (shouldStopForRetryExhausted) {
+            break
           }
 
           // 正常完成 — 如果之前有重试，发送 retry_cleared
@@ -1327,7 +1339,8 @@ export class AgentOrchestrator {
           }
 
           // 判断是否可重试
-          if (isAutoRetryableCatchError(apiError, rawErrorMessage, stderrOutput) && attempt <= MAX_AUTO_RETRIES) {
+          const isRetryableCatchError = isAutoRetryableCatchError(apiError, rawErrorMessage, stderrOutput)
+          if (isRetryableCatchError && attempt <= MAX_AUTO_RETRIES) {
             lastRetryableError = apiError
               ? `API Error ${apiError.statusCode}: ${apiError.message}`
               : (error instanceof Error ? error.message : '未知错误')
@@ -1337,6 +1350,11 @@ export class AgentOrchestrator {
             accumulatedMessages.length = 0
             stderrChunks.length = 0
             continue  // 进入下一次 retry 循环
+          }
+          if (isRetryableCatchError && attempt > MAX_AUTO_RETRIES && lastRetryableError) {
+            this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
+            accumulatedMessages.length = 0
+            break
           }
 
           // 不可重试 — 走原有终止逻辑
@@ -1397,6 +1415,8 @@ export class AgentOrchestrator {
           } else if (existingSdkSessionId && !shouldClearSession) {
             console.log(`[Agent 编排] 保留 sdkSessionId (API 错误 ${apiError?.statusCode})`)
           }
+
+          return
 
         }
       }
