@@ -42,6 +42,7 @@ import { getMemoryConfig } from './memory-service'
 import { searchMemory, addMemory, formatSearchResult } from './memos-client'
 import { buildSdkEnv, resolveSDKCliPath } from './agent-orchestrator/sdk-environment'
 import { isAutoRetryableCatchError, isAutoRetryableTypedError } from './agent-orchestrator/retryable-error-classifier'
+import { createSessionNotFoundRecoveryPatch, isSessionNotFoundError } from './agent-orchestrator/session-recovery'
 import { TeamsCoordinator } from './agent-orchestrator/teams-coordinator'
 import { PermissionToolDispatcher } from './agent-orchestrator/permission-tool-dispatcher'
 import {
@@ -125,17 +126,6 @@ function extractApiError(stderr: string): { statusCode: number; message: string 
   }
 
   return null
-}
-
-/**
- * 判断错误是否为 SDK session 不存在（"No conversation found with session ID"）
- *
- * 当 resume 目标 session 已过期或被清理时，SDK 会抛出此错误。
- * 此类错误可通过清除 sdkSessionId 并切换到上下文回填模式来恢复。
- */
-function isSessionNotFoundError(errorMessage: string, stderr?: string): boolean {
-  const pattern = /No conversation found.*with session/i
-  return pattern.test(errorMessage) || (!!stderr && pattern.test(stderr))
 }
 
 /** 最大自动重试次数 */
@@ -449,11 +439,14 @@ export class AgentOrchestrator {
   ): string {
     console.log(`[Agent 编排] 检测到 session-not-found 错误，清除 sdkSessionId 并切换到上下文回填模式`)
     try { updateAgentSessionMeta(sessionId, { sdkSessionId: undefined }) } catch { /* 忽略 */ }
-    queryOptions.resumeSessionId = undefined
-    queryOptions.prompt = buildContextPrompt(sessionId, contextualMessage, { agentCwd })
+    const recoveryPatch = createSessionNotFoundRecoveryPatch({
+      contextPrompt: buildContextPrompt(sessionId, contextualMessage, { agentCwd }),
+    })
+    queryOptions.resumeSessionId = recoveryPatch.resumeSessionId
+    queryOptions.prompt = recoveryPatch.prompt
     this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
     accumulatedMessages.length = 0
-    return 'Session 已失效，切换到上下文回填模式'
+    return recoveryPatch.retryReason
   }
 
   /**
