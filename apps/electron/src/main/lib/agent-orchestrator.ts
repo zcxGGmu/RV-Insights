@@ -41,20 +41,11 @@ import { askUserService } from './agent-ask-user-service'
 import { exitPlanService, type ExitPlanPermissionResult } from './agent-exit-plan-service'
 import { getMemoryConfig } from './memory-service'
 import { searchMemory, addMemory, formatSearchResult } from './memos-client'
-import {
-  findTeamLeadInboxPath,
-  pollInboxWithRetry,
-  markInboxAsRead,
-  formatInboxPrompt,
-  formatSummaryFallbackPrompt,
-  areAllWorkersIdle,
-  INBOX_RETRY_CONFIG,
-  type TaskNotificationSummary,
-} from './agent-team-reader'
 import { validateToolInput } from './agent-tool-input-validator'
 import { estimateTokenCount, WRITE_CONTENT_TOKEN_THRESHOLD } from './agent-tool-token-estimator'
 import { buildSdkEnv, resolveSDKCliPath } from './agent-orchestrator/sdk-environment'
 import { isAutoRetryableCatchError, isAutoRetryableTypedError } from './agent-orchestrator/retryable-error-classifier'
+import { TeamsCoordinator } from './agent-orchestrator/teams-coordinator'
 
 // ===== 类型定义 =====
 
@@ -1050,6 +1041,7 @@ export class AgentOrchestrator {
       const maxTurns = appSettings.agentMaxTurns && appSettings.agentMaxTurns > 0
         ? appSettings.agentMaxTurns
         : undefined
+      const teamsCoordinator = new TeamsCoordinator(existingSdkSessionId)
       const queryOptions: ClaudeAgentQueryOptions = {
         sessionId,
         prompt: finalPrompt,
@@ -1124,7 +1116,7 @@ export class AgentOrchestrator {
           console.error(`[Agent SDK stderr] ${data}`)
         },
         onSessionId: (sdkSessionId: string) => {
-          capturedSdkSessionId = sdkSessionId
+          teamsCoordinator.setCapturedSdkSessionId(sdkSessionId)
           if (sdkSessionId !== existingSdkSessionId) {
             try {
               updateAgentSessionMeta(sessionId, { sdkSessionId })
@@ -1161,12 +1153,6 @@ export class AgentOrchestrator {
       let lastRetryableError: string | undefined
       let retrySucceeded = false
 
-      // Agent Teams 追踪
-      const startedTaskIds = new Set<string>()
-      const completedTaskIds = new Set<string>()
-      const taskNotificationSummaries: TaskNotificationSummary[] = []
-      /** 捕获到的 SDK session ID（用于 auto-resume 的 inbox 查找） */
-      let capturedSdkSessionId = existingSdkSessionId
       /** Watchdog 触发标记（死锁被检测到时设为 true） */
       let abortedByWatchdog = false
 
@@ -1224,15 +1210,11 @@ export class AgentOrchestrator {
               if (loopAbort.signal.aborted) break
 
               // 仅在有 Worker 启动且未全部完成时检查
-              if (
-                startedTaskIds.size > 0 &&
-                completedTaskIds.size < startedTaskIds.size &&
-                capturedSdkSessionId
-              ) {
-                const allIdle = await areAllWorkersIdle(capturedSdkSessionId, startedTaskIds.size)
+              if (teamsCoordinator.shouldCheckWorkerIdle()) {
+                const allIdle = await teamsCoordinator.areWorkersIdle()
                 if (allIdle) {
                   console.log(
-                    `[Agent 编排] Watchdog: 所有 ${startedTaskIds.size} 个 Worker 已 idle，` +
+                    `[Agent 编排] Watchdog: 所有 ${teamsCoordinator.startedTaskCount} 个 Worker 已 idle，` +
                     `Task 工具仍在等待 — 中断以触发 auto-resume`,
                   )
                   abortedByWatchdog = true
@@ -1445,8 +1427,8 @@ export class AgentOrchestrator {
             // Agent Teams: 当有 teammate 活跃时，延迟 result 消息
             if (!shouldEmit) {
               // 跳过 SDK 内部 user 消息的前端推送
-            } else if (msg.type === 'result' && startedTaskIds.size > 0) {
-              console.log(`[Agent 编排] 延迟 result 消息（${startedTaskIds.size} 个 teammate 活跃）`)
+            } else if (msg.type === 'result' && teamsCoordinator.shouldDeferResultMessage()) {
+              console.log(`[Agent 编排] 延迟 result 消息（${teamsCoordinator.startedTaskCount} 个 teammate 活跃）`)
               deferredResultMessage = msg
             } else {
               this.eventBus.emit(sessionId, { kind: 'sdk_message', message: msg })
@@ -1455,23 +1437,7 @@ export class AgentOrchestrator {
             // Agent Teams: 追踪 teammate 任务状态（从 system 消息中）
             if (msg.type === 'system') {
               const sysMsg = msg as import('@rv-insights/shared').SDKSystemMessage
-              if (
-                sysMsg.subtype === 'task_started' &&
-                sysMsg.task_id &&
-                (sysMsg.task_type === 'local_agent' || sysMsg.task_type === 'remote_agent')
-              ) {
-                startedTaskIds.add(sysMsg.task_id)
-              } else if (sysMsg.subtype === 'task_notification' && sysMsg.task_id) {
-                completedTaskIds.add(sysMsg.task_id)
-                if (sysMsg.summary) {
-                  taskNotificationSummaries.push({
-                    taskId: sysMsg.task_id,
-                    status: (sysMsg.status as 'completed' | 'failed' | 'stopped') || 'completed',
-                    summary: sysMsg.summary,
-                    outputFile: sysMsg.output_file,
-                  })
-                }
-              }
+              teamsCoordinator.recordSystemMessage(sysMsg)
             }
           }
 
@@ -1499,9 +1465,10 @@ export class AgentOrchestrator {
           this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
 
           // 16. Agent Teams Auto-Resume：teammates 完成后自动收集结果并汇总
-          console.log(`[Agent 编排] Auto-resume 条件检查: startedTasks=${startedTaskIds.size}, sdkSession=${!!capturedSdkSessionId}, active=${this.activeSessions.has(sessionId)}`)
-          if (startedTaskIds.size > 0 && capturedSdkSessionId && this.activeSessions.has(sessionId)) {
-            console.log(`[Agent 编排] Agent Teams 检测到 ${startedTaskIds.size} 个 teammate，启动 auto-resume`)
+          const teamsSdkSessionId = teamsCoordinator.sdkSessionId
+          console.log(`[Agent 编排] Auto-resume 条件检查: startedTasks=${teamsCoordinator.startedTaskCount}, sdkSession=${!!teamsSdkSessionId}, active=${this.activeSessions.has(sessionId)}`)
+          if (teamsCoordinator.hasStartedTasks() && teamsSdkSessionId && this.activeSessions.has(sessionId)) {
+            console.log(`[Agent 编排] Agent Teams 检测到 ${teamsCoordinator.startedTaskCount} 个 teammate，启动 auto-resume`)
 
             // 通知前端：正在收集 teammate 结果
             this.eventBus.emit(sessionId, {
@@ -1510,27 +1477,14 @@ export class AgentOrchestrator {
             })
 
             // 构造 resume prompt（优先 inbox，fallback 到 summaries）
-            let resumePrompt: string | null = null
-
-            const inboxInfo = await findTeamLeadInboxPath(capturedSdkSessionId)
-            console.log(`[Agent 编排] Inbox 查找结果: ${inboxInfo ? `team=${inboxInfo.teamName}` : '未找到 team'}`)
-            if (inboxInfo) {
-              const unreadMessages = await pollInboxWithRetry(
-                inboxInfo.inboxPath,
-                INBOX_RETRY_CONFIG,
-              )
-              if (unreadMessages.length > 0) {
-                await markInboxAsRead(inboxInfo.inboxPath)
-                resumePrompt = formatInboxPrompt(unreadMessages)
-                console.log(`[Agent 编排] 使用 ${unreadMessages.length} 条 inbox 消息构建 resume prompt`)
-              }
+            const resumePromptResult = await teamsCoordinator.buildResumePrompt()
+            console.log(`[Agent 编排] Inbox 查找结果: ${resumePromptResult.teamName ? `team=${resumePromptResult.teamName}` : '未找到 team'}`)
+            if (resumePromptResult.source === 'inbox') {
+              console.log(`[Agent 编排] 使用 ${resumePromptResult.inboxMessageCount} 条 inbox 消息构建 resume prompt`)
+            } else if (resumePromptResult.source === 'summary') {
+              console.log(`[Agent 编排] Inbox 为空，使用 ${resumePromptResult.summaryCount} 条 task summaries 作为 fallback`)
             }
-
-            // Fallback：用 task_notification summaries
-            if (!resumePrompt && taskNotificationSummaries.length > 0) {
-              console.log(`[Agent 编排] Inbox 为空，使用 ${taskNotificationSummaries.length} 条 task summaries 作为 fallback`)
-              resumePrompt = formatSummaryFallbackPrompt(taskNotificationSummaries)
-            }
+            const resumePrompt = resumePromptResult.prompt
 
             if (resumePrompt && this.activeSessions.has(sessionId)) {
               const resumeMessageId = randomUUID()
@@ -1543,7 +1497,7 @@ export class AgentOrchestrator {
                 const resumeOptions: ClaudeAgentQueryOptions = {
                   ...queryOptions,
                   prompt: resumePrompt,
-                  resumeSessionId: capturedSdkSessionId,
+                  resumeSessionId: teamsSdkSessionId,
                 }
 
                 for await (const resumeMsg of this.adapter.query(resumeOptions)) {

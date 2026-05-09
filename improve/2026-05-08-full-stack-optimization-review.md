@@ -12,7 +12,7 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的功能提交：`addd254f`
+- 最新已纳入进度同步的功能提交：`待提交`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -39,6 +39,7 @@
 | `37460087` | `ipc.ts` 拆分第四阶段 B（机器人） | 部分完成 | 已新增 `ipc/bot-hub-handlers.ts` 与 `ipc/quick-task-handlers.ts`，迁移 Feishu / DingTalk / WeChat / QuickTask 注册逻辑 |
 | `78597ccc` | `agent-orchestrator.ts` 渐进拆分第一阶段 | 部分完成 | 已新增 `agent-orchestrator/sdk-environment.ts`，迁移 SDK env 构建与 CLI 路径解析，并补最小测试 |
 | `addd254f` | `agent-orchestrator.ts` 渐进拆分第二阶段 | 部分完成 | 已新增 `agent-orchestrator/retryable-error-classifier.ts`，迁移自动重试错误分类，并补纯函数测试 |
+| `待提交` | `agent-orchestrator.ts` 渐进拆分第三阶段 | 部分完成 | 已新增 `agent-orchestrator/teams-coordinator.ts`，抽离 Teams 状态追踪、Watchdog idle 判断与 resume prompt 构建 |
 
 ---
 
@@ -81,20 +82,23 @@
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [~] `agent-orchestrator.ts` 渐进拆分
-  现状：部分完成（第二阶段 RetryableErrorClassifier 已完成）。
+  现状：部分完成（第三阶段 TeamsCoordinator 状态 / prompt 边界已完成）。
   已完成：
   SDK 环境变量构建与 CLI binary 路径解析已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`。
   已补充最小测试覆盖普通 Provider、Kimi Coding、代理、Windows Shell 与 CLI fallback 路径。
   自动重试错误分类已抽离到 `apps/electron/src/main/lib/agent-orchestrator/retryable-error-classifier.ts`。
   已补充最小测试覆盖 retryable / non-retryable TypedError code、HTTP 429 / 5xx / 4xx、`context_management` 与瞬时网络错误。
+  Agent Teams 状态追踪、Watchdog idle 判断与 resume prompt 构建已抽离到 `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`。
+  已补充最小测试覆盖 task 状态追踪、Watchdog idle 检查、inbox 优先与 summary fallback。
   未完成：
-  Teams auto-resume、权限工具分派、SDK 消息持久化等逻辑仍在 `agent-orchestrator.ts`。
+  Teams auto-resume 的实际二次 query、权限工具分派、SDK 消息持久化等逻辑仍在 `agent-orchestrator.ts`。
   关键文件：
   `apps/electron/src/main/lib/agent-orchestrator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`
   `apps/electron/src/main/lib/agent-orchestrator/retryable-error-classifier.ts`
+  `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`
   建议：
-  下一阶段评估 `TeamsCoordinator` / 团队协作 auto-resume 边界，继续保持行为不变的小步拆分。
+  下一阶段继续拆 `TeamsCoordinator` resume query 执行边界，保持事件发送和持久化行为不变。
 
 - [ ] `feishu-bridge.ts` 拆分
   现状：未完成。
@@ -172,16 +176,16 @@
 
 ### 当前推荐的下一个阶段
 
-`agent-orchestrator.ts` 渐进拆分第三阶段（TeamsCoordinator 边界评估）
+`agent-orchestrator.ts` 渐进拆分第四阶段（TeamsCoordinator resume query 执行边界）
 
 原因：
-- `agent-orchestrator.ts` 已抽离 SDK 环境准备与重试错误分类，下一块高收益边界是 Teams auto-resume 相关上下文
-- Teams 逻辑仍集中在主执行循环中，涉及 inbox 读取、task summaries、watchdog 和 resume prompt，适合先做边界评估再小步迁移
-- 权限工具分派与消息持久化仍更靠近执行链路，适合放在 Teams 边界清晰后继续处理
+- `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类，以及 Teams 状态 / prompt 构建
+- Teams 实际二次 resume query 仍留在主执行循环，下一步可以只迁移 resume query 的消息累积与错误吞吐边界
+- 权限工具分派与消息持久化仍更靠近主执行链路，适合放在 Teams resume 执行边界清晰后继续处理
 
 ### 建议切分顺序
 
-1. 评估并拆分 `TeamsCoordinator` / 团队协作 auto-resume 边界
+1. 拆 `TeamsCoordinator` resume query 执行边界
 2. 再评估权限工具分派边界
 3. 最后评估 SDK 消息持久化边界
 
@@ -212,7 +216,7 @@
 - `ipc.ts` 拆分
   第一、二、三阶段 `channel / settings / agent` 已完成，第四阶段 A `pipeline` 已完成，第四阶段 B 机器人 handlers 已完成；基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 - `agent-orchestrator.ts` 渐进拆分
-  第一阶段 `EnvironmentBuilder` 与第二阶段 `RetryableErrorClassifier` 已完成；Teams auto-resume、权限工具分派、SDK 消息持久化仍待拆分
+  第一阶段 `EnvironmentBuilder`、第二阶段 `RetryableErrorClassifier` 与第三阶段 `TeamsCoordinator` 状态 / prompt 边界已完成；Teams resume query 执行、权限工具分派、SDK 消息持久化仍待拆分
 
 ### 未完成
 
