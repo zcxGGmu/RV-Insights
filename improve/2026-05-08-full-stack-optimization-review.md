@@ -13,7 +13,7 @@
 
 - 分支：`base/pipeline-v0`
 - 最新已纳入提交的功能提交：`2bca24d1`
-- 最新文档基线同步提交：`37aaacaa`
+- 最新文档基线同步提交：当前 `docs(improve)` 提交（以 `git log --oneline -1` 为准）
 - 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.33`
 - 同步日期：`2026-05-09`
 
@@ -27,6 +27,11 @@
 第五阶段 `PermissionToolDispatcher` 已通过独立提交落地：
 
 - `2bca24d1` `refactor(agent): 拆分权限工具分派边界`
+- `7ac26084` `docs(improve): 同步 PermissionToolDispatcher 提交基线`
+
+当前第六阶段状态：
+- 已完成 SDK 消息持久化边界初步评估，计划已写入 `tasks/todo.md`（该目录被 git ignore，仅作本地任务接力）。
+- 尚未修改业务代码，下一次开发应从新增 `sdk-message-persistence.ts` 纯函数边界开始。
 
 当前不要纳入提交：
 - `.DS_Store`
@@ -39,10 +44,10 @@
 
 ### 下次启动快速接力
 
-1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第五阶段提交 `2bca24d1` 已在当前分支。
-2. 进入 `agent-orchestrator.ts` 渐进拆分后续阶段：SDK 消息持久化边界评估。
-3. 下一阶段优先只评估/抽离 SDK 消息持久化，不碰 Teams、重试、IPC 或权限分派。
-4. 开发前先把下一阶段可勾选计划写入 `tasks/todo.md`，再改代码。
+1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第五阶段提交 `2bca24d1` 与最新 `docs(improve)` 提交已在当前分支。
+2. 继续第六阶段：SDK 消息持久化边界实现。
+3. 本阶段只抽离 SDK message 筛选、累积准备、时间戳 / duration metadata 纯函数；不要移动 Teams、重试、IPC 或权限分派。
+4. 保留 `agent-orchestrator.ts` 中 `persistSDKMessages()` 的调用时机，先把它改成薄包装，避免改变错误处理、retry、session-not-found 恢复和 queueMessage 持久化语义。
 5. 每完成独立阶段仍需执行：
    `bun run --filter='@rv-insights/electron' typecheck`、
    `bun run --filter='@rv-insights/electron' build:main`、
@@ -73,6 +78,8 @@
 | `089fc890` | `agent-orchestrator.ts` 渐进拆分第四阶段 | 部分完成 | `TeamsCoordinator` 已接管二次 resume query 的 options 构造、SDK message 遍历、replay 过滤与可持久化消息收集 |
 | `37aaacaa` | 文档基线同步 | 已完成 | 已将最新优化进度同步进本文档，作为第五阶段开发前基线 |
 | `2bca24d1` | `agent-orchestrator.ts` 渐进拆分第五阶段 | 部分完成 | 已新增 `PermissionToolDispatcher`，抽离 canUseTool 权限分派边界，并收紧 Plan Bash / MCP / Markdown 写入边界 |
+| `7ac26084` | 文档基线同步 | 已完成 | 已将 PermissionToolDispatcher 提交号和下一阶段入口同步进本文档 |
+| `本地计划` | `agent-orchestrator.ts` 渐进拆分第六阶段 | 待实现 | 已在 `tasks/todo.md` 记录 SDK 消息持久化边界方案；尚未修改业务代码 |
 
 ---
 
@@ -115,7 +122,7 @@
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [~] `agent-orchestrator.ts` 渐进拆分
-  现状：部分完成（第五阶段 PermissionToolDispatcher 权限分派边界已提交）。
+  现状：部分完成（第五阶段 PermissionToolDispatcher 权限分派边界已提交；第六阶段 SDK 消息持久化边界已完成本地计划，待实现）。
   已完成：
   SDK 环境变量构建与 CLI binary 路径解析已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`。
   已补充最小测试覆盖普通 Provider、Kimi Coding、代理、Windows Shell 与 CLI fallback 路径。
@@ -134,6 +141,8 @@
   已补充权限分派测试覆盖 bypassPermissions 前置守卫、AskUser 不受模式影响、plan 模式允许/拒绝策略、ExitPlan approve / deny / 动态切换语义、auto 委托、Write 大内容保护、Bash allowlist 边界和 `.context` Markdown 路径边界。
   未完成：
   SDK 消息持久化等逻辑仍在 `agent-orchestrator.ts`。
+  第六阶段计划：
+  新增 `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`，先抽纯函数 `shouldPersistSdkMessage()`、`prepareSdkMessageForAccumulation()`、`prepareSdkMessagesForPersistence()` 等，保留持久化调用时机不变。
   关键文件：
   `apps/electron/src/main/lib/agent-orchestrator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`
@@ -141,7 +150,7 @@
   `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`
   建议：
-  下一阶段评估 SDK 消息持久化边界，保持执行循环行为不变并优先补纯函数测试。
+  下一阶段实现 SDK 消息持久化边界，保持执行循环行为不变并优先补纯函数测试。
 
 - [ ] `feishu-bridge.ts` 拆分
   现状：未完成。
@@ -219,7 +228,7 @@
 
 ### 当前推荐的下一个阶段
 
-`agent-orchestrator.ts` 渐进拆分后续阶段（SDK 消息持久化边界评估）
+`agent-orchestrator.ts` 渐进拆分第六阶段（SDK 消息持久化边界实现）
 
 原因：
 - `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界、PermissionToolDispatcher 权限分派边界
@@ -228,13 +237,15 @@
 
 ### 建议切分顺序
 
-1. 评估并拆分 SDK 消息持久化边界
+1. 实现并测试 SDK 消息持久化纯函数边界
 2. 回看 `agent-orchestrator.ts` 主执行循环剩余职责
 3. 再决定是否继续拆上下文回填 / session-not-found 恢复等较近执行链路的逻辑
 
 ### 起点文件
 
 - `apps/electron/src/main/lib/agent-orchestrator.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.test.ts`
 - 可新建目录：
   `apps/electron/src/main/lib/agent-orchestrator/`
 
@@ -263,7 +274,7 @@
 - `ipc.ts` 拆分
   关键高耦合 handlers 已完成；`chat`、`environment`、`installer`、`proxy`、`memory`、`chat tool`、`system prompt`、`github release` 等基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 - `agent-orchestrator.ts` 渐进拆分
-  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界；SDK 消息持久化仍待拆分
+  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界；SDK 消息持久化已完成本地边界计划，仍待实现
 
 ### 未完成
 
