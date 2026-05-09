@@ -7,7 +7,7 @@
 import { ipcMain, shell, dialog, BrowserWindow, app } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { IPC_CHANNELS, CHAT_IPC_CHANNELS, PIPELINE_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
+import { IPC_CHANNELS, CHAT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS } from '@rv-insights/shared'
 import { QUICK_TASK_IPC_CHANNELS } from '../types'
 import type { QuickTaskSubmitInput } from '../types'
 import type {
@@ -51,18 +51,6 @@ import type {
   DingTalkTestResult,
   WeChatConfig,
   WeChatBridgeState,
-  PipelineArtifactContentInput,
-  PipelineSessionMeta,
-  PipelineRecord,
-  PipelineRecordsTailInput,
-  PipelineRecordsTailResult,
-  PipelineRecordsSearchInput,
-  PipelineRecordsSearchResult,
-  PipelineStartInput,
-  PipelineResumeInput,
-  PipelineGateRequest,
-  PipelineGateResponse,
-  PipelineStateSnapshot,
 } from '@rv-insights/shared'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
 import { registerUpdaterIpc } from './lib/updater/updater-ipc'
@@ -128,10 +116,9 @@ import { getDingTalkConfig, saveDingTalkConfig, getDingTalkMultiBotConfig, saveD
 import { dingtalkBridgeManager } from './lib/dingtalk-bridge-manager'
 import { getWeChatConfig } from './lib/wechat-config'
 import { wechatBridge } from './lib/wechat-bridge'
-import { getPipelineService } from './lib/pipeline-service'
-import { pipelineStreamBus } from './lib/pipeline-stream-bus'
 import { registerAgentIpcHandlers } from './ipc/agent-handlers'
 import { registerChannelIpcHandlers } from './ipc/channel-handlers'
+import { registerPipelineIpcHandlers } from './ipc/pipeline-handlers'
 import { registerSettingsIpcHandlers } from './ipc/settings-handlers'
 
 /**
@@ -587,148 +574,7 @@ export function registerIpcHandlers(): void {
   )
 
   // ===== Pipeline 会话管理相关 =====
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.LIST_SESSIONS,
-    async (): Promise<PipelineSessionMeta[]> => {
-      return getPipelineService().listSessions()
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.CREATE_SESSION,
-    async (
-      _event,
-      title?: string,
-      channelId?: string,
-      workspaceId?: string,
-    ): Promise<PipelineSessionMeta> => {
-      return getPipelineService().createSession(title, channelId, workspaceId)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.GET_RECORDS,
-    async (_event, sessionId: string): Promise<PipelineRecord[]> => {
-      return getPipelineService().getRecords(sessionId)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.GET_RECORDS_TAIL,
-    async (_event, input: PipelineRecordsTailInput): Promise<PipelineRecordsTailResult> => {
-      return getPipelineService().getRecordsTail(input)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.SEARCH_RECORDS,
-    async (_event, input: PipelineRecordsSearchInput): Promise<PipelineRecordsSearchResult> => {
-      return getPipelineService().searchRecords(input)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.READ_ARTIFACT_CONTENT,
-    async (_event, input: PipelineArtifactContentInput): Promise<string> => {
-      return getPipelineService().readArtifactContent(input)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.OPEN_ARTIFACTS_DIR,
-    async (_event, sessionId: string): Promise<boolean> => {
-      const errorMessage = await shell.openPath(getPipelineService().getArtifactsDir(sessionId))
-      if (errorMessage) {
-        throw new Error(`打开 Pipeline 产物目录失败: ${errorMessage}`)
-      }
-      return errorMessage.length === 0
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.UPDATE_TITLE,
-    async (_event, sessionId: string, title: string): Promise<PipelineSessionMeta> => {
-      return getPipelineService().updateTitle(sessionId, title)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.DELETE_SESSION,
-    async (_event, sessionId: string): Promise<void> => {
-      getPipelineService().deleteSession(sessionId)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.TOGGLE_PIN,
-    async (_event, sessionId: string): Promise<PipelineSessionMeta> => {
-      return getPipelineService().togglePin(sessionId)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.TOGGLE_ARCHIVE,
-    async (_event, sessionId: string): Promise<PipelineSessionMeta> => {
-      return getPipelineService().toggleArchive(sessionId)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.START,
-    async (_event, input: PipelineStartInput): Promise<void> => {
-      await getPipelineService().start(input, pipelineStreamBus.createCallbacks())
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.RESUME,
-    async (_event, input: PipelineResumeInput): Promise<void> => {
-      await getPipelineService().resume(input, pipelineStreamBus.createCallbacks())
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.RESPOND_GATE,
-    async (_event, response: PipelineGateResponse): Promise<void> => {
-      await getPipelineService().respondGate(response, pipelineStreamBus.createCallbacks())
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.SUBSCRIBE_STREAM,
-    async (event): Promise<void> => {
-      pipelineStreamBus.subscribe(event.sender)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.UNSUBSCRIBE_STREAM,
-    async (event): Promise<void> => {
-      pipelineStreamBus.unsubscribe(event.sender.id)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.STOP,
-    async (_event, sessionId: string): Promise<void> => {
-      getPipelineService().stop(sessionId)
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.GET_PENDING_GATES,
-    async (): Promise<PipelineGateRequest[]> => {
-      return getPipelineService().getPendingGates()
-    }
-  )
-
-  ipcMain.handle(
-    PIPELINE_IPC_CHANNELS.GET_SESSION_STATE,
-    async (_event, sessionId: string): Promise<PipelineStateSnapshot> => {
-      return getPipelineService().getSessionState(sessionId)
-    }
-  )
+  registerPipelineIpcHandlers()
 
   // ===== Agent 会话管理相关 =====
   registerAgentIpcHandlers()
