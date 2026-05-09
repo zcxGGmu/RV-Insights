@@ -59,6 +59,10 @@ import {
   createTypedErrorSDKMessage,
   formatTypedErrorContent,
 } from './agent-orchestrator/agent-error-message'
+import {
+  createPersistedQueuedUserMessage,
+  createQueuedUserMessageInput,
+} from './agent-orchestrator/queued-message'
 
 // ===== 类型定义 =====
 
@@ -1587,22 +1591,17 @@ export class AgentOrchestrator {
       throw new Error('[Agent 编排] 当前适配器不支持流式追加消息')
     }
 
-    const uuid = presetUuid || randomUUID()
+    const { uuid, sdkInput } = createQueuedUserMessageInput({
+      sessionId,
+      text,
+      presetUuid,
+      createUuid: randomUUID,
+    })
 
     // 防重记录
     const uuids = this.queuedMessageUuids.get(sessionId) ?? new Set<string>()
     uuids.add(uuid)
     this.queuedMessageUuids.set(sessionId, uuids)
-
-    // 构造 SDKUserMessage 并注入（强制 'now' 优先级）
-    const sdkMessage = {
-      type: 'user' as const,
-      message: { role: 'user' as const, content: text },
-      parent_tool_use_id: null,
-      priority: 'now' as const,
-      uuid,
-      session_id: sessionId,
-    }
 
     try {
       // 用户希望"立即打断当前输出并续跑新消息"：先软中断，再把消息压入通道
@@ -1616,19 +1615,11 @@ export class AgentOrchestrator {
         }
       }
 
-      await this.adapter.sendQueuedMessage(sessionId, sdkMessage)
+      await this.adapter.sendQueuedMessage(sessionId, sdkInput)
       console.log(`[Agent 编排] 追加消息已注入: sessionId=${sessionId}, uuid=${uuid}, interrupt=${!!opts?.interrupt}`)
 
       // 立即持久化到 JSONL
-      const persistMsg: SDKMessage = {
-        type: 'user',
-        uuid,
-        message: {
-          content: [{ type: 'text', text }],
-        },
-        parent_tool_use_id: null,
-        _createdAt: Date.now(),
-      } as unknown as SDKMessage
+      const persistMsg = createPersistedQueuedUserMessage({ uuid, text })
       appendSDKMessages(sessionId, [persistMsg])
     } catch (error) {
       uuids.delete(uuid)
