@@ -36,16 +36,14 @@ import { getRuntimeStatus } from './runtime-init'
 import { getSettings } from './settings-service'
 import { buildSystemPrompt, buildDynamicContext, buildBuiltinAgents } from './agent-prompt-builder'
 import { permissionService } from './agent-permission-service'
-import type { PermissionResult, CanUseToolOptions } from './agent-permission-service'
 import { askUserService } from './agent-ask-user-service'
-import { exitPlanService, type ExitPlanPermissionResult } from './agent-exit-plan-service'
+import { exitPlanService } from './agent-exit-plan-service'
 import { getMemoryConfig } from './memory-service'
 import { searchMemory, addMemory, formatSearchResult } from './memos-client'
-import { validateToolInput } from './agent-tool-input-validator'
-import { estimateTokenCount, WRITE_CONTENT_TOKEN_THRESHOLD } from './agent-tool-token-estimator'
 import { buildSdkEnv, resolveSDKCliPath } from './agent-orchestrator/sdk-environment'
 import { isAutoRetryableCatchError, isAutoRetryableTypedError } from './agent-orchestrator/retryable-error-classifier'
 import { TeamsCoordinator } from './agent-orchestrator/teams-coordinator'
+import { PermissionToolDispatcher } from './agent-orchestrator/permission-tool-dispatcher'
 
 // ===== 类型定义 =====
 
@@ -283,6 +281,9 @@ export class AgentOrchestrator {
 
   /** 运行中会话的当前权限模式（支持运行时动态切换） */
   private sessionPermissionModes = new Map<string, RVInsightsPermissionMode>()
+
+  /** 运行中会话的权限分派器（同步 plan 进入状态） */
+  private sessionPermissionDispatchers = new Map<string, PermissionToolDispatcher>()
 
   constructor(adapter: AgentProviderAdapter, eventBus: AgentEventBus) {
     this.adapter = adapter
@@ -811,7 +812,7 @@ export class AgentOrchestrator {
       const dynamicCtx = buildDynamicContext({
         workspaceName: workspace?.name,
         workspaceSlug,
-        agentCwd,
+        agentCwd: agentCwd ?? homedir(),
       })
 
       // 11.5 注入 mention 引用指令（Skill/MCP）— 仅影响 prompt，不影响持久化
@@ -860,18 +861,6 @@ export class AgentOrchestrator {
       const getPermissionMode = (): RVInsightsPermissionMode =>
         this.sessionPermissionModes.get(sessionId) ?? initialPermissionMode
 
-      // ExitPlanMode 拦截器：plan 模式下走 UI 审批流程
-      const handleExitPlanMode = (toolInput: Record<string, unknown>, signal: AbortSignal): Promise<ExitPlanPermissionResult> => {
-        return exitPlanService.handleExitPlanMode(
-          sessionId,
-          toolInput,
-          signal,
-          (request: ExitPlanModeRequest) => {
-            this.eventBus.emit(sessionId, { kind: 'rv_insights_event', event: { type: 'exit_plan_mode_request', request } })
-          },
-        )
-      }
-
       // 始终创建 auto 权限回调（运行中可能切换到 auto）
       const autoCanUseTool = permissionService.createCanUseTool(
         sessionId,
@@ -884,156 +873,42 @@ export class AgentOrchestrator {
         },
       )
 
-      /**
-       * 判断 Bash 命令是否是只读的（计划模式下安全可执行）
-       * 检测写操作特征：文件重定向、破坏性命令、包管理写操作、git 写操作等
-       */
-      const isBashCommandReadOnly = (command: string): boolean => {
-        // 输出重定向：匹配未被数字或 & 前置的 > 符号（排除 2>/dev/null、&> 等 fd 重定向）
-        if (/(?<![0-9&])>/.test(command)) return false
-        // 破坏性文件操作
-        if (/\b(rm|rmdir)\s/.test(command)) return false
-        if (/\bsed\s+[^|&;]*-i/.test(command)) return false  // sed -i 原地编辑
-        if (/\b(chmod|chown|chattr|truncate)\s/.test(command)) return false
-        if (/\b(mv|cp)\s/.test(command)) return false
-        if (/\b(mkdir|touch|mktemp)\s/.test(command)) return false
-        // 包管理器写操作
-        if (/\b(npm|pnpm|yarn|bun)\s+(install|i\b|add|remove|uninstall|update|upgrade|link|unlink)\b/.test(command)) return false
-        if (/\bpip[23]?\s+(install|uninstall|upgrade)\b/.test(command)) return false
-        if (/\b(apt|apt-get|brew|yum|dnf)\s+(install|remove|purge|uninstall|upgrade)\b/.test(command)) return false
-        // Git 写操作
-        if (/\bgit\s+(commit|push|checkout\s+-[bB]|branch\s+-[mMdD]|merge\b|rebase\b|reset\b|stash\s+(drop|pop)\b|add\b|apply\b|cherry-pick\b)/.test(command)) return false
-        // 进程控制
-        if (/\b(kill|killall|pkill)\s/.test(command)) return false
-        // 脚本执行（具有潜在副作用，如 node script.js / python main.py）
-        if (/\b(node|python[23]?|ruby|perl|php)\s+[^-]/.test(command)) return false
-        return true
-      }
-
-      // Plan 模式下允许的只读工具（不包含 Write/Edit/Bash 等写操作）
-      const PLAN_MODE_ALLOWED_TOOLS = new Set([
-        'Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch',
-        'Agent', 'TodoRead', 'TodoWrite', 'TaskOutput',
-        'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet',
-        'ListMcpResourcesTool', 'ReadMcpResourceTool',
-      ])
-
-      /** Plan 模式是否已被 Agent 进入（初始 plan 模式时天然为 true，其他模式需 EnterPlanMode 触发） */
-      let planModeEntered = initialPermissionMode === 'plan'
-
-      // 动态 canUseTool：每次调用读取当前权限模式，支持运行中切换
-      const canUseTool = async (toolName: string, input: Record<string, unknown>, options: CanUseToolOptions): Promise<PermissionResult> => {
-        const currentMode = getPermissionMode()
-
-        // ── 参数校验守卫（所有模式、所有工具，优先于权限检查） ──
-        const validationFailure = validateToolInput(toolName, input)
-        if (validationFailure) {
-          console.warn(`[Agent 工具验证] 参数缺失: tool=${toolName}, mode=${currentMode}`)
-          return validationFailure
-        }
-
-        // ── Write 大文件 token 截断防护 ──
-        if (toolName === 'Write' && typeof input.content === 'string') {
-          const estimatedTokens = estimateTokenCount(input.content)
-          if (estimatedTokens > WRITE_CONTENT_TOKEN_THRESHOLD) {
-            console.warn(
-              `[Agent 工具验证] Write 内容过大: tokens≈${estimatedTokens}, chars=${input.content.length}, file=${String(input.file_path)}`,
-            )
-            return {
-              behavior: 'deny' as const,
-              message:
-                `The content for Write tool (~${estimatedTokens} estimated tokens, ${input.content.length} chars) is too large and may be truncated. ` +
-                `Please split the write into smaller sequential steps: write the first portion of the file now, then use Edit tool to append remaining sections incrementally.`,
-            }
-          }
-        }
-
-        // ── EnterPlanMode / ExitPlanMode 处理 ──
-
-        // 完全自动模式：透明化（用户选择了完全信任 Agent）
-        if (currentMode === 'bypassPermissions' && (toolName === 'EnterPlanMode' || toolName === 'ExitPlanMode')) {
-          return { behavior: 'allow' as const, updatedInput: input }
-        }
-
-        // ExitPlanMode：只有 Agent 确实进入过 Plan 模式才走审批，否则静默放行
-        if (toolName === 'ExitPlanMode') {
-          console.log(`[canUseTool] ExitPlanMode: signal.aborted=${options.signal.aborted}, planModeEntered=${planModeEntered}, mode=${currentMode}`)
-          if (!planModeEntered) {
-            return { behavior: 'allow' as const, updatedInput: input }
-          }
-          const result = await handleExitPlanMode(input, options.signal)
-          if (result.behavior === 'allow' && 'targetMode' in result && result.targetMode) {
-            // 更新 Map，后续 canUseTool 调用使用新模式
-            this.sessionPermissionModes.set(sessionId, result.targetMode)
-            planModeEntered = false
-            // 同步通知 SDK 侧切换权限模式
-            if (this.adapter.setPermissionMode) {
-              this.adapter.setPermissionMode(sessionId, result.targetMode).catch((err: unknown) => {
-                console.warn(`[Agent 编排] SDK 权限模式切换失败:`, err)
-              })
-            }
-          }
-          return result
-        }
-
-        // EnterPlanMode：标记进入状态，通知渲染进程
-        if (toolName === 'EnterPlanMode') {
-          planModeEntered = true
+      const permissionDispatcher = new PermissionToolDispatcher({
+        initialPermissionMode,
+        agentCwd,
+        getPermissionMode,
+        setPermissionMode: (mode) => {
+          this.sessionPermissionModes.set(sessionId, mode)
+        },
+        syncAdapterPermissionMode: (mode) => {
+          if (!this.adapter.setPermissionMode) return
+          this.adapter.setPermissionMode(sessionId, mode).catch((err: unknown) => {
+            console.warn(`[Agent 编排] SDK 权限模式切换失败:`, err)
+          })
+        },
+        emitEnterPlanMode: () => {
           this.eventBus.emit(sessionId, { kind: 'rv_insights_event', event: { type: 'enter_plan_mode', sessionId } })
-          return { behavior: 'allow' as const, updatedInput: input }
-        }
-
-        // AskUserQuestion：始终走交互式问答流程，不受权限模式影响
-        if (toolName === 'AskUserQuestion') {
-          return askUserService.handleAskUserQuestion(
-            sessionId, input, options.signal,
-            (request: AskUserRequest) => {
-              this.eventBus.emit(sessionId, { kind: 'rv_insights_event', event: { type: 'ask_user_request', request } })
-            },
-          )
-        }
-
-        // ── 普通工具的权限分派 ──
-
-        switch (currentMode) {
-          case 'bypassPermissions':
-            return { behavior: 'allow' as const, updatedInput: input }
-
-          case 'plan': {
-            // Plan 模式：只允许只读工具 + Write/Edit 任意 .md 文件（计划文档）
-            if (PLAN_MODE_ALLOWED_TOOLS.has(toolName)) {
-              return { behavior: 'allow' as const, updatedInput: input }
-            }
-            // 允许 Write/Edit 到任意 .md 文件（计划文档一定是 markdown；非 .md 仍被拒）
-            if (toolName === 'Write' || toolName === 'Edit') {
-              const filePath = typeof input.file_path === 'string' ? input.file_path : ''
-              if (filePath.toLowerCase().endsWith('.md')) {
-                return { behavior: 'allow' as const, updatedInput: input }
-              }
-            }
-            // Bash 工具：只读命令（find、grep、cat 等）允许执行，写操作拒绝
-            if (toolName === 'Bash') {
-              const command = typeof input.command === 'string' ? input.command : ''
-              if (isBashCommandReadOnly(command)) {
-                return { behavior: 'allow' as const, updatedInput: input }
-              }
-              return { behavior: 'deny' as const, message: '计划模式下不允许执行写操作，请在计划审批通过后再执行' }
-            }
-            // MCP 工具（以 mcp__ 开头）允许调用（调研用）
-            if (toolName.startsWith('mcp__')) {
-              return { behavior: 'allow' as const, updatedInput: input }
-            }
-            // 其余工具拒绝
-            return { behavior: 'deny' as const, message: '计划模式下不允许执行写操作，请在计划审批通过后再执行' }
-          }
-
-          case 'auto':
-            return autoCanUseTool(toolName, input, options)
-
-          default:
-            return { behavior: 'allow' as const, updatedInput: input }
-        }
-      }
+        },
+        autoCanUseTool,
+        askUserQuestion: (toolInput, signal) => askUserService.handleAskUserQuestion(
+          sessionId,
+          toolInput,
+          signal,
+          (request: AskUserRequest) => {
+            this.eventBus.emit(sessionId, { kind: 'rv_insights_event', event: { type: 'ask_user_request', request } })
+          },
+        ),
+        exitPlanMode: (toolInput, signal) => exitPlanService.handleExitPlanMode(
+          sessionId,
+          toolInput,
+          signal,
+          (request: ExitPlanModeRequest) => {
+            this.eventBus.emit(sessionId, { kind: 'rv_insights_event', event: { type: 'exit_plan_mode_request', request } })
+          },
+        ),
+      })
+      this.sessionPermissionDispatchers.set(sessionId, permissionDispatcher)
+      const canUseTool = permissionDispatcher.createCanUseTool()
 
       // 13. 构建 Adapter 查询选项
       // 检测用户选用的模型是否为 Claude 系列，决定 SubAgent 是否使用独立模型分层
@@ -1526,7 +1401,7 @@ export class AgentOrchestrator {
           }
 
           // Plan 模式：Agent 完成规划后注入"接受计划"建议
-          if (initialPermissionMode === 'plan' && planModeEntered && this.activeSessions.has(sessionId)) {
+          if (initialPermissionMode === 'plan' && permissionDispatcher.isPlanModeEntered() && this.activeSessions.has(sessionId)) {
             this.eventBus.emit(sessionId, {
               kind: 'sdk_message',
               message: { type: 'prompt_suggestion', suggestion: '请执行该计划' } as unknown as SDKMessage,
@@ -1691,6 +1566,7 @@ export class AgentOrchestrator {
       if (this.activeSessions.get(sessionId) === runGeneration) {
         this.activeSessions.delete(sessionId)
         this.sessionPermissionModes.delete(sessionId)
+        this.sessionPermissionDispatchers.delete(sessionId)
         this.queuedMessageUuids.delete(sessionId)
       }
       permissionService.clearSessionPending(sessionId)
@@ -1708,6 +1584,7 @@ export class AgentOrchestrator {
   stop(sessionId: string): void {
     this.activeSessions.delete(sessionId)
     this.sessionPermissionModes.delete(sessionId)
+    this.sessionPermissionDispatchers.delete(sessionId)
     this.stoppedBySessions.add(sessionId)
     this.queuedMessageUuids.delete(sessionId)
     this.adapter.abort(sessionId)
@@ -1728,6 +1605,7 @@ export class AgentOrchestrator {
   async updateSessionPermissionMode(sessionId: string, mode: RVInsightsPermissionMode): Promise<void> {
     if (!this.activeSessions.has(sessionId)) return
     this.sessionPermissionModes.set(sessionId, mode)
+    this.sessionPermissionDispatchers.get(sessionId)?.syncPlanModeState(mode)
     // 同步通知 SDK 侧
     if (this.adapter.setPermissionMode) {
       await this.adapter.setPermissionMode(sessionId, mode)
@@ -1826,6 +1704,7 @@ export class AgentOrchestrator {
     this.adapter.dispose()
     this.activeSessions.clear()
     this.sessionPermissionModes.clear()
+    this.sessionPermissionDispatchers.clear()
     this.queuedMessageUuids.clear()
   }
 
