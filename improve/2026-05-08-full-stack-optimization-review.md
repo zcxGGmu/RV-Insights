@@ -13,9 +13,9 @@
 
 - 分支：`base/pipeline-v0`
 - 最新已纳入提交的功能提交：`bcef4e29`
-- 最新文档基线同步提交：当前 `docs(improve)` 提交（以 `git log --oneline -1` 为准）
+- 最新文档同步提交：当前 `docs(improve)` 提交（以 `git log --oneline -1` 为准）
 - 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.39`
-- 同步日期：`2026-05-09`
+- 同步日期：`2026-05-10`
 
 说明：
 - 本文档只记录功能 / 工程项状态
@@ -26,10 +26,17 @@
 
 - 当前已完成到：`agent-orchestrator.ts` 完成信号测试切口评估与重复完成信号修复。
 - 当前最新功能提交：`bcef4e29` `test(agent): 锁定完成信号行为`。
-- 当前最新文档提交：以 `git log --oneline -1` 为准，最近一次主题应为 `docs(improve): 标注当前开发游标`。
+- 当前最新文档提交：以 `git log --oneline -1` 为准，最近一次主题应为 `docs(improve): 刷新当前开发状态`。
 - 当前 Electron 版本：`@rv-insights/electron@0.0.39`。
 - 下次直接继续：完成信号薄包装 / 集中化评估；已有 orchestrator 级 mock adapter 行为测试，下一步仍需保持完成回调、副作用和持久化顺序不变。
 - 下次不要做：不要移动 Teams、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用、queueMessage 注入 / append 顺序或未覆盖的执行链路。
+
+### 2026-05-10 状态复核
+
+- 工作树：仅发现未跟踪 `.DS_Store`；不要纳入提交。
+- 功能代码：完成信号测试切口已落地，当前没有新的未提交功能代码。
+- 文档状态：本文档已重新标注当前开发游标、已完成 / 部分完成 / 未完成列表和下次启动提示词。
+- 下一步优先级：继续 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估；如果评估后认为收益不足，可转向 `feishu-bridge.ts` 拆分或 IPC 输入验证，但不要混在同一提交。
 
 ### 最新功能提交状态
 
@@ -331,7 +338,7 @@
 
 当前状态：
 - 最新功能提交：bcef4e29 test(agent): 锁定完成信号行为
-- 最新文档同步提交：以 `git log --oneline -1` 为准（本次 docs(improve) 同步提交）
+- 最新文档同步提交：以 `git log --oneline -1` 为准（最近一次应为 docs(improve) 状态同步提交）
 - 当前 Electron 版本：@rv-insights/electron@0.0.39
 - `.DS_Store` 仍可能是未跟踪文件，不要纳入提交
 
