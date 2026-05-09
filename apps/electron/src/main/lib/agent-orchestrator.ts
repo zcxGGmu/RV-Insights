@@ -44,6 +44,10 @@ import { buildSdkEnv, resolveSDKCliPath } from './agent-orchestrator/sdk-environ
 import { isAutoRetryableCatchError, isAutoRetryableTypedError } from './agent-orchestrator/retryable-error-classifier'
 import { TeamsCoordinator } from './agent-orchestrator/teams-coordinator'
 import { PermissionToolDispatcher } from './agent-orchestrator/permission-tool-dispatcher'
+import {
+  prepareSdkMessageForAccumulation,
+  prepareSdkMessagesForPersistence,
+} from './agent-orchestrator/sdk-message-persistence'
 
 // ===== 类型定义 =====
 
@@ -511,34 +515,10 @@ export class AgentOrchestrator {
   ): void {
     if (accumulatedMessages.length === 0) return
 
-    const toPersist = accumulatedMessages.filter(
-      (m) => m.type === 'assistant' || m.type === 'user' || m.type === 'result'
-        || (m.type === 'system' && (m as import('@rv-insights/shared').SDKSystemMessage).subtype === 'compact_boundary')
-    ).filter((m) => {
-      // 过滤 SDK 内部生成的 user 文本消息（如 Skill 展开 prompt），与实时流过滤逻辑一致
-      if (m.type === 'user') {
-        const content = (m as { message?: { content?: Array<{ type: string }> } }).message?.content
-        const hasToolResult = Array.isArray(content) && content.some((b) => b.type === 'tool_result')
-        if (!hasToolResult) return false
-      }
-      return true
-    })
-
+    const toPersist = prepareSdkMessagesForPersistence(accumulatedMessages, { durationMs })
     if (toPersist.length === 0) return
 
-    // 为没有 _createdAt 的消息补上时间戳（assistant 消息来自 SDK 原始输出，不含时间）
-    const now = Date.now()
-    const withTimestamps = toPersist.map((m) => {
-      const msg = m as Record<string, unknown>
-      if (typeof msg._createdAt === 'number') return m
-      // 为 result 消息附加 _durationMs
-      if (m.type === 'result' && durationMs != null) {
-        return { ...m, _createdAt: now, _durationMs: durationMs } as unknown as SDKMessage
-      }
-      return { ...m, _createdAt: now } as unknown as SDKMessage
-    })
-
-    appendSDKMessages(sessionId, withTimestamps)
+    appendSDKMessages(sessionId, toPersist)
   }
 
   /**
@@ -1157,7 +1137,7 @@ export class AgentOrchestrator {
             if (!iterResult || iterResult.done) break
 
             pendingNext = null
-            const msg = iterResult.value
+            let msg = iterResult.value
 
             // 检测 assistant 消息中的 SDK 错误
             if (msg.type === 'assistant') {
@@ -1232,33 +1212,11 @@ export class AgentOrchestrator {
               }
             }
 
-            // 累积 assistant 和 user 消息用于持久化
-            // - 跳过 replay 消息，避免 resume 时重复写入
-            // - 对 user 消息，仅累积含 tool_result 的（初始用户消息已在步骤 5 手动持久化）
-            // - 对 system 消息，仅累积 compact_boundary（上下文压缩分界线需要持久化显示）
-            if (msg.type === 'assistant' || msg.type === 'user' || msg.type === 'result') {
-              const msgRecord = msg as Record<string, unknown>
-              if (!msgRecord.isReplay) {
-                if (msg.type === 'user') {
-                  // 仅累积包含 tool_result 的 user 消息（跳过 SDK 重新发出的初始用户消息）
-                  const content = (msg as { message?: { content?: Array<{ type: string }> } }).message?.content
-                  const hasToolResult = Array.isArray(content) && content.some((b) => b.type === 'tool_result')
-                  if (hasToolResult) {
-                    accumulatedMessages.push(msg)
-                  }
-                } else {
-                  // 为 assistant 消息注入渠道 modelId，确保持久化后能正确匹配模型显示名
-                  if (msg.type === 'assistant' && modelId) {
-                    (msg as Record<string, unknown>)._channelModelId = modelId
-                  }
-                  accumulatedMessages.push(msg)
-                }
-              }
-            } else if (msg.type === 'system') {
-              const sysMsg = msg as import('@rv-insights/shared').SDKSystemMessage
-              if (sysMsg.subtype === 'compact_boundary') {
-                accumulatedMessages.push(msg)
-              }
+            // 累积可持久化 SDK 消息；assistant 的渠道 modelId 由纯函数复制注入，避免原地修改 SDK 原始消息。
+            const messageForAccumulation = prepareSdkMessageForAccumulation(msg, { channelModelId: modelId })
+            if (messageForAccumulation) {
+              accumulatedMessages.push(messageForAccumulation)
+              msg = messageForAccumulation
             }
 
             // Turn 结束时：持久化累积消息
