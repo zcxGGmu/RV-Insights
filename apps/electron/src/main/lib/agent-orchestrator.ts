@@ -52,6 +52,12 @@ import {
   MAX_CONTEXT_MESSAGES,
   buildContextPromptFromSDKMessages,
 } from './agent-orchestrator/context-rehydration'
+import {
+  createCatchErrorSDKMessage,
+  createRetryExhaustedSDKMessage,
+  createTypedErrorSDKMessage,
+  formatTypedErrorContent,
+} from './agent-orchestrator/agent-error-message'
 
 // ===== 类型定义 =====
 
@@ -492,23 +498,8 @@ export class AgentOrchestrator {
 
     // 环境 / 配置类错误的统一上报：持久化为 TypedError 消息，由 SDKMessageRenderer 渲染
     const reportPreflightError = (typedError: TypedError) => {
-      const errorContent = typedError.title
-        ? `${typedError.title}: ${typedError.message}`
-        : typedError.message
-      const errorSDKMsg: SDKMessage = {
-        type: 'assistant',
-        message: {
-          content: [{ type: 'text', text: errorContent }],
-        },
-        parent_tool_use_id: null,
-        error: { message: typedError.message, errorType: typedError.code },
-        _createdAt: Date.now(),
-        _errorCode: typedError.code,
-        _errorTitle: typedError.title,
-        _errorDetails: typedError.details,
-        _errorCanRetry: typedError.canRetry,
-        _errorActions: typedError.actions,
-      } as unknown as SDKMessage
+      const errorContent = formatTypedErrorContent(typedError)
+      const errorSDKMsg = createTypedErrorSDKMessage(typedError)
       try { appendSDKMessages(sessionId, [errorSDKMsg]) } catch (e) {
         console.error('[Agent 编排] 持久化 preflight error 失败:', e)
       }
@@ -1121,23 +1112,7 @@ export class AgentOrchestrator {
                 // 不可重试 → 终止
                 this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
 
-                const errorContent = typedError.title
-                    ? `${typedError.title}: ${typedError.message}`
-                    : typedError.message
-                const errorSDKMsg: SDKMessage = {
-                  type: 'assistant',
-                  message: {
-                    content: [{ type: 'text', text: errorContent }],
-                  },
-                  parent_tool_use_id: null,
-                  error: { message: typedError.message, errorType: typedError.code },
-                  _createdAt: Date.now(),
-                  _errorCode: typedError.code,
-                  _errorTitle: typedError.title,
-                  _errorDetails: typedError.details,
-                  _errorCanRetry: typedError.canRetry,
-                  _errorActions: typedError.actions,
-                } as unknown as SDKMessage
+                const errorSDKMsg = createTypedErrorSDKMessage(typedError)
                 appendSDKMessages(sessionId, [errorSDKMsg])
                 console.log(`[Agent 编排] 已保存 TypedError 消息: ${typedError.code} - ${typedError.title}`)
 
@@ -1397,19 +1372,7 @@ export class AgentOrchestrator {
               stderrOutput,
             )
 
-            const errMsg: SDKMessage = {
-              type: 'assistant',
-              message: {
-                content: [{ type: 'text', text: isPromptTooLong
-                  ? '上下文过长：当前对话的上下文已超出模型限制，请压缩上下文或开启新会话'
-                  : userFacingError }],
-              },
-              parent_tool_use_id: null,
-              error: { message: userFacingError, errorType: isPromptTooLong ? 'prompt_too_long' : 'unknown_error' },
-              _createdAt: Date.now(),
-              _errorCode: isPromptTooLong ? 'prompt_too_long' : 'unknown_error',
-              _errorTitle: isPromptTooLong ? '上下文过长' : '执行错误',
-            } as unknown as SDKMessage
+            const errMsg = createCatchErrorSDKMessage({ userFacingError, isPromptTooLong })
             appendSDKMessages(sessionId, [errMsg])
             console.log(`[Agent 编排] 已保存错误消息到 JSONL`)
           } catch (saveError) {
@@ -1449,18 +1412,10 @@ export class AgentOrchestrator {
         })
 
         // 保存错误消息
-        const retryErrorContent = `重试 ${MAX_AUTO_RETRIES} 次后仍然失败: ${lastRetryableError}`
-        const retryErrorSDKMsg: SDKMessage = {
-          type: 'assistant',
-          message: {
-            content: [{ type: 'text', text: retryErrorContent }],
-          },
-          parent_tool_use_id: null,
-          error: { message: retryErrorContent, errorType: 'unknown_error' },
-          _createdAt: Date.now(),
-          _errorCode: 'unknown_error',
-          _errorTitle: '重试失败',
-        } as unknown as SDKMessage
+        const retryErrorSDKMsg = createRetryExhaustedSDKMessage({
+          maxAttempts: MAX_AUTO_RETRIES,
+          lastRetryableError,
+        })
         appendSDKMessages(sessionId, [retryErrorSDKMsg])
 
         callbacks.onError(`重试 ${MAX_AUTO_RETRIES} 次后仍然失败: ${lastRetryableError}`)
