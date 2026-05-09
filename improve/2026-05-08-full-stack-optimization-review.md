@@ -27,7 +27,12 @@
 第六阶段 SDK 消息持久化边界已通过独立提交落地：
 
 - `42cceeda` `refactor(agent): 拆分 SDK 消息持久化边界`
-- `ef055d64` `docs(improve): 同步 SDK 消息持久化接力状态`
+- `efa806e3` `docs(improve): 同步 SDK 消息持久化提交基线`
+
+当前总览：
+- 已完成：凭证竞态、secret 暴露收口、标题敏感日志清理、AgentView 会话级订阅收敛、Provider 超时、全局搜索流式化、`ipc.ts` 高耦合 handlers 拆分、`agent-orchestrator.ts` 前六个子边界拆分。
+- 部分完成：`safeStorage` 降级告警可视化、`ipc.ts` 基础/工具类 handlers 拆分、`agent-orchestrator.ts` 渐进拆分。
+- 未完成：`agent-orchestrator.ts` 主执行循环剩余职责评估、`feishu-bridge.ts` 拆分、Chat 自动重试、索引缓存、IPC 输入验证、质量 CI、Lint / Format、版本递增校验、测试基线补强、JSONL 轮转、搜索体验统一、恢复策略统一。
 
 当前第七阶段状态：
 - 第六阶段已新增 SDK message 筛选、累积准备、时间戳 / duration metadata 纯函数边界。
@@ -255,6 +260,32 @@
 - `apps/electron/src/main/lib/agent-orchestrator/retryable-error-classifier.ts`
 - `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`
 - `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`
+
+### 下次启动提示词
+
+```text
+请先阅读并严格按最新进度继续开发，不要重复已完成项：
+
+1. /Users/zq/Desktop/ai-projs/posp/RV-Insights/AGENTS.md
+2. /Users/zq/Desktop/ai-projs/posp/RV-Insights/tasks/lessons.md
+3. /Users/zq/Desktop/ai-projs/posp/RV-Insights/tasks/todo.md
+4. /Users/zq/Desktop/ai-projs/posp/RV-Insights/improve/2026-05-08-full-stack-optimization-review.md
+
+当前状态：
+- 最新功能提交：42cceeda refactor(agent): 拆分 SDK 消息持久化边界
+- 最新文档同步提交：以 `git log --oneline -1` 为准，最近基线为 efa806e3 docs(improve): 同步 SDK 消息持久化提交基线
+- 当前 Electron 版本：@rv-insights/electron@0.0.34
+- `.DS_Store` 仍可能是未跟踪文件，不要纳入提交
+
+请继续第七阶段：`agent-orchestrator.ts` 主执行循环剩余职责评估。
+
+本阶段范围：
+1. 先只评估并计划，不要直接迁移近执行链路逻辑。
+2. 聚焦 `agent-orchestrator.ts` 中仍留存的上下文回填、session-not-found 恢复、TypedError 持久化、queueMessage 持久化语义、完成信号等职责。
+3. 不移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机或错误恢复链路。
+4. 如发现可拆边界，先写入 `tasks/todo.md` 并 check-in，明确测试切口后再实现。
+5. 后续实现时继续保持小步提交：补测试、运行 `typecheck` / `build:main` / `git diff --check`，递增受影响包 patch 版本，更新优化文档并创建独立 commit。
+```
 
 ---
 
