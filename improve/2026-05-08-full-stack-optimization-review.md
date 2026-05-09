@@ -13,11 +13,26 @@
 
 - 分支：`base/pipeline-v0`
 - 最新已纳入进度同步的功能提交：`089fc890`
+- 最新文档基线同步提交：`a2936449`
+- 当前 Electron 包版本：`@rv-insights/electron@0.0.32`
 - 同步日期：`2026-05-09`
 
 说明：
 - 本文档只记录功能 / 工程项状态
 - 每完成一个阶段，先更新本文档，再继续下一阶段
+- 当前已知未跟踪文件：`.DS_Store`，不要纳入提交
+
+### 下次启动快速接力
+
+1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认工作树除 `.DS_Store` 外无意外改动。
+2. 下一阶段从 `agent-orchestrator.ts` 渐进拆分第五阶段开始：`PermissionToolDispatcher` 边界评估。
+3. 本阶段优先只评估/抽离权限工具分派，不碰 SDK 消息持久化、Teams、重试或 IPC。
+4. 开发前先把第五阶段可勾选计划写入 `tasks/todo.md`，再改代码。
+5. 每完成独立阶段仍需执行：
+   `bun run --filter='@rv-insights/electron' typecheck`、
+   `bun run --filter='@rv-insights/electron' build:main`、
+   `git diff --check`，
+   并递增 `apps/electron/package.json` patch 版本、更新本文档、创建独立提交。
 
 ---
 
@@ -41,6 +56,7 @@
 | `addd254f` | `agent-orchestrator.ts` 渐进拆分第二阶段 | 部分完成 | 已新增 `agent-orchestrator/retryable-error-classifier.ts`，迁移自动重试错误分类，并补纯函数测试 |
 | `5919394e` | `agent-orchestrator.ts` 渐进拆分第三阶段 | 部分完成 | 已新增 `agent-orchestrator/teams-coordinator.ts`，抽离 Teams 状态追踪、Watchdog idle 判断与 resume prompt 构建 |
 | `089fc890` | `agent-orchestrator.ts` 渐进拆分第四阶段 | 部分完成 | `TeamsCoordinator` 已接管二次 resume query 的 options 构造、SDK message 遍历、replay 过滤与可持久化消息收集 |
+| `a2936449` | 文档基线同步 | 已完成 | 已将 Teams resume query 边界提交号同步进本文档，作为第五阶段开发前基线 |
 
 ---
 
@@ -210,18 +226,24 @@
 - `useGlobalAgentListeners` 刷新防抖
 - Provider 统一绝对超时
 - Chat / Agent 全局搜索流式化
+- `ipc.ts` 高耦合 handlers 拆分：
+  `channel`、`settings`、`agent`、`pipeline`、`bot-hub`、`quick-task`
+- `agent-orchestrator.ts` 已完成的子边界：
+  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`
 
 ### 部分完成
 
 - `safeStorage` 降级告警可视化
   已有告警和标记，未有替代加密方案
 - `ipc.ts` 拆分
-  第一、二、三阶段 `channel / settings / agent` 已完成，第四阶段 A `pipeline` 已完成，第四阶段 B 机器人 handlers 已完成；基础/工具类 handlers 仍留在主文件，后续按收益单独评估
+  关键高耦合 handlers 已完成；`chat`、`environment`、`installer`、`proxy`、`memory`、`chat tool`、`system prompt`、`github release` 等基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 - `agent-orchestrator.ts` 渐进拆分
-  第一阶段 `EnvironmentBuilder`、第二阶段 `RetryableErrorClassifier`、第三阶段 `TeamsCoordinator` 状态 / prompt 边界与第四阶段 resume query 执行边界已完成；权限工具分派、SDK 消息持久化仍待拆分
+  已完成 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界；权限工具分派、SDK 消息持久化仍待拆分
 
 ### 未完成
 
+- `agent-orchestrator.ts` 第五阶段：`PermissionToolDispatcher` 边界评估与拆分
+- `agent-orchestrator.ts` 后续阶段：SDK 消息持久化边界拆分
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试
 - 索引缓存
