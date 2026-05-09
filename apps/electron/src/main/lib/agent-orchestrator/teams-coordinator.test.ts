@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import type { SDKSystemMessage } from '@rv-insights/shared'
+import type { AgentProviderAdapter, AgentQueryInput, SDKMessage, SDKSystemMessage } from '@rv-insights/shared'
+import type { ClaudeAgentQueryOptions } from '../adapters/claude-agent-adapter'
 import {
   TeamsCoordinator,
   type TeamInboxMessage,
@@ -8,6 +9,36 @@ import {
 
 function systemMessage(input: Omit<SDKSystemMessage, 'type'>): SDKSystemMessage {
   return { type: 'system', ...input }
+}
+
+function createBaseQueryOptions(): ClaudeAgentQueryOptions {
+  return {
+    sessionId: 'session-1',
+    prompt: '原始 prompt',
+    model: 'claude-test',
+    cwd: '/tmp/workspace',
+    sdkCliPath: '/tmp/claude',
+    env: {},
+    sdkPermissionMode: 'default',
+    allowDangerouslySkipPermissions: true,
+    systemPrompt: 'system prompt',
+  }
+}
+
+function createAdapter(
+  messages: SDKMessage[],
+  onQuery?: (input: AgentQueryInput) => void,
+): AgentProviderAdapter {
+  return {
+    async *query(input: AgentQueryInput): AsyncIterable<SDKMessage> {
+      onQuery?.(input)
+      for (const message of messages) {
+        yield message
+      }
+    },
+    abort: () => {},
+    dispose: () => {},
+  }
 }
 
 describe('TeamsCoordinator', () => {
@@ -146,5 +177,103 @@ describe('TeamsCoordinator', () => {
       inboxMessageCount: 0,
       summaryCount: 1,
     })
+  })
+
+  test('runResumeQuery 构造 resume options，推送所有消息并只收集可持久化消息', async () => {
+    const capturedQueryOptions: ClaudeAgentQueryOptions[] = []
+    const emittedMessages: SDKMessage[] = []
+    const assistantMessage: SDKMessage = {
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: '新回复' }] },
+      parent_tool_use_id: null,
+    }
+    const replayMessage = {
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: 'replay' }] },
+      parent_tool_use_id: null,
+      isReplay: true,
+    } as unknown as SDKMessage
+    const userMessage: SDKMessage = {
+      type: 'user',
+      message: { content: [{ type: 'tool_result', content: 'ok' }] },
+      parent_tool_use_id: null,
+    }
+    const compactBoundary: SDKMessage = systemMessage({ subtype: 'compact_boundary' })
+    const initSystem: SDKMessage = systemMessage({ subtype: 'init' })
+    const resultMessage: SDKMessage = {
+      type: 'result',
+      subtype: 'success',
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }
+    const coordinator = new TeamsCoordinator('sdk-session-1')
+
+    const persistedMessages = await coordinator.runResumeQuery({
+      adapter: createAdapter(
+        [assistantMessage, replayMessage, userMessage, compactBoundary, initSystem, resultMessage],
+        (input) => {
+          capturedQueryOptions.push(input as ClaudeAgentQueryOptions)
+        },
+      ),
+      baseQueryOptions: createBaseQueryOptions(),
+      prompt: 'resume prompt',
+      resumeSessionId: 'sdk-session-1',
+      sessionId: 'session-1',
+      isSessionActive: () => true,
+      emitSdkMessage: (message) => {
+        emittedMessages.push(message)
+      },
+    })
+
+    expect(capturedQueryOptions[0]).toMatchObject({
+      sessionId: 'session-1',
+      prompt: 'resume prompt',
+      resumeSessionId: 'sdk-session-1',
+      model: 'claude-test',
+      cwd: '/tmp/workspace',
+      sdkCliPath: '/tmp/claude',
+      sdkPermissionMode: 'default',
+      allowDangerouslySkipPermissions: true,
+      systemPrompt: 'system prompt',
+    })
+    expect(persistedMessages).toEqual([assistantMessage, userMessage, compactBoundary])
+    expect(emittedMessages).toEqual([
+      assistantMessage,
+      replayMessage,
+      userMessage,
+      compactBoundary,
+      initSystem,
+      resultMessage,
+    ])
+  })
+
+  test('runResumeQuery 在会话失活后停止收集和推送', async () => {
+    const emittedMessages: SDKMessage[] = []
+    let activeChecks = 0
+    const firstMessage: SDKMessage = {
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: '第一条' }] },
+      parent_tool_use_id: null,
+    }
+    const secondMessage: SDKMessage = {
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: '第二条' }] },
+      parent_tool_use_id: null,
+    }
+    const coordinator = new TeamsCoordinator('sdk-session-1')
+
+    const persistedMessages = await coordinator.runResumeQuery({
+      adapter: createAdapter([firstMessage, secondMessage]),
+      baseQueryOptions: createBaseQueryOptions(),
+      prompt: 'resume prompt',
+      resumeSessionId: 'sdk-session-1',
+      sessionId: 'session-1',
+      isSessionActive: () => activeChecks++ === 0,
+      emitSdkMessage: (message) => {
+        emittedMessages.push(message)
+      },
+    })
+
+    expect(persistedMessages).toEqual([firstMessage])
+    expect(emittedMessages).toEqual([firstMessage])
   })
 })

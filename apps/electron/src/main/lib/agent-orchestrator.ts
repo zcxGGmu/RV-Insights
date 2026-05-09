@@ -1491,27 +1491,18 @@ export class AgentOrchestrator {
               this.eventBus.emit(sessionId, { kind: 'rv_insights_event', event: { type: 'resume_start', messageId: resumeMessageId } })
 
               // 创建 resume 查询（使用相同的 SDK session ID）
-              const resumeMessages: SDKMessage[] = []
-
               try {
-                const resumeOptions: ClaudeAgentQueryOptions = {
-                  ...queryOptions,
+                const resumeMessages = await teamsCoordinator.runResumeQuery({
+                  adapter: this.adapter,
+                  baseQueryOptions: queryOptions,
                   prompt: resumePrompt,
                   resumeSessionId: teamsSdkSessionId,
-                }
-
-                for await (const resumeMsg of this.adapter.query(resumeOptions)) {
-                  if (!this.activeSessions.has(sessionId)) break
-
-                  // 跳过 replay 消息，仅累积新产生的消息
-                  const resumeMsgRecord = resumeMsg as Record<string, unknown>
-                  if ((resumeMsg.type === 'assistant' || resumeMsg.type === 'user') && !resumeMsgRecord.isReplay) {
-                    resumeMessages.push(resumeMsg)
-                  } else if (resumeMsg.type === 'system' && (resumeMsg as import('@rv-insights/shared').SDKSystemMessage).subtype === 'compact_boundary') {
-                    resumeMessages.push(resumeMsg)
-                  }
-                  this.eventBus.emit(sessionId, { kind: 'sdk_message', message: resumeMsg })
-                }
+                  sessionId,
+                  isSessionActive: (targetSessionId) => this.activeSessions.has(targetSessionId),
+                  emitSdkMessage: (resumeMsg) => {
+                    this.eventBus.emit(sessionId, { kind: 'sdk_message', message: resumeMsg })
+                  },
+                })
 
                 // 持久化 resume 助手消息
                 if (resumeMessages.length > 0) {

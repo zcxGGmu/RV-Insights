@@ -1,4 +1,5 @@
-import type { SDKSystemMessage } from '@rv-insights/shared'
+import type { AgentProviderAdapter, SDKMessage, SDKSystemMessage } from '@rv-insights/shared'
+import type { ClaudeAgentQueryOptions } from '../adapters/claude-agent-adapter'
 import {
   findTeamLeadInboxPath,
   pollInboxWithRetry,
@@ -36,6 +37,16 @@ export interface TeamsResumePromptResult {
   summaryCount: number
 }
 
+export interface TeamsResumeQueryInput {
+  adapter: AgentProviderAdapter
+  baseQueryOptions: ClaudeAgentQueryOptions
+  prompt: string
+  resumeSessionId: string
+  sessionId: string
+  isSessionActive: (sessionId: string) => boolean
+  emitSdkMessage: (message: SDKMessage) => void
+}
+
 export interface TeamsCoordinatorDeps {
   findTeamLeadInboxPath?: (sdkSessionId: string) => Promise<TeamLeadInboxInfo | null>
   pollInboxWithRetry?: (inboxPath: string, config: TeamInboxRetryConfig) => Promise<TeamInboxMessage[]>
@@ -49,8 +60,8 @@ export interface TeamsCoordinatorDeps {
 /**
  * Agent Teams 轻量协调器
  *
- * 只负责记录 task 状态、判断 Watchdog 是否需要检查、构造 auto-resume prompt。
- * 实际 SDK resume query 和消息持久化仍留在 AgentOrchestrator 主执行循环。
+ * 负责记录 task 状态、判断 Watchdog 是否需要检查、构造 auto-resume prompt，
+ * 并封装 resume query 的执行边界。消息持久化仍由 AgentOrchestrator 统一处理。
  */
 export class TeamsCoordinator {
   private capturedSdkSessionId: string | undefined
@@ -179,4 +190,32 @@ export class TeamsCoordinator {
       teamName: inboxInfo?.teamName,
     }
   }
+
+  async runResumeQuery(input: TeamsResumeQueryInput): Promise<SDKMessage[]> {
+    const resumeOptions: ClaudeAgentQueryOptions = {
+      ...input.baseQueryOptions,
+      prompt: input.prompt,
+      resumeSessionId: input.resumeSessionId,
+    }
+    const resumeMessages: SDKMessage[] = []
+
+    for await (const resumeMsg of input.adapter.query(resumeOptions)) {
+      if (!input.isSessionActive(input.sessionId)) break
+
+      if (shouldPersistResumeMessage(resumeMsg)) {
+        resumeMessages.push(resumeMsg)
+      }
+      input.emitSdkMessage(resumeMsg)
+    }
+
+    return resumeMessages
+  }
+}
+
+function shouldPersistResumeMessage(message: SDKMessage): boolean {
+  const messageRecord = message as Record<string, unknown>
+  if ((message.type === 'assistant' || message.type === 'user') && !messageRecord.isReplay) {
+    return true
+  }
+  return message.type === 'system' && (message as SDKSystemMessage).subtype === 'compact_boundary'
 }
