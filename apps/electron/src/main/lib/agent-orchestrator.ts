@@ -48,6 +48,10 @@ import {
   prepareSdkMessageForAccumulation,
   prepareSdkMessagesForPersistence,
 } from './agent-orchestrator/sdk-message-persistence'
+import {
+  MAX_CONTEXT_MESSAGES,
+  buildContextPromptFromSDKMessages,
+} from './agent-orchestrator/context-rehydration'
 
 // ===== 类型定义 =====
 
@@ -160,34 +164,6 @@ function timerWithAbort(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
-/** 最大回填消息条数 */
-const MAX_CONTEXT_MESSAGES = 20
-
-/** 单条工具摘要最大字符数 */
-const MAX_TOOL_SUMMARY_LENGTH = 200
-
-/**
- * 从 SDKMessage assistant 消息的 content 中提取工具活动摘要
- *
- * 扫描 tool_use 块，提取工具名称和关键参数，帮助新 SDK 会话理解之前做过什么。
- */
-function extractSDKToolSummary(content: Array<{ type: string; name?: string; input?: Record<string, unknown> }>): string {
-  const summaries: string[] = []
-  for (const block of content) {
-    if (block.type === 'tool_use' && block.name) {
-      const input = block.input ?? {}
-      const keyParam = input.file_path ?? input.command ?? input.path ?? input.query ?? ''
-      const paramStr = keyParam ? `: ${String(keyParam).slice(0, 100)}` : ''
-      summaries.push(`[tool: ${block.name}${paramStr}]`)
-    }
-  }
-  if (summaries.length === 0) return ''
-  const joined = summaries.join(' ')
-  return joined.length > MAX_TOOL_SUMMARY_LENGTH
-    ? joined.slice(0, MAX_TOOL_SUMMARY_LENGTH) + '...'
-    : joined
-}
-
 /**
  * 构建带历史上下文的 prompt
  *
@@ -196,47 +172,19 @@ function extractSDKToolSummary(content: Array<{ type: string; name?: string; inp
  */
 function buildContextPrompt(sessionId: string, currentUserMessage: string, sessionHint?: { agentCwd: string }): string {
   const allMessages = getAgentSessionSDKMessages(sessionId)
-  if (allMessages.length === 0) return currentUserMessage
+  const result = buildContextPromptFromSDKMessages({
+    sessionId,
+    currentUserMessage,
+    messages: allMessages,
+    sessionHint: sessionHint
+      ? { ...sessionHint, configDirName: getConfigDirName() }
+      : undefined,
+  })
 
-  // 排除最后一条（当前用户消息，刚刚才 append 的）
-  const history = allMessages.slice(0, -1)
-  if (history.length === 0) return currentUserMessage
-
-  const recent = history.slice(-MAX_CONTEXT_MESSAGES)
-  const lines = recent
-    .filter((m) => (m.type === 'user' || m.type === 'assistant'))
-    .map((m) => {
-      // 从 SDKMessage 的 message.content 中提取文本
-      const content = (m as { message?: { content?: Array<{ type: string; text?: string; name?: string; input?: Record<string, unknown> }> } }).message?.content
-      if (!Array.isArray(content)) return null
-
-      const textParts = content
-        .filter((b) => b.type === 'text' && b.text)
-        .map((b) => b.text!)
-      const text = textParts.join('\n')
-      if (!text) return null
-
-      let line = `[${m.type}]: ${text}`
-      // assistant 消息附带工具活动摘要
-      if (m.type === 'assistant') {
-        const toolSummary = extractSDKToolSummary(content)
-        if (toolSummary) {
-          line += `\n  工具活动: ${toolSummary}`
-        }
-      }
-      return line
-    })
-    .filter(Boolean)
-
-  if (lines.length === 0) return currentUserMessage
-
-  // 注入 session 元信息，便于 Agent 在需要时读取完整历史
-  const sessionInfoBlock = sessionHint
-    ? `\n<session_info>\nSession ID: ${sessionId}\nSession CWD: ${sessionHint.agentCwd}\nNote: 上方为近期对话摘要。如需更多上下文，可读取 ~/${getConfigDirName()}/agent-sessions/${sessionId}.jsonl 获取完整历史。\n</session_info>\n`
-    : ''
-
-  console.log(`[Agent 编排] buildContextPrompt: 读取 ${allMessages.length} 条消息，注入 ${lines.length} 条历史${sessionHint ? '（含 session 元信息）' : ''}`)
-  return `<conversation_history>${sessionInfoBlock}\n${lines.join('\n')}\n</conversation_history>\n\n${currentUserMessage}`
+  if (result.injectedHistoryCount > 0) {
+    console.log(`[Agent 编排] buildContextPrompt: 读取 ${result.totalMessageCount} 条消息，注入 ${result.injectedHistoryCount} 条历史${result.hasSessionInfo ? '（含 session 元信息）' : ''}`)
+  }
+  return result.prompt
 }
 
 /** 标题生成 Prompt */
