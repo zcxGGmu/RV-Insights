@@ -16,11 +16,9 @@
 
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { join, dirname } from 'node:path'
+import { join } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { app } from 'electron'
-import type { AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, SdkBeta, ProviderType } from '@rv-insights/shared'
+import type { AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, SdkBeta } from '@rv-insights/shared'
 import { SAFE_TOOLS } from '@rv-insights/shared'
 import type { PermissionRequest, RVInsightsPermissionMode, AskUserRequest, ExitPlanModeRequest } from '@rv-insights/shared'
 import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
@@ -28,12 +26,12 @@ import { isPromptTooLongError, friendlyErrorMessage, mapSDKErrorToTypedError, ex
 import { isTransientNetworkError } from './error-patterns'
 import { AgentEventBus } from './agent-event-bus'
 import { decryptApiKey, getChannelById, listChannels } from './channel-manager'
-import { getAdapter, fetchTitle, normalizeAnthropicBaseUrlForSdk } from '@rv-insights/core'
+import { getAdapter, fetchTitle } from '@rv-insights/core'
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
 import { appendSDKMessages, updateAgentSessionMeta, getAgentSessionMeta, getAgentSessionMessages, getAgentSessionSDKMessages, truncateSDKMessages, resolveUserUuidFromSDK, rewindFilesFromSnapshot } from './agent-session-manager'
 import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWorkspacePermissionMode, setWorkspacePermissionMode } from './agent-workspace-manager'
-import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getConfigDirName } from './config-paths'
+import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getWorkspaceFilesDir, getConfigDirName } from './config-paths'
 import { getWorkspaceAttachedDirectories } from './agent-workspace-manager'
 import { getRuntimeStatus } from './runtime-init'
 import { getSettings } from './settings-service'
@@ -56,6 +54,7 @@ import {
 } from './agent-team-reader'
 import { validateToolInput } from './agent-tool-input-validator'
 import { estimateTokenCount, WRITE_CONTENT_TOKEN_THRESHOLD } from './agent-tool-token-estimator'
+import { buildSdkEnv, resolveSDKCliPath } from './agent-orchestrator/sdk-environment'
 
 // ===== 类型定义 =====
 
@@ -202,68 +201,6 @@ function timerWithAbort(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
-/**
- * 解析 SDK native CLI binary 路径
- *
- * 0.2.113+ 起 SDK 改为按平台分发 native binary，通过 optionalDependencies 安装到
- * `@anthropic-ai/claude-agent-sdk-{platform}-{arch}` 子包，与主包 `@anthropic-ai/claude-agent-sdk`
- * 同级。binary 名 macOS/Linux 为 `claude`，Windows 为 `claude.exe`。
- *
- * SDK 作为 esbuild external 依赖，require.resolve 可在运行时解析主包入口路径，
- * 再沿父目录 `@anthropic-ai/` 找到同级的平台子包。
- *
- * 多种策略降级：createRequire → 全局 require → cwd/node_modules 手动查找
- * 打包环境下：asar 内的路径需要转换为 asar.unpacked 路径（即便 RV-Insights 当前 `asar: false`
- * 兜底不伤人）。
- */
-function resolveSDKCliPath(): string {
-  const subpkg = `claude-agent-sdk-${process.platform}-${process.arch}`
-  const binaryName = process.platform === 'win32' ? 'claude.exe' : 'claude'
-  let binaryPath: string | null = null
-
-  // 策略 1：createRequire（标准 ESM/CJS 互操作）
-  try {
-    const cjsRequire = createRequire(__filename)
-    const sdkEntryPath = cjsRequire.resolve('@anthropic-ai/claude-agent-sdk')
-    // sdkEntryPath: .../@anthropic-ai/claude-agent-sdk/sdk.mjs
-    // anthropicDir:  .../@anthropic-ai
-    const anthropicDir = dirname(dirname(sdkEntryPath))
-    binaryPath = join(anthropicDir, subpkg, binaryName)
-    console.log(`[Agent 编排] SDK binary 路径 (createRequire): ${binaryPath}`)
-  } catch (e) {
-    console.warn('[Agent 编排] createRequire 解析 SDK 路径失败:', e)
-  }
-
-  // 策略 2：全局 require（esbuild CJS bundle 可能保留）
-  if (!binaryPath) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const sdkEntryPath = require.resolve('@anthropic-ai/claude-agent-sdk')
-      const anthropicDir = dirname(dirname(sdkEntryPath))
-      binaryPath = join(anthropicDir, subpkg, binaryName)
-      console.log(`[Agent 编排] SDK binary 路径 (require.resolve): ${binaryPath}`)
-    } catch (e) {
-      console.warn('[Agent 编排] require.resolve 解析 SDK 路径失败:', e)
-    }
-  }
-
-  // 策略 3：从当前模块目录手动查找（打包后 __dirname 指向 app/dist/，上一级即 app/）
-  // 注意：不使用 process.cwd()，因为打包后的 Electron 应用 cwd 通常是 '/'
-  // 或用户主目录，与 app 安装目录无关。
-  if (!binaryPath) {
-    binaryPath = join(__dirname, '..', 'node_modules', '@anthropic-ai', subpkg, binaryName)
-    console.log(`[Agent 编排] SDK binary 路径 (手动): ${binaryPath}`)
-  }
-
-  // 打包环境：将 .asar/ 路径转换为 .asar.unpacked/
-  if (app.isPackaged && binaryPath.includes('.asar')) {
-    binaryPath = binaryPath.replace(/\.asar([/\\])/, '.asar.unpacked$1')
-    console.log(`[Agent 编排] 转换为 asar.unpacked 路径: ${binaryPath}`)
-  }
-
-  return binaryPath
-}
-
 /** 最大回填消息条数 */
 const MAX_CONTEXT_MESSAGES = 20
 
@@ -393,100 +330,6 @@ export class AgentOrchestrator {
   constructor(adapter: AgentProviderAdapter, eventBus: AgentEventBus) {
     this.adapter = adapter
     this.eventBus = eventBus
-  }
-
-  /**
-   * 构建 SDK 环境变量
-   *
-   * 注入 API Key、Base URL、代理、Shell 配置等。
-   * 对 Kimi Coding Plan：使用 Bearer 认证（ANTHROPIC_AUTH_TOKEN），注入 User-Agent。
-   */
-  private async buildSdkEnv(
-    apiKey: string,
-    baseUrl: string | undefined,
-    provider: ProviderType,
-  ): Promise<Record<string, string | undefined>> {
-    const DEFAULT_ANTHROPIC_URL = 'https://api.anthropic.com'
-
-    // 从 process.env 继承系统变量，但清理所有 ANTHROPIC_ 前缀的变量，
-    // 防止本地开发环境（如 ANTHROPIC_AUTH_TOKEN、ANTHROPIC_API_KEY、
-    // ANTHROPIC_BASE_URL 等）干扰 SDK 的认证和请求目标。
-    // 即使 index.ts 启动时已清理过一次，initializeRuntime() 中的
-    // loadShellEnv() 可能从 shell 配置文件（~/.zshrc 等）重新注入这些变量。
-    const cleanEnv: Record<string, string | undefined> = {}
-    for (const [key, value] of Object.entries(process.env)) {
-      if (!key.startsWith('ANTHROPIC_')) {
-        cleanEnv[key] = value
-      }
-    }
-
-    const sdkEnv: Record<string, string | undefined> = {
-      ...cleanEnv,
-      // 提升输出 token 上限，避免 "exceeded 32000 output token maximum" 错误
-      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '64000',
-      // 启用 Tasks 功能
-      CLAUDE_CODE_ENABLE_TASKS: 'true',
-      // 禁用实验性 beta 功能，使用稳定模式
-      CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: '1',
-      // 配置隔离：让 SDK 使用独立的配置目录，不读取用户的 ~/.claude.json
-      CLAUDE_CONFIG_DIR: getSdkConfigDir(),
-    }
-
-    // 认证方式按 provider 分支
-    // - Kimi Coding Plan：只认 Bearer，且必须伪装成 coding agent（User-Agent）
-    //   用 ANTHROPIC_AUTH_TOKEN 让 SDK 发 Authorization: Bearer，
-    //   通过 ANTHROPIC_CUSTOM_HEADERS 注入 User-Agent
-    // - 其它：ANTHROPIC_API_KEY（SDK 内部会同时带上 x-api-key 和 Bearer）
-    if (provider === 'kimi-coding') {
-      sdkEnv.ANTHROPIC_AUTH_TOKEN = apiKey
-      sdkEnv.ANTHROPIC_CUSTOM_HEADERS = 'User-Agent: KimiCLI/1.3'
-    } else {
-      sdkEnv.ANTHROPIC_API_KEY = apiKey
-    }
-
-    // 显式控制 ANTHROPIC_BASE_URL：仅在用户配置了自定义 Base URL 时注入
-    // 使用统一的 normalizeAnthropicBaseUrlForSdk 规范化，SDK 内部会自动拼接 /v1/messages
-    if (baseUrl && baseUrl !== DEFAULT_ANTHROPIC_URL) {
-      sdkEnv.ANTHROPIC_BASE_URL = normalizeAnthropicBaseUrlForSdk(baseUrl)
-    }
-
-    const proxyUrl = await getEffectiveProxyUrl()
-    if (proxyUrl) {
-      sdkEnv.HTTPS_PROXY = proxyUrl
-      sdkEnv.HTTP_PROXY = proxyUrl
-    }
-
-    // Windows 平台：配置 Shell 环境
-    if (process.platform === 'win32') {
-      const runtimeStatus = getRuntimeStatus()
-      const shellStatus = runtimeStatus?.shell
-
-      if (shellStatus) {
-        if (shellStatus.gitBash?.available && shellStatus.gitBash.path) {
-          sdkEnv.CLAUDE_CODE_SHELL = shellStatus.gitBash.path
-          console.log(`[Agent 编排] 配置 Shell 环境: Git Bash (${shellStatus.gitBash.path})`)
-        } else if (shellStatus.wsl?.available) {
-          sdkEnv.CLAUDE_CODE_SHELL = 'wsl'
-          console.log(`[Agent 编排] 配置 Shell 环境: WSL ${shellStatus.wsl.version} (${shellStatus.wsl.defaultDistro})`)
-        } else {
-          console.warn('[Agent 编排] Windows 平台未检测到可用的 Shell 环境（Git Bash / WSL）')
-        }
-        sdkEnv.CLAUDE_BASH_NO_LOGIN = '1'
-      }
-    }
-
-    // 针对 claude-agent-sdk 0.2.111+ 的 options.env 叠加语义加固：
-    // SDK 将 options.env 叠加到 process.env 之上传递给子进程。
-    // 若 shell 中存在 ANTHROPIC_CUSTOM_HEADERS、ANTHROPIC_MODEL 等变量，
-    // 且 sdkEnv 未显式管理，叠加后会回流到 SDK 子进程。
-    // 对于 sdkEnv 未显式管理的 ANTHROPIC_* 变量，显式置空字符串以覆盖回流。
-    for (const key of Object.keys(process.env)) {
-      if (key.startsWith('ANTHROPIC_') && !(key in sdkEnv)) {
-        sdkEnv[key] = ''
-      }
-    }
-
-    return sdkEnv
   }
 
   /**
@@ -855,7 +698,11 @@ export class AgentOrchestrator {
     // 3. 构建环境变量
     // 不再同步凭证到 process.env：SDK 0.2.113+ 通过 options.env 传递给子进程，
     // 主进程内不直接发起 HTTP 请求。直接赋值 process.env 在多会话并发时存在竞态条件。
-    const sdkEnv = await this.buildSdkEnv(apiKey, channel.baseUrl, channel.provider)
+    const sdkEnv = await buildSdkEnv({
+      apiKey,
+      baseUrl: channel.baseUrl,
+      provider: channel.provider,
+    })
 
     // 4. 读取已有的 SDK session ID（用于 resume）
     const sessionMeta = getAgentSessionMeta(sessionId)

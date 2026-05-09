@@ -12,7 +12,7 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的功能提交：`37460087`
+- 最新已纳入进度同步的功能提交：Phase 4 EnvironmentBuilder 待提交
 - 同步日期：`2026-05-09`
 
 说明：
@@ -37,6 +37,7 @@
 | `04d0de59` | 文档基线同步 | 已完成 | 已将第三阶段提交状态同步进优化文档，作为第四阶段开发前基线 |
 | `953ce3c6` | `ipc.ts` 拆分第四阶段 A（pipeline） | 部分完成 | 已新增 `ipc/pipeline-handlers.ts` 并迁移 `PIPELINE_IPC_CHANNELS` 注册，机器人相关 handlers 仍留在 `ipc.ts` |
 | `37460087` | `ipc.ts` 拆分第四阶段 B（机器人） | 部分完成 | 已新增 `ipc/bot-hub-handlers.ts` 与 `ipc/quick-task-handlers.ts`，迁移 Feishu / DingTalk / WeChat / QuickTask 注册逻辑 |
+| Phase 4 EnvironmentBuilder 待提交 | `agent-orchestrator.ts` 渐进拆分第一阶段 | 部分完成 | 已新增 `agent-orchestrator/sdk-environment.ts`，迁移 SDK env 构建与 CLI 路径解析，并补最小测试 |
 
 ---
 
@@ -78,12 +79,18 @@
   建议：
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
-- [ ] `agent-orchestrator.ts` 渐进拆分
-  现状：未完成。
+- [~] `agent-orchestrator.ts` 渐进拆分
+  现状：部分完成（第一阶段 EnvironmentBuilder 已完成）。
+  已完成：
+  SDK 环境变量构建与 CLI binary 路径解析已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`。
+  已补充最小测试覆盖普通 Provider、Kimi Coding、代理、Windows Shell 与 CLI fallback 路径。
+  未完成：
+  重试错误分类、Teams auto-resume、权限工具分派、SDK 消息持久化等逻辑仍在 `agent-orchestrator.ts`。
   关键文件：
   `apps/electron/src/main/lib/agent-orchestrator.ts`
+  `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`
   建议：
-  从 `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 这类小协作者开始拆。
+  下一阶段拆 `RetryableErrorClassifier`，保持行为不变并补纯函数测试。
 
 - [ ] `feishu-bridge.ts` 拆分
   现状：未完成。
@@ -161,18 +168,18 @@
 
 ### 当前推荐的下一个阶段
 
-`agent-orchestrator.ts` 渐进拆分
+`agent-orchestrator.ts` 渐进拆分第二阶段（RetryableErrorClassifier）
 
 原因：
-- `ipc.ts` 拆分第四阶段 B 已完成机器人相关 handlers 抽离，继续强拆剩余基础 handlers 的边际收益下降
-- `agent-orchestrator.ts` 仍是主进程中体量最大、职责最密集的 P1 结构风险点
-- 从小协作者开始拆分可继续保持“单阶段单提交”的评审与回滚粒度
+- `agent-orchestrator.ts` 第一阶段已抽离 SDK 环境准备，下一块最小且可测试的边界是重试错误分类
+- 重试分类当前是纯函数 + 常量组合，拆出后可直接补测试，行为风险低
+- Teams auto-resume 和权限工具分派耦合更深，适合放在后续阶段
 
 ### 建议切分顺序
 
-1. 先拆 `EnvironmentBuilder` / SDK 环境变量构建相关逻辑
-2. 再拆 `RetryableErrorClassifier` / 重试错误分类
-3. 最后评估 `TeamsCoordinator` / 团队协作上下文读取边界
+1. 拆 `RetryableErrorClassifier` / 重试错误分类
+2. 再评估 `TeamsCoordinator` / 团队协作上下文读取边界
+3. 最后评估权限工具分派与消息持久化边界
 
 ### 起点文件
 
@@ -200,10 +207,11 @@
   已有告警和标记，未有替代加密方案
 - `ipc.ts` 拆分
   第一、二、三阶段 `channel / settings / agent` 已完成，第四阶段 A `pipeline` 已完成，第四阶段 B 机器人 handlers 已完成；基础/工具类 handlers 仍留在主文件，后续按收益单独评估
+- `agent-orchestrator.ts` 渐进拆分
+  第一阶段 `EnvironmentBuilder` 已完成；重试错误分类、Teams auto-resume、权限工具分派、SDK 消息持久化仍待拆分
 
 ### 未完成
 
-- `agent-orchestrator.ts` 渐进拆分
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试
 - 索引缓存
