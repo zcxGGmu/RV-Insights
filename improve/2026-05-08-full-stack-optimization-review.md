@@ -12,10 +12,9 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入提交的功能提交：`089fc890`
+- 最新已纳入提交的功能提交：`2bca24d1`
 - 最新文档基线同步提交：`37aaacaa`
-- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.32`
-- 当前工作树候选 Electron 包版本：`@rv-insights/electron@0.0.33`
+- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.33`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -23,16 +22,11 @@
 - 每完成一个阶段，先更新本文档，再继续下一阶段
 - 当前已知未跟踪文件：`.DS_Store`，不要纳入提交
 
-### 当前工作树候选状态（未提交）
+### 最新功能提交状态
 
-第五阶段 `PermissionToolDispatcher` 已在工作树中实现并通过必要验证，但尚未创建独立 commit。
+第五阶段 `PermissionToolDispatcher` 已通过独立提交落地：
 
-当前需要纳入本阶段提交的文件：
-- `apps/electron/package.json`
-- `apps/electron/src/main/lib/agent-orchestrator.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.test.ts`
-- `improve/2026-05-08-full-stack-optimization-review.md`
+- `2bca24d1` `refactor(agent): 拆分权限工具分派边界`
 
 当前不要纳入提交：
 - `.DS_Store`
@@ -43,18 +37,13 @@
 - `bun run --filter='@rv-insights/electron' build:main`：通过
 - `git diff --check`：通过
 
-待收尾：
-- 对最后一次 `findNearestExistingPath()` path-aware containment 修正做一次窄范围 final review：已完成，`code-reviewer` / `security-reviewer` 未发现阻断问题。
-- 创建第五阶段独立 commit，提交信息建议：`refactor(agent): 拆分权限工具分派边界`。
-
 ### 下次启动快速接力
 
-1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认工作树只包含上方列出的第五阶段候选文件与未跟踪 `.DS_Store`。
-2. 先完成第五阶段收尾：对最后一次 path-aware containment 修正做 final review，确认无阻断后 stage 必要文件并创建独立 commit；不要纳入 `.DS_Store`。
-3. 第五阶段 commit 完成后，再进入 `agent-orchestrator.ts` 渐进拆分后续阶段：SDK 消息持久化边界评估。
-4. 下一阶段优先只评估/抽离 SDK 消息持久化，不碰 Teams、重试、IPC 或权限分派。
-5. 开发前先把下一阶段可勾选计划写入 `tasks/todo.md`，再改代码。
-6. 每完成独立阶段仍需执行：
+1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第五阶段提交 `2bca24d1` 已在当前分支。
+2. 进入 `agent-orchestrator.ts` 渐进拆分后续阶段：SDK 消息持久化边界评估。
+3. 下一阶段优先只评估/抽离 SDK 消息持久化，不碰 Teams、重试、IPC 或权限分派。
+4. 开发前先把下一阶段可勾选计划写入 `tasks/todo.md`，再改代码。
+5. 每完成独立阶段仍需执行：
    `bun run --filter='@rv-insights/electron' typecheck`、
    `bun run --filter='@rv-insights/electron' build:main`、
    `git diff --check`，
@@ -83,7 +72,7 @@
 | `5919394e` | `agent-orchestrator.ts` 渐进拆分第三阶段 | 部分完成 | 已新增 `agent-orchestrator/teams-coordinator.ts`，抽离 Teams 状态追踪、Watchdog idle 判断与 resume prompt 构建 |
 | `089fc890` | `agent-orchestrator.ts` 渐进拆分第四阶段 | 部分完成 | `TeamsCoordinator` 已接管二次 resume query 的 options 构造、SDK message 遍历、replay 过滤与可持久化消息收集 |
 | `37aaacaa` | 文档基线同步 | 已完成 | 已将最新优化进度同步进本文档，作为第五阶段开发前基线 |
-| `工作树待提交` | `agent-orchestrator.ts` 渐进拆分第五阶段 | 待提交 | 已新增 `PermissionToolDispatcher`，抽离 canUseTool 权限分派边界，并收紧 Plan Bash / MCP / Markdown 写入边界；final review 与验证已通过，待独立 commit |
+| `2bca24d1` | `agent-orchestrator.ts` 渐进拆分第五阶段 | 部分完成 | 已新增 `PermissionToolDispatcher`，抽离 canUseTool 权限分派边界，并收紧 Plan Bash / MCP / Markdown 写入边界 |
 
 ---
 
@@ -126,7 +115,7 @@
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [~] `agent-orchestrator.ts` 渐进拆分
-  现状：部分完成（第五阶段 PermissionToolDispatcher 权限分派边界已在工作树实现并验证通过，但尚未提交）。
+  现状：部分完成（第五阶段 PermissionToolDispatcher 权限分派边界已提交）。
   已完成：
   SDK 环境变量构建与 CLI binary 路径解析已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`。
   已补充最小测试覆盖普通 Provider、Kimi Coding、代理、Windows Shell 与 CLI fallback 路径。
@@ -134,17 +123,17 @@
   已补充最小测试覆盖 retryable / non-retryable TypedError code、HTTP 429 / 5xx / 4xx、`context_management` 与瞬时网络错误。
   Agent Teams 状态追踪、Watchdog idle 判断与 resume prompt 构建已抽离到 `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`。
   Agent Teams 二次 resume query 的 options 构造、SDK message 遍历、replay 过滤与可持久化消息收集已抽离到 `TeamsCoordinator.runResumeQuery()`。
-  工作树候选：`canUseTool` 权限分派已抽离到 `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`，覆盖共享前置守卫、plan / auto / bypassPermissions / AskUser / ExitPlan 分派。
-  工作树候选：Plan 模式 Bash 策略已从 blocklist 改为明确只读 allowlist，拒绝 CR/LF、quote、backslash、glob / brace expansion、`$` 变量展开、管道、命令串联、命令替换、普通重定向、解释器执行、下载写文件和危险 git / rg / find 参数等高风险写操作。
-  工作树候选：Plan 模式 Git Bash 只保留 `git status`、`git rev-parse`、`git ls-files`；`git diff/log/show/grep` 暂不在 Plan Bash allowlist 中，避免 external diff / textconv / pager 风险。
-  工作树候选：Plan 模式不再无条件放行 `mcp__*` 工具，仅保留显式 allowlist 中的 MCP 资源读取工具。
-  工作树候选：Plan 模式 `Write/Edit` Markdown 写入范围已限制到当前 Agent cwd 的 `.context` 目录下，并增加 raw `..`、首尾空白 / 换行、realpath、symlink、broken symlink、hardlink 逃逸校验。
-  工作树候选：`EnterPlanMode` 会同步切入 `plan` 权限策略；运行中动态切换到 `plan` 时会同步 `PermissionToolDispatcher` 的 plan 状态，确保后续普通工具和 `ExitPlanMode` 都走正确策略。
-  工作树候选：`stopAll()` 会同步清理新增的 `sessionPermissionDispatchers`，避免应用退出 / 全量中止后残留 stale dispatcher 引用。
+  `canUseTool` 权限分派已抽离到 `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`，覆盖共享前置守卫、plan / auto / bypassPermissions / AskUser / ExitPlan 分派。
+  Plan 模式 Bash 策略已从 blocklist 改为明确只读 allowlist，拒绝 CR/LF、quote、backslash、glob / brace expansion、`$` 变量展开、管道、命令串联、命令替换、普通重定向、解释器执行、下载写文件和危险 git / rg / find 参数等高风险写操作。
+  Plan 模式 Git Bash 只保留 `git status`、`git rev-parse`、`git ls-files`；`git diff/log/show/grep` 暂不在 Plan Bash allowlist 中，避免 external diff / textconv / pager 风险。
+  Plan 模式不再无条件放行 `mcp__*` 工具，仅保留显式 allowlist 中的 MCP 资源读取工具。
+  Plan 模式 `Write/Edit` Markdown 写入范围已限制到当前 Agent cwd 的 `.context` 目录下，并增加 raw `..`、首尾空白 / 换行、realpath、symlink、broken symlink、hardlink 逃逸校验。
+  `EnterPlanMode` 会同步切入 `plan` 权限策略；运行中动态切换到 `plan` 时会同步 `PermissionToolDispatcher` 的 plan 状态，确保后续普通工具和 `ExitPlanMode` 都走正确策略。
+  `stopAll()` 会同步清理新增的 `sessionPermissionDispatchers`，避免应用退出 / 全量中止后残留 stale dispatcher 引用。
   已补充最小测试覆盖 task 状态追踪、Watchdog idle 检查、inbox 优先、summary fallback、resume query replay 过滤、compact_boundary 持久化与会话失活停止。
-  工作树候选：已补充权限分派测试覆盖 bypassPermissions 前置守卫、AskUser 不受模式影响、plan 模式允许/拒绝策略、ExitPlan approve / deny / 动态切换语义、auto 委托、Write 大内容保护、Bash allowlist 边界和 `.context` Markdown 路径边界。
+  已补充权限分派测试覆盖 bypassPermissions 前置守卫、AskUser 不受模式影响、plan 模式允许/拒绝策略、ExitPlan approve / deny / 动态切换语义、auto 委托、Write 大内容保护、Bash allowlist 边界和 `.context` Markdown 路径边界。
   未完成：
-  第五阶段仍需独立 commit；之后 SDK 消息持久化等逻辑仍在 `agent-orchestrator.ts`。
+  SDK 消息持久化等逻辑仍在 `agent-orchestrator.ts`。
   关键文件：
   `apps/electron/src/main/lib/agent-orchestrator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`
@@ -230,22 +219,10 @@
 
 ### 当前推荐的下一个阶段
 
-先完成当前工作树第五阶段收尾：
-
-`agent-orchestrator.ts` 渐进拆分第五阶段（PermissionToolDispatcher）final review 与独立 commit
-
-完成标准：
-- final review 确认最后一次 path-aware containment 修正无阻断问题
-- stage 必要文件，不纳入 `.DS_Store`
-- 创建独立 commit
-- 提交后把本文档中的 `工作树待提交` 更新为真实提交号
-
-第五阶段提交后，下一阶段进入：
-
 `agent-orchestrator.ts` 渐进拆分后续阶段（SDK 消息持久化边界评估）
 
 原因：
-- `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界；PermissionToolDispatcher 权限分派边界已在工作树实现，等待提交落地
+- `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界、PermissionToolDispatcher 权限分派边界
 - SDK 消息持久化仍在主执行文件中，包含过滤、时间戳补全、result duration 记录等逻辑，适合在权限边界清晰后继续小步迁移
 - 消息持久化更靠近执行链路，下一阶段应保持 Teams、重试、IPC 和权限分派不动
 
@@ -277,9 +254,7 @@
 - `ipc.ts` 高耦合 handlers 拆分：
   `channel`、`settings`、`agent`、`pipeline`、`bot-hub`、`quick-task`
 - `agent-orchestrator.ts` 已完成的已提交子边界：
-  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`
-- `agent-orchestrator.ts` 工作树待提交子边界：
-  `PermissionToolDispatcher`
+  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`、`PermissionToolDispatcher`
 
 ### 部分完成
 
@@ -288,11 +263,10 @@
 - `ipc.ts` 拆分
   关键高耦合 handlers 已完成；`chat`、`environment`、`installer`、`proxy`、`memory`、`chat tool`、`system prompt`、`github release` 等基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 - `agent-orchestrator.ts` 渐进拆分
-  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界；权限工具分派已在工作树实现并验证通过，待 final review 与独立 commit；SDK 消息持久化仍待拆分
+  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界；SDK 消息持久化仍待拆分
 
 ### 未完成
 
-- `agent-orchestrator.ts` 第五阶段收尾：final review、独立 commit、回填真实提交号
 - `agent-orchestrator.ts` 后续阶段：SDK 消息持久化边界拆分
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试
