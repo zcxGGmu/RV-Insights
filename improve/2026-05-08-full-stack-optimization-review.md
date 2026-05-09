@@ -12,9 +12,9 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入提交的功能提交：`2bca24d1`
+- 最新已纳入提交的功能提交：`42cceeda`
 - 最新文档基线同步提交：当前 `docs(improve)` 提交（以 `git log --oneline -1` 为准）
-- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.33`
+- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.34`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -24,30 +24,31 @@
 
 ### 最新功能提交状态
 
-第五阶段 `PermissionToolDispatcher` 已通过独立提交落地：
+第六阶段 SDK 消息持久化边界已通过独立提交落地：
 
-- `2bca24d1` `refactor(agent): 拆分权限工具分派边界`
-- `7ac26084` `docs(improve): 同步 PermissionToolDispatcher 提交基线`
+- `42cceeda` `refactor(agent): 拆分 SDK 消息持久化边界`
+- `ef055d64` `docs(improve): 同步 SDK 消息持久化接力状态`
 
-当前第六阶段状态：
-- 已完成 SDK 消息持久化边界初步评估，计划已写入 `tasks/todo.md`（该目录被 git ignore，仅作本地任务接力）。
-- 尚未修改业务代码，下一次开发应从新增 `sdk-message-persistence.ts` 纯函数边界开始。
+当前第七阶段状态：
+- 第六阶段已新增 SDK message 筛选、累积准备、时间戳 / duration metadata 纯函数边界。
+- `agent-orchestrator.ts` 中 `persistSDKMessages()` 已保留为薄包装，调用时机未移动。
+- 下一次开发应先评估主执行循环剩余职责，不要直接移动 Teams、重试、IPC、权限分派或错误恢复链路。
 
 当前不要纳入提交：
 - `.DS_Store`
 
 已完成验证：
-- `bun test apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.test.ts`：15 pass / 0 fail / 115 expect
+- `bun test apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.test.ts`：7 pass / 0 fail / 27 expect
 - `bun run --filter='@rv-insights/electron' typecheck`：通过
 - `bun run --filter='@rv-insights/electron' build:main`：通过
 - `git diff --check`：通过
 
 ### 下次启动快速接力
 
-1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第五阶段提交 `2bca24d1` 与最新 `docs(improve)` 提交已在当前分支。
-2. 继续第六阶段：SDK 消息持久化边界实现。
-3. 本阶段只抽离 SDK message 筛选、累积准备、时间戳 / duration metadata 纯函数；不要移动 Teams、重试、IPC 或权限分派。
-4. 保留 `agent-orchestrator.ts` 中 `persistSDKMessages()` 的调用时机，先把它改成薄包装，避免改变错误处理、retry、session-not-found 恢复和 queueMessage 持久化语义。
+1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第六阶段提交 `42cceeda` 与最新 `docs(improve)` 提交已在当前分支。
+2. 继续第七阶段：`agent-orchestrator.ts` 主执行循环剩余职责评估。
+3. 本阶段建议先只评估上下文回填、session-not-found 恢复、TypedError 持久化、queueMessage 持久化语义等近执行链路职责，不要直接迁移。
+4. 如果继续拆分，先补对应行为测试，再做最小纯函数 / 小服务边界。
 5. 每完成独立阶段仍需执行：
    `bun run --filter='@rv-insights/electron' typecheck`、
    `bun run --filter='@rv-insights/electron' build:main`、
@@ -79,7 +80,8 @@
 | `37aaacaa` | 文档基线同步 | 已完成 | 已将最新优化进度同步进本文档，作为第五阶段开发前基线 |
 | `2bca24d1` | `agent-orchestrator.ts` 渐进拆分第五阶段 | 部分完成 | 已新增 `PermissionToolDispatcher`，抽离 canUseTool 权限分派边界，并收紧 Plan Bash / MCP / Markdown 写入边界 |
 | `7ac26084` | 文档基线同步 | 已完成 | 已将 PermissionToolDispatcher 提交号和下一阶段入口同步进本文档 |
-| `本地计划` | `agent-orchestrator.ts` 渐进拆分第六阶段 | 待实现 | 已在 `tasks/todo.md` 记录 SDK 消息持久化边界方案；尚未修改业务代码 |
+| `ef055d64` | 文档基线同步 | 已完成 | 已将 SDK 消息持久化边界接力状态同步进本文档 |
+| `42cceeda` | `agent-orchestrator.ts` 渐进拆分第六阶段 | 部分完成 | 已新增 `sdk-message-persistence.ts`，抽离 SDK message 筛选、累积准备、时间戳 / duration metadata 纯函数边界 |
 
 ---
 
@@ -122,7 +124,7 @@
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [~] `agent-orchestrator.ts` 渐进拆分
-  现状：部分完成（第五阶段 PermissionToolDispatcher 权限分派边界已提交；第六阶段 SDK 消息持久化边界已完成本地计划，待实现）。
+  现状：部分完成（第六阶段 SDK 消息持久化边界已提交；下一阶段先评估主执行循环剩余职责）。
   已完成：
   SDK 环境变量构建与 CLI binary 路径解析已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`。
   已补充最小测试覆盖普通 Provider、Kimi Coding、代理、Windows Shell 与 CLI fallback 路径。
@@ -137,20 +139,25 @@
   Plan 模式 `Write/Edit` Markdown 写入范围已限制到当前 Agent cwd 的 `.context` 目录下，并增加 raw `..`、首尾空白 / 换行、realpath、symlink、broken symlink、hardlink 逃逸校验。
   `EnterPlanMode` 会同步切入 `plan` 权限策略；运行中动态切换到 `plan` 时会同步 `PermissionToolDispatcher` 的 plan 状态，确保后续普通工具和 `ExitPlanMode` 都走正确策略。
   `stopAll()` 会同步清理新增的 `sessionPermissionDispatchers`，避免应用退出 / 全量中止后残留 stale dispatcher 引用。
+  SDK 消息持久化纯函数边界已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`。
+  `persistSDKMessages()` 已保留在 `agent-orchestrator.ts` 中作为薄包装，继续在原有 result、正常结束、重试、session-not-found、用户中止和错误路径调用。
+  已抽离 `shouldPersistSdkMessage()`、`shouldAccumulateSdkMessage()`、`prepareSdkMessageForAccumulation()`、`prepareSdkMessagesForPersistence()` 与 `withPersistenceMetadata()`，覆盖 replay 过滤、`user tool_result` 保留、SDK 内部 user 文本过滤、`compact_boundary` 保留、普通 system 过滤、result duration、已有 `_createdAt` 不覆盖、assistant `_channelModelId` 复制注入。
   已补充最小测试覆盖 task 状态追踪、Watchdog idle 检查、inbox 优先、summary fallback、resume query replay 过滤、compact_boundary 持久化与会话失活停止。
   已补充权限分派测试覆盖 bypassPermissions 前置守卫、AskUser 不受模式影响、plan 模式允许/拒绝策略、ExitPlan approve / deny / 动态切换语义、auto 委托、Write 大内容保护、Bash allowlist 边界和 `.context` Markdown 路径边界。
+  已补充 SDK 消息持久化测试覆盖 replay、`user tool_result`、SDK 内部 user 文本、`compact_boundary`、普通 system、result duration、已有 `_createdAt` 不覆盖和 assistant `_channelModelId` 不原地修改。
   未完成：
-  SDK 消息持久化等逻辑仍在 `agent-orchestrator.ts`。
-  第六阶段计划：
-  新增 `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`，先抽纯函数 `shouldPersistSdkMessage()`、`prepareSdkMessageForAccumulation()`、`prepareSdkMessagesForPersistence()` 等，保留持久化调用时机不变。
+  主执行循环中上下文回填、session-not-found 恢复、TypedError 持久化、queueMessage 持久化语义等近执行链路仍在 `agent-orchestrator.ts`。
+  第七阶段计划：
+  先评估主执行循环剩余职责和测试切口，不直接迁移近执行链路逻辑。
   关键文件：
   `apps/electron/src/main/lib/agent-orchestrator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`
   `apps/electron/src/main/lib/agent-orchestrator/retryable-error-classifier.ts`
   `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`
+  `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`
   建议：
-  下一阶段实现 SDK 消息持久化边界，保持执行循环行为不变并优先补纯函数测试。
+  下一阶段先评估主执行循环剩余职责，继续保持小步拆分和调用时机不变。
 
 - [ ] `feishu-bridge.ts` 拆分
   现状：未完成。
@@ -228,26 +235,26 @@
 
 ### 当前推荐的下一个阶段
 
-`agent-orchestrator.ts` 渐进拆分第六阶段（SDK 消息持久化边界实现）
+`agent-orchestrator.ts` 渐进拆分第七阶段（主执行循环剩余职责评估）
 
 原因：
-- `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界、PermissionToolDispatcher 权限分派边界
-- SDK 消息持久化仍在主执行文件中，包含过滤、时间戳补全、result duration 记录等逻辑，适合在权限边界清晰后继续小步迁移
-- 消息持久化更靠近执行链路，下一阶段应保持 Teams、重试、IPC 和权限分派不动
+- `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界、PermissionToolDispatcher 权限分派边界和 SDK 消息持久化纯函数边界
+- 剩余职责更靠近执行链路，包括上下文回填、session-not-found 恢复、TypedError 持久化、queueMessage 持久化语义和完成信号
+- 下一阶段应先做边界评估和测试切口设计，避免直接移动错误处理、retry、session-not-found 恢复或队列持久化语义
 
 ### 建议切分顺序
 
-1. 实现并测试 SDK 消息持久化纯函数边界
-2. 回看 `agent-orchestrator.ts` 主执行循环剩余职责
-3. 再决定是否继续拆上下文回填 / session-not-found 恢复等较近执行链路的逻辑
+1. 回看 `agent-orchestrator.ts` 主执行循环剩余职责，列出仍留在主文件的执行链路责任
+2. 评估上下文回填 / session-not-found 恢复 / TypedError 持久化是否有可测试纯函数或小服务边界
+3. 先补行为测试，再决定是否进入第七阶段实现
 
 ### 起点文件
 
 - `apps/electron/src/main/lib/agent-orchestrator.ts`
 - `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.test.ts`
-- 可新建目录：
-  `apps/electron/src/main/lib/agent-orchestrator/`
+- `apps/electron/src/main/lib/agent-orchestrator/retryable-error-classifier.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`
 
 ---
 
@@ -265,7 +272,7 @@
 - `ipc.ts` 高耦合 handlers 拆分：
   `channel`、`settings`、`agent`、`pipeline`、`bot-hub`、`quick-task`
 - `agent-orchestrator.ts` 已完成的已提交子边界：
-  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`、`PermissionToolDispatcher`
+  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`、`PermissionToolDispatcher`、SDK 消息持久化纯函数边界
 
 ### 部分完成
 
@@ -274,11 +281,11 @@
 - `ipc.ts` 拆分
   关键高耦合 handlers 已完成；`chat`、`environment`、`installer`、`proxy`、`memory`、`chat tool`、`system prompt`、`github release` 等基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 - `agent-orchestrator.ts` 渐进拆分
-  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界；SDK 消息持久化已完成本地边界计划，仍待实现
+  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界、SDK 消息持久化纯函数边界；主执行循环剩余职责仍待评估
 
 ### 未完成
 
-- `agent-orchestrator.ts` 后续阶段：SDK 消息持久化边界拆分
+- `agent-orchestrator.ts` 后续阶段：主执行循环剩余职责评估
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试
 - 索引缓存
