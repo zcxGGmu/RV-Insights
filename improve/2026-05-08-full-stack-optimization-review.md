@@ -12,7 +12,7 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的功能提交：`953ce3c6`
+- 最新已纳入进度同步的功能提交：第四阶段 B 待提交
 - 同步日期：`2026-05-09`
 
 说明：
@@ -36,6 +36,7 @@
 | `e5e9abbb` | `ipc.ts` 拆分第三阶段（agent） | 部分完成 | 已新增 `ipc/agent-handlers.ts` 并迁移 `AGENT_IPC_CHANNELS` 注册，`ipc.ts` 中 agent 逻辑已独立收口 |
 | `04d0de59` | 文档基线同步 | 已完成 | 已将第三阶段提交状态同步进优化文档，作为第四阶段开发前基线 |
 | `953ce3c6` | `ipc.ts` 拆分第四阶段 A（pipeline） | 部分完成 | 已新增 `ipc/pipeline-handlers.ts` 并迁移 `PIPELINE_IPC_CHANNELS` 注册，机器人相关 handlers 仍留在 `ipc.ts` |
+| 第四阶段 B 待提交 | `ipc.ts` 拆分第四阶段 B（机器人） | 部分完成 | 已新增 `ipc/bot-hub-handlers.ts` 与 `ipc/quick-task-handlers.ts`，迁移 Feishu / DingTalk / WeChat / QuickTask 注册逻辑 |
 
 ---
 
@@ -62,18 +63,20 @@
   当前 `AgentView` 已不再是订阅放大热点。
 
 - [~] `ipc.ts` 巨型注册函数拆分
-  现状：部分完成（第四阶段 A 已完成）。
+  现状：部分完成（第四阶段 B 已完成，关键高耦合模块已抽离）。
   已完成：
   `channel` handlers 已抽离到 `apps/electron/src/main/ipc/channel-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerChannelIpcHandlers()`。
   `settings` handlers 已抽离到 `apps/electron/src/main/ipc/settings-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerSettingsIpcHandlers()`。
   `agent` handlers 已抽离到 `apps/electron/src/main/ipc/agent-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerAgentIpcHandlers()`。
   `pipeline` handlers 已抽离到 `apps/electron/src/main/ipc/pipeline-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerPipelineIpcHandlers()`。
+  Feishu / DingTalk / WeChat handlers 已抽离到 `apps/electron/src/main/ipc/bot-hub-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerBotHubIpcHandlers()`。
+  QuickTask handlers 已抽离到 `apps/electron/src/main/ipc/quick-task-handlers.ts`，`registerIpcHandlers()` 改为调用 `registerQuickTaskIpcHandlers()`。
   未完成：
-  机器人相关 handlers 仍在 `ipc.ts`。
+  `chat`、`environment`、`installer`、`proxy`、`memory`、`chat tool`、`system prompt`、`github release` 等基础/工具类 handlers 仍在 `ipc.ts`，是否继续拆分可作为后续独立阶段评估。
   关键文件：
   `apps/electron/src/main/ipc.ts`
   建议：
-  延续当前顺序，完成机器人相关 handlers 拆分。
+  本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [ ] `agent-orchestrator.ts` 渐进拆分
   现状：未完成。
@@ -158,32 +161,24 @@
 
 ### 当前推荐的下一个阶段
 
-`ipc.ts` 拆分第四阶段 B（机器人 handlers）
+`agent-orchestrator.ts` 渐进拆分
 
 原因：
-- 第一、二、三阶段 `channel` + `settings` + `agent` 已完成，第四阶段 A 已完成 `pipeline` handlers 拆分
-- 机器人集成仍与主注册函数耦合，保留体量较大
-- 继续按“单阶段单提交”拆分可保持评审与回滚粒度
+- `ipc.ts` 拆分第四阶段 B 已完成机器人相关 handlers 抽离，继续强拆剩余基础 handlers 的边际收益下降
+- `agent-orchestrator.ts` 仍是主进程中体量最大、职责最密集的 P1 结构风险点
+- 从小协作者开始拆分可继续保持“单阶段单提交”的评审与回滚粒度
 
 ### 建议切分顺序
 
-1. 拆 Feishu / DingTalk / WeChat / QuickTask 机器人相关 handlers
-2. 如单文件过大，可按 `bot-hub` / `quick-task` 进一步拆分
+1. 先拆 `EnvironmentBuilder` / SDK 环境变量构建相关逻辑
+2. 再拆 `RetryableErrorClassifier` / 重试错误分类
+3. 最后评估 `TeamsCoordinator` / 团队协作上下文读取边界
 
 ### 起点文件
 
-- `apps/electron/src/main/ipc.ts`
+- `apps/electron/src/main/lib/agent-orchestrator.ts`
 - 可新建目录：
-  `apps/electron/src/main/ipc/`
-
-当前已落地：
-- `channel-handlers.ts`
-- `settings-handlers.ts`
-- `agent-handlers.ts`
-- `pipeline-handlers.ts`
-
-下一批建议文件：
-- `bot-hub-handlers.ts`（或按 Feishu / DingTalk / WeChat / QuickTask 进一步拆分）
+  `apps/electron/src/main/lib/agent-orchestrator/`
 
 ---
 
@@ -204,7 +199,7 @@
 - `safeStorage` 降级告警可视化
   已有告警和标记，未有替代加密方案
 - `ipc.ts` 拆分
-  第一、二、三阶段 `channel / settings / agent` 已完成，第四阶段 A `pipeline` 已完成，剩余机器人 handlers 待继续拆分
+  第一、二、三阶段 `channel / settings / agent` 已完成，第四阶段 A `pipeline` 已完成，第四阶段 B 机器人 handlers 已完成；基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 
 ### 未完成
 
