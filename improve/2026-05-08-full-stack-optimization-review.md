@@ -12,9 +12,9 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入提交的功能提交：`ea4d988b`
+- 最新已纳入提交的功能提交：`bcef4e29`
 - 最新文档基线同步提交：当前 `docs(improve)` 提交（以 `git log --oneline -1` 为准）
-- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.38`
+- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.39`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -24,16 +24,16 @@
 
 ### 当前开发游标
 
-- 当前已完成到：`agent-orchestrator.ts` 渐进拆分第七阶段 D（queueMessage 消息构造纯函数边界）。
-- 当前最新功能提交：`ea4d988b` `refactor(agent): 拆分队列消息构造边界`。
+- 当前已完成到：`agent-orchestrator.ts` 完成信号测试切口评估与重复完成信号修复。
+- 当前最新功能提交：`bcef4e29` `test(agent): 锁定完成信号行为`。
 - 当前最新文档提交：以 `git log --oneline -1` 为准，最近一次主题应为 `docs(improve): 标注当前开发游标`。
-- 当前 Electron 版本：`@rv-insights/electron@0.0.38`。
-- 下次直接继续：完成信号测试切口评估；先补 orchestrator 级 mock adapter 行为测试，再考虑集中化 `callbacks.onComplete()`。
-- 下次不要做：不要移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用、queueMessage 注入 / append 顺序或完成信号。
+- 当前 Electron 版本：`@rv-insights/electron@0.0.39`。
+- 下次直接继续：完成信号薄包装 / 集中化评估；已有 orchestrator 级 mock adapter 行为测试，下一步仍需保持完成回调、副作用和持久化顺序不变。
+- 下次不要做：不要移动 Teams、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用、queueMessage 注入 / append 顺序或未覆盖的执行链路。
 
 ### 最新功能提交状态
 
-第七阶段 D queueMessage 消息构造纯函数边界已通过独立提交落地：
+第七阶段 D queueMessage 消息构造纯函数边界与完成信号测试切口已通过独立提交落地：
 
 - `42cceeda` `refactor(agent): 拆分 SDK 消息持久化边界`
 - `efa806e3` `docs(improve): 同步 SDK 消息持久化提交基线`
@@ -41,11 +41,12 @@
 - `e4d43c72` `refactor(agent): 拆分错误消息构造边界`
 - `76004751` `refactor(agent): 拆分会话恢复边界`
 - `ea4d988b` `refactor(agent): 拆分队列消息构造边界`
+- `bcef4e29` `test(agent): 锁定完成信号行为`
 
 当前总览：
-- 已完成：凭证竞态、secret 暴露收口、标题敏感日志清理、AgentView 会话级订阅收敛、Provider 超时、全局搜索流式化、`ipc.ts` 高耦合 handlers 拆分、`agent-orchestrator.ts` queueMessage 构造在内的已落地子边界拆分。
+- 已完成：凭证竞态、secret 暴露收口、标题敏感日志清理、AgentView 会话级订阅收敛、Provider 超时、全局搜索流式化、`ipc.ts` 高耦合 handlers 拆分、`agent-orchestrator.ts` queueMessage 构造在内的已落地子边界拆分、完成信号 mock adapter 行为测试与重复完成信号修复。
 - 部分完成：`safeStorage` 降级告警可视化、`ipc.ts` 基础/工具类 handlers 拆分、`agent-orchestrator.ts` 渐进拆分。
-- 未完成：`agent-orchestrator.ts` 完成信号后续拆分评估，`feishu-bridge.ts` 拆分、Chat 自动重试、索引缓存、IPC 输入验证、质量 CI、Lint / Format、版本递增校验、测试基线补强、JSONL 轮转、搜索体验统一、恢复策略统一。
+- 未完成：`agent-orchestrator.ts` 完成信号薄包装 / 集中化评估，`feishu-bridge.ts` 拆分、Chat 自动重试、索引缓存、IPC 输入验证、质量 CI、Lint / Format、版本递增校验、测试基线补强、JSONL 轮转、搜索体验统一、恢复策略统一。
 
 当前第七阶段状态：
 - 已完成主执行循环剩余职责评估，并将可拆边界写入 `tasks/todo.md`。
@@ -58,23 +59,26 @@
 - 7D 已新增 `queued-message.ts`，抽离 `queueMessage()` 的 SDK input 与本地持久化消息构造纯函数。
 - `agent-orchestrator.ts` 中 `queueMessage()` 只替换对象构造；`interrupt`、`adapter.sendQueuedMessage()`、`appendSDKMessages()`、adapter 失败删除 uuid 的顺序未移动。
 - 已补回归测试覆盖空字符串 `presetUuid` 仍按旧语义回退自动生成 uuid。
-- 未移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、queueMessage 持久化语义或完成信号。
+- 已新增 `completion-signal.test.ts`，用 mock adapter + 临时配置目录锁定完成信号分支。
+- 覆盖完成信号：并发拒绝、preflight channel_not_found、正常 result、assistant TypedError 不可重试、assistant 可重试 TypedError 耗尽、用户中止、catch 不可重试错误、catch 可重试错误耗尽、session-not-found retry 不提前 complete。
+- 已修复 catch 不可重试错误完成后继续 retry loop、catch / assistant 可重试错误耗尽时可能重复完成的问题；retry exhausted 前会先 flush 已累积 SDKMessage。
+- 未移动 Teams、IPC、权限分派、SDK 消息持久化调用时机、queueMessage 持久化语义或 session-not-found 恢复副作用。
 
 当前不要纳入提交：
 - `.DS_Store`
 
 已完成验证：
-- `bun test apps/electron/src/main/lib/agent-orchestrator/queued-message.test.ts apps/electron/src/main/lib/agent-orchestrator/session-recovery.test.ts apps/electron/src/main/lib/agent-orchestrator/agent-error-message.test.ts apps/electron/src/main/lib/agent-orchestrator/context-rehydration.test.ts`：21 pass / 0 fail / 46 expect
+- `bun test apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts apps/electron/src/main/lib/agent-orchestrator/queued-message.test.ts apps/electron/src/main/lib/agent-orchestrator/session-recovery.test.ts apps/electron/src/main/lib/agent-orchestrator/agent-error-message.test.ts apps/electron/src/main/lib/agent-orchestrator/context-rehydration.test.ts`：30 pass / 0 fail / 98 expect
 - `bun run --filter='@rv-insights/electron' typecheck`：通过
 - `bun run --filter='@rv-insights/electron' build:main`：通过
 - `git diff --check`：通过
 
 ### 下次启动快速接力
 
-1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第七阶段 D 队列消息构造边界提交已在当前分支。
-2. 继续完成信号测试切口评估；先补 mock adapter 驱动的 orchestrator 行为测试，再考虑是否集中化 `callbacks.onComplete()`。
-3. 本阶段不要直接迁移完成信号；先锁定并发拒绝、preflight、用户中止、不可重试错误、重试耗尽和正常 result 分支的完成回调语义。
-4. 继续保持不移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用或 queueMessage 注入 / append 顺序。
+1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认完成信号行为测试提交已在当前分支。
+2. 继续完成信号薄包装 / 集中化评估；已有 mock adapter 行为测试，下一步仍需保持所有 `onComplete()` opts 与持久化前置条件不变。
+3. 本阶段不要顺手迁移 Teams、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用或 queueMessage 注入 / append 顺序。
+4. 若继续抽完成信号，只做薄包装，先让现有 `completion-signal.test.ts` 全量通过，再考虑进一步收敛重复代码。
 5. 每完成独立阶段仍需执行：
    `bun run --filter='@rv-insights/electron' typecheck`、
    `bun run --filter='@rv-insights/electron' build:main`、
@@ -112,6 +116,7 @@
 | `e4d43c72` | `agent-orchestrator.ts` 渐进拆分第七阶段 B | 部分完成 | 已新增 `agent-error-message.ts`，抽离错误 SDKMessage 构造纯函数边界 |
 | `76004751` | `agent-orchestrator.ts` 渐进拆分第七阶段 C | 部分完成 | 已新增 `session-recovery.ts`，抽离 session-not-found 判定与恢复 patch 纯函数边界 |
 | `ea4d988b` | `agent-orchestrator.ts` 渐进拆分第七阶段 D | 部分完成 | 已新增 `queued-message.ts`，抽离 queueMessage SDK input 与本地持久化消息构造纯函数边界 |
+| `bcef4e29` | `agent-orchestrator.ts` 完成信号测试切口 | 部分完成 | 已新增 `completion-signal.test.ts`，锁定完成信号分支，并修复 catch / retry exhausted 重复完成风险 |
 
 ---
 
@@ -154,7 +159,7 @@
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [~] `agent-orchestrator.ts` 渐进拆分
-  现状：部分完成（第七阶段 D queueMessage 消息构造纯函数边界已完成；下一阶段建议先评估完成信号测试切口）。
+  现状：部分完成（完成信号测试切口已完成；下一阶段可在现有行为测试保护下评估完成信号薄包装 / 集中化）。
   已完成：
   SDK 环境变量构建与 CLI binary 路径解析已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`。
   已补充最小测试覆盖普通 Provider、Kimi Coding、代理、Windows Shell 与 CLI fallback 路径。
@@ -183,6 +188,10 @@
   已抽离 `isSessionNotFoundError()` 与 `createSessionNotFoundRecoveryPatch()`，覆盖 error message / stderr 识别、非 session-not-found 不误判、`resumeSessionId` 清空与上下文回填 prompt 写回。
   queueMessage 消息构造纯函数边界已抽离到 `apps/electron/src/main/lib/agent-orchestrator/queued-message.ts`。
   `queueMessage()` 仍保留在 `agent-orchestrator.ts` 中作为执行链路，继续在原位置执行防重记录、软中断、adapter 注入、注入成功后 append 和失败删除 uuid。
+  完成信号 mock adapter 行为测试已新增到 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts`。
+  已锁定并发拒绝、preflight channel_not_found、正常 result、assistant TypedError 不可重试、assistant 可重试 TypedError 耗尽、用户中止、catch 不可重试错误、catch 可重试错误耗尽、session-not-found retry 不提前 complete。
+  已修复 catch 不可重试错误完成后继续进入后续 attempts 的问题，避免重复 `onError()` / `onComplete()`。
+  已修复 catch / assistant 可重试错误耗尽时先走普通错误完成、再走 retry exhausted 完成的风险；现在耗尽后统一跳到 retry exhausted 分支，且进入该分支前先 flush 已累积 SDKMessage。
   已抽离 `createQueuedUserMessageInput()` 与 `createPersistedQueuedUserMessage()`，覆盖 preset uuid 优先、未传 preset 自动生成、空字符串 preset 按旧语义回退自动生成、`priority: 'now'`、`session_id` 和 `_createdAt`。
   已补充最小测试覆盖 task 状态追踪、Watchdog idle 检查、inbox 优先、summary fallback、resume query replay 过滤、compact_boundary 持久化与会话失活停止。
   已补充权限分派测试覆盖 bypassPermissions 前置守卫、AskUser 不受模式影响、plan 模式允许/拒绝策略、ExitPlan approve / deny / 动态切换语义、auto 委托、Write 大内容保护、Bash allowlist 边界和 `.context` Markdown 路径边界。
@@ -191,10 +200,11 @@
   已补充错误消息构造测试覆盖 TypedError metadata / 文本格式、prompt_too_long 固定文案、普通 catch 错误和 retry exhausted。
   已补充会话恢复测试覆盖 error message / stderr 识别、非命中不误判和恢复 patch 语义。
   已补充 queueMessage 构造测试覆盖 preset uuid 优先、自动生成 uuid、空字符串 preset 回退、priority 固定 `now`、SDK input `session_id`、持久化消息 `_createdAt`。
+  已补充完成信号行为测试覆盖 `callbacks.onComplete()` opts、完成前持久化状态、retry exhausted 单次完成和 session-not-found retry 不提前完成。
   未完成：
-  主执行循环中完成信号等近执行链路仍在 `agent-orchestrator.ts`。
+  主执行循环中完成信号薄包装 / 集中化仍未抽离。
   第七阶段后续计划：
-  先评估完成信号测试切口并补 orchestrator 级行为测试，再考虑集中化完成信号。
+  在现有 completion-signal 行为测试保护下，评估是否只抽完成信号薄包装；不要迁移 Teams、IPC、权限分派、错误恢复或 queueMessage 执行链路。
   关键文件：
   `apps/electron/src/main/lib/agent-orchestrator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`
@@ -206,8 +216,9 @@
   `apps/electron/src/main/lib/agent-orchestrator/agent-error-message.ts`
   `apps/electron/src/main/lib/agent-orchestrator/session-recovery.ts`
   `apps/electron/src/main/lib/agent-orchestrator/queued-message.ts`
+  `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts`
   建议：
-  下一阶段进入完成信号测试切口评估，继续保持 adapter 注入、持久化、错误恢复和完成回调顺序不变。
+  下一阶段进入完成信号薄包装 / 集中化评估，继续保持 adapter 注入、持久化、错误恢复和完成回调顺序不变。
 
 - [ ] `feishu-bridge.ts` 拆分
   现状：未完成。
@@ -285,19 +296,19 @@
 
 ### 当前推荐的下一个阶段
 
-`agent-orchestrator.ts` 完成信号测试切口评估
+`agent-orchestrator.ts` 完成信号薄包装 / 集中化评估
 
 原因：
 - `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界、PermissionToolDispatcher 权限分派边界、SDK 消息持久化、上下文回填、错误消息构造、session-not-found 恢复和 queueMessage 消息构造纯函数边界
-- 完成信号横跨并发拒绝、preflight、用户中止、不可重试错误、重试耗尽和正常 result 分支，不能直接集中化
-- 下一阶段应先补 mock adapter 驱动的 orchestrator 行为测试，锁定 `callbacks.onComplete()` 的 opts、消息持久化数量和 session-not-found retry 不提前 complete
+- 完成信号已新增 mock adapter 行为测试，覆盖核心成功、失败、中止、retry exhausted 和 session-not-found retry 分支
+- 下一阶段可在行为测试保护下评估是否抽完成信号薄包装；仍不应迁移 Teams、IPC、权限分派、SDK 消息持久化、session-not-found 恢复或 queueMessage 执行链路
 
 ### 建议切分顺序
 
-1. 只读评估现有 `callbacks.onComplete()` 分支，列出每个分支的触发条件、opts 和持久化前置条件。
-2. 新增最小 orchestrator 级测试 harness（mock adapter + event bus + session callbacks），先覆盖不需要真实 SDK 的分支。
-3. 锁定并发拒绝、preflight TypedError、用户中止、不可重试 TypedError、retry exhausted、正常 result 的完成回调语义。
-4. 测试稳定后再决定是否抽完成信号薄包装；没有足够行为测试前不要迁移执行链路。
+1. 先复跑 `completion-signal.test.ts`，确认现有完成信号行为基线稳定。
+2. 评估是否只抽一个极薄的完成信号 helper，输入必须显式包含 messages / opts，不读取或修改执行链路状态。
+3. 如需抽离，只替换重复 `callbacks.onComplete(...)` 调用包装，不移动 append、persist、retry、session-not-found、Teams 或 queueMessage 顺序。
+4. 抽离后继续用现有 completion-signal 测试锁定 opts、完成次数和完成前持久化状态。
 
 ### 起点文件
 
@@ -306,6 +317,7 @@
 - `apps/electron/src/main/lib/agent-orchestrator/session-recovery.ts`
 - `apps/electron/src/main/lib/agent-orchestrator/agent-error-message.ts`
 - `apps/electron/src/main/lib/agent-orchestrator/context-rehydration.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts`
 
 ### 下次启动提示词
 
@@ -318,17 +330,17 @@
 4. /Users/zq/Desktop/ai-projs/posp/RV-Insights/improve/2026-05-08-full-stack-optimization-review.md
 
 当前状态：
-- 最新功能提交：ea4d988b refactor(agent): 拆分队列消息构造边界
+- 最新功能提交：bcef4e29 test(agent): 锁定完成信号行为
 - 最新文档同步提交：以 `git log --oneline -1` 为准（本次 docs(improve) 同步提交）
-- 当前 Electron 版本：@rv-insights/electron@0.0.38
+- 当前 Electron 版本：@rv-insights/electron@0.0.39
 - `.DS_Store` 仍可能是未跟踪文件，不要纳入提交
 
-请继续下一阶段：`agent-orchestrator.ts` 完成信号测试切口评估。
+请继续下一阶段：`agent-orchestrator.ts` 完成信号薄包装 / 集中化评估。
 
 本阶段范围：
-1. 先只读评估 `callbacks.onComplete()` 所有分支，列出触发条件、opts 和持久化前置条件。
-2. 先补 orchestrator 级 mock adapter 行为测试，再考虑完成信号薄包装；不要直接迁移执行链路。
-3. 不移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用或 queueMessage 注入 / append 顺序。
+1. 先复跑 `completion-signal.test.ts`，确认完成信号行为基线稳定。
+2. 只评估 / 抽取极薄完成信号 helper；不要迁移执行链路状态、append、persist、retry 或错误恢复。
+3. 不移动 Teams、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用或 queueMessage 注入 / append 顺序。
 4. 继续保持小步提交：补测试、运行 `typecheck` / `build:main` / `git diff --check`，递增受影响包 patch 版本，更新优化文档并创建独立 commit。
 ```
 
@@ -348,7 +360,7 @@
 - `ipc.ts` 高耦合 handlers 拆分：
   `channel`、`settings`、`agent`、`pipeline`、`bot-hub`、`quick-task`
 - `agent-orchestrator.ts` 已完成的已提交子边界：
-  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`、`PermissionToolDispatcher`、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界、session-not-found 恢复纯函数边界、queueMessage 消息构造纯函数边界
+  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`、`PermissionToolDispatcher`、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界、session-not-found 恢复纯函数边界、queueMessage 消息构造纯函数边界、完成信号行为测试切口
 
 ### 部分完成
 
@@ -357,11 +369,11 @@
 - `ipc.ts` 拆分
   关键高耦合 handlers 已完成；`chat`、`environment`、`installer`、`proxy`、`memory`、`chat tool`、`system prompt`、`github release` 等基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 - `agent-orchestrator.ts` 渐进拆分
-  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界、session-not-found 恢复纯函数边界、queueMessage 消息构造纯函数边界；完成信号仍待后续测试切口评估
+  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界、session-not-found 恢复纯函数边界、queueMessage 消息构造纯函数边界、完成信号行为测试切口；完成信号薄包装 / 集中化仍待评估
 
 ### 未完成
 
-- `agent-orchestrator.ts` 后续阶段：完成信号测试切口
+- `agent-orchestrator.ts` 后续阶段：完成信号薄包装 / 集中化评估
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试
 - 索引缓存
