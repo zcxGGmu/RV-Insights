@@ -12,8 +12,7 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的提交：`04d0de59`
-- 最新已纳入进度同步的功能提交：`e5e9abbb`
+- 最新已纳入进度同步的功能提交：`953ce3c6`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -36,7 +35,7 @@
 | `0efb2156` | `ipc.ts` 拆分第二阶段（settings） | 部分完成 | 已新增 `ipc/settings-handlers.ts` 并迁移 `USER_PROFILE` / `SETTINGS` / `APP_ICON` 注册，`ipc.ts` settings 逻辑已独立收口 |
 | `e5e9abbb` | `ipc.ts` 拆分第三阶段（agent） | 部分完成 | 已新增 `ipc/agent-handlers.ts` 并迁移 `AGENT_IPC_CHANNELS` 注册，`ipc.ts` 中 agent 逻辑已独立收口 |
 | `04d0de59` | 文档基线同步 | 已完成 | 已将第三阶段提交状态同步进优化文档，作为第四阶段开发前基线 |
-| `待提交` | `ipc.ts` 拆分第四阶段 A（pipeline） | 部分完成 | 已新增 `ipc/pipeline-handlers.ts` 并迁移 `PIPELINE_IPC_CHANNELS` 注册，机器人相关 handlers 仍留在 `ipc.ts` |
+| `953ce3c6` | `ipc.ts` 拆分第四阶段 A（pipeline） | 部分完成 | 已新增 `ipc/pipeline-handlers.ts` 并迁移 `PIPELINE_IPC_CHANNELS` 注册，机器人相关 handlers 仍留在 `ipc.ts` |
 
 ---
 
