@@ -12,9 +12,9 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入提交的功能提交：`e4d43c72`
+- 最新已纳入提交的功能提交：`76004751`
 - 最新文档基线同步提交：当前 `docs(improve)` 提交（以 `git log --oneline -1` 为准）
-- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.36`
+- 当前已提交 Electron 包版本：`@rv-insights/electron@0.0.37`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -24,17 +24,18 @@
 
 ### 最新功能提交状态
 
-第七阶段 B 错误 SDKMessage 构造纯函数边界已通过独立提交落地：
+第七阶段 C session-not-found 恢复纯函数边界已通过独立提交落地：
 
 - `42cceeda` `refactor(agent): 拆分 SDK 消息持久化边界`
 - `efa806e3` `docs(improve): 同步 SDK 消息持久化提交基线`
 - `45a7ad62` `refactor(agent): 拆分上下文回填边界`
 - `e4d43c72` `refactor(agent): 拆分错误消息构造边界`
+- `76004751` `refactor(agent): 拆分会话恢复边界`
 
 当前总览：
-- 已完成：凭证竞态、secret 暴露收口、标题敏感日志清理、AgentView 会话级订阅收敛、Provider 超时、全局搜索流式化、`ipc.ts` 高耦合 handlers 拆分、`agent-orchestrator.ts` 错误消息构造在内的已落地子边界拆分。
+- 已完成：凭证竞态、secret 暴露收口、标题敏感日志清理、AgentView 会话级订阅收敛、Provider 超时、全局搜索流式化、`ipc.ts` 高耦合 handlers 拆分、`agent-orchestrator.ts` 会话恢复在内的已落地子边界拆分。
 - 部分完成：`safeStorage` 降级告警可视化、`ipc.ts` 基础/工具类 handlers 拆分、`agent-orchestrator.ts` 渐进拆分。
-- 未完成：`agent-orchestrator.ts` session-not-found 恢复 patch、queueMessage 构造与完成信号后续拆分评估，`feishu-bridge.ts` 拆分、Chat 自动重试、索引缓存、IPC 输入验证、质量 CI、Lint / Format、版本递增校验、测试基线补强、JSONL 轮转、搜索体验统一、恢复策略统一。
+- 未完成：`agent-orchestrator.ts` queueMessage 构造与完成信号后续拆分评估，`feishu-bridge.ts` 拆分、Chat 自动重试、索引缓存、IPC 输入验证、质量 CI、Lint / Format、版本递增校验、测试基线补强、JSONL 轮转、搜索体验统一、恢复策略统一。
 
 当前第七阶段状态：
 - 已完成主执行循环剩余职责评估，并将可拆边界写入 `tasks/todo.md`。
@@ -42,22 +43,24 @@
 - `agent-orchestrator.ts` 中 `buildContextPrompt()` 已保留为薄包装，只负责读取 `getAgentSessionSDKMessages()`、注入配置目录名、日志与返回 prompt。
 - 7B 已新增 `agent-error-message.ts`，抽离 TypedError、catch 普通错误 / prompt_too_long、retry exhausted 的 SDK assistant error message 构造纯函数。
 - `agent-orchestrator.ts` 中 preflight、assistant TypedError、catch 错误、retry exhausted 分支只替换对象构造，append / callbacks / retry_failed 事件顺序未移动。
-- 未移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 错误恢复链路、queueMessage 持久化语义或完成信号。
+- 7C 已新增 `session-recovery.ts`，抽离 session-not-found 判定与恢复 patch 纯函数。
+- `agent-orchestrator.ts` 中 session-not-found 分支只替换无副作用判定 / patch 构造；`updateAgentSessionMeta()`、`persistSDKMessages()`、accumulator 清理和 retry `break/continue` 仍在原位置。
+- 未移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、queueMessage 持久化语义或完成信号。
 
 当前不要纳入提交：
 - `.DS_Store`
 
 已完成验证：
-- `bun test apps/electron/src/main/lib/agent-orchestrator/agent-error-message.test.ts apps/electron/src/main/lib/agent-orchestrator/context-rehydration.test.ts`：12 pass / 0 fail / 30 expect
+- `bun test apps/electron/src/main/lib/agent-orchestrator/session-recovery.test.ts apps/electron/src/main/lib/agent-orchestrator/agent-error-message.test.ts apps/electron/src/main/lib/agent-orchestrator/context-rehydration.test.ts`：16 pass / 0 fail / 36 expect
 - `bun run --filter='@rv-insights/electron' typecheck`：通过
 - `bun run --filter='@rv-insights/electron' build:main`：通过
 - `git diff --check`：通过
 
 ### 下次启动快速接力
 
-1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第七阶段 B 错误消息构造边界提交已在当前分支。
-2. 继续第七阶段 C：session-not-found 判定 / 恢复 patch 纯函数边界。
-3. 本阶段只抽 `isSessionNotFoundError()` 和“生成恢复后的 prompt / resumeSessionId patch”等无副作用逻辑；`updateAgentSessionMeta()`、`persistSDKMessages()`、`accumulatedMessages.length = 0` 与 retry `continue/break` 仍留在主循环原位置。
+1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认第七阶段 C 会话恢复边界提交已在当前分支。
+2. 继续第七阶段 D：`queueMessage()` 消息构造纯函数边界。
+3. 本阶段只抽排队消息 SDK input / 持久化消息构造；`interrupt`、`adapter.sendQueuedMessage()`、`appendSDKMessages()` 的顺序保持不变，继续维持“adapter 注入成功后才 append 用户消息”的现有语义。
 4. 继续保持不移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、queueMessage 持久化语义或完成信号。
 5. 每完成独立阶段仍需执行：
    `bun run --filter='@rv-insights/electron' typecheck`、
@@ -94,6 +97,7 @@
 | `42cceeda` | `agent-orchestrator.ts` 渐进拆分第六阶段 | 部分完成 | 已新增 `sdk-message-persistence.ts`，抽离 SDK message 筛选、累积准备、时间戳 / duration metadata 纯函数边界 |
 | `45a7ad62` | `agent-orchestrator.ts` 渐进拆分第七阶段 A | 部分完成 | 已新增 `context-rehydration.ts`，抽离上下文回填 prompt 构造与工具摘要纯函数边界 |
 | `e4d43c72` | `agent-orchestrator.ts` 渐进拆分第七阶段 B | 部分完成 | 已新增 `agent-error-message.ts`，抽离错误 SDKMessage 构造纯函数边界 |
+| `76004751` | `agent-orchestrator.ts` 渐进拆分第七阶段 C | 部分完成 | 已新增 `session-recovery.ts`，抽离 session-not-found 判定与恢复 patch 纯函数边界 |
 
 ---
 
@@ -136,7 +140,7 @@
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [~] `agent-orchestrator.ts` 渐进拆分
-  现状：部分完成（第七阶段 B 错误 SDKMessage 构造纯函数边界已完成；下一阶段建议抽 session-not-found 判定 / 恢复 patch 纯函数）。
+  现状：部分完成（第七阶段 C session-not-found 恢复纯函数边界已完成；下一阶段建议抽 `queueMessage()` 消息构造纯函数）。
   已完成：
   SDK 环境变量构建与 CLI binary 路径解析已抽离到 `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`。
   已补充最小测试覆盖普通 Provider、Kimi Coding、代理、Windows Shell 与 CLI fallback 路径。
@@ -160,15 +164,19 @@
   错误 SDKMessage 构造纯函数边界已抽离到 `apps/electron/src/main/lib/agent-orchestrator/agent-error-message.ts`。
   preflight、assistant TypedError、catch 普通错误 / prompt_too_long、retry exhausted 分支仍在原位置调用 `appendSDKMessages()` 与 callbacks，只把对象字面量替换为纯函数返回值。
   已抽离 `formatTypedErrorContent()`、`createTypedErrorSDKMessage()`、`createCatchErrorSDKMessage()` 与 `createRetryExhaustedSDKMessage()`，覆盖 TypedError metadata、无标题文本格式、prompt_too_long 专用文案、普通 catch 错误和 retry exhausted 文案。
+  session-not-found 恢复纯函数边界已抽离到 `apps/electron/src/main/lib/agent-orchestrator/session-recovery.ts`。
+  `prepareSessionNotFoundRecovery()` 仍保留在 `agent-orchestrator.ts` 中作为副作用薄包装，继续在原位置清理 `sdkSessionId`、flush 累积消息、清理 accumulator 并返回 retry reason。
+  已抽离 `isSessionNotFoundError()` 与 `createSessionNotFoundRecoveryPatch()`，覆盖 error message / stderr 识别、非 session-not-found 不误判、`resumeSessionId` 清空与上下文回填 prompt 写回。
   已补充最小测试覆盖 task 状态追踪、Watchdog idle 检查、inbox 优先、summary fallback、resume query replay 过滤、compact_boundary 持久化与会话失活停止。
   已补充权限分派测试覆盖 bypassPermissions 前置守卫、AskUser 不受模式影响、plan 模式允许/拒绝策略、ExitPlan approve / deny / 动态切换语义、auto 委托、Write 大内容保护、Bash allowlist 边界和 `.context` Markdown 路径边界。
   已补充 SDK 消息持久化测试覆盖 replay、`user tool_result`、SDK 内部 user 文本、`compact_boundary`、普通 system、result duration、已有 `_createdAt` 不覆盖和 assistant `_channelModelId` 不原地修改。
   已补充上下文回填测试覆盖空历史、排除当前用户消息、最多 20 条、文本筛选、工具摘要、session_info 和摘要长度上限。
   已补充错误消息构造测试覆盖 TypedError metadata / 文本格式、prompt_too_long 固定文案、普通 catch 错误和 retry exhausted。
+  已补充会话恢复测试覆盖 error message / stderr 识别、非命中不误判和恢复 patch 语义。
   未完成：
-  主执行循环中 session-not-found 恢复、queueMessage 持久化语义和完成信号等近执行链路仍在 `agent-orchestrator.ts`。
+  主执行循环中 queueMessage 持久化语义和完成信号等近执行链路仍在 `agent-orchestrator.ts`。
   第七阶段后续计划：
-  先抽 session-not-found 判定 / 恢复 patch 纯函数与测试，再评估 queueMessage 构造和完成信号测试切口。
+  先抽 `queueMessage()` 消息构造纯函数与测试，再评估完成信号测试切口。
   关键文件：
   `apps/electron/src/main/lib/agent-orchestrator.ts`
   `apps/electron/src/main/lib/agent-orchestrator/sdk-environment.ts`
@@ -178,8 +186,9 @@
   `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`
   `apps/electron/src/main/lib/agent-orchestrator/context-rehydration.ts`
   `apps/electron/src/main/lib/agent-orchestrator/agent-error-message.ts`
+  `apps/electron/src/main/lib/agent-orchestrator/session-recovery.ts`
   建议：
-  下一阶段进入 session-not-found 判定 / 恢复 patch 纯函数边界，继续保持小步拆分和调用时机不变。
+  下一阶段进入 `queueMessage()` 消息构造纯函数边界，继续保持 adapter 注入、持久化和错误回滚顺序不变。
 
 - [ ] `feishu-bridge.ts` 拆分
   现状：未完成。
@@ -257,28 +266,25 @@
 
 ### 当前推荐的下一个阶段
 
-`agent-orchestrator.ts` 渐进拆分第七阶段 C（session-not-found 判定 / 恢复 patch 纯函数）
+`agent-orchestrator.ts` 渐进拆分第七阶段 D（queueMessage 消息构造纯函数）
 
 原因：
-- `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界、PermissionToolDispatcher 权限分派边界、SDK 消息持久化、上下文回填和错误消息构造纯函数边界
-- session-not-found 恢复仍同时包含错误识别、清除 `sdkSessionId`、改写 `queryOptions`、调用上下文回填、flush 累积消息与 accumulator 清理
-- 下一阶段应只抽无副作用判定 / patch 逻辑，不移动 `updateAgentSessionMeta()`、`persistSDKMessages()`、accumulator 清理或 retry 流程控制
+- `agent-orchestrator.ts` 已抽离 SDK 环境准备、重试错误分类、Teams 状态 / prompt / resume query 执行边界、PermissionToolDispatcher 权限分派边界、SDK 消息持久化、上下文回填、错误消息构造和 session-not-found 恢复纯函数边界
+- `queueMessage()` 仍同时构造 SDK queued message input、调用 adapter 注入、构造本地持久化用户消息、append JSONL 与失败时删除防重 uuid
+- 下一阶段应只抽 SDK input / 持久化消息构造纯函数，不移动 `interrupt()`、`adapter.sendQueuedMessage()`、`appendSDKMessages()` 顺序或失败回滚语义
 
 ### 建议切分顺序
 
-1. 新增 `session-recovery.test.ts`，覆盖 error message / stderr 的 session-not-found 识别、非 session-not-found 不误判
-2. 抽“恢复 patch”纯函数：输入当前 prompt/context、agentCwd、sessionId，输出清空 `resumeSessionId` 与回填后的 prompt
-3. 在 `agent-orchestrator.ts` 原 `prepareSessionNotFoundRecovery()` 中接入纯函数，副作用和流程控制保持原位置
+1. 新增 `queued-message.test.ts`，覆盖 preset uuid 优先、自动生成 uuid、priority 固定 `now`、SDK input `session_id`、持久化消息 `_createdAt`
+2. 抽 `createQueuedMessageInput()` 与 `createPersistedQueuedUserMessage()` 纯函数
+3. 在 `agent-orchestrator.ts` 原 `queueMessage()` 中接入纯函数，adapter 注入成功后才 append 用户消息的语义保持不变
 
 ### 起点文件
 
 - `apps/electron/src/main/lib/agent-orchestrator.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/context-rehydration.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/session-recovery.ts`
 - `apps/electron/src/main/lib/agent-orchestrator/agent-error-message.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/sdk-message-persistence.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/retryable-error-classifier.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/teams-coordinator.ts`
-- `apps/electron/src/main/lib/agent-orchestrator/permission-tool-dispatcher.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/context-rehydration.ts`
 
 ### 下次启动提示词
 
@@ -291,17 +297,17 @@
 4. /Users/zq/Desktop/ai-projs/posp/RV-Insights/improve/2026-05-08-full-stack-optimization-review.md
 
 当前状态：
-- 最新功能提交：e4d43c72 refactor(agent): 拆分错误消息构造边界
+- 最新功能提交：76004751 refactor(agent): 拆分会话恢复边界
 - 最新文档同步提交：以 `git log --oneline -1` 为准（本次 docs(improve) 同步提交）
-- 当前 Electron 版本：@rv-insights/electron@0.0.36
+- 当前 Electron 版本：@rv-insights/electron@0.0.37
 - `.DS_Store` 仍可能是未跟踪文件，不要纳入提交
 
-请继续第七阶段 C：`agent-orchestrator.ts` session-not-found 判定 / 恢复 patch 纯函数边界。
+请继续第七阶段 D：`agent-orchestrator.ts` queueMessage 消息构造纯函数边界。
 
 本阶段范围：
-1. 只抽 session-not-found 判定与恢复 patch 纯函数，不迁移副作用和流程控制。
-2. 覆盖 error message / stderr 识别、非 session-not-found 不误判、恢复 patch 清空 `resumeSessionId` 并使用上下文回填 prompt。
-3. 不移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、queueMessage 持久化语义或完成信号。
+1. 只抽 `queueMessage()` 的 SDK input / 本地持久化消息构造纯函数，不迁移 adapter 注入、append 或失败回滚顺序。
+2. 覆盖 preset uuid 优先、自动生成 uuid、priority 固定 `now`、SDK input `session_id`、持久化消息 `_createdAt`。
+3. 不移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用或完成信号。
 4. 继续保持小步提交：补测试、运行 `typecheck` / `build:main` / `git diff --check`，递增受影响包 patch 版本，更新优化文档并创建独立 commit。
 ```
 
@@ -321,7 +327,7 @@
 - `ipc.ts` 高耦合 handlers 拆分：
   `channel`、`settings`、`agent`、`pipeline`、`bot-hub`、`quick-task`
 - `agent-orchestrator.ts` 已完成的已提交子边界：
-  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`、`PermissionToolDispatcher`、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界
+  `EnvironmentBuilder`、`RetryableErrorClassifier`、`TeamsCoordinator` 状态 / prompt 边界、`TeamsCoordinator.runResumeQuery()`、`PermissionToolDispatcher`、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界、session-not-found 恢复纯函数边界
 
 ### 部分完成
 
@@ -330,11 +336,11 @@
 - `ipc.ts` 拆分
   关键高耦合 handlers 已完成；`chat`、`environment`、`installer`、`proxy`、`memory`、`chat tool`、`system prompt`、`github release` 等基础/工具类 handlers 仍留在主文件，后续按收益单独评估
 - `agent-orchestrator.ts` 渐进拆分
-  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界；session-not-found、queueMessage 和完成信号仍待后续拆分评估
+  已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界、session-not-found 恢复纯函数边界；queueMessage 和完成信号仍待后续拆分评估
 
 ### 未完成
 
-- `agent-orchestrator.ts` 后续阶段：session-not-found 判定 / patch、queueMessage 构造、完成信号测试切口
+- `agent-orchestrator.ts` 后续阶段：queueMessage 构造、完成信号测试切口
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试
 - 索引缓存
