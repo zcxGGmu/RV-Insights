@@ -12,7 +12,7 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入进度同步的功能提交：Phase 4 EnvironmentBuilder 待提交
+- 最新已纳入进度同步的功能提交：`78597ccc`
 - 同步日期：`2026-05-09`
 
 说明：
@@ -37,7 +37,7 @@
 | `04d0de59` | 文档基线同步 | 已完成 | 已将第三阶段提交状态同步进优化文档，作为第四阶段开发前基线 |
 | `953ce3c6` | `ipc.ts` 拆分第四阶段 A（pipeline） | 部分完成 | 已新增 `ipc/pipeline-handlers.ts` 并迁移 `PIPELINE_IPC_CHANNELS` 注册，机器人相关 handlers 仍留在 `ipc.ts` |
 | `37460087` | `ipc.ts` 拆分第四阶段 B（机器人） | 部分完成 | 已新增 `ipc/bot-hub-handlers.ts` 与 `ipc/quick-task-handlers.ts`，迁移 Feishu / DingTalk / WeChat / QuickTask 注册逻辑 |
-| Phase 4 EnvironmentBuilder 待提交 | `agent-orchestrator.ts` 渐进拆分第一阶段 | 部分完成 | 已新增 `agent-orchestrator/sdk-environment.ts`，迁移 SDK env 构建与 CLI 路径解析，并补最小测试 |
+| `78597ccc` | `agent-orchestrator.ts` 渐进拆分第一阶段 | 部分完成 | 已新增 `agent-orchestrator/sdk-environment.ts`，迁移 SDK env 构建与 CLI 路径解析，并补最小测试 |
 
 ---
 
