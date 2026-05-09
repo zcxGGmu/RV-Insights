@@ -22,6 +22,15 @@
 - 每完成一个阶段，先更新本文档，再继续下一阶段
 - 当前已知未跟踪文件：`.DS_Store`，不要纳入提交
 
+### 当前开发游标
+
+- 当前已完成到：`agent-orchestrator.ts` 渐进拆分第七阶段 C（session-not-found 判定 / 恢复 patch 纯函数边界）。
+- 当前最新功能提交：`76004751` `refactor(agent): 拆分会话恢复边界`。
+- 当前最新文档提交：以 `git log --oneline -1` 为准，最近一次主题应为 `docs(improve): 标注当前开发游标`。
+- 当前 Electron 版本：`@rv-insights/electron@0.0.37`。
+- 下次直接继续：第七阶段 D，抽 `queueMessage()` 的 SDK input / 本地持久化消息构造纯函数。
+- 下次不要做：不要移动 Teams、重试、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用、queueMessage 注入 / append 顺序或完成信号。
+
 ### 最新功能提交状态
 
 第七阶段 C session-not-found 恢复纯函数边界已通过独立提交落地：
