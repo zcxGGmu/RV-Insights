@@ -273,10 +273,13 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     callbacks?: PipelineServiceCallbacks,
     mode: 'execute' | 'read' = 'read',
   ): Promise<PipelineGraphController> {
-    const { ClaudePipelineNodeRunner } = await import('./pipeline-node-runner')
-    const runner = new ClaudePipelineNodeRunner({
-      channelId: meta.channelId,
+    const { RoutedPipelineNodeRunner } = await import('./pipeline-node-router')
+    const codexChannelId = process.env.RV_PIPELINE_CODEX_CHANNEL_ID?.trim() || undefined
+    const runner = new RoutedPipelineNodeRunner({
+      claudeChannelId: meta.channelId,
+      codexChannelId,
       workspaceId: meta.workspaceId,
+      codexBackend: process.env.RV_PIPELINE_CODEX_BACKEND === 'cli' ? 'cli' : 'sdk',
       onEvent: (event) => {
         if (event.type === 'node_start') {
           appendPipelineRecord(meta.id, {

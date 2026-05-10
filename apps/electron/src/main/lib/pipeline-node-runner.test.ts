@@ -53,6 +53,48 @@ describe('pipeline-node-runner', () => {
     expect(() => buildNodeExecutionResult('reviewer', '这不是 JSON')).toThrow(PipelineStructuredOutputError)
   })
 
+  test('explorer 支持解析 Markdown fenced JSON 输出', () => {
+    const result = buildNodeExecutionResult('explorer', [
+      '```json',
+      JSON.stringify({
+        summary: '已定位入口',
+        findings: ['Pipeline 启动失败发生在 explorer'],
+        keyFiles: ['apps/electron/src/main/lib/pipeline-node-runner.ts'],
+        nextSteps: ['增强结构化输出解析容错'],
+      }, null, 2),
+      '```',
+    ].join('\n'))
+
+    expect(result.summary).toBe('已定位入口')
+    expect(result.stageOutput).toMatchObject({
+      node: 'explorer',
+      findings: ['Pipeline 启动失败发生在 explorer'],
+      keyFiles: ['apps/electron/src/main/lib/pipeline-node-runner.ts'],
+      nextSteps: ['增强结构化输出解析容错'],
+    })
+  })
+
+  test('planner 支持解析前后带说明文字的 JSON 输出', () => {
+    const result = buildNodeExecutionResult('planner', [
+      '下面是结构化结果：',
+      JSON.stringify({
+        summary: '按三步修复',
+        steps: ['补测试', '修解析', '跑验证'],
+        risks: ['不能放宽字段校验'],
+        verification: ['bun test apps/electron/src/main/lib/pipeline-node-runner.test.ts'],
+      }, null, 2),
+      '以上为本阶段产物。',
+    ].join('\n'))
+
+    expect(result.summary).toBe('按三步修复')
+    expect(result.stageOutput).toMatchObject({
+      node: 'planner',
+      steps: ['补测试', '修解析', '跑验证'],
+      risks: ['不能放宽字段校验'],
+      verification: ['bun test apps/electron/src/main/lib/pipeline-node-runner.test.ts'],
+    })
+  })
+
   test('reviewer 缺少 approved 时不会被误判为驳回', () => {
     expect(() => buildNodeExecutionResult('reviewer', JSON.stringify({
       summary: '格式缺少 approved',

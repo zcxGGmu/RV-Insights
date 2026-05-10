@@ -333,88 +333,76 @@ function stringArraySchema(): Record<string, unknown> {
   }
 }
 
-function pipelineNodeOutputFormat(node: PipelineNodeKind): JsonSchemaOutputFormat {
-  const base = {
-    type: 'json_schema' as const,
-    name: `pipeline_${node}_artifact`,
-    description: `Pipeline ${node} structured artifact`,
-  }
-
+export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, unknown> {
   switch (node) {
     case 'explorer':
       return {
-        ...base,
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['summary', 'findings', 'keyFiles', 'nextSteps'],
-          properties: {
-            summary: { type: 'string' },
-            findings: stringArraySchema(),
-            keyFiles: stringArraySchema(),
-            nextSteps: stringArraySchema(),
-          },
+        type: 'object',
+        additionalProperties: false,
+        required: ['summary', 'findings', 'keyFiles', 'nextSteps'],
+        properties: {
+          summary: { type: 'string' },
+          findings: stringArraySchema(),
+          keyFiles: stringArraySchema(),
+          nextSteps: stringArraySchema(),
         },
       }
     case 'planner':
       return {
-        ...base,
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['summary', 'steps', 'risks', 'verification'],
-          properties: {
-            summary: { type: 'string' },
-            steps: stringArraySchema(),
-            risks: stringArraySchema(),
-            verification: stringArraySchema(),
-          },
+        type: 'object',
+        additionalProperties: false,
+        required: ['summary', 'steps', 'risks', 'verification'],
+        properties: {
+          summary: { type: 'string' },
+          steps: stringArraySchema(),
+          risks: stringArraySchema(),
+          verification: stringArraySchema(),
         },
       }
     case 'developer':
       return {
-        ...base,
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['summary', 'changes', 'tests', 'risks'],
-          properties: {
-            summary: { type: 'string' },
-            changes: stringArraySchema(),
-            tests: stringArraySchema(),
-            risks: stringArraySchema(),
-          },
+        type: 'object',
+        additionalProperties: false,
+        required: ['summary', 'changes', 'tests', 'risks'],
+        properties: {
+          summary: { type: 'string' },
+          changes: stringArraySchema(),
+          tests: stringArraySchema(),
+          risks: stringArraySchema(),
         },
       }
     case 'reviewer':
       return {
-        ...base,
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['approved', 'summary', 'issues'],
-          properties: {
-            approved: { type: 'boolean' },
-            summary: { type: 'string' },
-            issues: stringArraySchema(),
-          },
+        type: 'object',
+        additionalProperties: false,
+        required: ['approved', 'summary', 'issues'],
+        properties: {
+          approved: { type: 'boolean' },
+          summary: { type: 'string' },
+          issues: stringArraySchema(),
         },
       }
     case 'tester':
       return {
-        ...base,
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['summary', 'commands', 'results', 'blockers'],
-          properties: {
-            summary: { type: 'string' },
-            commands: stringArraySchema(),
-            results: stringArraySchema(),
-            blockers: stringArraySchema(),
-          },
+        type: 'object',
+        additionalProperties: false,
+        required: ['summary', 'commands', 'results', 'blockers'],
+        properties: {
+          summary: { type: 'string' },
+          commands: stringArraySchema(),
+          results: stringArraySchema(),
+          blockers: stringArraySchema(),
         },
       }
+  }
+}
+
+function pipelineNodeOutputFormat(node: PipelineNodeKind): JsonSchemaOutputFormat {
+  return {
+    type: 'json_schema',
+    name: `pipeline_${node}_artifact`,
+    description: `Pipeline ${node} structured artifact`,
+    schema: pipelineNodeJsonSchema(node),
   }
 }
 
@@ -426,14 +414,94 @@ function extractAssistantText(message: SDKAssistantMessage): string {
     .join('\n')
 }
 
-function parseJsonObject(text: string): Record<string, unknown> | null {
+function parseJsonObjectCandidate(text: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(text) as unknown
+    const parsed = JSON.parse(text.trim()) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
     return parsed as Record<string, unknown>
   } catch {
     return null
   }
+}
+
+function extractFencedJsonCandidates(text: string): string[] {
+  const candidates: string[] = []
+  const fencePattern = /```(?:json|JSON)?\s*([\s\S]*?)```/g
+  let match: RegExpExecArray | null
+
+  while ((match = fencePattern.exec(text)) !== null) {
+    const candidate = match[1]?.trim()
+    if (candidate) {
+      candidates.push(candidate)
+    }
+  }
+
+  return candidates
+}
+
+function extractBalancedJsonObjectCandidates(text: string): string[] {
+  const candidates: string[] = []
+  let start = -1
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+
+    if (start >= 0 && inString) {
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      if (start >= 0) {
+        inString = true
+      }
+      continue
+    }
+
+    if (char === '{') {
+      if (start < 0) {
+        start = index
+      }
+      depth += 1
+      continue
+    }
+
+    if (char === '}' && start >= 0) {
+      depth -= 1
+      if (depth === 0) {
+        candidates.push(text.slice(start, index + 1))
+        start = -1
+      }
+    }
+  }
+
+  return candidates
+}
+
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  const direct = parseJsonObjectCandidate(text)
+  if (direct) return direct
+
+  const candidates = [
+    ...extractFencedJsonCandidates(text),
+    ...extractBalancedJsonObjectCandidates(text),
+  ]
+
+  for (const candidate of candidates) {
+    const parsed = parseJsonObjectCandidate(candidate)
+    if (parsed) return parsed
+  }
+
+  return null
 }
 
 function readRequiredString(
