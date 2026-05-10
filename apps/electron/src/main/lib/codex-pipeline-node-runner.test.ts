@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from 'bun:test'
-import { mkdtempSync } from 'node:fs'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type {
@@ -22,7 +23,10 @@ mock.module('electron', () => ({
 const {
   CodexCliPipelineNodeRunner,
   CodexSdkPipelineNodeRunner,
+  SpawnCodexCliExecutor,
   buildCodexCliArgs,
+  buildWindowsTaskkillArgs,
+  killCodexCliProcessTree,
 } = await import('./codex-pipeline-node-runner')
 const { RoutedPipelineNodeRunner } = await import('./pipeline-node-router')
 const { resolvePipelineCodexChannelId } = await import('./pipeline-codex-settings')
@@ -49,6 +53,71 @@ function context(node: PipelineNodeKind): PipelineNodeExecutionContext {
     currentNode: node,
     reviewIteration: 0,
   }
+}
+
+async function waitForCondition(predicate: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const startedAt = Date.now()
+  while (Date.now() - startedAt < timeoutMs) {
+    if (predicate()) return
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+  throw new Error('等待条件超时')
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function createLongRunningCodexFixture(): {
+  codexPath: string
+  grandchildPidPath: string
+  tempDir: string
+} {
+  const tempDir = mkdtempSync(join(tmpdir(), 'rv-codex-cli-abort-'))
+  const grandchildPidPath = join(tempDir, 'grandchild.pid')
+  const grandchildPath = join(tempDir, 'grandchild.mjs')
+  const codexPath = join(tempDir, 'fake-codex')
+
+  writeFileSync(grandchildPath, [
+    "import { writeFileSync } from 'node:fs'",
+    `writeFileSync(${JSON.stringify(grandchildPidPath)}, String(process.pid), 'utf8')`,
+    "process.on('SIGTERM', () => {})",
+    'setInterval(() => {}, 1000)',
+  ].join('\n'), 'utf8')
+
+  writeFileSync(codexPath, [
+    `#!${process.execPath}`,
+    "import { spawn } from 'node:child_process'",
+    `const child = spawn(process.execPath, [${JSON.stringify(grandchildPath)}], { stdio: 'ignore' })`,
+    'child.unref()',
+    "process.on('SIGTERM', () => {})",
+    'process.stdin.resume()',
+    'setInterval(() => {}, 1000)',
+  ].join('\n'), 'utf8')
+  chmodSync(codexPath, 0o755)
+
+  return { codexPath, grandchildPidPath, tempDir }
+}
+
+function createProcessHandle(pid: number): {
+  child: ChildProcessWithoutNullStreams
+  killSignals: Array<NodeJS.Signals | number | undefined>
+} {
+  const killSignals: Array<NodeJS.Signals | number | undefined> = []
+  const child = {
+    pid,
+    kill: (signal?: NodeJS.Signals | number) => {
+      killSignals.push(signal)
+      return true
+    },
+  } as unknown as ChildProcessWithoutNullStreams
+
+  return { child, killSignals }
 }
 
 class FakeCodexCliExecutor implements CodexCliExecutor {
@@ -127,6 +196,76 @@ describe('codex-pipeline-node-runner', () => {
     ])
   })
 
+  test('killCodexCliProcessTree 在 Windows 下使用 taskkill 级联清理', () => {
+    const { child, killSignals } = createProcessHandle(1234)
+    const taskkillPids: number[] = []
+
+    killCodexCliProcessTree(child, {
+      platform: 'win32',
+      runTaskkill: (pid) => {
+        taskkillPids.push(pid)
+      },
+    })
+
+    expect(taskkillPids).toEqual([1234])
+    expect(killSignals).toEqual([])
+  })
+
+  test('buildWindowsTaskkillArgs 构造 Windows 级联终止参数', () => {
+    expect(buildWindowsTaskkillArgs(1234)).toEqual(['/F', '/T', '/PID', '1234'])
+  })
+
+  test('killCodexCliProcessTree 在 taskkill 失败后回退强杀直接子进程', () => {
+    const { child, killSignals } = createProcessHandle(1234)
+
+    killCodexCliProcessTree(child, {
+      platform: 'win32',
+      runTaskkill: () => {
+        throw new Error('taskkill failed')
+      },
+    })
+
+    expect(killSignals).toEqual(['SIGKILL'])
+  })
+
+  if (process.platform !== 'win32') {
+    test('SpawnCodexCliExecutor 通过 AbortSignal 强杀 Codex CLI 进程树', async () => {
+      const fixture = createLongRunningCodexFixture()
+      const controller = new AbortController()
+      let grandchildPid: number | undefined
+      const executor = new SpawnCodexCliExecutor(fixture.codexPath)
+      const runPromise = executor.run({
+        sessionId: 'session-abort',
+        prompt: '保持运行',
+        schema: { type: 'object' },
+        additionalDirectories: [],
+        env: {},
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'never',
+        signal: controller.signal,
+      })
+
+      try {
+        await waitForCondition(() => existsSync(fixture.grandchildPidPath))
+        const observedGrandchildPid = Number(readFileSync(fixture.grandchildPidPath, 'utf8'))
+        grandchildPid = observedGrandchildPid
+        expect(isProcessAlive(observedGrandchildPid)).toBe(true)
+
+        controller.abort()
+
+        await expect(runPromise).rejects.toThrow(/Codex CLI 执行已中止/)
+        await waitForCondition(() => !isProcessAlive(observedGrandchildPid))
+      } finally {
+        controller.abort()
+        if (grandchildPid && isProcessAlive(grandchildPid)) {
+          process.kill(grandchildPid, 'SIGKILL')
+        }
+        await runPromise.catch(() => undefined)
+        rmSync(fixture.tempDir, { recursive: true, force: true })
+      }
+    })
+  }
+
   test('Codex CLI runner 执行 developer 并解析结构化结果', async () => {
     const events: PipelineStreamEvent[] = []
     const executor = new FakeCodexCliExecutor(JSON.stringify({
@@ -158,6 +297,35 @@ describe('codex-pipeline-node-runner', () => {
       'text_delta',
       'node_complete',
     ])
+  })
+
+  test('Codex CLI runner 在 executor 返回后若 signal 已中止则不发送 node_complete', async () => {
+    const controller = new AbortController()
+    const events: PipelineStreamEvent[] = []
+    const executor: CodexCliExecutor = {
+      abort: () => {},
+      run: async () => {
+        controller.abort()
+        return {
+          finalResponse: JSON.stringify({
+            summary: '不应发布成功结果',
+            changes: [],
+            tests: [],
+            risks: [],
+          }),
+        }
+      },
+    }
+    const runner = new CodexCliPipelineNodeRunner({
+      executor,
+      onEvent: (event) => events.push(event),
+    })
+
+    await expect(runner.runNode('developer', {
+      ...context('developer'),
+      signal: controller.signal,
+    })).rejects.toThrow(/Pipeline 节点执行已中止/)
+    expect(events.map((event) => event.type)).toEqual(['node_start'])
   })
 
   test('Codex CLI runner 无渠道时保留凭证环境并过滤宿主会话环境', async () => {

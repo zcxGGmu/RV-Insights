@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -383,6 +383,61 @@ function extractAgentMessageText(value: unknown): string | null {
   return item.text
 }
 
+export interface CodexCliProcessTreeKillOptions {
+  platform?: NodeJS.Platform
+  runTaskkill?: (pid: number) => void
+  killProcessGroup?: (pid: number) => void
+}
+
+export function buildWindowsTaskkillArgs(pid: number): string[] {
+  return ['/F', '/T', '/PID', String(pid)]
+}
+
+function runWindowsTaskkill(pid: number): void {
+  execFileSync('taskkill', buildWindowsTaskkillArgs(pid), {
+    stdio: 'ignore',
+    timeout: 3_000,
+  })
+}
+
+function killPosixProcessGroup(pid: number): void {
+  process.kill(-pid, 'SIGKILL')
+}
+
+export function killCodexCliProcessTree(
+  child: ChildProcessWithoutNullStreams,
+  options: CodexCliProcessTreeKillOptions = {},
+): void {
+  const pid = child.pid
+  if (!pid) {
+    child.kill('SIGKILL')
+    return
+  }
+
+  try {
+    if ((options.platform ?? process.platform) === 'win32') {
+      const runTaskkill = options.runTaskkill ?? runWindowsTaskkill
+      runTaskkill(pid)
+      return
+    }
+
+    const killProcessGroup = options.killProcessGroup ?? killPosixProcessGroup
+    killProcessGroup(pid)
+  } catch {
+    try {
+      child.kill('SIGKILL')
+    } catch {
+      // 进程可能已经退出，忽略清理竞态。
+    }
+  }
+}
+
+function assertCodexCliRunNotAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new Error('Codex CLI 执行已中止')
+  }
+}
+
 export class SpawnCodexCliExecutor implements CodexCliExecutor {
   private readonly codexPath: string
   private readonly activeChildren = new Map<string, ChildProcessWithoutNullStreams>()
@@ -393,14 +448,17 @@ export class SpawnCodexCliExecutor implements CodexCliExecutor {
 
   abort(sessionId: string): void {
     const child = this.activeChildren.get(sessionId)
-    if (!child || child.killed) return
-    child.kill()
+    if (!child) return
+    killCodexCliProcessTree(child)
   }
 
   async run(input: CodexCliRunInput): Promise<CodexCliRunResult> {
+    assertCodexCliRunNotAborted(input.signal)
+
     const tempDir = await mkdtemp(join(tmpdir(), 'rv-pipeline-codex-'))
     const schemaPath = join(tempDir, 'schema.json')
     const outputPath = join(tempDir, 'final-response.json')
+    let handleAbort: (() => void) | undefined
 
     try {
       await writeFile(schemaPath, JSON.stringify(input.schema), 'utf8')
@@ -421,7 +479,7 @@ export class SpawnCodexCliExecutor implements CodexCliExecutor {
 
       const child = spawn(this.codexPath, args, {
         env,
-        signal: input.signal,
+        detached: process.platform !== 'win32',
       })
       this.activeChildren.set(input.sessionId, child)
 
@@ -429,6 +487,14 @@ export class SpawnCodexCliExecutor implements CodexCliExecutor {
       child.once('error', (error) => {
         spawnError = error
       })
+      handleAbort = () => {
+        killCodexCliProcessTree(child)
+      }
+      input.signal?.addEventListener('abort', handleAbort, { once: true })
+      if (input.signal?.aborted) {
+        killCodexCliProcessTree(child)
+        assertCodexCliRunNotAborted(input.signal)
+      }
       child.stdin.write(input.prompt)
       child.stdin.end()
 
@@ -467,15 +533,18 @@ export class SpawnCodexCliExecutor implements CodexCliExecutor {
       }
 
       const exit = await exitPromise
+      assertCodexCliRunNotAborted(input.signal)
       if (exit.code !== 0 || exit.signal) {
         const detail = exit.signal ? `signal ${exit.signal}` : `code ${exit.code ?? 1}`
         const stderr = Buffer.concat(stderrChunks).toString('utf8').trim()
         throw new Error(`Codex CLI 执行失败 (${detail})${stderr ? `: ${stderr}` : ''}`)
       }
 
+      assertCodexCliRunNotAborted(input.signal)
       const finalResponse = await readFile(outputPath, 'utf8')
         .then((content) => content.trim())
         .catch(() => finalResponseFromEvents.trim())
+      assertCodexCliRunNotAborted(input.signal)
       if (!finalResponse) {
         throw new Error('Codex CLI 未返回最终响应')
       }
@@ -483,6 +552,9 @@ export class SpawnCodexCliExecutor implements CodexCliExecutor {
       return { finalResponse }
     } finally {
       this.activeChildren.delete(input.sessionId)
+      if (handleAbort) {
+        input.signal?.removeEventListener('abort', handleAbort)
+      }
       await rm(tempDir, { recursive: true, force: true })
     }
   }
@@ -534,8 +606,14 @@ export class CodexCliPipelineNodeRunner implements PipelineNodeRunner {
       approvalPolicy: 'never',
       signal: context.signal,
     })
+    if (context.signal?.aborted) {
+      throw new Error('Pipeline 节点执行已中止')
+    }
 
     const result = buildNodeExecutionResult(node, response.finalResponse)
+    if (context.signal?.aborted) {
+      throw new Error('Pipeline 节点执行已中止')
+    }
     emitNodeResult(this.onEvent, node, result)
     return result
   }

@@ -12,9 +12,9 @@
 ## 2. 当前基线
 
 - 分支：`base/pipeline-v0`
-- 最新已纳入提交的功能提交：`b4717c7e`
-- 最新文档同步状态：当前工作树已更新本文档；若创建提交，建议使用 `docs(improve): 同步 Codex Pipeline 真实运行验证状态`
-- 当前工作树 Electron 包版本：`@rv-insights/electron@0.0.42`
+- 最新已纳入提交的功能提交：`67931450`
+- 最新文档同步状态：当前工作树正在同步 Codex CLI 长任务中止硬化；若创建提交，建议使用 `fix(pipeline): harden Codex CLI abort cleanup`
+- 当前工作树 Electron 包版本：`@rv-insights/electron@0.0.43`
 - 同步日期：`2026-05-10`
 
 说明：
@@ -24,13 +24,13 @@
 
 ### 当前开发游标
 
-- 当前已完成到：Pipeline `developer` / `reviewer` Codex 两阶段节点执行接入、Codex 渠道 UI / `settings.json` 持久化硬化，以及 SDK / CLI 真实 smoke 与 macOS arm64 打包路径验证。
-- 当前最新功能提交：`b4717c7e` `feat(pipeline): 接入 Codex 节点执行`。
-- 当前文档同步状态：本文档已更新到 Codex Pipeline 渠道配置硬化后；提交后以最新 `docs(improve)` 提交为准。
-- 当前 Electron 版本：`@rv-insights/electron@0.0.42`（工作树）。
+- 当前已完成到：Pipeline `developer` / `reviewer` Codex 两阶段节点执行接入、Codex 渠道 UI / `settings.json` 持久化硬化、SDK / CLI 真实 smoke、macOS arm64 打包路径验证，以及工作树中的 Codex CLI 长任务进程树中止硬化。
+- 当前最新功能提交：`67931450` `feat(pipeline): harden Codex channel settings`。
+- 当前文档同步状态：本文档正在更新到 Codex CLI abort 硬化后；提交后以最新功能提交为准。
+- 当前 Electron 版本：`@rv-insights/electron@0.0.43`（工作树）。
 - 当前开发运行状态：本次已用 `bun run dev` 启动 Electron 开发模式，Vite 为 `http://localhost:5173/`，Electron 进程 PID `76207`，日志在 `/tmp/rv-insights-dev.log`；下次重新开机或进程退出后需重新启动。
-- 下次直接继续：优先收口提交；若继续硬化，建议只做 CLI 长任务 abort / 进程树清理测试，或评估是否需要持久化 Codex `thread_id` 并用 `resumeThread()` 续接。
-- 下次第二优先级：如暂不继续 Pipeline Codex 硬化，再回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估；已有 orchestrator 级 mock adapter 行为测试，仍需保持完成回调、副作用和持久化顺序不变。
+- 下次直接继续：优先回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估；如产品需要跨节点 / 跨重启保留 Codex 对话上下文，再评估 Codex `thread_id` 持久化与 `resumeThread()` 续接。
+- 下次第二优先级：如继续 Pipeline Codex 硬化，先做 `thread_id` 续接产品决策，不要在没有明确需求时扩大持久化面。
 - 下次不要做：不要处理既有无关 `README.en.md` 删除或 `.DS_Store`；不要改变 Pipeline LangGraph 阶段顺序；不要把 `explorer` / `planner` / `tester` 迁到 Codex；不要移动 Teams、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用、queueMessage 注入 / append 顺序或未覆盖的执行链路。
 
 ### 2026-05-10 状态复核（Codex Pipeline 接入后）
@@ -71,6 +71,23 @@
 - 清理与恢复：CLI backend 具备 `AbortSignal` + session runner abort 基础清理，但未强制 kill 进程树；Pipeline 失败恢复仍是运行中节点失败落 `node_failed`，重启后的 running 会话落 `recovery_failed`，waiting_human 通过 checkpoint 恢复。
 - Electron 版本：本阶段因代码硬化递增到 `@rv-insights/electron@0.0.42`，`bun.lock` 已同步。
 
+### 2026-05-10 状态复核（Codex 渠道硬化提交后）
+
+- 最新提交：`67931450` `feat(pipeline): harden Codex channel settings`。
+- 提交内容：Pipeline Codex 渠道设置持久化、设置页选择、preflight 校验、runner 层拒绝、SDK / CLI backend 测试、`CODEX_THREAD_ID` 环境过滤、真实 smoke / 打包验证记录和 Electron 版本递增到 `0.0.42`。
+- 工作树：提交后仅剩既有无关 `README.en.md` 删除和未跟踪 `.DS_Store`；继续开发时不要处理或纳入提交，除非用户明确要求。
+- 当前已完成边界：Codex SDK 默认后端、CLI fallback、OpenAI/custom 渠道注入、本机 Codex auth 默认、非法 / disabled 渠道拒绝、macOS arm64 包内 native binary 验证均已完成。
+- 当前未完成边界：Codex 持久 `thread_id` 续接策略仍待产品决策；CLI 长任务进程树清理已在后续工作树阶段完成。
+
+### 2026-05-10 状态复核（Codex CLI 长任务中止硬化后）
+
+- 工作树：仍存在既有无关状态 `README.en.md` 删除和未跟踪 `.DS_Store`；不要纳入本阶段提交。
+- 功能代码：`SpawnCodexCliExecutor` 在 POSIX 下以独立进程组启动 Codex CLI，`AbortSignal` 或 `abort(sessionId)` 触发时强杀整个进程组；Windows 下使用 `taskkill /F /T /PID` 级联终止。
+- 测试覆盖：新增 POSIX 长任务测试，假的 Codex CLI 会派生忽略 `SIGTERM` 的孙进程，abort 后断言孙进程不再存活；新增 Windows `taskkill` 参数级测试和 late abort 不发布 `node_complete` 的回归测试。
+- Electron 版本：本阶段递增到 `@rv-insights/electron@0.0.43`，`bun.lock` 已同步。
+- 已完成验证：Pipeline / Codex / settings / preflight 相关测试 `69 pass / 0 fail`，Electron `typecheck`、`build:main`、`git diff --check` 均通过。
+- 当前剩余 Codex 韧性边界：是否持久化 Codex `thread_id` 并用 `resumeThread()` 续接仍是产品决策，不建议在没有明确需求时实现。
+
 ### 最新功能提交状态
 
 第七阶段 D queueMessage 消息构造纯函数边界、完成信号测试切口与 Pipeline Codex 节点执行接入已通过独立提交落地：
@@ -83,11 +100,12 @@
 - `ea4d988b` `refactor(agent): 拆分队列消息构造边界`
 - `bcef4e29` `test(agent): 锁定完成信号行为`
 - `b4717c7e` `feat(pipeline): 接入 Codex 节点执行`
+- `67931450` `feat(pipeline): harden Codex channel settings`
 
 当前总览：
-- 已完成：凭证竞态、secret 暴露收口、标题敏感日志清理、AgentView 会话级订阅收敛、Provider 超时、全局搜索流式化、`ipc.ts` 高耦合 handlers 拆分、`agent-orchestrator.ts` queueMessage 构造在内的已落地子边界拆分、完成信号 mock adapter 行为测试与重复完成信号修复、Pipeline `developer` / `reviewer` Codex SDK 默认后端与 CLI fallback 接入、Pipeline Codex 渠道 UI / 本地配置持久化、Codex SDK / CLI smoke、macOS arm64 打包产物 native binary 路径验证。
+- 已完成：凭证竞态、secret 暴露收口、标题敏感日志清理、AgentView 会话级订阅收敛、Provider 超时、全局搜索流式化、`ipc.ts` 高耦合 handlers 拆分、`agent-orchestrator.ts` queueMessage 构造在内的已落地子边界拆分、完成信号 mock adapter 行为测试与重复完成信号修复、Pipeline `developer` / `reviewer` Codex SDK 默认后端与 CLI fallback 接入、Pipeline Codex 渠道 UI / 本地配置持久化、Codex SDK / CLI smoke、macOS arm64 打包产物 native binary 路径验证、Codex CLI 长任务进程树中止硬化。
 - 部分完成：`safeStorage` 降级告警可视化、`ipc.ts` 基础/工具类 handlers 拆分、`agent-orchestrator.ts` 渐进拆分、Codex 运行韧性硬化。
-- 未完成：Codex 持久 `thread_id` 续接策略、CLI 长任务进程树清理测试，`agent-orchestrator.ts` 完成信号薄包装 / 集中化评估，`feishu-bridge.ts` 拆分、Chat 自动重试、索引缓存、IPC 输入验证、质量 CI、Lint / Format、版本递增校验、测试基线补强、JSONL 轮转、搜索体验统一、恢复策略统一。
+- 未完成：Codex 持久 `thread_id` 续接策略，`agent-orchestrator.ts` 完成信号薄包装 / 集中化评估，`feishu-bridge.ts` 拆分、Chat 自动重试、索引缓存、IPC 输入验证、质量 CI、Lint / Format、版本递增校验、测试基线补强、JSONL 轮转、搜索体验统一、恢复策略统一。
 
 当前 Pipeline Codex 接入状态：
 - `developer` / `reviewer` 默认走 `CodexSdkPipelineNodeRunner`，内部调用 `@openai/codex-sdk`。
@@ -97,7 +115,8 @@
 - `settings.json` 中的 `pipelineCodexChannelId` 可指定 OpenAI/custom 渠道给 Codex；旧配置字段缺失时保留 `RV_PIPELINE_CODEX_CHANNEL_ID` 兼容 fallback；`null` 表示显式使用本机 Codex auth；非 OpenAI/custom 或 disabled 渠道会显式报错。
 - Electron 依赖已加入 `@openai/codex-sdk@0.130.0` 和 `@openai/codex@0.130.0`；主进程 esbuild external 与 electron-builder files 已包含 Codex SDK / CLI 和平台 binary 包。
 - 已完成验证：Pipeline / Codex / settings / preflight 相关测试 `64 pass / 0 fail`、Electron `typecheck`、`build:main`、`git diff --check`；SDK backend 本机 Codex auth smoke、CLI fallback smoke、OpenAI/custom 注入 mock smoke、非法渠道拒绝 smoke、`dist:fast` 打包与包内 native binary 可执行性验证。
-- 仍可继续硬化：如需要跨节点 / 跨重启保留 Codex 对话上下文，可设计 Codex `thread_id` 持久化与 `resumeThread()` 续接；如需要更强停止保证，可补 CLI 长任务 abort / 进程树清理测试。
+- 本阶段新增：CLI fallback 长任务停止会清理 Codex CLI 进程树，避免只杀直接子进程后遗留工具子进程。
+- 仍可继续硬化：如需要跨节点 / 跨重启保留 Codex 对话上下文，可设计 Codex `thread_id` 持久化与 `resumeThread()` 续接。
 
 上一个 Agent 拆分阶段状态：
 - 已完成主执行循环剩余职责评估，并将可拆边界写入 `tasks/todo.md`。
@@ -136,10 +155,10 @@
 
 ### 下次启动快速接力
 
-1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认 `b4717c7e` Codex Pipeline 接入提交已在当前分支。
-2. Pipeline Codex 渠道选择 UI / 本地配置持久化、SDK / CLI smoke、打包产物 native binary 验证已在工作树完成；下次优先收口提交，注意排除 `README.en.md` 删除、`.DS_Store` 和 `apps/electron/out/`。
-3. 若继续 Codex 硬化，优先补 CLI 长任务 abort / 进程树清理测试，或评估是否需要 Codex `thread_id` 持久化与 `resumeThread()` 续接。
-4. 若不做 Codex 硬化，再回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估；已有 mock adapter 行为测试，下一步仍需保持所有 `onComplete()` opts 与持久化前置条件不变。
+1. 先复核 `tasks/lessons.md`、`tasks/todo.md` 和本文档，确认 `67931450` Codex Pipeline 渠道硬化提交已在当前分支。
+2. Pipeline Codex 渠道选择 UI / 本地配置持久化、SDK / CLI smoke、打包产物 native binary 验证已完成并提交；继续开发时排除 `README.en.md` 删除和 `.DS_Store`。
+3. Codex CLI 长任务 abort / 进程树清理已在工作树完成；若继续 Codex 硬化，只评估是否需要 Codex `thread_id` 持久化与 `resumeThread()` 续接。
+4. 优先回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估；已有 mock adapter 行为测试，下一步仍需保持所有 `onComplete()` opts 与持久化前置条件不变。
 5. OpenAI/custom 渠道注入已通过 mock client 验证；若要做真实外部渠道模型调用，应使用专门测试密钥和临时配置目录，避免污染用户正式配置。
 6. 每完成独立阶段仍需执行：
    `bun run --filter='@rv-insights/electron' typecheck`、
@@ -180,7 +199,8 @@
 | `ea4d988b` | `agent-orchestrator.ts` 渐进拆分第七阶段 D | 部分完成 | 已新增 `queued-message.ts`，抽离 queueMessage SDK input 与本地持久化消息构造纯函数边界 |
 | `bcef4e29` | `agent-orchestrator.ts` 完成信号测试切口 | 部分完成 | 已新增 `completion-signal.test.ts`，锁定完成信号分支，并修复 catch / retry exhausted 重复完成风险 |
 | `eb87453a` | README 架构文档完善 | 已完成 | 已补充项目定位、模块职责、核心流程图、数据存储、开发命令与贡献说明 |
-| `b4717c7e` | Pipeline Codex 节点执行接入 | 部分完成 | `developer` / `reviewer` 默认走 `@openai/codex-sdk`，保留 CLI fallback；渠道 UI / 本地配置硬化、真实 smoke 与打包路径验证已在工作树完成，持久 thread 续接和进程树清理策略仍可继续评估 |
+| `b4717c7e` | Pipeline Codex 节点执行接入 | 部分完成 | `developer` / `reviewer` 默认走 `@openai/codex-sdk`，保留 CLI fallback；渠道 UI / 本地配置硬化、真实 smoke、打包路径验证与 CLI 进程树清理已完成，持久 thread 续接仍可继续评估 |
+| `67931450` | Pipeline Codex 渠道硬化 | 已完成 | `pipelineCodexChannelId` 设置持久化、设置页选择、preflight / runner 拒绝、SDK / CLI backend 测试、真实 smoke、macOS arm64 打包路径验证和 `CODEX_THREAD_ID` 环境过滤已提交 |
 
 ---
 
@@ -223,7 +243,7 @@
   本轮先停止在第四阶段 B，转入下一个 P1 高收益目标前保持最小影响面。
 
 - [~] Pipeline `developer` / `reviewer` Codex 节点执行
-  现状：代码接入、渠道 UI / 本地配置持久化、真实 smoke、打包产物路径验证和自动化验证已完成；运行韧性仍可继续硬化。
+  现状：代码接入、渠道 UI / 本地配置持久化、真实 smoke、打包产物路径验证、CLI 长任务进程树中止和自动化验证已完成；仅剩持久 `thread_id` 续接是否必要的产品决策。
   已完成：
   `developer` / `reviewer` 默认走 `@openai/codex-sdk`，`explorer` / `planner` / `tester` 继续走 Claude Agent SDK 兼容链路。
   已保留 CLI fallback，可通过 `RV_PIPELINE_CODEX_BACKEND=cli` 使用 `codex exec --json --output-schema --output-last-message`。
@@ -237,10 +257,10 @@
   已完成渠道注入验证：`settings.json` 中的 OpenAI/custom Codex 渠道能注入 `apiKey`、`baseUrl`、`model` 到 Codex SDK；missing / disabled / 非 OpenAI/custom 渠道在 preflight 和 runner 层均被拒绝。
   已完成打包验证：`dist:fast` 生成 macOS arm64 DMG，包内 Codex SDK / CLI 主包和 `@openai/codex-darwin-arm64` native binary 均存在，binary 可执行且返回 `codex-cli 0.130.0`。
   已完成最小会话隔离硬化：Codex 子进程环境过滤宿主 `CODEX_THREAD_ID`，避免外层 Codex 会话 ID 泄入 Pipeline Codex 节点。
+  已完成 CLI 长任务中止硬化：POSIX 下 Codex CLI 独立进程组启动，abort 时强杀进程组；Windows 下使用 `taskkill /F /T /PID` 级联终止；late abort 不再发布 `node_complete`。
   代码审查第一轮发现本机 auth / disabled 渠道 / 编辑后残留三个边界问题，已修复并复审通过。
   未完成：
   尚未设计 Codex `thread_id` 持久化与 `resumeThread()` 续接；当前是每次 `runNode()` 新建 thread 的调用级隔离。
-  尚未补 CLI 长任务进程树清理测试；当前依赖 `AbortSignal` 和 runner `abort()` 清理直接子进程。
   关键文件：
   `apps/electron/src/main/lib/codex-pipeline-node-runner.ts`
   `apps/electron/src/main/lib/pipeline-node-router.ts`
@@ -250,7 +270,7 @@
   `apps/electron/src/main/lib/pipeline-codex-settings.ts`
   `apps/electron/src/renderer/components/settings/ChannelSettings.tsx`
   建议：
-  下一阶段优先收口提交；如继续 Codex 硬化，只评估 `thread_id` 续接或 CLI 长任务清理，暂不改变 LangGraph 阶段顺序。
+  下一阶段优先回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化；如继续 Codex 硬化，只评估 `thread_id` 续接，暂不改变 LangGraph 阶段顺序。
 
 - [~] `agent-orchestrator.ts` 渐进拆分
   现状：部分完成（完成信号测试切口已完成；下一阶段可在现有行为测试保护下评估完成信号薄包装 / 集中化）。
@@ -390,24 +410,31 @@
 
 ### 当前推荐的下一个阶段
 
-Pipeline Codex 阶段提交收口；如继续硬化，优先补 CLI 长任务 abort / 进程树清理测试。
+优先回到 `agent-orchestrator.ts`：评估完成信号薄包装 / 集中化。
+
+Codex 方向仅在产品明确需要跨节点 / 跨重启保留对话上下文时继续：设计持久 `thread_id` 与 `resumeThread()` 续接。
 
 原因：
 - `developer` / `reviewer` 的 Codex SDK / CLI 双后端已经接通，Codex 渠道 UI / `settings.json` 持久化也已落地并通过自动化测试。
 - 本机 Codex auth 下 SDK backend 和 CLI fallback 已完成 reviewer smoke，均返回符合 schema 的结构化 JSON。
 - OpenAI/custom 渠道注入已通过 mock Codex client 验证，避免在文档验证阶段泄露或消耗真实渠道密钥。
 - macOS arm64 `dist:fast` 已验证包内 Codex SDK / CLI 主包和 native binary 路径、权限、启动行为。
-- 当前剩余 Codex 硬化点已经从接入正确性转为运行韧性：持久 `thread_id` 续接是否必要，以及 CLI 长任务停止时是否需要进程树清理。
+- 渠道硬化阶段已经提交为 `67931450`，不需要重复做提交收口。
+- CLI 长任务停止已经补进程树清理；当前剩余 Codex 硬化点是持久 `thread_id` 续接是否必要。
 
 ### 建议切分顺序
 
-1. 先收口当前工作树提交，排除 `README.en.md` 删除、`.DS_Store` 和 `apps/electron/out/`。
-2. 如继续 Codex 韧性硬化，先补 CLI 长任务 abort 测试，再决定是否实现进程树清理。
-3. 如产品需要跨节点 / 跨重启保留 Codex 对话上下文，再设计 Codex `thread_id` 持久化与 `resumeThread()` 续接。
-4. 若不继续 Codex 硬化，回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估。
+1. 回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估。
+2. 如产品需要跨节点 / 跨重启保留 Codex 对话上下文，再设计 Codex `thread_id` 持久化与 `resumeThread()` 续接。
+3. 创建提交时继续排除 `README.en.md` 删除和 `.DS_Store`。
 
 ### 起点文件
 
+- `apps/electron/src/main/lib/agent-orchestrator.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/agent-error-message.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/session-recovery.ts`
+- `apps/electron/src/main/lib/agent-orchestrator/queued-message.ts`
 - `apps/electron/src/main/lib/codex-pipeline-node-runner.ts`
 - `apps/electron/src/main/lib/pipeline-node-router.ts`
 - `apps/electron/src/main/lib/pipeline-service.ts`
@@ -430,10 +457,10 @@ Pipeline Codex 阶段提交收口；如继续硬化，优先补 CLI 长任务 ab
 4. /Users/zq/Desktop/ai-projs/posp/RV-Insights/improve/2026-05-08-full-stack-optimization-review.md
 
 当前状态：
-- 最新功能提交：b4717c7e feat(pipeline): 接入 Codex 节点执行
-- 文档同步状态：当前工作树中的 improve/2026-05-08-full-stack-optimization-review.md 已更新；若已提交，以最新 docs(improve) 提交为准
-- 当前 Electron 版本：@rv-insights/electron@0.0.42（工作树）
-- 既有无关工作树状态：README.en.md 删除、.DS_Store 未跟踪；打包产物 apps/electron/out/ 也不要纳入提交
+- 最新功能提交：67931450 feat(pipeline): harden Codex channel settings
+- 文档同步状态：当前工作树中的 improve/2026-05-08-full-stack-optimization-review.md 已更新到 Codex CLI 长任务中止硬化后；若已提交，以最新功能提交为准
+- 当前 Electron 版本：@rv-insights/electron@0.0.43（工作树）
+- 既有无关工作树状态：README.en.md 删除、.DS_Store 未跟踪；不要处理或纳入提交
 
 已完成：
 - Pipeline developer/reviewer Codex 两阶段接入已完成并提交。
@@ -442,15 +469,15 @@ Pipeline Codex 阶段提交收口；如继续硬化，优先补 CLI 长任务 ab
 - meta.channelId 只代表 Claude 渠道；Codex 默认使用本机 Codex auth / CODEX_API_KEY。
 - settings.json 的 pipelineCodexChannelId 可指定 OpenAI/custom 渠道；字段缺失时保留 RV_PIPELINE_CODEX_CHANNEL_ID fallback；null 表示显式本机 Codex auth；非 OpenAI/custom 或 disabled 渠道必须显式报错。
 
-请继续下一阶段：Pipeline Codex 阶段提交收口；如继续硬化，优先做 CLI 长任务 abort / 进程树清理测试。
+请继续下一阶段：优先回到 agent-orchestrator.ts 完成信号薄包装 / 集中化评估；如产品明确需要跨节点 / 跨重启保留 Codex 对话上下文，再评估 Codex thread_id 持久化与 resumeThread() 续接。
 
 本阶段范围：
 1. 当前 SDK backend 本机 Codex auth smoke、CLI fallback smoke、OpenAI/custom 注入 mock smoke、非法渠道拒绝和 macOS arm64 打包路径验证都已完成。
 2. 当前已新增最小隔离硬化：Codex 子进程环境过滤宿主 CODEX_THREAD_ID。
-3. 如继续 Codex 硬化，不要改变 LangGraph 阶段顺序，不要把 explorer/planner/tester 迁到 Codex。
-4. 完成前运行相关 Pipeline 测试、`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:main`、`git diff --check`，递增受影响包 patch 版本，更新进度文档。
+3. Codex CLI 长任务停止已补进程树清理；继续 Codex 硬化时不要改变 LangGraph 阶段顺序，不要把 explorer/planner/tester 迁到 Codex。
+4. 完成前运行相关测试、`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:main`、`git diff --check`，递增受影响包 patch 版本，更新进度文档。
 
-如果暂不做 Codex 硬化，再回到 `agent-orchestrator.ts` 完成信号薄包装 / 集中化评估；已有 completion-signal 行为测试，不能移动 Teams、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用或 queueMessage 注入 / append 顺序。
+回到 `agent-orchestrator.ts` 时，已有 completion-signal 行为测试，不能移动 Teams、IPC、权限分派、SDK 消息持久化调用时机、session-not-found 恢复副作用或 queueMessage 注入 / append 顺序。
 ```
 
 ---
@@ -476,6 +503,8 @@ Pipeline Codex 阶段提交收口；如继续硬化，优先补 CLI 长任务 ab
   `pipelineCodexChannelId`、设置页选择、本机 Codex auth 默认、显式本机 auth 不回退旧 env、settings 优先 / env fallback、启动前 preflight
 - Pipeline Codex 真实运行与打包路径验证：
   SDK backend 本机 Codex auth smoke、CLI fallback smoke、OpenAI/custom 注入 mock smoke、非法渠道拒绝 smoke、macOS arm64 `dist:fast` 与包内 native binary 可执行性验证
+- Pipeline Codex CLI 长任务中止硬化：
+  POSIX 独立进程组、Windows `taskkill /F /T /PID` 级联终止、忽略 `SIGTERM` 的孙进程回归测试、late abort 不发布 `node_complete`
 
 ### 部分完成
 
@@ -486,12 +515,11 @@ Pipeline Codex 阶段提交收口；如继续硬化，优先补 CLI 长任务 ab
 - `agent-orchestrator.ts` 渐进拆分
   已提交 SDK 环境、重试分类、Teams 状态 / prompt / resume query 执行边界、权限工具分派边界、SDK 消息持久化纯函数边界、上下文回填纯函数边界、错误 SDKMessage 构造纯函数边界、session-not-found 恢复纯函数边界、queueMessage 消息构造纯函数边界、完成信号行为测试切口；完成信号薄包装 / 集中化仍待评估
 - Codex 运行韧性硬化
-  当前每次 `runNode()` 新建 Codex thread，具备调用级隔离；已过滤宿主 `CODEX_THREAD_ID`；持久 `thread_id` 续接和 CLI 进程树清理仍待按产品需要评估
+  当前每次 `runNode()` 新建 Codex thread，具备调用级隔离；已过滤宿主 `CODEX_THREAD_ID`；CLI 进程树清理已完成；持久 `thread_id` 续接仍待按产品需要评估
 
 ### 未完成
 
 - Pipeline Codex 持久 `thread_id` 续接策略
-- Pipeline Codex CLI 长任务进程树清理测试
 - `agent-orchestrator.ts` 后续阶段：完成信号薄包装 / 集中化评估
 - `feishu-bridge.ts` 拆分
 - Chat 自动重试
