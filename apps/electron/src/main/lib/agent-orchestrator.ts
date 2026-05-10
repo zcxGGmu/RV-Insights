@@ -63,6 +63,7 @@ import {
   createPersistedQueuedUserMessage,
   createQueuedUserMessageInput,
 } from './agent-orchestrator/queued-message'
+import { sendCompletionSignal } from './agent-orchestrator/completion-signal'
 
 // ===== 类型定义 =====
 
@@ -485,8 +486,12 @@ export class AgentOrchestrator {
     // 0. 并发保护
     if (this.activeSessions.has(sessionId)) {
       console.warn(`[Agent 编排] 会话 ${sessionId} 正在处理中，拒绝新请求`)
-      callbacks.onError('上一条消息仍在处理中，请稍候再试')
-      callbacks.onComplete([], { startedAt: input.startedAt })
+      sendCompletionSignal({
+        callbacks,
+        error: '上一条消息仍在处理中，请稍候再试',
+        messages: [],
+        startedAt: input.startedAt,
+      })
       return
     }
 
@@ -500,8 +505,12 @@ export class AgentOrchestrator {
       try { appendSDKMessages(sessionId, [errorSDKMsg]) } catch (e) {
         console.error('[Agent 编排] 持久化 preflight error 失败:', e)
       }
-      callbacks.onError(errorContent)
-      callbacks.onComplete([], { startedAt: input.startedAt })
+      sendCompletionSignal({
+        callbacks,
+        error: errorContent,
+        messages: [],
+        startedAt: input.startedAt,
+      })
     }
 
     // 1. Windows 平台：检查 Shell 环境可用性
@@ -977,7 +986,11 @@ export class AgentOrchestrator {
           // 等待期间如果会话被中止，退出
           if (!this.activeSessions.has(sessionId)) {
             this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
-            callbacks.onComplete(getAgentSessionMessages(sessionId), { startedAt: streamStartedAt })
+            sendCompletionSignal({
+              callbacks,
+              messages: () => getAgentSessionMessages(sessionId),
+              startedAt: streamStartedAt,
+            })
             return
           }
         }
@@ -1135,7 +1148,11 @@ export class AgentOrchestrator {
                 if (!loopAbort.signal.aborted) loopAbort.abort()
                 await watchdogDone
                 try { updateAgentSessionMeta(sessionId, {}) } catch { /* 忽略 */ }
-                callbacks.onComplete(getAgentSessionMessages(sessionId), { startedAt: streamStartedAt })
+                sendCompletionSignal({
+                  callbacks,
+                  messages: () => getAgentSessionMessages(sessionId),
+                  startedAt: streamStartedAt,
+                })
                 return
               }
             }
@@ -1300,7 +1317,12 @@ export class AgentOrchestrator {
           }
 
           // 发送完成信号
-          callbacks.onComplete(getAgentSessionMessages(sessionId), { startedAt: streamStartedAt, resultSubtype: capturedResultSubtype })
+          sendCompletionSignal({
+            callbacks,
+            messages: () => getAgentSessionMessages(sessionId),
+            startedAt: streamStartedAt,
+            options: { resultSubtype: capturedResultSubtype },
+          })
 
           break  // 成功完成，退出重试循环
 
@@ -1321,7 +1343,12 @@ export class AgentOrchestrator {
             this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
             // 持久化中断状态到会话 meta
             try { updateAgentSessionMeta(sessionId, { stoppedByUser: wasStoppedByUser }) } catch { /* 会话可能已删除 */ }
-            callbacks.onComplete(getAgentSessionMessages(sessionId), { stoppedByUser: wasStoppedByUser, startedAt: streamStartedAt })
+            sendCompletionSignal({
+              callbacks,
+              messages: () => getAgentSessionMessages(sessionId),
+              startedAt: streamStartedAt,
+              options: { stoppedByUser: wasStoppedByUser },
+            })
             return
           }
 
@@ -1402,8 +1429,12 @@ export class AgentOrchestrator {
             })
           }
 
-          callbacks.onError(userFacingError)
-          callbacks.onComplete(getAgentSessionMessages(sessionId), { startedAt: streamStartedAt })
+          sendCompletionSignal({
+            callbacks,
+            error: userFacingError,
+            messages: () => getAgentSessionMessages(sessionId),
+            startedAt: streamStartedAt,
+          })
 
           // 根据错误类型决定是否保留 sdkSessionId
           const shouldClearSession = !apiError || apiError.statusCode >= 500
@@ -1435,8 +1466,12 @@ export class AgentOrchestrator {
         })
         appendSDKMessages(sessionId, [retryErrorSDKMsg])
 
-        callbacks.onError(`重试 ${MAX_AUTO_RETRIES} 次后仍然失败: ${lastRetryableError}`)
-        callbacks.onComplete(getAgentSessionMessages(sessionId), { startedAt: streamStartedAt })
+        sendCompletionSignal({
+          callbacks,
+          error: `重试 ${MAX_AUTO_RETRIES} 次后仍然失败: ${lastRetryableError}`,
+          messages: () => getAgentSessionMessages(sessionId),
+          startedAt: streamStartedAt,
+        })
       }
 
     } finally {

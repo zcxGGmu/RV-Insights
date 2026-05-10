@@ -230,7 +230,7 @@ RV-Insights/
 | `@rv-insights/shared` | `0.1.25` | 共享类型、IPC 通道常量、配置、能力 diff、Pipeline 状态工具 |
 | `@rv-insights/core` | `0.2.11` | Anthropic / OpenAI / Google Provider 适配器、SSE reader、Shiki 高亮 |
 | `@rv-insights/ui` | `0.1.3` | `CodeBlock`、`MermaidBlock`、平滑流式 hooks 等共享 UI |
-| `@rv-insights/electron` | `0.0.43` | 完整 Electron 桌面应用 |
+| `@rv-insights/electron` | `0.0.44` | 完整 Electron 桌面应用 |
 
 依赖方向保持单向：
 
