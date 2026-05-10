@@ -23,6 +23,23 @@ const workspace: AgentWorkspace = {
 }
 
 describe('resolvePipelineRunConfig', () => {
+  test('未配置 Codex 渠道时允许使用本机 Codex auth', () => {
+    const result = resolvePipelineRunConfig({
+      fallbackChannelId: 'channel-1',
+      fallbackWorkspaceId: 'workspace-1',
+      channels: [channel],
+      workspaces: [workspace],
+    })
+
+    expect(result).toEqual({
+      ok: true,
+      config: {
+        channelId: 'channel-1',
+        workspaceId: 'workspace-1',
+      },
+    })
+  })
+
   test('优先使用 session 自带配置，并返回可执行 config', () => {
     const result = resolvePipelineRunConfig({
       sessionChannelId: 'channel-1',
@@ -74,6 +91,54 @@ describe('resolvePipelineRunConfig', () => {
       ok: false,
       error: {
         message: '渠道 OpenAI 不是 Agent 兼容供应商，无法用于 Pipeline。',
+        settingsTab: 'channels',
+      },
+    })
+  })
+
+  test('Pipeline Codex 可使用 OpenAI 或 Custom 渠道', () => {
+    const openAiChannel: Channel = {
+      ...channel,
+      id: 'codex-openai',
+      name: 'OpenAI Codex',
+      provider: 'openai',
+    }
+    const customChannel: Channel = {
+      ...channel,
+      id: 'codex-custom',
+      name: 'Custom Codex',
+      provider: 'custom',
+    }
+
+    expect(resolvePipelineRunConfig({
+      fallbackChannelId: 'channel-1',
+      fallbackWorkspaceId: 'workspace-1',
+      pipelineCodexChannelId: 'codex-openai',
+      channels: [channel, openAiChannel],
+      workspaces: [workspace],
+    }).ok).toBe(true)
+    expect(resolvePipelineRunConfig({
+      fallbackChannelId: 'channel-1',
+      fallbackWorkspaceId: 'workspace-1',
+      pipelineCodexChannelId: 'codex-custom',
+      channels: [channel, customChannel],
+      workspaces: [workspace],
+    }).ok).toBe(true)
+  })
+
+  test('Pipeline Codex 非 OpenAI 兼容渠道会被阻止启动', () => {
+    const result = resolvePipelineRunConfig({
+      fallbackChannelId: 'channel-1',
+      fallbackWorkspaceId: 'workspace-1',
+      pipelineCodexChannelId: 'channel-1',
+      channels: [channel],
+      workspaces: [workspace],
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: 'Pipeline Codex 渠道 Anthropic 不是 OpenAI 兼容供应商。',
         settingsTab: 'channels',
       },
     })

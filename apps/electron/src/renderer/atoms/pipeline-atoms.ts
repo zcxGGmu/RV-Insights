@@ -11,6 +11,7 @@ import type { SessionIndicatorStatus } from './agent-atoms'
 
 export const pipelineSessionsAtom = atom<PipelineSessionMeta[]>([])
 export const currentPipelineSessionIdAtom = atom<string | null>(null)
+export const pipelineCodexChannelIdAtom = atom<string | null>(null)
 
 export type PipelineSidebarViewMode = 'active' | 'archived'
 export const pipelineSidebarViewModeAtom = atom<PipelineSidebarViewMode>('active')

@@ -13,12 +13,20 @@ import { Plus, Pencil, Trash2, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@rv-insights/shared'
 import type { Channel } from '@rv-insights/shared'
 import { getChannelLogo, RVInsightsLogo } from '@/lib/model-logo'
 import { agentChannelIdAtom, agentModelIdAtom, agentChannelIdsAtom } from '@/atoms/agent-atoms'
+import { pipelineCodexChannelIdAtom } from '@/atoms/pipeline-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
 import { SettingsSection, SettingsCard, SettingsRow } from './primitives'
+import {
+  CODEX_LOCAL_AUTH_VALUE,
+  isPipelineCodexCompatibleChannel,
+  resolvePipelineCodexSelection,
+  shouldClearPipelineCodexChannel,
+} from './pipeline-codex-channel-settings'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +51,7 @@ export function ChannelSettings(): React.ReactElement {
   const [agentChannelId, setAgentChannelId] = useAtom(agentChannelIdAtom)
   const [, setAgentModelId] = useAtom(agentModelIdAtom)
   const [agentChannelIds, setAgentChannelIds] = useAtom(agentChannelIdsAtom)
+  const [pipelineCodexChannelId, setPipelineCodexChannelId] = useAtom(pipelineCodexChannelIdAtom)
   const setGlobalChannels = useSetAtom(channelsAtom)
   const [deleteTarget, setDeleteTarget] = React.useState<Channel | null>(null)
   const [encryptionAvailable, setEncryptionAvailable] = React.useState(true)
@@ -71,6 +80,10 @@ export function ChannelSettings(): React.ReactElement {
       const list = await window.electronAPI.listChannels()
       setChannels(list)
       setGlobalChannels(list) // 同步到全局缓存
+      if (shouldClearPipelineCodexChannel(pipelineCodexChannelId, list)) {
+        setPipelineCodexChannelId(null)
+        await window.electronAPI.updateSettings({ pipelineCodexChannelId: null })
+      }
       return list
     } catch (error) {
       console.error('[渠道设置] 加载渠道列表失败:', error)
@@ -78,7 +91,7 @@ export function ChannelSettings(): React.ReactElement {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pipelineCodexChannelId, setPipelineCodexChannelId, setGlobalChannels])
 
   React.useEffect(() => {
     loadChannels()
@@ -105,10 +118,15 @@ export function ChannelSettings(): React.ReactElement {
         setAgentChannelId(null)
         setAgentModelId(null)
       }
+      const shouldClearPipelineCodexChannel = pipelineCodexChannelId === target.id
+      if (shouldClearPipelineCodexChannel) {
+        setPipelineCodexChannelId(null)
+      }
 
       await window.electronAPI.updateSettings({
         agentChannelIds: newIds,
         ...(agentChannelId === target.id && { agentChannelId: undefined, agentModelId: undefined }),
+        ...(shouldClearPipelineCodexChannel && { pipelineCodexChannelId: null }),
       })
 
       await loadChannels()
@@ -134,6 +152,11 @@ export function ChannelSettings(): React.ReactElement {
           setAgentChannelId(null)
           setAgentModelId(null)
           await window.electronAPI.updateSettings({ agentChannelId: undefined, agentModelId: undefined })
+        }
+
+        if (pipelineCodexChannelId === channel.id) {
+          setPipelineCodexChannelId(null)
+          await window.electronAPI.updateSettings({ pipelineCodexChannelId: null })
         }
       }
 
@@ -166,6 +189,14 @@ export function ChannelSettings(): React.ReactElement {
     await window.electronAPI.updateSettings({ agentChannelIds: newIds }).catch(console.error)
   }
 
+  const handlePipelineCodexChannelChange = async (value: string): Promise<void> => {
+    const channelId = value === CODEX_LOCAL_AUTH_VALUE ? null : value
+    setPipelineCodexChannelId(channelId)
+    await window.electronAPI.updateSettings({
+      pipelineCodexChannelId: channelId,
+    }).catch(console.error)
+  }
+
   /** 表单保存回调 */
   const handleFormSaved = async (): Promise<void> => {
     setViewMode('list')
@@ -193,6 +224,11 @@ export function ChannelSettings(): React.ReactElement {
   // Agent 兼容渠道（已启用）：Anthropic / DeepSeek / Kimi API / Kimi Coding Plan
   const agentCapableChannels = channels.filter(
     (c) => isAgentCompatibleProvider(c.provider) && c.enabled
+  )
+  const pipelineCodexCapableChannels = channels.filter(isPipelineCodexCompatibleChannel)
+  const pipelineCodexSelection = resolvePipelineCodexSelection(
+    pipelineCodexChannelId,
+    pipelineCodexCapableChannels,
   )
 
   // 列表视图
@@ -240,7 +276,42 @@ export function ChannelSettings(): React.ReactElement {
         )}
       </SettingsSection>
 
-      {/* 区块二：Agent 供应商 */}
+      {/* 区块二：Pipeline Codex 供应商 */}
+      <SettingsSection
+        title="Pipeline Codex 供应商"
+        description="配置 developer / reviewer 节点使用的 Codex OpenAI 兼容渠道"
+      >
+        <SettingsCard>
+          <SettingsRow
+            label="Codex 认证来源"
+            description={pipelineCodexSelection === CODEX_LOCAL_AUTH_VALUE
+              ? '使用本机 Codex 登录状态或 CODEX_API_KEY'
+              : '使用已保存的 OpenAI 兼容渠道凭证'
+            }
+          >
+            <Select
+              value={pipelineCodexSelection}
+              onValueChange={(value) => { void handlePipelineCodexChannelChange(value) }}
+            >
+              <SelectTrigger className="w-[260px] max-w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={CODEX_LOCAL_AUTH_VALUE}>
+                  本机 Codex auth / CODEX_API_KEY
+                </SelectItem>
+                {pipelineCodexCapableChannels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name} · {PROVIDER_LABELS[channel.provider]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+
+      {/* 区块三：Agent 供应商 */}
       <SettingsSection
         title="Agent 供应商"
         description="启用 Agent 模式可用的供应商，支持同时开启多个渠道，在 Agent 模式下可直接切换"

@@ -6,6 +6,7 @@ import type { PipelineGateRequest, PipelineNodeKind, PipelineRecord, PipelineSes
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
   pipelinePendingGatesAtom,
+  pipelineCodexChannelIdAtom,
   getPipelineLiveOutput,
   hasPipelineLiveOutputNode,
   pipelineLiveOutputAtom,
@@ -44,6 +45,7 @@ export function PipelineView({
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const fallbackChannelId = useAtomValue(agentChannelIdAtom)
   const fallbackWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
+  const pipelineCodexChannelId = useAtomValue(pipelineCodexChannelIdAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
   const setSessions = useSetAtom(pipelineSessionsAtom)
   const setStateMap = useSetAtom(pipelineSessionStateMapAtom)
@@ -184,6 +186,7 @@ export function PipelineView({
       sessionWorkspaceId: session?.workspaceId,
       fallbackChannelId: fallbackChannelId ?? undefined,
       fallbackWorkspaceId: fallbackWorkspaceId ?? undefined,
+      pipelineCodexChannelId: pipelineCodexChannelId ?? undefined,
       channels,
       workspaces,
     })
@@ -276,7 +279,7 @@ export function PipelineView({
           : item
       )))
     })
-  }, [channels, fallbackChannelId, fallbackWorkspaceId, session, sessionId, setDraftSessionIds, setErrors, setPendingGates, setSessions, setStateMap, state, workspaces])
+  }, [channels, fallbackChannelId, fallbackWorkspaceId, pipelineCodexChannelId, session, sessionId, setDraftSessionIds, setErrors, setPendingGates, setSessions, setStateMap, state, workspaces])
 
   const handleStop = React.useCallback(async (): Promise<void> => {
     await window.electronAPI.stopPipeline(sessionId)

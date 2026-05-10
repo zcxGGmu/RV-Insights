@@ -17,6 +17,7 @@ export interface ResolvePipelineRunConfigInput {
   sessionWorkspaceId?: string
   fallbackChannelId?: string
   fallbackWorkspaceId?: string
+  pipelineCodexChannelId?: string
   channels: Channel[]
   workspaces: AgentWorkspace[]
 }
@@ -34,6 +35,37 @@ export type ResolvePipelineRunConfigResult =
 export function resolvePipelineRunConfig(
   input: ResolvePipelineRunConfigInput,
 ): ResolvePipelineRunConfigResult {
+  if (input.pipelineCodexChannelId) {
+    const codexChannel = input.channels.find((item) => item.id === input.pipelineCodexChannelId)
+    if (!codexChannel) {
+      return {
+        ok: false,
+        error: {
+          message: 'Pipeline Codex 渠道不存在，请重新选择。',
+          settingsTab: 'channels',
+        },
+      }
+    }
+    if (!codexChannel.enabled) {
+      return {
+        ok: false,
+        error: {
+          message: `Pipeline Codex 渠道 ${codexChannel.name} 已被禁用，请启用后再启动。`,
+          settingsTab: 'channels',
+        },
+      }
+    }
+    if (codexChannel.provider !== 'openai' && codexChannel.provider !== 'custom') {
+      return {
+        ok: false,
+        error: {
+          message: `Pipeline Codex 渠道 ${codexChannel.name} 不是 OpenAI 兼容供应商。`,
+          settingsTab: 'channels',
+        },
+      }
+    }
+  }
+
   const channelId = input.sessionChannelId ?? input.fallbackChannelId
   if (!channelId) {
     return {

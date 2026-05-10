@@ -37,6 +37,8 @@ import {
   readPipelineArtifactContent,
   resolvePipelineSessionArtifactsDir,
 } from './pipeline-artifact-service'
+import { getSettings } from './settings-service'
+import { resolvePipelineCodexChannelId } from './pipeline-codex-settings'
 
 export interface PipelineServiceCallbacks {
   onEvent?: (payload: PipelineStreamPayload) => void
@@ -274,7 +276,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     mode: 'execute' | 'read' = 'read',
   ): Promise<PipelineGraphController> {
     const { RoutedPipelineNodeRunner } = await import('./pipeline-node-router')
-    const codexChannelId = process.env.RV_PIPELINE_CODEX_CHANNEL_ID?.trim() || undefined
+    const codexChannelId = resolvePipelineCodexChannelId(getSettings())
     const runner = new RoutedPipelineNodeRunner({
       claudeChannelId: meta.channelId,
       codexChannelId,

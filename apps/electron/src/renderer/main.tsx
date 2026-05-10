@@ -52,7 +52,7 @@ import { chatToolsAtom } from './atoms/chat-tool-atoms'
 import { feishuBotStatesAtom } from './atoms/feishu-atoms'
 import { dingtalkBotStatesAtom } from './atoms/dingtalk-atoms'
 import { currentConversationIdAtom, channelsAtom, channelsLoadedAtom, selectedModelAtom } from './atoms/chat-atoms'
-import { currentPipelineSessionIdAtom, pipelinePendingGatesAtom, pipelineSessionStateMapAtom, pipelineSessionsAtom } from './atoms/pipeline-atoms'
+import { currentPipelineSessionIdAtom, pipelineCodexChannelIdAtom, pipelinePendingGatesAtom, pipelineSessionStateMapAtom, pipelineSessionsAtom } from './atoms/pipeline-atoms'
 import { appModeAtom } from './atoms/app-mode'
 import type { FeishuBotBridgeState, FeishuBridgeState, FeishuNotificationSentPayload, DingTalkBotBridgeState, DingTalkBridgeState } from '@rv-insights/shared'
 import { Toaster } from './components/ui/sonner'
@@ -143,6 +143,7 @@ function AgentSettingsInitializer(): null {
   const setEffort = useSetAtom(agentEffortAtom)
   const setMaxBudget = useSetAtom(agentMaxBudgetUsdAtom)
   const setMaxTurns = useSetAtom(agentMaxTurnsAtom)
+  const setPipelineCodexChannelId = useSetAtom(pipelineCodexChannelIdAtom)
 
   const setAgentSettingsReady = useSetAtom(agentSettingsReadyAtom)
   const setChannels = useSetAtom(channelsAtom)
@@ -232,6 +233,22 @@ function AgentSettingsInitializer(): null {
         setMaxTurns(settings.agentMaxTurns)
       }
 
+      const pipelineCodexChannel = settings.pipelineCodexChannelId
+        ? channels.find((channel) => channel.id === settings.pipelineCodexChannelId)
+        : null
+      const pipelineCodexChannelValid = pipelineCodexChannel
+        ? pipelineCodexChannel.enabled && (pipelineCodexChannel.provider === 'openai' || pipelineCodexChannel.provider === 'custom')
+        : false
+      if (settings.pipelineCodexChannelId && pipelineCodexChannelValid) {
+        setPipelineCodexChannelId(settings.pipelineCodexChannelId)
+      } else if (settings.pipelineCodexChannelId) {
+        console.warn('[AgentSettings] pipelineCodexChannelId 指向不可用的 Codex 渠道，清除')
+        setPipelineCodexChannelId(null)
+        window.electronAPI.updateSettings({ pipelineCodexChannelId: null }).catch(console.error)
+      } else {
+        setPipelineCodexChannelId(null)
+      }
+
       // 加载工作区列表并恢复上次选中的工作区
       window.electronAPI.listAgentWorkspaces().then((workspaces) => {
         setAgentWorkspaces(workspaces)
@@ -251,7 +268,7 @@ function AgentSettingsInitializer(): null {
       console.error(err)
       setAgentSettingsReady(true) // 即使出错也标记就绪，避免永远阻塞
     })
-  }, [setAgentChannelId, setAgentModelId, setAgentChannelIds, setAgentWorkspaces, setCurrentWorkspaceId, setPermissionMode, setThinking, setEffort, setMaxBudget, setMaxTurns, setChannels, setChannelsLoaded, setAgentSettingsReady])
+  }, [setAgentChannelId, setAgentModelId, setAgentChannelIds, setAgentWorkspaces, setCurrentWorkspaceId, setPermissionMode, setThinking, setEffort, setMaxBudget, setMaxTurns, setPipelineCodexChannelId, setChannels, setChannelsLoaded, setAgentSettingsReady])
 
   // 工作区切换时重置能力缓存，预加载基线
   useEffect(() => {

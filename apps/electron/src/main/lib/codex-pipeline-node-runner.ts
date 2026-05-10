@@ -203,6 +203,10 @@ function resolveCodexRuntime(channelId?: string): CodexRuntimeOptions {
     throw new Error(`Codex 节点需要 OpenAI 或 Custom 渠道，当前为 ${channel.provider}`)
   }
 
+  if (!channel.enabled) {
+    throw new Error(`Codex 渠道已禁用: ${channel.name}`)
+  }
+
   const enabledModel = channel.models.find((model) => model.enabled)
   return {
     apiKey: decryptApiKey(channelId),
@@ -215,6 +219,7 @@ async function buildCodexEnv(): Promise<Record<string, string>> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (key.startsWith('ANTHROPIC_')) continue
+    if (key === 'CODEX_THREAD_ID') continue
     if (value !== undefined) {
       env[key] = value
     }
