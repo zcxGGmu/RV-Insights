@@ -57,6 +57,10 @@ import {
   splitLongContent,
 } from './feishu-message'
 import type { ToolSummary, FormattedAgentResult, WorkspaceListItem } from './feishu-message'
+import {
+  formatFeishuChatHistoryContext,
+  parseFeishuChatMessageContent,
+} from './feishu-chat-history'
 
 // ===== 类型定义 =====
 
@@ -1139,7 +1143,7 @@ class FeishuBridge {
 
         // 获取群聊历史消息作为上下文
         const chatHistory = await this.fetchChatHistory(chatId)
-        const historyContext = this.formatChatHistoryContext(chatHistory)
+        const historyContext = formatFeishuChatHistoryContext(chatHistory)
 
         const parts: string[] = []
         if (contextParts.length > 0) parts.push(contextParts.join(' '))
@@ -1597,7 +1601,7 @@ class FeishuBridge {
         const createTime = Number(item.create_time ?? 0)
 
         // 解析消息内容
-        const content = this.parseChatMessageContent(msgType, item.body?.content)
+        const content = parseFeishuChatMessageContent(msgType, item.body?.content)
 
         messages.push({
           messageId: item.message_id ?? '',
@@ -1619,59 +1623,6 @@ class FeishuBridge {
     } catch (error) {
       console.warn('[飞书 Bridge] 获取聊天历史异常:', error)
       return []
-    }
-  }
-
-  /**
-   * 解析消息内容为可读文本
-   */
-  private parseChatMessageContent(msgType: string, rawContent?: string): string {
-    if (!rawContent) return '[空消息]'
-
-    try {
-      switch (msgType) {
-        case 'text': {
-          const parsed = JSON.parse(rawContent) as { text?: string }
-          return parsed.text ?? ''
-        }
-        case 'post': {
-          // 富文本消息，提取纯文本
-          const parsed = JSON.parse(rawContent) as {
-            title?: string
-            content?: Array<Array<{ tag: string; text?: string }>>
-          }
-          const parts: string[] = []
-          if (parsed.title) parts.push(parsed.title)
-          for (const line of parsed.content ?? []) {
-            const lineText = line
-              .filter((el) => el.tag === 'text' && el.text)
-              .map((el) => el.text)
-              .join('')
-            if (lineText) parts.push(lineText)
-          }
-          return parts.join('\n') || '[富文本消息]'
-        }
-        case 'interactive':
-          return '[交互卡片]'
-        case 'image':
-          return '[图片]'
-        case 'file':
-          return '[文件]'
-        case 'audio':
-          return '[语音]'
-        case 'media':
-          return '[视频]'
-        case 'sticker':
-          return '[表情]'
-        case 'share_chat':
-          return '[群名片]'
-        case 'share_user':
-          return '[个人名片]'
-        default:
-          return `[${msgType}]`
-      }
-    } catch {
-      return `[${msgType}]`
     }
   }
 
@@ -1698,29 +1649,6 @@ class FeishuBridge {
         msg.senderName = 'Bot'
       }
     }
-  }
-
-  /**
-   * 将消息历史格式化为 Agent 可读的上下文文本
-   */
-  private formatChatHistoryContext(messages: FeishuChatMessage[]): string {
-    if (messages.length === 0) return ''
-
-    const lines = messages.map((msg) => {
-      const time = new Date(msg.createTime).toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-      const sender = msg.senderName ?? msg.senderId.slice(0, 8)
-      const role = msg.senderType === 'app' ? 'Bot' : sender
-      return `[${time}] ${role}: ${msg.content}`
-    })
-
-    return [
-      '--- 群聊历史消息（最近） ---',
-      ...lines,
-      '--- 历史消息结束 ---',
-    ].join('\n')
   }
 
   /**
@@ -1761,7 +1689,7 @@ class FeishuBridge {
                 }
               }
 
-              const formatted = this.formatChatHistoryContext(messages)
+              const formatted = formatFeishuChatHistoryContext(messages)
               const oldestTimestamp = messages[0]?.createTime ?? 0
 
               return {
