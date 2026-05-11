@@ -61,6 +61,11 @@ import {
   formatFeishuChatHistoryContext,
   parseFeishuChatMessageContent,
 } from './feishu-chat-history'
+import {
+  convertMentionNamesToAtTags,
+  isFeishuOpenIdMentioned,
+  listFeishuMentionTargets,
+} from './feishu-mentions'
 
 // ===== 类型定义 =====
 
@@ -1369,26 +1374,8 @@ class FeishuBridge {
    */
   private convertMentionsToAtTags(text: string, chatId: string): string {
     const groupInfo = this.groupInfoCache.get(chatId)
-    if (!groupInfo?.members || groupInfo.members.length === 0) return text
-
-    // 构建 name → openId 映射（排除 Bot 自身）
-    const nameToId = new Map<string, string>()
-    for (const m of groupInfo.members) {
-      if (m.openId !== this.botOpenId) {
-        nameToId.set(m.name, m.openId)
-      }
-    }
-    if (nameToId.size === 0) return text
-
-    // 按名称长度降序排列，避免短名称先匹配导致长名称被截断
-    const names = Array.from(nameToId.keys()).sort((a, b) => b.length - a.length)
-    // 构建正则：匹配 @Name（Name 为群成员名称）
-    const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const pattern = new RegExp(`@(${escaped.join('|')})(?![\\w])`, 'g')
-
-    return text.replace(pattern, (_, name: string) => {
-      const openId = nameToId.get(name)
-      return openId ? `<at id=${openId}>${name}</at>` : `@${name}`
+    return convertMentionNamesToAtTags(text, groupInfo?.members, {
+      botOpenId: this.botOpenId,
     })
   }
 
@@ -1406,18 +1393,6 @@ class FeishuBridge {
   // ===== 群聊辅助方法 =====
 
   /**
-   * 从 mention.id 中提取 open_id
-   *
-   * 飞书事件中 mention.id 可能是字符串（如 "all"）或对象 { open_id, union_id, user_id }。
-   */
-  private extractMentionOpenId(mention: FeishuMention): string | null {
-    const { id } = mention
-    if (typeof id === 'string') return id
-    if (typeof id === 'object' && id !== null) return id.open_id ?? null
-    return null
-  }
-
-  /**
    * 检测消息的 mentions 列表中是否包含 @Bot
    *
    * 优先用 botOpenId 精确匹配；未获取时尝试重新获取。
@@ -1427,10 +1402,8 @@ class FeishuBridge {
     if (!mentions || mentions.length === 0) return false
 
     // 提取所有 mention 的 open_id，排除 @所有人
-    const mentionIds = mentions
-      .map((m) => ({ name: m.name, openId: this.extractMentionOpenId(m) }))
-      .filter((m) => m.openId && m.openId !== 'all')
-    if (mentionIds.length === 0) return false
+    const mentionTargets = listFeishuMentionTargets(mentions)
+    if (mentionTargets.length === 0) return false
 
     // 如果 botOpenId 未获取，尝试重新获取
     if (!this.botOpenId && this.client) {
@@ -1452,15 +1425,15 @@ class FeishuBridge {
     }
 
     if (this.botOpenId) {
-      const matched = mentionIds.some((m) => m.openId === this.botOpenId)
+      const matched = isFeishuOpenIdMentioned(mentions, this.botOpenId)
       if (!matched) {
-        console.log(`[飞书 Bridge] @Bot 未匹配 — botOpenId=${this.botOpenId}, mentions=[${mentionIds.map((m) => `${m.name}(${m.openId})`).join(', ')}]`)
+        console.log(`[飞书 Bridge] @Bot 未匹配 — botOpenId=${this.botOpenId}, mentions=[${mentionTargets.map((m) => `${m.name}(${m.openId})`).join(', ')}]`)
       }
       return matched
     }
 
     // botOpenId 仍未获取：拒绝，避免 @其他人误触发
-    console.warn(`[飞书 Bridge] botOpenId 未获取，无法精确匹配，跳过消息（mentions: ${mentionIds.map((m) => `${m.name}(${m.openId})`).join(', ')}）`)
+    console.warn(`[飞书 Bridge] botOpenId 未获取，无法精确匹配，跳过消息（mentions: ${mentionTargets.map((m) => `${m.name}(${m.openId})`).join(', ')}）`)
     return false
   }
 
