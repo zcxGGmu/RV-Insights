@@ -1,0 +1,586 @@
+# RV-Insights Pipeline v2 阶段开发跟踪清单
+
+> 日期：2026-05-13
+> 适用范围：六 Agent 开源贡献 Pipeline v2。
+> 依据文档：`improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md`。
+> 使用规则：后续 Codex 开发必须严格按本文阶段推进。未满足当前阶段完成定义前，不得进入后续阶段。
+
+## 总体目标
+
+将当前五节点 Pipeline 升级为六 Agent 开源贡献工作流：
+
+```text
+preflight
+  -> explorer
+  -> planner
+  -> developer
+  -> reviewer
+  -> tester
+  -> committer
+```
+
+目标交付不是一次性全自动提交社区，而是先完成安全、可审计、可恢复的本地贡献闭环，再逐步开放本地 commit 和远端 PR。
+
+## 强制开发规则
+
+- [ ] 每个阶段开始前，先在本文件对应阶段勾选“阶段开始”，并在 `tasks/todo.md` 写本阶段执行计划。
+- [ ] 每个阶段必须先补测试或 BDD 场景，再实现功能。
+- [ ] 每个阶段完成后，必须在本文件填写验证结果，并在 `tasks/todo.md` 追加 Review。
+- [ ] 未通过本阶段“完成定义”前，不得进入下一阶段。
+- [ ] 不得破坏 Pipeline v1 旧会话的打开、搜索、恢复和展示。
+- [ ] 不得默认执行 `git commit`、`git push` 或创建 PR。
+- [ ] 不得把 `patch-work/**` 默认加入 patch-set 或 commit。
+- [ ] 不得引入本地数据库；继续使用 JSON、JSONL 和 manifest。
+- [ ] 状态管理仍使用 Jotai。
+- [ ] 命令使用 Bun：`bun run ...`、`bun test ...`。
+- [ ] 修改功能代码时，受影响 package 的 patch 版本必须递增。
+- [ ] README、AGENTS 等公开说明只有在用户明确允许后再同步修改。
+- [ ] 所有新增注释和日志优先使用中文，保留必要英文术语。
+
+## 状态标记
+
+| 标记 | 含义 |
+| --- | --- |
+| `[ ]` | 未开始 |
+| `[~]` | 进行中，后续提交时可临时改为文字说明 |
+| `[x]` | 已完成，并已通过本阶段验证 |
+| `[!]` | 阻塞，必须说明 blocker |
+
+## 里程碑边界
+
+| 里程碑 | 覆盖阶段 | 目标 | 是否允许进入下一里程碑 |
+| --- | --- | --- | --- |
+| MVP-A | Phase 0-3 | 贡献任务、preflight、patch-work、explorer 任务选择、planner 文档审核 | Phase 3 完成定义全部满足后 |
+| MVP-B | Phase 4-6 | developer/reviewer/tester/committer draft-only 本地补丁闭环 | Phase 6 完成定义全部满足后 |
+| MVP-C | Phase 7 | 受控本地 commit | Phase 7 完成定义全部满足后 |
+| Remote | Phase 8 | 远端 PR 集成 | 需要单独安全评审 |
+
+## 全局完成定义
+
+Pipeline v2 总体完成前必须满足：
+
+- [ ] 六 Agent 阶段轨道可展示并能按状态推进。
+- [ ] `explorer / planner` 使用 Claude CLI 策略。
+- [ ] `developer / reviewer / tester / committer` 使用 Codex CLI 策略。
+- [ ] `ContributionTask`、Pipeline records、PatchWork manifest 三者 ID 能一致关联。
+- [ ] `patch-work` 固定文件和 revision 能被 UI 读取。
+- [ ] reviewer/tester 循环有上限和人工接管路径。
+- [ ] committer 默认只生成 `commit.md` 和 `pr.md`。
+- [ ] 本地 commit 和远端写操作都有独立人工 gate。
+- [ ] 关键测试、类型检查和 fixture E2E 通过。
+
+## Phase 0：规格冻结与测试骨架
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] 已阅读 Pipeline v2 分析文档。
+- [ ] 已确认本清单是后续开发的执行依据。
+- [ ] 本阶段不修改运行时代码，只允许补规格、测试骨架和 fixture 设计。
+
+**开发任务**
+
+- [ ] 将核心状态机整理为 graph Mermaid 和状态表，必要时独立成 `docs` 或 `improve/pipeline` 文档。
+- [ ] 定义 BDD 场景清单：task selection、plan gate、dev gate、review loop、tester blocked、committer draft。
+- [ ] 设计 fixture repo，用于后续本地 Pipeline v2 E2E。
+- [ ] 明确 v1/v2 共存策略：旧会话默认 `version=1`，新贡献 Pipeline 使用 `version=2`。
+- [ ] 明确本阶段涉及 package version 是否需要变更；若仅文档可不变更。
+
+**建议文件**
+
+- [ ] `improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md`
+- [ ] `improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md`
+- [ ] 后续可新增 `docs/pipeline-v2-spec.md`，但需确认文档同步范围。
+
+**验证**
+
+- [ ] `git diff --check`
+- [ ] 关键章节可通过 `rg` 检索：`Phase 0`、`ContributionTask`、`patch-work`、`committer`。
+
+**完成定义**
+
+- [ ] 规格明确回答每个节点 runtime、输入、输出、gate、失败循环和产物文件。
+- [ ] BDD 场景足以驱动后续测试先行开发。
+- [ ] 用户或维护者确认可以进入 Phase 1。
+
+**禁止事项**
+
+- [ ] 不改主进程 graph。
+- [ ] 不改 shared 类型。
+- [ ] 不改 UI 行为。
+
+## Phase 1：Preflight、ContributionTask、PatchWork 基础
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 0 已完成。
+- [ ] 已确认本阶段目标是领域对象和文件契约，不扩展六节点 graph。
+
+**开发任务**
+
+- [ ] 新增 `ContributionTask` 共享类型，包含 task id、session id、repo root、branch、mode、status、patchWorkDir。
+- [ ] 新增贡献任务索引服务，使用 `~/.rv-insights/contribution-tasks.json`。
+- [ ] 新增贡献任务 JSONL event 存储：`~/.rv-insights/contribution-tasks/{taskId}.jsonl`。
+- [ ] 新增 `pipeline-preflight-service.ts`。
+- [ ] preflight 检查 Git root、branch、remote、未提交变更、冲突、Claude CLI、Codex CLI、Git、包管理器。
+- [ ] 新增 `pipeline-patch-work-service.ts`。
+- [ ] 支持安全创建 `patch-work/manifest.json`。
+- [ ] 支持固定文件读写：`selected-task.md`、`plan.md`、`test-plan.md`、`dev.md`、`review.md`、`result.md`、`commit.md`、`pr.md`。
+- [ ] 支持 `patch-work/revisions/{node}/` 修订归档。
+- [ ] 支持原子写入：先写临时文件，再 rename 到正式路径。
+- [ ] 校验路径安全：禁止绝对路径、`..`、软链越界。
+
+**建议文件**
+
+- [ ] `packages/shared/src/types/pipeline.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-preflight-service.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-patch-work-service.ts`
+- [ ] `apps/electron/src/main/lib/contribution-task-service.ts`
+- [ ] 对应测试文件。
+
+**测试**
+
+- [ ] `bun test apps/electron/src/main/lib/pipeline-preflight-service.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-patch-work-service.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/contribution-task-service.test.ts`
+- [ ] `bun test packages/shared/src/utils/pipeline-state.test.ts`
+
+**完成定义**
+
+- [ ] 可以创建 `ContributionTask` 并持久化。
+- [ ] 可以在 fixture repo 安全创建 `patch-work`。
+- [ ] manifest 能记录文件 ref、checksum、revision 和更新时间。
+- [ ] 越界路径写入会失败。
+- [ ] preflight 能在 CLI 不可用、非 Git root、存在冲突时返回 blocker。
+- [ ] v1 Pipeline 行为未变化。
+
+**禁止事项**
+
+- [ ] 不将 `patch-work/**` 加入 commit 或 patch-set。
+- [ ] 不修改 `.gitignore`。
+- [ ] 不实现远端 GitHub 行为。
+
+## Phase 2：Shared v2 类型与六节点状态机骨架
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 1 已完成。
+- [ ] `ContributionTask` 和 `patch-work` 文件契约已稳定。
+
+**开发任务**
+
+- [ ] 为 Pipeline meta 增加 `version?: 1 | 2`。
+- [ ] `PipelineNodeKind` 增加 `committer`。
+- [ ] 新增或扩展 v2 stage output 类型：explorer reports、planner refs、developer devDoc、review issues、tester patchSet、committer submission。
+- [ ] 新增 gate kind：`task_selection`、`document_review`、`review_iteration_limit`、`test_blocked`、`submission_review`、`remote_write_confirmation`。
+- [ ] state replay 支持 v1/v2 分支。
+- [ ] LangGraph 新增 v2 fake graph 或 v2 builder，不替换 v1 graph。
+- [ ] 新增六节点 StageRail 的 display model 测试。
+- [ ] runner strategy 表驱动化：节点到 runtime 的映射明确可测。
+
+**建议文件**
+
+- [ ] `packages/shared/src/types/pipeline.ts`
+- [ ] `packages/shared/src/utils/pipeline-state.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-graph.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-node-router.ts`
+- [ ] `apps/electron/src/renderer/components/pipeline/pipeline-display-model.ts`
+
+**测试**
+
+- [ ] `bun test packages/shared/src/utils/pipeline-state.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-node-router.test.ts`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/pipeline-display-model.test.ts`
+
+**完成定义**
+
+- [ ] v1 records replay 不变。
+- [ ] v2 happy path 能从 explorer 推进到 committer。
+- [ ] tester approve 后不再直接 completed，而是进入 committer。
+- [ ] runtime strategy 明确显示 explorer/planner 为 Claude，developer/reviewer/tester/committer 为 Codex。
+- [ ] fake runner 测试可以覆盖六节点 graph。
+
+**禁止事项**
+
+- [ ] 不在此阶段接真实 CLI 复杂行为。
+- [ ] 不做 UI 大改。
+- [ ] 不开启真实 commit 或 push。
+
+## Phase 3：Explorer 任务选择与 Planner 文档审核
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 2 已完成。
+- [ ] UI 能识别 v2 session 和六节点 stage。
+
+**开发任务**
+
+- [ ] explorer 输出多份 Markdown 报告到 `patch-work/explorer/report-*.md`。
+- [ ] explorer structured output 返回 `ExplorerReportRef[]`。
+- [ ] 新增 task selection gate。
+- [ ] 用户选择 report 后生成或更新 `selected-task.md`。
+- [ ] planner 读取 `selected-task.md`。
+- [ ] planner 写 `plan.md` 和 `test-plan.md`。
+- [ ] planner gate 展示 Markdown 文档和 checksum。
+- [ ] gate feedback 能生成修订轮次。
+- [ ] UI 新增 `ExplorerTaskBoard`。
+- [ ] UI 新增或初步实现 `ReviewDocumentBoard`。
+- [ ] 新增 IPC：读取 patch-work manifest、读取 patch-work 文件、列 explorer reports、选择 task。
+
+**建议文件**
+
+- [ ] `apps/electron/src/main/lib/pipeline-node-runner.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-service.ts`
+- [ ] `apps/electron/src/main/ipc/pipeline-handlers.ts`
+- [ ] `apps/electron/src/preload/index.ts`
+- [ ] `apps/electron/src/renderer/components/pipeline/ExplorerTaskBoard.tsx`
+- [ ] `apps/electron/src/renderer/components/pipeline/ReviewDocumentBoard.tsx`
+- [ ] `apps/electron/src/renderer/atoms/pipeline-atoms.ts`
+
+**测试**
+
+- [ ] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-patch-work-service.test.ts`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/ExplorerTaskBoard.test.tsx`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/ReviewDocumentBoard.test.tsx`
+- [ ] `bun run typecheck`
+
+**完成定义**
+
+- [ ] 用户可在 UI 看到多份 explorer 报告。
+- [ ] 用户必须选择一个 report 后才能进入 planner。
+- [ ] `plan.md` 和 `test-plan.md` 生成在 `patch-work/`。
+- [ ] 用户反馈会产生 planner revision。
+- [ ] 接受 planner 文档时记录 checksum。
+- [ ] MVP-A 的 explorer/planner 闭环成立。
+
+**禁止事项**
+
+- [ ] 不让 explorer 或 planner 修改源码。
+- [ ] 不用 records 反推主业务状态，主 UI 走结构化 IPC。
+
+## Phase 4：Developer 文档审核与 Reviewer Issue Loop
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 3 已完成。
+- [ ] planner 文档 gate 已能记录 accepted checksum。
+
+**开发任务**
+
+- [ ] developer 必须读取 accepted `plan.md` 和 `test-plan.md`。
+- [ ] developer 完成源码修改后写 `dev.md`。
+- [ ] developer output 包含 changed files、diff summary、testsRun、risks。
+- [ ] developer 完成后新增 document gate，用户接受后才能进入 reviewer。
+- [ ] reviewer 读取 `dev.md`、Git diff 和测试方案。
+- [ ] reviewer 输出 `review.md` 和 stable issue ids。
+- [ ] reviewer 保持 read-only。
+- [ ] reviewer approved=false 且未达上限时自动回 developer。
+- [ ] 达到 review iteration 上限时进入人工 gate。
+- [ ] UI 增加 reviewer issue board 或在现有 board 中展示 severity/status。
+
+**建议文件**
+
+- [ ] `apps/electron/src/main/lib/codex-pipeline-node-runner.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-graph.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-service.ts`
+- [ ] `apps/electron/src/renderer/components/pipeline/ReviewerIssueBoard.tsx`
+- [ ] `packages/shared/src/types/pipeline.ts`
+
+**测试**
+
+- [ ] `bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/ReviewerIssueBoard.test.tsx`
+- [ ] `bun run typecheck`
+
+**完成定义**
+
+- [ ] `dev.md` 固定生成，且 UI 可审核。
+- [ ] 用户接受 developer 文档后才进入 reviewer。
+- [ ] reviewer issue loop 可自动回 developer。
+- [ ] review iteration 有上限和人工接管。
+- [ ] reviewer 阶段不产生源码变更；若产生则标记失败。
+
+**禁止事项**
+
+- [ ] reviewer 不直接修代码。
+- [ ] 不跳过 developer gate。
+- [ ] 不允许 reviewer 无限循环。
+
+## Phase 5：Codex Tester、测试报告与 PatchSet
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 4 已完成。
+- [ ] developer/reviewer loop 已稳定。
+
+**开发任务**
+
+- [ ] tester runtime 改为 Codex CLI 策略。
+- [ ] tester 必须读取 `test-plan.md`、`dev.md` 和 Git diff。
+- [ ] tester 运行测试方案中的命令。
+- [ ] tester 生成 `result.md`。
+- [ ] tester 生成 `patch-work/patch-set/changes.patch`。
+- [ ] tester 生成 `changed-files.json`、`diff-summary.md`、`test-evidence.json`。
+- [ ] patch-set 默认排除 `patch-work/**`。
+- [ ] 测试失败且可修复时回 developer。
+- [ ] 测试环境缺失时进入 `test_blocked` gate。
+- [ ] 测试未运行时不得直接进入 committer，除非用户接受风险。
+- [ ] UI 新增 `TesterResultBoard`。
+
+**建议文件**
+
+- [ ] `apps/electron/src/main/lib/codex-pipeline-node-runner.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-git-submission-service.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-patch-work-service.ts`
+- [ ] `apps/electron/src/renderer/components/pipeline/TesterResultBoard.tsx`
+- [ ] `packages/shared/src/types/pipeline.ts`
+
+**测试**
+
+- [ ] `bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-patch-work-service.test.ts`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/TesterResultBoard.test.tsx`
+- [ ] `bun run typecheck`
+
+**完成定义**
+
+- [ ] tester 使用 Codex CLI 策略。
+- [ ] `result.md` 存在并包含测试结论、命令、通过项、失败项、阻塞。
+- [ ] patch-set 存在，且不包含 `patch-work/**`。
+- [ ] 测试失败路径可回 developer 或进入 blocked gate。
+- [ ] Phase 5 完成后可以进入 committer draft-only。
+
+**禁止事项**
+
+- [ ] tester 不执行 commit、push、PR。
+- [ ] 不把环境失败当作测试通过。
+- [ ] 不把 `patch-work` 内部文档加入 patch。
+
+## Phase 6：Committer Draft-Only
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 5 已完成。
+- [ ] patch-set、result.md 和 test evidence 已稳定。
+
+**开发任务**
+
+- [ ] 新增 committer stage output 类型。
+- [ ] committer runtime 使用 Codex CLI 策略。
+- [ ] committer 读取 `result.md`、`patch-set/*`、CONTRIBUTING 和 Git 状态。
+- [ ] committer 生成 `commit.md`。
+- [ ] committer 生成 `pr.md`。
+- [ ] committer output 包含 commit message、PR title/body、blockers、risk。
+- [ ] submission gate 默认选项为“仅保存提交材料”。
+- [ ] UI 新增 `CommitterPanel`。
+- [ ] Git service 只提供 status/diff，不执行写操作。
+
+**建议文件**
+
+- [ ] `apps/electron/src/main/lib/codex-pipeline-node-runner.ts`
+- [ ] `apps/electron/src/main/lib/pipeline-git-submission-service.ts`
+- [ ] `apps/electron/src/renderer/components/pipeline/CommitterPanel.tsx`
+- [ ] `packages/shared/src/types/pipeline.ts`
+
+**测试**
+
+- [ ] `bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/CommitterPanel.test.tsx`
+- [ ] `bun run typecheck`
+
+**完成定义**
+
+- [ ] committer 可生成 `commit.md` 和 `pr.md`。
+- [ ] 默认不会执行本地 commit。
+- [ ] 默认不会执行 push 或创建 PR。
+- [ ] UI 清楚展示提交材料、风险和测试证据。
+- [ ] MVP-B 本地补丁闭环完成。
+
+**禁止事项**
+
+- [ ] 不执行 `git add`。
+- [ ] 不执行 `git commit`。
+- [ ] 不执行 `git push`。
+- [ ] 不调用 GitHub 写 API。
+
+## Phase 7：受控本地 Commit Gate
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 6 已完成。
+- [ ] committer draft-only 行为已稳定。
+- [ ] 用户明确允许实现本地 commit 能力。
+
+**开发任务**
+
+- [ ] Git service 新增 `validateCommitPreconditions`。
+- [ ] Git service 新增受控 staging policy。
+- [ ] staging 默认排除 `patch-work/**`。
+- [ ] commit gate 展示 base branch、working branch、文件列表、排除列表、commit message、测试结论。
+- [ ] 用户确认后才执行 `git add` 和 `git commit`。
+- [ ] commit 后记录 commit hash。
+- [ ] commit result 写入 Contribution events。
+- [ ] commit 失败时保留 `commit.md`、`pr.md` 和错误信息。
+- [ ] 重试 commit 必须通过 operation id 防重复。
+
+**建议文件**
+
+- [ ] `apps/electron/src/main/lib/pipeline-git-submission-service.ts`
+- [ ] `apps/electron/src/main/ipc/pipeline-handlers.ts`
+- [ ] `apps/electron/src/preload/index.ts`
+- [ ] `apps/electron/src/renderer/components/pipeline/CommitterPanel.tsx`
+- [ ] `packages/shared/src/types/pipeline.ts`
+
+**测试**
+
+- [ ] `bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/CommitterPanel.test.tsx`
+- [ ] `bun run typecheck`
+
+**完成定义**
+
+- [ ] 用户未确认时不会 commit。
+- [ ] 用户确认后可在 fixture repo 创建本地 commit。
+- [ ] commit 文件列表不包含 `patch-work/**`，除非用户显式选择。
+- [ ] 重复 resume 不会重复 commit。
+- [ ] MVP-C 完成。
+
+**禁止事项**
+
+- [ ] 不实现 push。
+- [ ] 不创建 PR。
+- [ ] 不自动 stage 所有文件。
+
+## Phase 8：远端 PR 集成
+
+**阶段状态**
+
+- [ ] 阶段开始
+- [ ] 阶段完成
+
+**入口条件**
+
+- [ ] Phase 7 已完成。
+- [ ] 需要单独安全评审。
+- [ ] 用户明确允许实现远端写能力。
+- [ ] GitHub auth / token 存储方案已确认。
+
+**开发任务**
+
+- [ ] 新增远端写 preflight：remote URL、upstream、branch、auth、权限。
+- [ ] remote write confirmation gate 二次确认。
+- [ ] push 前展示 remote、branch、commit hash。
+- [ ] PR 前展示 title、body、base、head、draft 状态。
+- [ ] 支持只打开预填充 PR 页面作为低风险路径。
+- [ ] 可选支持 GitHub API 创建 draft PR。
+- [ ] 远端提交结果写入 Contribution events。
+- [ ] 远端失败保留本地 commit、PR 草稿和错误信息。
+- [ ] 所有 token、Authorization header、remote credentials 日志脱敏。
+
+**建议文件**
+
+- [ ] `apps/electron/src/main/lib/pipeline-git-submission-service.ts`
+- [ ] `apps/electron/src/main/lib/github-service.ts` 或等价服务。
+- [ ] `apps/electron/src/main/ipc/pipeline-handlers.ts`
+- [ ] `apps/electron/src/preload/index.ts`
+- [ ] `apps/electron/src/renderer/components/pipeline/CommitterPanel.tsx`
+- [ ] `packages/shared/src/types/pipeline.ts`
+
+**测试**
+
+- [ ] `bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/github-service.test.ts`
+- [ ] `bun test apps/electron/src/renderer/components/pipeline/CommitterPanel.test.tsx`
+- [ ] `bun run typecheck`
+- [ ] 使用 mock GitHub API 做 E2E，不直接打真实远端。
+
+**完成定义**
+
+- [ ] 用户未二次确认时不会 push 或创建 PR。
+- [ ] 远端写操作有完整审计记录。
+- [ ] 失败可恢复，不丢本地 commit 和 PR 草稿。
+- [ ] 日志和 artifact 不泄露凭据。
+
+**禁止事项**
+
+- [ ] 不默认开启远端写。
+- [ ] 不在没有二次确认时 push。
+- [ ] 不在测试中调用真实 GitHub 写接口。
+
+## 跨阶段验证清单
+
+每个阶段完成前都必须检查：
+
+- [ ] `git diff --check`
+- [ ] `bun run typecheck`
+- [ ] 本阶段新增或修改的测试通过。
+- [ ] v1 Pipeline 兼容测试通过。
+- [ ] `patch-work/**` 未进入默认 patch-set。
+- [ ] 没有默认远端写行为。
+- [ ] records、Contribution events、manifest 的 session/task id 一致。
+- [ ] gate 接受的文档有 checksum。
+- [ ] reviewer/tester 循环有上限。
+- [ ] 日志、records、artifact 未泄露 token、API key、SSH key 或 `.env` 内容。
+
+## 进度记录
+
+后续每完成一个阶段，在这里追加记录。
+
+```text
+阶段：
+完成日期：
+负责人：
+主要变更：
+验证命令：
+剩余风险：
+是否允许进入下一阶段：
+```
+
+## 当前执行建议
+
+下一步应从 Phase 0 开始。若维护者已经确认当前方案可作为规格冻结，则直接进入 Phase 1，先实现 `preflight + ContributionTask + patch-work service + manifest/revision`，不要先改六节点 graph。
