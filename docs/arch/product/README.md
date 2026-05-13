@@ -1,17 +1,24 @@
-# RV-Insights 产品主页素材包
+# RV-Insights Product Docs
 
 > 状态：设计素材
-> 位置：`docs/arch/`
-> 目标：为 RV-Insights 产品主页提供定位、页面结构、文案与视觉资产规范。
+> 位置：`docs/arch/product/`
+> 目标：集中存放 RV-Insights 产品主页的定位、页面结构、文案与视觉资产规范，方便从一个入口查找所有文档。
 
 ## 素材清单
 
 | 文件 | 用途 |
 |------|------|
-| `rv-insights-homepage-product-brief.md` | 产品定位、叙事主线、受众、差异化与首页声明边界 |
-| `rv-insights-homepage-content.md` | 可直接用于产品主页的 section 结构、标题、正文、CTA 与组件文案 |
-| `rv-insights-homepage-visual-assets.md` | 视觉方向、页面构图、色彩、图形素材、Hero 资产 prompt 与交互建议 |
-| `rv-insights-homepage-diagrams.md` | Mermaid 图形素材：产品定位、Agent 模式、Pipeline 模式、平台闭环 |
+| [Product Brief](rv-insights-homepage-product-brief.md) | 产品定位、叙事主线、受众、差异化与首页声明边界 |
+| [Homepage Content](rv-insights-homepage-content.md) | 可直接用于产品主页的 section 结构、标题、正文、CTA 与组件文案 |
+| [Visual Assets](rv-insights-homepage-visual-assets.md) | 视觉方向、页面构图、色彩、图形素材、Hero 资产 prompt 与交互建议 |
+| [Diagrams](rv-insights-homepage-diagrams.md) | Mermaid 图形素材：产品定位、Agent 模式、Pipeline 模式、平台闭环 |
+
+## 推荐阅读顺序
+
+1. [Product Brief](rv-insights-homepage-product-brief.md)：先确认产品定位、事实边界与首页主张。
+2. [Homepage Content](rv-insights-homepage-content.md)：再查看可落地的页面分区文案。
+3. [Visual Assets](rv-insights-homepage-visual-assets.md)：继续对齐视觉风格、Hero 图和响应式要求。
+4. [Diagrams](rv-insights-homepage-diagrams.md)：最后选择可嵌入页面或文档的信息图。
 
 ## 首页核心表达
 
