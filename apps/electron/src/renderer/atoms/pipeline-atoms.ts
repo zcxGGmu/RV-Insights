@@ -29,6 +29,23 @@ export const pipelineStreamErrorsAtom = atom<Map<string, string>>(new Map())
 export type PipelineLiveOutputState = Map<string, Map<PipelineNodeKind, string>>
 export const pipelineLiveOutputAtom = atom<PipelineLiveOutputState>(new Map())
 
+const PIPELINE_NODE_LIVE_OUTPUT_LABELS: Record<PipelineNodeKind, string> = {
+  explorer: '探索',
+  planner: '计划',
+  developer: '开发',
+  reviewer: '审查',
+  tester: '测试',
+  committer: '提交',
+}
+
+function buildNodeLiveOutputSeed(node: PipelineNodeKind): string {
+  const label = PIPELINE_NODE_LIVE_OUTPUT_LABELS[node]
+  return [
+    `进度：${label}节点已启动，正在准备模型与工作区。`,
+    '进度：模型执行工具或等待首个响应时可能暂时没有文本输出。',
+  ].join('\n') + '\n'
+}
+
 export const pipelineRunningSessionIdsAtom = atom<Set<string>>((get) => {
   const states = get(pipelineSessionStateMapAtom)
   const result = new Set<string>()
@@ -209,7 +226,7 @@ export function applyPipelineLiveOutput(
 
   switch (event.type) {
     case 'node_start':
-      return updateLiveNode(prev, sessionId, event.node, '')
+      return updateLiveNode(prev, sessionId, event.node, buildNodeLiveOutputSeed(event.node))
     case 'text_delta': {
       const current = prev.get(sessionId)?.get(event.node) ?? ''
       return updateLiveNode(prev, sessionId, event.node, current + event.delta)

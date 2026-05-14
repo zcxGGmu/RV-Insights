@@ -95,6 +95,44 @@ const STAGE_FILTERS: Array<{ value: PipelineRecordStageFilter; label: string }> 
   })),
 ]
 
+export interface PipelineLiveOutputViewModel {
+  title: string
+  body: string
+  hasOutput: boolean
+}
+
+export function buildPipelineLiveOutputViewModel(
+  node: PipelineNodeKind,
+  output: string,
+): PipelineLiveOutputViewModel {
+  const nodeLabel = getPipelineNodeLabel(node)
+  const normalizedOutput = output.trim()
+  const hasModelOutput = normalizedOutput
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .some((line) => !line.startsWith('进度：'))
+
+  if (hasModelOutput) {
+    return {
+      title: `${nodeLabel}节点正在输出`,
+      body: output,
+      hasOutput: true,
+    }
+  }
+
+  return {
+    title: `${nodeLabel}节点正在运行`,
+    body: normalizedOutput
+      ? output
+      : [
+          `${nodeLabel}节点已启动，正在准备模型与工作区。`,
+          '模型执行工具或等待首个响应时可能暂时没有文本输出；这表示节点仍在运行，不代表应用已经卡死。',
+        ].join('\n'),
+    hasOutput: false,
+  }
+}
+
 function formatRecordTime(createdAt: number): string {
   return new Date(createdAt).toLocaleTimeString('zh-CN', {
     hour: '2-digit',
@@ -365,14 +403,17 @@ function LiveOutputPanel({
   node: PipelineNodeKind
   output: string
 }): React.ReactElement {
-  const nodeLabel = getPipelineNodeLabel(node)
+  const viewModel = buildPipelineLiveOutputViewModel(node, output)
 
   return (
-    <section className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+    <section
+      aria-live="polite"
+      className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100"
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-xs font-medium tracking-[0.18em] opacity-70">实时输出</div>
-          <h3 className="mt-1 text-sm font-semibold">{nodeLabel}节点正在输出</h3>
+          <h3 className="mt-1 text-sm font-semibold">{viewModel.title}</h3>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-background/70 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-200">
           <Loader2 size={13} className="animate-spin" />
@@ -380,12 +421,14 @@ function LiveOutputPanel({
         </div>
       </div>
       <div className="mt-3 rounded-xl bg-background/80 px-3 py-3">
-        {output ? (
+        {viewModel.hasOutput ? (
           <MessageResponse className="text-sm">
-            {output}
+            {viewModel.body}
           </MessageResponse>
         ) : (
-          <div className="text-sm text-muted-foreground">正在等待节点输出...</div>
+          <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+            {viewModel.body}
+          </div>
         )}
       </div>
     </section>

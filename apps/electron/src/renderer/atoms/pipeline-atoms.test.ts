@@ -17,7 +17,7 @@ function payload(event: PipelineStreamPayload['event']): PipelineStreamPayload {
 }
 
 describe('applyPipelineLiveOutput', () => {
-  test('node_start 会重置当前节点 live buffer，text_delta 会追加文本', () => {
+  test('node_start 会重置当前节点 live buffer 并写入启动进度，text_delta 会追加文本', () => {
     let state: PipelineLiveOutputState = new Map()
 
     state = applyPipelineLiveOutput(state, payload({
@@ -25,6 +25,8 @@ describe('applyPipelineLiveOutput', () => {
       node: 'developer',
       createdAt: 1,
     }))
+    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).toContain('开发节点已启动')
+
     state = applyPipelineLiveOutput(state, payload({
       type: 'text_delta',
       node: 'developer',
@@ -38,7 +40,7 @@ describe('applyPipelineLiveOutput', () => {
       createdAt: 3,
     }))
 
-    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).toBe('第一段第二段')
+    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).toContain('第一段第二段')
 
     state = applyPipelineLiveOutput(state, payload({
       type: 'node_start',
@@ -46,7 +48,8 @@ describe('applyPipelineLiveOutput', () => {
       createdAt: 4,
     }))
 
-    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).toBe('')
+    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).toContain('开发节点已启动')
+    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).not.toContain('第一段')
   })
 
   test('node_complete 会清理对应节点，终态会清理整个会话', () => {
@@ -107,7 +110,7 @@ describe('applyPipelineLiveOutput', () => {
     }))
 
     expect(hasPipelineLiveOutputNode(state, 'session-1', 'developer')).toBe(true)
-    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).toBe('失败前输出')
+    expect(getPipelineLiveOutput(state, 'session-1', 'developer')).toContain('失败前输出')
 
     state = applyPipelineLiveOutput(state, payload({
       type: 'status_change',
