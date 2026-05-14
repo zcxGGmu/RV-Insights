@@ -11,19 +11,20 @@
 
 - Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
 - Phase 1 已完成并提交：commit `9da48f1d4373d1c4b9648a1a25724d7c1c9f5651`，已落地 `ContributionTask`、preflight、`patch-work` manifest/revision/fixed files 基础服务与测试。
-- Phase 2 已完成但尚未提交：已落地 shared v2 类型、`committer`、v1/v2 replay 分支、`createPipelineGraphV2` fake graph builder、runner strategy 表驱动映射和六节点 StageRail display model 测试。
-- Phase 3-8 均未开始：下一步只能进入 Phase 3，不得跳阶段，不得提前接真实 commit、push 或 PR。
-- 当前已知验证状态：Phase 2 指定测试、补充 service/runner 测试、代码审查复核、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 仍有 1 个既有失败 / 1 个对应 unhandled error，位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2 改动。
+- Phase 2 已完成并提交：commit `53119675ee4f975f463f7214d2b00a2ae9e0c4a5`（`feat(pipeline): 接入 Phase 2 六 Agent v2 骨架`），已落地 shared v2 类型、`committer`、v1/v2 replay 分支、`createPipelineGraphV2` fake graph builder、runner strategy 表驱动映射和六节点 StageRail display model 测试。
+- Phase 3 已完成：已落地 explorer 多报告写入与任务选择、`selected-task.md`、planner `plan.md` / `test-plan.md`、文档审核 checksum、patch-work 结构化 IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard`。
+- Phase 4-8 均未开始：下一步只能进入 Phase 4，不得跳阶段，不得提前接真实 commit、push 或 PR。
+- 当前已知验证状态：Phase 3 聚焦测试 65 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 已运行，结果为 297 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3 改动。
 
 ## 结论
 
-当前 RV-Insights 已经有一个可运行的五节点 Pipeline 底座：
+当前 RV-Insights 已经有一个可运行的五节点 Pipeline 底座，并在 Phase 2 增加了 v2 六节点骨架；Phase 3 已接入 explorer 任务选择、planner 文档审核和 patch-work 结构化读取，但 Developer/Reviewer/Tester/Committer 的完整贡献闭环仍待 Phase 4+ 落地：
 
 - LangGraph 编排：`explorer -> planner -> developer -> reviewer -> tester`
 - 人工 gate、checkpoint、stream event、JSONL 记录和阶段 artifact 已具备
-- `developer / reviewer` 已可走 Codex SDK 或 `codex exec` CLI fallback
-- `explorer / planner / tester` 仍走 Claude Agent SDK 兼容链路
-- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片
+- v1 中 `explorer / planner / tester` 保持 Claude Agent SDK 兼容链路，`developer / reviewer` 已可走 Codex SDK 或 `codex exec` CLI fallback
+- v2 strategy 已表驱动化：`explorer / planner` 使用 Claude，`developer / reviewer / tester / committer` 使用 Codex
+- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI
 
 但它还不是用户描述的“六 Agent AI 开源贡献工作流”。核心差距不只是少一个 `committer` 节点，而是缺少贡献任务选择、`patch-work` 工作区契约、可审核文档看板、测试产物和社区提交流程这些一等产品对象。
 

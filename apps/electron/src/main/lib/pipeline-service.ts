@@ -1,12 +1,17 @@
 import { rmSync } from 'node:fs'
 import type {
   PipelineArtifactContentInput,
+  PipelineExplorerReportRef,
   PipelineGateRequest,
   PipelineGateResponse,
+  PipelinePatchWorkReadFileInput,
+  PipelinePatchWorkSessionInput,
   PipelineRecordsTailInput,
   PipelineRecordsTailResult,
   PipelineRecordsSearchInput,
   PipelineRecordsSearchResult,
+  PipelineSelectTaskInput,
+  PipelineSelectTaskResult,
   PipelineSessionMeta,
   PipelineStageArtifactRecord,
   PipelineStartInput,
@@ -39,6 +44,18 @@ import {
 } from './pipeline-artifact-service'
 import { getSettings } from './settings-service'
 import { resolvePipelineCodexChannelId } from './pipeline-codex-settings'
+import {
+  appendContributionTaskEvent,
+  getContributionTaskByPipelineSessionId,
+  updateContributionTask,
+} from './contribution-task-service'
+import {
+  acceptPatchWorkDocuments,
+  listPatchWorkExplorerReports,
+  readPatchWorkManifestFile,
+  readPatchWorkManifest,
+  selectPatchWorkTask,
+} from './pipeline-patch-work-service'
 
 export interface PipelineServiceCallbacks {
   onEvent?: (payload: PipelineStreamPayload) => void
@@ -71,6 +88,50 @@ function isTerminalState(status: PipelineStateSnapshot['status']): boolean {
 
 function isReconcileCandidate(status: PipelineSessionMeta['status']): boolean {
   return status === 'running' || status === 'waiting_human'
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function requireNonEmptyString(value: unknown, fieldName: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`Pipeline IPC 参数无效: ${fieldName}`)
+  }
+  return value.trim()
+}
+
+function parsePatchWorkSessionInput(input: PipelinePatchWorkSessionInput): PipelinePatchWorkSessionInput {
+  const value = input as unknown
+  if (!isObject(value)) {
+    throw new Error('Pipeline IPC 参数无效: input')
+  }
+  return {
+    sessionId: requireNonEmptyString(value.sessionId, 'sessionId'),
+  }
+}
+
+function parsePatchWorkReadFileInput(input: PipelinePatchWorkReadFileInput): PipelinePatchWorkReadFileInput {
+  const value = input as unknown
+  if (!isObject(value)) {
+    throw new Error('Pipeline IPC 参数无效: input')
+  }
+  return {
+    sessionId: requireNonEmptyString(value.sessionId, 'sessionId'),
+    relativePath: requireNonEmptyString(value.relativePath, 'relativePath'),
+  }
+}
+
+function parseSelectTaskInput(input: PipelineSelectTaskInput): PipelineSelectTaskInput {
+  const value = input as unknown
+  if (!isObject(value)) {
+    throw new Error('Pipeline IPC 参数无效: input')
+  }
+  return {
+    sessionId: requireNonEmptyString(value.sessionId, 'sessionId'),
+    gateId: requireNonEmptyString(value.gateId, 'gateId'),
+    selectedReportId: requireNonEmptyString(value.selectedReportId, 'selectedReportId'),
+  }
 }
 
 interface PipelineStageArtifactPersistor {
@@ -267,6 +328,100 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     }
 
     return pendingGate
+  }
+
+  function getContributionTaskForSession(
+    sessionId: string,
+    options: { required?: boolean } = {},
+  ) {
+    const task = getContributionTaskByPipelineSessionId(sessionId)
+    if (!task && options.required) {
+      throw new Error(`未找到 Pipeline 贡献任务: ${sessionId}`)
+    }
+    return task
+  }
+
+  function applyV2GateSideEffects(
+    pendingGate: PipelineGateRequest,
+    response: PipelineGateResponse,
+  ): void {
+    if (response.action !== 'approve') {
+      if (pendingGate.kind === 'document_review' && pendingGate.node === 'planner') {
+        const task = getContributionTaskForSession(response.sessionId)
+        if (task) {
+          updateContributionTask(task.id, {
+            status: 'planning',
+            currentGateId: pendingGate.gateId,
+          })
+        }
+      }
+      return
+    }
+
+    if (pendingGate.kind === 'task_selection') {
+      if (!response.selectedReportId) {
+        throw new Error('请选择 explorer report 后再进入 planner')
+      }
+
+      const task = getContributionTaskForSession(response.sessionId)
+      if (!task) return
+
+      const result = selectPatchWorkTask({
+        repositoryRoot: task.repositoryRoot,
+        selectedReportId: response.selectedReportId,
+        gateId: pendingGate.gateId,
+      })
+      updateContributionTask(task.id, {
+        selectedReportId: response.selectedReportId,
+        selectedTaskTitle: result.selectedReport.title,
+        status: 'task_selected',
+        currentGateId: undefined,
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'patch_work_updated',
+        payload: {
+          selectedReportId: response.selectedReportId,
+          selectedTaskPath: result.selectedTaskRef.relativePath,
+        },
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'task_updated',
+        payload: {
+          status: 'task_selected',
+          selectedReportId: response.selectedReportId,
+          selectedTaskTitle: result.selectedReport.title,
+        },
+      })
+      return
+    }
+
+    if (pendingGate.kind === 'document_review' && pendingGate.node === 'planner') {
+      const task = getContributionTaskForSession(response.sessionId)
+      if (!task) return
+
+      const accepted = acceptPatchWorkDocuments({
+        repositoryRoot: task.repositoryRoot,
+        gateId: pendingGate.gateId,
+        kinds: ['implementation_plan', 'test_plan'],
+      })
+      updateContributionTask(task.id, {
+        status: 'developing',
+        currentGateId: undefined,
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'patch_work_updated',
+        payload: {
+          acceptedDocuments: accepted.map((file) => ({
+            relativePath: file.relativePath,
+            checksum: file.checksum,
+            revision: file.revision,
+          })),
+        },
+      })
+    }
   }
 
   async function buildDefaultGraph(
@@ -572,6 +727,12 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       response: PipelineGateResponse,
       callbacks?: PipelineServiceCallbacks,
     ): Promise<void> {
+      const activePendingGate = gateService
+        .getPendingRequests()
+        .find((request) => request.gateId === response.gateId && request.sessionId === response.sessionId)
+      if (activePendingGate) {
+        applyV2GateSideEffects(activePendingGate, response)
+      }
       const hitPending = gateService.respond(response)
       if (hitPending) return
 
@@ -587,6 +748,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         return
       }
 
+      applyV2GateSideEffects(pendingGate, response)
       appendPipelineRecord(meta.id, {
         id: `${meta.id}-${response.gateId}-response`,
         sessionId: meta.id,
@@ -670,6 +832,68 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
           pendingGate: meta.pendingGate,
           updatedAt: meta.updatedAt,
         }
+      }
+    },
+
+    getPatchWorkManifest(input: PipelinePatchWorkSessionInput) {
+      const parsed = parsePatchWorkSessionInput(input)
+      const task = getContributionTaskForSession(parsed.sessionId, { required: true })
+      return readPatchWorkManifest(task!.repositoryRoot)
+    },
+
+    readPatchWorkFile(input: PipelinePatchWorkReadFileInput): string {
+      const parsed = parsePatchWorkReadFileInput(input)
+      const task = getContributionTaskForSession(parsed.sessionId, { required: true })
+      return readPatchWorkManifestFile({
+        repositoryRoot: task!.repositoryRoot,
+        relativePath: parsed.relativePath,
+      })
+    },
+
+    listExplorerReports(input: PipelinePatchWorkSessionInput): PipelineExplorerReportRef[] {
+      const parsed = parsePatchWorkSessionInput(input)
+      const task = getContributionTaskForSession(parsed.sessionId, { required: true })
+      return listPatchWorkExplorerReports({
+        repositoryRoot: task!.repositoryRoot,
+      })
+    },
+
+    async selectTask(
+      input: PipelineSelectTaskInput,
+      callbacks?: PipelineServiceCallbacks,
+    ): Promise<PipelineSelectTaskResult> {
+      const parsed = parseSelectTaskInput(input)
+      const meta = getPipelineSessionMeta(parsed.sessionId)
+      if (!meta) {
+        throw new Error(`未找到 Pipeline 会话: ${parsed.sessionId}`)
+      }
+      const pendingGate = meta.pendingGate
+      if (!pendingGate || pendingGate.gateId !== parsed.gateId || pendingGate.kind !== 'task_selection') {
+        throw new Error('Pipeline task selection gate 不匹配，请刷新后重试')
+      }
+
+      await this.respondGate({
+        gateId: parsed.gateId,
+        sessionId: parsed.sessionId,
+        kind: 'task_selection',
+        action: 'approve',
+        selectedReportId: parsed.selectedReportId,
+        createdAt: Date.now(),
+      }, callbacks)
+
+      const task = getContributionTaskForSession(parsed.sessionId, { required: true })
+      const reports = listPatchWorkExplorerReports({ repositoryRoot: task!.repositoryRoot })
+      const selectedReport = reports.find((report) => report.reportId === parsed.selectedReportId)
+      const manifest = readPatchWorkManifest(task!.repositoryRoot)
+      const selectedTaskRef = manifest.files.find((file) => file.kind === 'selected_task')
+      if (!selectedReport || !selectedTaskRef) {
+        throw new Error('选择任务后未找到 selected-task.md，请刷新后重试')
+      }
+
+      return {
+        manifest,
+        selectedReport,
+        selectedTaskRef,
       }
     },
   }

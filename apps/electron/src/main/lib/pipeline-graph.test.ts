@@ -163,6 +163,7 @@ describe('pipeline-graph', () => {
         gateId: explorerPause.interrupted!.gateId,
         sessionId: 'session-v2-complete',
         action: 'approve',
+        selectedReportId: 'report-001',
         createdAt: Date.now(),
       },
     })

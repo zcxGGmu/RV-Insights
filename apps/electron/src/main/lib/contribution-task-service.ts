@@ -34,9 +34,12 @@ export interface CreateContributionTaskInput {
   baseBranch?: string
   workingBranch?: string
   baseCommit?: string
+  selectedReportId?: string
+  selectedTaskTitle?: string
   patchWorkDir: string
   contributionMode: ContributionMode
   allowRemoteWrites: boolean
+  currentGateId?: string
   status?: ContributionTaskStatus
 }
 
@@ -140,6 +143,12 @@ export function getContributionTask(id: string): ContributionTask | undefined {
   return readIndex().tasks.find((task) => task.id === id)
 }
 
+export function getContributionTaskByPipelineSessionId(
+  pipelineSessionId: string,
+): ContributionTask | undefined {
+  return readIndex().tasks.find((task) => task.pipelineSessionId === pipelineSessionId)
+}
+
 export function createContributionTask(input: CreateContributionTaskInput): ContributionTask {
   const index = readIndex()
   const id = input.id ?? randomUUID()
@@ -162,10 +171,13 @@ export function createContributionTask(input: CreateContributionTaskInput): Cont
     baseBranch: input.baseBranch,
     workingBranch: input.workingBranch,
     baseCommit: input.baseCommit,
+    selectedReportId: input.selectedReportId,
+    selectedTaskTitle: input.selectedTaskTitle,
     patchWorkDir: input.patchWorkDir,
     contributionMode: input.contributionMode,
     allowRemoteWrites: input.allowRemoteWrites,
     status: input.status ?? 'created',
+    currentGateId: input.currentGateId,
     createdAt: now,
     updatedAt: now,
   }

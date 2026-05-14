@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type {
@@ -15,6 +15,11 @@ import {
 import { getPipelineRecords, updatePipelineSessionMeta } from './pipeline-session-manager'
 import { resolvePipelineSessionArtifactsDir } from './pipeline-artifact-service'
 import { getPipelineSessionCheckpointDir } from './config-paths'
+import { createContributionTask, getContributionTask } from './contribution-task-service'
+import {
+  readPatchWorkManifest,
+  writePatchWorkFile,
+} from './pipeline-patch-work-service'
 
 describe('pipeline-service', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -119,6 +124,249 @@ describe('pipeline-service', () => {
       kind: 'task_selection',
       selectedReportId: 'report-1',
     })
+  })
+
+  test('task_selection gate 必须选择 report，并写回 selected-task.md 和 ContributionTask', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-task-selection',
+      sessionId: 'session-task-selection',
+      node: 'explorer',
+      kind: 'task_selection',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => ({
+          state: {
+            sessionId: 'session-task-selection',
+            version: 2,
+            currentNode: 'planner',
+            status: 'waiting_human',
+            reviewIteration: 0,
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-task-selection',
+          version: 2,
+          currentNode: 'explorer',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('任务选择测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'explorer',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-selection',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'exploring',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-selection',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'explorer_report',
+        relativePath: 'explorer/report-001.md',
+        createdByNode: 'explorer',
+        content: '# 探索报告：任务选择闭环\n\n## 贡献点概述\n选择后才能进入 planner。\n',
+      })
+
+      await expect(service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'task_selection',
+        action: 'approve',
+        createdAt: Date.now(),
+      })).rejects.toThrow('请选择 explorer report')
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'task_selection',
+        action: 'approve',
+        selectedReportId: 'report-001',
+        createdAt: Date.now(),
+      })
+
+      expect(getContributionTask('task-selection')).toMatchObject({
+        selectedReportId: 'report-001',
+        selectedTaskTitle: '任务选择闭环',
+        status: 'task_selected',
+      })
+      expect(readPatchWorkManifest(repoRoot)).toMatchObject({
+        selectedReportId: 'report-001',
+      })
+      expect(readFileSync(join(repoRoot, 'patch-work', 'selected-task.md'), 'utf-8')).toContain('任务选择闭环')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('planner document_review approve 会记录 plan.md 和 test-plan.md 的 accepted checksum', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-plan-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-plan-review',
+      sessionId: 'session-plan-review',
+      node: 'planner',
+      kind: 'document_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => ({
+          state: {
+            sessionId: 'session-plan-review',
+            version: 2,
+            currentNode: 'developer',
+            status: 'running',
+            reviewIteration: 0,
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-plan-review',
+          version: 2,
+          currentNode: 'planner',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('文档审核测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'planner',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-plan-review',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'plan_review',
+      })
+      const planRef = writePatchWorkFile({
+        contributionTaskId: 'task-plan-review',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'implementation_plan',
+        createdByNode: 'planner',
+        content: '# 开发方案\n\n实现任务选择。\n',
+      })
+      const testPlanRef = writePatchWorkFile({
+        contributionTaskId: 'task-plan-review',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'test_plan',
+        createdByNode: 'planner',
+        content: '# 测试方案\n\n验证任务选择。\n',
+      })
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'document_review',
+        action: 'approve',
+        createdAt: Date.now(),
+      })
+
+      const manifest = readPatchWorkManifest(repoRoot)
+      expect(manifest.files.find((file) => file.relativePath === 'plan.md')).toMatchObject({
+        acceptedRevision: planRef.revision,
+        acceptedByGateId: gateRequest.gateId,
+        checksum: planRef.checksum,
+      })
+      expect(manifest.files.find((file) => file.relativePath === 'test-plan.md')).toMatchObject({
+        acceptedRevision: testPlanRef.revision,
+        acceptedByGateId: gateRequest.gateId,
+        checksum: testPlanRef.checksum,
+      })
+      expect(getContributionTask('task-plan-review')).toMatchObject({
+        status: 'developing',
+      })
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('patch-work 文件读取只允许 manifest 登记文件', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-read-repo-'))
+    const service = createPipelineService()
+
+    try {
+      const session = service.createSession('patch-work 读取范围测试', 'channel-1', 'workspace-1')
+      createContributionTask({
+        id: 'task-read-range',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'plan_review',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-read-range',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'implementation_plan',
+        createdByNode: 'planner',
+        content: '# 开发方案\n',
+      })
+      writeFileSync(join(repoRoot, 'patch-work', 'untracked.md'), '# 未登记文件\n', 'utf-8')
+
+      expect(service.readPatchWorkFile({
+        sessionId: session.id,
+        relativePath: 'plan.md',
+      })).toContain('开发方案')
+      expect(() => service.readPatchWorkFile({
+        sessionId: session.id,
+        relativePath: 'untracked.md',
+      })).toThrow('未登记')
+      expect(() => service.readPatchWorkFile({
+        sessionId: session.id,
+        relativePath: 'manifest.json',
+      })).toThrow('未登记')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
   })
 
   test('内存 gate 已消费但 resume 未结束时，重复响应不应写入重复 gate decision', async () => {

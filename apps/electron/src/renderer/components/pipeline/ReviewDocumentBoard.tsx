@@ -1,0 +1,238 @@
+import * as React from 'react'
+import type {
+  PipelinePatchWorkDocumentRef,
+  PipelinePlannerStageOutput,
+} from '@rv-insights/shared'
+
+export interface ReviewDocumentItemViewModel {
+  displayName: string
+  relativePath: string
+  checksumLabel: string
+  revisionLabel: string
+  loading: boolean
+  content?: string
+  error?: string
+}
+
+export interface ReviewDocumentBoardViewModel {
+  empty: boolean
+  approveDisabled: boolean
+  approveLabel: string
+  warning?: string
+  documents: ReviewDocumentItemViewModel[]
+}
+
+function checksumLabel(checksum?: string): string {
+  return checksum ? `sha256:${checksum.slice(0, 8)}` : 'checksum 缺失'
+}
+
+export function collectPlannerDocumentRefs(
+  output: PipelinePlannerStageOutput | null | undefined,
+): PipelinePatchWorkDocumentRef[] {
+  if (!output) return []
+  if (output.documentRefs?.length) return output.documentRefs
+
+  return [output.planRef, output.testPlanRef]
+    .filter((ref): ref is PipelinePatchWorkDocumentRef => Boolean(ref))
+}
+
+export function buildReviewDocumentBoardViewModel({
+  documents,
+  contents,
+  loadingPaths,
+  readErrors,
+  submitting,
+}: {
+  documents: PipelinePatchWorkDocumentRef[]
+  contents: Map<string, string>
+  loadingPaths: Set<string>
+  readErrors: Map<string, string>
+  submitting: boolean
+}): ReviewDocumentBoardViewModel {
+  const missingChecksum = documents.some((document) => !document.checksum)
+  const hasLoading = documents.some((document) => loadingPaths.has(document.relativePath))
+  const hasReadErrors = documents.some((document) => readErrors.has(document.relativePath))
+  const missingContent = documents.some((document) => {
+    const content = contents.get(document.relativePath)
+    return !loadingPaths.has(document.relativePath)
+      && !readErrors.has(document.relativePath)
+      && (!content || !content.trim())
+  })
+  const empty = documents.length === 0
+  const warning = (() => {
+    if (missingChecksum) return '存在缺少 checksum 的文档，不能继续审核。'
+    if (hasLoading) return '仍在读取 Planner 文档，加载完成后才能继续审核。'
+    if (hasReadErrors) return '存在读取失败的 Planner 文档，请刷新后重试。'
+    if (missingContent) return '存在缺少正文的 Planner 文档，请刷新后重试。'
+    return undefined
+  })()
+
+  return {
+    empty,
+    approveDisabled: submitting || empty || missingChecksum || hasLoading || hasReadErrors || missingContent,
+    approveLabel: submitting ? '正在进入开发' : '接受方案并开始开发',
+    warning,
+    documents: documents.map((document) => ({
+      displayName: document.displayName,
+      relativePath: document.relativePath,
+      checksumLabel: checksumLabel(document.checksum),
+      revisionLabel: `第 ${document.revision ?? 1} 版`,
+      loading: loadingPaths.has(document.relativePath),
+      content: contents.get(document.relativePath),
+      error: readErrors.get(document.relativePath),
+    })),
+  }
+}
+
+export function ReviewDocumentBoard({
+  documents,
+  contents,
+  loadingPaths,
+  readErrors,
+  onApprove,
+  onReject,
+  onRerun,
+}: {
+  documents: PipelinePatchWorkDocumentRef[]
+  contents: Map<string, string>
+  loadingPaths: Set<string>
+  readErrors: Map<string, string>
+  onApprove: () => Promise<void>
+  onReject: (feedback: string) => Promise<void>
+  onRerun: () => Promise<void>
+}): React.ReactElement {
+  const [feedback, setFeedback] = React.useState('')
+  const [submitting, setSubmitting] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [feedbackError, setFeedbackError] = React.useState<string | null>(null)
+  const viewModel = buildReviewDocumentBoardViewModel({
+    documents,
+    contents,
+    loadingPaths,
+    readErrors,
+    submitting,
+  })
+
+  const runAction = async (action: () => Promise<void>): Promise<void> => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      await action()
+    } catch (submitError) {
+      console.error('[ReviewDocumentBoard] 文档审核失败:', submitError)
+      setError(submitError instanceof Error ? submitError.message : '提交审核失败，请稍后重试。')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleReject = async (): Promise<void> => {
+    const trimmed = feedback.trim()
+    if (!trimmed) {
+      setFeedbackError('请填写需要 planner 修订的具体反馈。')
+      return
+    }
+    setFeedbackError(null)
+    await runAction(() => onReject(trimmed))
+  }
+
+  return (
+    <section className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-4 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium text-sky-700 dark:text-sky-200">文档审核</div>
+          <h2 className="mt-1 text-base font-semibold">审核 Planner 方案</h2>
+        </div>
+        <div className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-200">
+          {documents.length} 份文档
+        </div>
+      </div>
+
+      {viewModel.warning ? (
+        <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          {viewModel.warning}
+        </div>
+      ) : null}
+
+      {viewModel.empty ? (
+        <div className="mt-4 rounded-xl bg-background/80 px-3 py-3 text-sm text-muted-foreground">
+          Planner 尚未生成可审核文档。
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {viewModel.documents.map((document) => (
+            <article key={document.relativePath} className="rounded-xl bg-background px-3 py-3 text-foreground shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{document.displayName}</div>
+                  <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+                    {document.relativePath}
+                  </div>
+                </div>
+                <div className="flex flex-shrink-0 flex-col items-end gap-1 text-[11px] text-muted-foreground">
+                  <span>{document.revisionLabel}</span>
+                  <span>{document.checksumLabel}</span>
+                </div>
+              </div>
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/70 px-3 py-3 text-xs leading-5 text-foreground">
+                {document.loading
+                  ? '正在读取文档...'
+                  : document.error
+                    ? `读取失败：${document.error}`
+                    : document.content ?? '文档内容暂不可用。'}
+              </pre>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <label className="mt-4 block text-xs font-medium text-sky-700 dark:text-sky-200" htmlFor="pipeline-document-review-feedback">
+        修订反馈
+      </label>
+      <textarea
+        id="pipeline-document-review-feedback"
+        value={feedback}
+        onChange={(event) => {
+          setFeedback(event.target.value)
+          if (feedbackError) setFeedbackError(null)
+          if (error) setError(null)
+        }}
+        placeholder="指出 plan.md 或 test-plan.md 需要 planner 修订的地方"
+        className="mt-2 min-h-24 w-full rounded-xl border border-sky-200 bg-background px-3 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary dark:border-sky-500/30"
+      />
+      {feedbackError ? (
+        <div className="mt-2 text-xs text-rose-600 dark:text-rose-300">{feedbackError}</div>
+      ) : null}
+      {error ? (
+        <div className="mt-2 text-xs text-rose-600 dark:text-rose-300">{error}</div>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={viewModel.approveDisabled}
+          onClick={() => void runAction(onApprove)}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+        >
+          {viewModel.approveLabel}
+        </button>
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => void handleReject()}
+          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+        >
+          要求修订
+        </button>
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => void runAction(onRerun)}
+          className="rounded-lg border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted/60 disabled:opacity-50"
+        >
+          重跑计划
+        </button>
+      </div>
+    </section>
+  )
+}

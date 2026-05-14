@@ -466,6 +466,25 @@ export interface PipelineArtifactContentInput {
   ref: PipelineArtifactContentRef
 }
 
+export interface PipelinePatchWorkSessionInput {
+  sessionId: string
+}
+
+export interface PipelinePatchWorkReadFileInput extends PipelinePatchWorkSessionInput {
+  relativePath: string
+}
+
+export interface PipelineSelectTaskInput extends PipelinePatchWorkSessionInput {
+  gateId: string
+  selectedReportId: string
+}
+
+export interface PipelineSelectTaskResult {
+  manifest: PatchWorkManifest
+  selectedReport: PipelineExplorerReportRef
+  selectedTaskRef: PatchWorkFileRef
+}
+
 /** 当前 Pipeline 运行快照 */
 export interface PipelineStateSnapshot {
   sessionId: string
@@ -666,6 +685,10 @@ export const PIPELINE_IPC_CHANNELS = {
   GET_RECORDS_TAIL: 'pipeline:get-records-tail',
   SEARCH_RECORDS: 'pipeline:search-records',
   READ_ARTIFACT_CONTENT: 'pipeline:read-artifact-content',
+  GET_PATCH_WORK_MANIFEST: 'pipeline-v2:get-patch-work-manifest',
+  READ_PATCH_WORK_FILE: 'pipeline-v2:read-patch-work-file',
+  LIST_EXPLORER_REPORTS: 'pipeline-v2:list-explorer-reports',
+  SELECT_TASK: 'pipeline-v2:select-task',
   UPDATE_TITLE: 'pipeline:update-title',
   DELETE_SESSION: 'pipeline:delete-session',
   TOGGLE_PIN: 'pipeline:toggle-pin',

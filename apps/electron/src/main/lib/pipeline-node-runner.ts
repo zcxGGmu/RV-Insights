@@ -3,7 +3,9 @@ import { dirname, join } from 'node:path'
 import { normalizeAnthropicBaseUrlForSdk } from '@rv-insights/core'
 import type {
   JsonSchemaOutputFormat,
+  PipelineExplorerReportRef,
   PipelineNodeKind,
+  PipelinePlannerStageOutput,
   PipelineVersion,
   PipelineStageOutput,
   PipelineStageOutputMap,
@@ -14,8 +16,10 @@ import type {
   SDKContentBlock,
 } from '@rv-insights/shared'
 import {
+  SAFE_TOOLS,
   isAgentCompatibleProvider,
 } from '@rv-insights/shared'
+import type { CanUseToolOptions, PermissionResult } from './agent-permission-service'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
 import { getChannelById, decryptApiKey } from './channel-manager'
 import {
@@ -34,9 +38,22 @@ import {
   ClaudeAgentAdapter,
   type ClaudeAgentQueryOptions,
 } from './adapters/claude-agent-adapter'
+import { getContributionTaskByPipelineSessionId } from './contribution-task-service'
+import {
+  clearPatchWorkFilesByKind,
+  listPatchWorkExplorerReports,
+  readPatchWorkManifestFile,
+  writePatchWorkFile,
+} from './pipeline-patch-work-service'
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6'
 const DEFAULT_ANTHROPIC_URL = 'https://api.anthropic.com'
+const V2_READ_ONLY_DISALLOWED_TOOLS = [
+  'Write',
+  'Edit',
+  'MultiEdit',
+  'NotebookEdit',
+] as const
 
 export interface PipelineNodeExecutionContext {
   sessionId: string
@@ -306,13 +323,60 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
   }
 }
 
+function buildV2SystemPromptAppendix(
+  node: PipelineNodeKind,
+  context: PipelineNodeExecutionContext,
+): string | undefined {
+  if (context.version !== 2) return undefined
+
+  if (node === 'explorer') {
+    return [
+      'Pipeline v2 约束：',
+      '- 不要修改源码或工作区文件。',
+      '- 请输出多个候选 reports，应用会把它们写入 patch-work/explorer/report-*.md。',
+      '- 每个 report 至少包含 title、summary、rationale、keyFiles。',
+    ].join('\n')
+  }
+
+  if (node === 'planner') {
+    return [
+      'Pipeline v2 约束：',
+      '- 不要修改源码或工作区文件。',
+      '- 必须基于 selected-task.md 输出 planMarkdown 和 testPlanMarkdown。',
+      '- 应用会把 planMarkdown 写入 patch-work/plan.md，把 testPlanMarkdown 写入 patch-work/test-plan.md。',
+    ].join('\n')
+  }
+
+  return undefined
+}
+
+function readSelectedTaskForPrompt(context: PipelineNodeExecutionContext): string | undefined {
+  if (context.version !== 2 || context.currentNode !== 'planner') return undefined
+
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) {
+    throw new Error(`未找到 Pipeline 贡献任务，无法读取 selected-task.md: ${context.sessionId}`)
+  }
+
+  return readPatchWorkManifestFile({
+    repositoryRoot: task.repositoryRoot,
+    relativePath: 'selected-task.md',
+  })
+}
+
 function buildUserPrompt(
   node: PipelineNodeKind,
   context: PipelineNodeExecutionContext,
   workspaceName?: string,
 ): string {
+  const selectedTaskContent = node === 'planner'
+    ? readSelectedTaskForPrompt(context)
+    : undefined
   return [
     workspaceName ? `当前工作区：${workspaceName}` : undefined,
+    selectedTaskContent
+      ? `已选任务（selected-task.md）：\n${selectedTaskContent}`
+      : undefined,
     compactStageOutputsForPrompt(context.stageOutputs).trim() || undefined,
     context.feedback ? `人工反馈：${context.feedback}` : undefined,
     `用户需求：${context.userInput}`,
@@ -330,7 +394,10 @@ export function buildPipelineNodePrompts(
   workspaceName?: string,
 ): PipelineNodePrompts {
   return {
-    systemPrompt: buildSystemPrompt(node),
+    systemPrompt: [
+      buildSystemPrompt(node),
+      buildV2SystemPromptAppendix(node, context),
+    ].filter((line): line is string => Boolean(line)).join('\n\n'),
     userPrompt: buildUserPrompt(node, context, workspaceName),
   }
 }
@@ -339,6 +406,20 @@ function stringArraySchema(): Record<string, unknown> {
   return {
     type: 'array',
     items: { type: 'string' },
+  }
+}
+
+function explorerReportDraftSchema(): Record<string, unknown> {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['title', 'summary'],
+    properties: {
+      title: { type: 'string' },
+      summary: { type: 'string' },
+      rationale: { type: 'string' },
+      keyFiles: stringArraySchema(),
+    },
   }
 }
 
@@ -354,6 +435,10 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
           findings: stringArraySchema(),
           keyFiles: stringArraySchema(),
           nextSteps: stringArraySchema(),
+          reports: {
+            type: 'array',
+            items: explorerReportDraftSchema(),
+          },
         },
       }
     case 'planner':
@@ -366,6 +451,8 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
           steps: stringArraySchema(),
           risks: stringArraySchema(),
           verification: stringArraySchema(),
+          planMarkdown: { type: 'string' },
+          testPlanMarkdown: { type: 'string' },
         },
       }
     case 'developer':
@@ -602,6 +689,258 @@ function readSubmissionStatus(
   return 'blocked'
 }
 
+interface ExplorerReportDraft {
+  title: string
+  summary: string
+  rationale?: string
+  keyFiles: string[]
+}
+
+function readOptionalString(parsed: Record<string, unknown>, field: string): string | undefined {
+  const value = parsed[field]
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function readExplorerReportDrafts(
+  parsed: Record<string, unknown>,
+  fallback: Extract<PipelineStageOutput, { node: 'explorer' }>,
+): ExplorerReportDraft[] {
+  const reports = parsed.reports
+  if (Array.isArray(reports)) {
+    const drafts = reports
+      .filter((item): item is Record<string, unknown> =>
+        typeof item === 'object' && item !== null)
+      .map((item): ExplorerReportDraft | null => {
+        const title = typeof item.title === 'string' ? item.title.trim() : ''
+        const summary = typeof item.summary === 'string' ? item.summary.trim() : ''
+        const rationale = typeof item.rationale === 'string' ? item.rationale.trim() : undefined
+        const keyFiles = Array.isArray(item.keyFiles)
+          ? item.keyFiles.filter((file): file is string => typeof file === 'string' && file.trim().length > 0)
+          : fallback.keyFiles
+        return title && summary
+          ? {
+              title,
+              summary,
+              ...(rationale ? { rationale } : {}),
+              keyFiles,
+            }
+          : null
+      })
+      .filter((item): item is ExplorerReportDraft => item !== null)
+
+    if (drafts.length > 0) return drafts
+  }
+
+  return [{
+    title: fallback.summary,
+    summary: fallback.findings[0] ?? fallback.summary,
+    rationale: fallback.nextSteps[0],
+    keyFiles: fallback.keyFiles,
+  }]
+}
+
+function buildExplorerReportMarkdown(
+  draft: ExplorerReportDraft,
+  index: number,
+): string {
+  return [
+    `# 探索报告：${draft.title}`,
+    '',
+    '## 贡献点概述',
+    draft.summary,
+    '',
+    '## 为什么值得做',
+    draft.rationale ?? '该方向来自 Explorer 对仓库和任务的结构化分析。',
+    '',
+    '## 相关文件',
+    ...(draft.keyFiles.length > 0 ? draft.keyFiles.map((file) => `- \`${file}\``) : ['- 待 planner 进一步确认']),
+    '',
+    '## 可能修改范围',
+    '由 planner 在选定任务后收敛为具体实施步骤。',
+    '',
+    '## 风险与不确定性',
+    '需要在 planner 阶段继续验证边界和测试策略。',
+    '',
+    '## 建议验证方式',
+    '补充相关单元测试，并运行阶段指定验证命令。',
+    '',
+    '## 适合作为 task 的原因',
+    `这是 Explorer 生成的第 ${index + 1} 个候选贡献点，适合在人工选择后进入 planner。`,
+    '',
+  ].join('\n')
+}
+
+function toPatchWorkDocumentRef(ref: {
+  displayName: string
+  relativePath: string
+  checksum: string
+  revision: number
+}) {
+  return {
+    displayName: ref.displayName,
+    relativePath: ref.relativePath,
+    checksum: ref.checksum,
+    revision: ref.revision,
+  }
+}
+
+function enrichExplorerPatchWorkArtifacts(
+  context: PipelineNodeExecutionContext,
+  result: PipelineNodeExecutionResult,
+): PipelineNodeExecutionResult {
+  if (result.stageOutput?.node !== 'explorer') return result
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) return result
+
+  const parsed = parseStructuredOutput('explorer', result.output)
+  const drafts = readExplorerReportDrafts(parsed, result.stageOutput)
+  clearPatchWorkFilesByKind({
+    repositoryRoot: task.repositoryRoot,
+    kind: 'explorer_report',
+  })
+  drafts.forEach((draft, index) => {
+    writePatchWorkFile({
+      contributionTaskId: task.id,
+      pipelineSessionId: context.sessionId,
+      repositoryRoot: task.repositoryRoot,
+      kind: 'explorer_report',
+      relativePath: `explorer/report-${String(index + 1).padStart(3, '0')}.md`,
+      displayName: `探索报告 ${String(index + 1).padStart(3, '0')}.md`,
+      createdByNode: 'explorer',
+      content: buildExplorerReportMarkdown(draft, index),
+    })
+  })
+
+  const reports: PipelineExplorerReportRef[] = listPatchWorkExplorerReports({
+    repositoryRoot: task.repositoryRoot,
+  })
+
+  return {
+    ...result,
+    stageOutput: {
+      ...result.stageOutput,
+      reports,
+    },
+  }
+}
+
+function buildFallbackPlanMarkdown(output: PipelinePlannerStageOutput): string {
+  return [
+    '# 开发方案',
+    '',
+    '## 任务来源',
+    '来自 selected-task.md。',
+    '',
+    '## 目标行为',
+    output.summary,
+    '',
+    '## 非目标',
+    '- 不在 planner 阶段修改源码。',
+    '',
+    '## 相关文件和模块',
+    '- 待 developer 根据方案确认。',
+    '',
+    '## 实施步骤',
+    ...output.steps.map((step) => `- ${step}`),
+    '',
+    '## 数据/类型/API 变更',
+    '- 按实施步骤确认。',
+    '',
+    '## UI/交互变更',
+    '- 按实施步骤确认。',
+    '',
+    '## 风险',
+    ...(output.risks.length > 0 ? output.risks.map((risk) => `- ${risk}`) : ['- 暂无明确风险。']),
+    '',
+    '## 回滚策略',
+    '- 回滚本阶段代码改动，并保留 patch-work 文档用于复盘。',
+    '',
+  ].join('\n')
+}
+
+function buildFallbackTestPlanMarkdown(output: PipelinePlannerStageOutput): string {
+  return [
+    '# 测试方案',
+    '',
+    '## 验证目标',
+    output.summary,
+    '',
+    '## 单元测试',
+    ...output.verification.map((item) => `- ${item}`),
+    '',
+    '## 集成测试',
+    '- 根据涉及的 IPC / 服务边界补充。',
+    '',
+    '## UI/端到端验证',
+    '- 验证关键用户路径。',
+    '',
+    '## 手动验证步骤',
+    '- 按阶段 checklist 执行。',
+    '',
+    '## 可接受的跳过项',
+    '- 无。',
+    '',
+    '## 失败时处理路径',
+    '- 回到 planner 或 developer 修订。',
+    '',
+  ].join('\n')
+}
+
+function enrichPlannerPatchWorkArtifacts(
+  context: PipelineNodeExecutionContext,
+  result: PipelineNodeExecutionResult,
+): PipelineNodeExecutionResult {
+  if (result.stageOutput?.node !== 'planner') return result
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) return result
+
+  const parsed = parseStructuredOutput('planner', result.output)
+  const planMarkdown = readOptionalString(parsed, 'planMarkdown')
+    ?? buildFallbackPlanMarkdown(result.stageOutput)
+  const testPlanMarkdown = readOptionalString(parsed, 'testPlanMarkdown')
+    ?? buildFallbackTestPlanMarkdown(result.stageOutput)
+  const planRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'implementation_plan',
+    createdByNode: 'planner',
+    content: planMarkdown,
+  })
+  const testPlanRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'test_plan',
+    createdByNode: 'planner',
+    content: testPlanMarkdown,
+  })
+
+  return {
+    ...result,
+    stageOutput: {
+      ...result.stageOutput,
+      planRef: toPatchWorkDocumentRef(planRef),
+      testPlanRef: toPatchWorkDocumentRef(testPlanRef),
+      documentRefs: [
+        toPatchWorkDocumentRef(planRef),
+        toPatchWorkDocumentRef(testPlanRef),
+      ],
+    },
+  }
+}
+
+export function enrichPipelineV2PatchWorkArtifacts(
+  node: PipelineNodeKind,
+  context: PipelineNodeExecutionContext,
+  result: PipelineNodeExecutionResult,
+): PipelineNodeExecutionResult {
+  if (context.version !== 2) return result
+  if (node === 'explorer') return enrichExplorerPatchWorkArtifacts(context, result)
+  if (node === 'planner') return enrichPlannerPatchWorkArtifacts(context, result)
+  return result
+}
+
 function parseStructuredOutput(node: PipelineNodeKind, text: string): Record<string, unknown> {
   const parsed = parseJsonObject(text)
   if (!parsed) {
@@ -726,6 +1065,168 @@ function permissionModeToSdk(
   return mode
 }
 
+export interface PipelineNodeToolPermissionOptions {
+  sdkPermissionMode: ClaudeAgentQueryOptions['sdkPermissionMode']
+  allowDangerouslySkipPermissions: boolean
+  allowedTools?: string[]
+  disallowedTools?: string[]
+  canUseTool?: ClaudeAgentQueryOptions['canUseTool']
+}
+
+function isV2ReadOnlyNode(
+  node: PipelineNodeKind,
+  context: PipelineNodeExecutionContext,
+): boolean {
+  return context.version === 2 && (node === 'explorer' || node === 'planner')
+}
+
+function hasV2DangerousBashStructure(command: string): boolean {
+  if (/[|><;&]/.test(command)) return true
+  if (/\$\(/.test(command) || /`/.test(command)) return true
+  return false
+}
+
+function hasOutputOption(tokens: string[]): boolean {
+  return tokens.some((token) => token === '-o' || token === '--output' || token.startsWith('--output='))
+}
+
+function isV2ReadOnlyGitCommand(tokens: string[]): boolean {
+  const subcommand = tokens[1]
+  const args = tokens.slice(2)
+  if (!subcommand) return false
+  if (hasOutputOption(tokens)) return false
+
+  if (subcommand === 'status' || subcommand === 'log' || subcommand === 'diff' || subcommand === 'show') {
+    return true
+  }
+
+  if (subcommand === 'branch') {
+    if (args.length === 0) return true
+    for (let index = 0; index < args.length; index += 1) {
+      const arg = args[index]
+      if (
+        arg === '--show-current'
+        || arg === '-a'
+        || arg === '-r'
+        || arg === '-v'
+        || arg === '-vv'
+        || arg === '--all'
+        || arg === '--remotes'
+        || arg === '--merged'
+        || arg === '--no-merged'
+      ) {
+        continue
+      }
+      if (arg === '--list') {
+        if (args[index + 1] && !args[index + 1]!.startsWith('-')) index += 1
+        continue
+      }
+      return false
+    }
+    return true
+  }
+
+  if (subcommand === 'tag') {
+    if (args.length === 0) return true
+    if ((args[0] === '--list' || args[0] === '-l') && args.length <= 2) return true
+    return false
+  }
+
+  if (subcommand === 'remote') {
+    if (args.length === 0) return true
+    if (args.length === 1 && args[0] === '-v') return true
+    if (args[0] === 'show' && args.length <= 2) return true
+    if (args[0] === 'get-url' && args.length <= 2) return true
+    return false
+  }
+
+  return false
+}
+
+function isV2ReadOnlyBashCommand(command: string): boolean {
+  const trimmed = command.trim()
+  if (!trimmed || hasV2DangerousBashStructure(trimmed)) return false
+  const tokens = trimmed.split(/\s+/)
+  if (hasOutputOption(tokens)) return false
+
+  if (tokens[0] === 'git') {
+    return isV2ReadOnlyGitCommand(tokens)
+  }
+
+  if (
+    tokens[0] === 'pwd'
+    || tokens[0] === 'env'
+    || tokens[0] === 'whoami'
+    || tokens[0] === 'which'
+    || tokens[0] === 'ls'
+    || tokens[0] === 'head'
+    || tokens[0] === 'tail'
+    || tokens[0] === 'grep'
+    || tokens[0] === 'rg'
+    || tokens[0] === 'uname'
+    || tokens[0] === 'tree'
+    || tokens[0] === 'wc'
+    || tokens[0] === 'file'
+    || tokens[0] === 'stat'
+    || tokens[0] === 'du'
+    || tokens[0] === 'df'
+  ) {
+    return true
+  }
+
+  if (trimmed === 'node --version' || trimmed === 'bun --version') return true
+  if (tokens[0] === 'npm' && ['list', 'ls', 'view', 'info', 'outdated'].includes(tokens[1] ?? '')) {
+    return true
+  }
+  if (trimmed === 'bun pm ls') return true
+  return false
+}
+
+function createV2ReadOnlyCanUseTool(): (
+  toolName: string,
+  input: Record<string, unknown>,
+  options: CanUseToolOptions,
+) => Promise<PermissionResult> {
+  return async (toolName, input) => {
+    if (SAFE_TOOLS.includes(toolName)) {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+
+    if (toolName === 'Bash') {
+      const command = typeof input.command === 'string' ? input.command : ''
+      if (isV2ReadOnlyBashCommand(command)) {
+        return { behavior: 'allow' as const, updatedInput: input }
+      }
+    }
+
+    return {
+      behavior: 'deny' as const,
+      message: 'Pipeline v2 Explorer / Planner 阶段只允许读取和安全检查，不能修改源码或工作区文件。',
+    }
+  }
+}
+
+export function buildPipelineNodeToolPermissionOptions(
+  node: PipelineNodeKind,
+  context: PipelineNodeExecutionContext,
+  permissionMode: RVInsightsPermissionMode,
+): PipelineNodeToolPermissionOptions {
+  if (!isV2ReadOnlyNode(node, context)) {
+    return {
+      sdkPermissionMode: permissionModeToSdk(permissionMode),
+      allowDangerouslySkipPermissions: permissionMode === 'bypassPermissions',
+    }
+  }
+
+  return {
+    sdkPermissionMode: 'auto',
+    allowDangerouslySkipPermissions: false,
+    allowedTools: [...SAFE_TOOLS],
+    disallowedTools: [...V2_READ_ONLY_DISALLOWED_TOOLS],
+    canUseTool: createV2ReadOnlyCanUseTool(),
+  }
+}
+
 export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
   private adapter = new ClaudeAgentAdapter()
   private readonly channelId?: string
@@ -772,6 +1273,11 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
     const additionalDirectories = workspace.slug
       ? getWorkspaceAttachedDirectories(workspace.slug)
       : []
+    const permissionOptions = buildPipelineNodeToolPermissionOptions(
+      node,
+      context,
+      permissionMode,
+    )
 
     const queryOptions: ClaudeAgentQueryOptions = {
       sessionId: context.sessionId,
@@ -780,14 +1286,17 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
       cwd: workspace.cwd,
       sdkCliPath: resolveSDKCliPath(),
       env,
-      sdkPermissionMode: permissionModeToSdk(permissionMode),
-      allowDangerouslySkipPermissions: permissionMode === 'bypassPermissions',
+      sdkPermissionMode: permissionOptions.sdkPermissionMode,
+      allowDangerouslySkipPermissions: permissionOptions.allowDangerouslySkipPermissions,
       systemPrompt: prompts.systemPrompt,
       persistSession: false,
       forkSession: false,
       mcpServers,
       additionalDirectories,
       outputFormat: pipelineNodeOutputFormat(node),
+      ...(permissionOptions.canUseTool && { canUseTool: permissionOptions.canUseTool }),
+      ...(permissionOptions.allowedTools && { allowedTools: permissionOptions.allowedTools }),
+      ...(permissionOptions.disallowedTools && { disallowedTools: permissionOptions.disallowedTools }),
       ...(workspace.slug && {
         plugins: [{ type: 'local' as const, path: getAgentWorkspacePath(workspace.slug) }],
       }),
@@ -838,7 +1347,11 @@ export class ClaudePipelineNodeRunner implements PipelineNodeRunner {
       signal?.removeEventListener('abort', handleAbort)
     }
 
-    const result = buildNodeExecutionResult(node, combinedOutput)
+    const result = enrichPipelineV2PatchWorkArtifacts(
+      node,
+      context,
+      buildNodeExecutionResult(node, combinedOutput),
+    )
 
     this.onEvent?.({
       type: 'node_complete',

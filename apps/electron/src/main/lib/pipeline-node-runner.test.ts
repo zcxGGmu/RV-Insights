@@ -1,4 +1,7 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 mock.module('electron', () => ({
   safeStorage: {
@@ -15,10 +18,34 @@ mock.module('electron', () => ({
 const {
   PipelineStructuredOutputError,
   buildNodeExecutionResult,
+  buildPipelineNodeToolPermissionOptions,
   buildPipelineNodePrompts,
+  enrichPipelineV2PatchWorkArtifacts,
 } = await import('./pipeline-node-runner')
+const { createContributionTask } = await import('./contribution-task-service')
+const { writePatchWorkFile } = await import('./pipeline-patch-work-service')
 
 describe('pipeline-node-runner', () => {
+  const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
+  let tempConfigDir = ''
+  let repoRoot = ''
+
+  beforeEach(() => {
+    tempConfigDir = mkdtempSync(join(tmpdir(), 'rv-pipeline-node-runner-config-'))
+    repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-node-runner-repo-'))
+    process.env.RV_INSIGHTS_CONFIG_DIR = tempConfigDir
+  })
+
+  afterEach(() => {
+    if (originalConfigDir == null) {
+      delete process.env.RV_INSIGHTS_CONFIG_DIR
+    } else {
+      process.env.RV_INSIGHTS_CONFIG_DIR = originalConfigDir
+    }
+    rmSync(tempConfigDir, { recursive: true, force: true })
+    rmSync(repoRoot, { recursive: true, force: true })
+  })
+
   test('buildPipelineNodePrompts 拆分 system prompt 与 user prompt', () => {
     const prompts = buildPipelineNodePrompts('developer', {
       sessionId: 'session-1',
@@ -137,5 +164,268 @@ describe('pipeline-node-runner', () => {
       submissionStatus: 'draft_only',
       risks: ['未执行真实 commit'],
     })
+  })
+
+  test('v2 explorer 会把结构化候选写入 patch-work/explorer 并回填 report refs', () => {
+    createContributionTask({
+      id: 'task-runner-explorer',
+      pipelineSessionId: 'session-runner-explorer',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'exploring',
+    })
+
+    const result = buildNodeExecutionResult('explorer', JSON.stringify({
+      summary: '找到两个贡献方向',
+      findings: ['Pipeline 缺少选择态', 'Planner 文档不可审核'],
+      keyFiles: ['PipelineView.tsx'],
+      nextSteps: ['让用户选择任务'],
+      reports: [
+        {
+          title: '任务选择闭环',
+          summary: '用户必须选择报告后进入 planner。',
+          keyFiles: ['PipelineView.tsx'],
+          rationale: '避免 planner 处理模糊任务。',
+        },
+        {
+          title: '方案文档审核',
+          summary: '展示 plan.md 和 test-plan.md。',
+          keyFiles: ['pipeline-patch-work-service.ts'],
+          rationale: '让用户审核 checksum 后继续。',
+        },
+      ],
+    }))
+
+    const enriched = enrichPipelineV2PatchWorkArtifacts('explorer', {
+      sessionId: 'session-runner-explorer',
+      userInput: '实现 Phase 3',
+      currentNode: 'explorer',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    expect(enriched.stageOutput).toMatchObject({
+      node: 'explorer',
+      reports: [
+        {
+          reportId: 'report-001',
+          title: '任务选择闭环',
+          relativePath: 'explorer/report-001.md',
+        },
+        {
+          reportId: 'report-002',
+          title: '方案文档审核',
+          relativePath: 'explorer/report-002.md',
+        },
+      ],
+    })
+    expect(readFileSync(join(repoRoot, 'patch-work', 'explorer', 'report-001.md'), 'utf-8')).toContain('用户必须选择报告后进入 planner')
+  })
+
+  test('v2 explorer 重跑时不会继续暴露上一轮多余报告', () => {
+    createContributionTask({
+      id: 'task-runner-explorer-rerun',
+      pipelineSessionId: 'session-runner-explorer-rerun',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'exploring',
+    })
+
+    const firstResult = buildNodeExecutionResult('explorer', JSON.stringify({
+      summary: '第一次生成三个方向',
+      findings: ['方向一', '方向二', '方向三'],
+      keyFiles: ['PipelineView.tsx'],
+      nextSteps: ['选择任务'],
+      reports: [
+        { title: '方向一', summary: '第一份报告。' },
+        { title: '方向二', summary: '第二份报告。' },
+        { title: '方向三', summary: '第三份报告。' },
+      ],
+    }))
+
+    enrichPipelineV2PatchWorkArtifacts('explorer', {
+      sessionId: 'session-runner-explorer-rerun',
+      userInput: '实现 Phase 3',
+      currentNode: 'explorer',
+      version: 2,
+      reviewIteration: 0,
+    }, firstResult)
+
+    const secondResult = buildNodeExecutionResult('explorer', JSON.stringify({
+      summary: '重跑后只保留一个方向',
+      findings: ['方向一'],
+      keyFiles: ['PipelineView.tsx'],
+      nextSteps: ['选择任务'],
+      reports: [
+        { title: '方向一修订版', summary: '重跑后的唯一报告。' },
+      ],
+    }))
+
+    const enriched = enrichPipelineV2PatchWorkArtifacts('explorer', {
+      sessionId: 'session-runner-explorer-rerun',
+      userInput: '实现 Phase 3',
+      currentNode: 'explorer',
+      version: 2,
+      reviewIteration: 0,
+    }, secondResult)
+
+    expect(enriched.stageOutput).toMatchObject({
+      node: 'explorer',
+      reports: [
+        {
+          reportId: 'report-001',
+          title: '方向一修订版',
+          summary: '重跑后的唯一报告。',
+        },
+      ],
+    })
+  })
+
+  test('v2 explorer 和 planner 强制使用只读工具权限', async () => {
+    const explorerOptions = buildPipelineNodeToolPermissionOptions('explorer', {
+      sessionId: 'session-readonly',
+      userInput: '探索任务',
+      currentNode: 'explorer',
+      version: 2,
+      reviewIteration: 0,
+    }, 'bypassPermissions')
+
+    expect(explorerOptions.allowDangerouslySkipPermissions).toBe(false)
+    expect(explorerOptions.sdkPermissionMode).toBe('auto')
+    expect(explorerOptions.allowedTools).toContain('Read')
+    expect(explorerOptions.disallowedTools).toContain('Write')
+    expect(await explorerOptions.canUseTool?.('Bash', { command: 'git status --short' }, {
+      signal: new AbortController().signal,
+      toolUseID: 'tool-safe-bash',
+    })).toMatchObject({ behavior: 'allow' })
+    expect(await explorerOptions.canUseTool?.('Bash', { command: 'git diff --output=src/a.ts' }, {
+      signal: new AbortController().signal,
+      toolUseID: 'tool-git-diff-output',
+    })).toMatchObject({ behavior: 'deny' })
+    expect(await explorerOptions.canUseTool?.('Bash', { command: 'git branch tmp' }, {
+      signal: new AbortController().signal,
+      toolUseID: 'tool-git-branch-create',
+    })).toMatchObject({ behavior: 'deny' })
+    expect(await explorerOptions.canUseTool?.('Bash', { command: 'git tag tmp' }, {
+      signal: new AbortController().signal,
+      toolUseID: 'tool-git-tag-create',
+    })).toMatchObject({ behavior: 'deny' })
+    expect(await explorerOptions.canUseTool?.('Bash', { command: 'git remote set-url origin git@example.com:repo.git' }, {
+      signal: new AbortController().signal,
+      toolUseID: 'tool-git-remote-set-url',
+    })).toMatchObject({ behavior: 'deny' })
+    expect(await explorerOptions.canUseTool?.('Bash', { command: 'git commit -m test' }, {
+      signal: new AbortController().signal,
+      toolUseID: 'tool-unsafe-bash',
+    })).toMatchObject({ behavior: 'deny' })
+    expect(await explorerOptions.canUseTool?.('Write', { file_path: 'src/index.ts' }, {
+      signal: new AbortController().signal,
+      toolUseID: 'tool-write',
+    })).toMatchObject({ behavior: 'deny' })
+
+    const developerOptions = buildPipelineNodeToolPermissionOptions('developer', {
+      sessionId: 'session-developer',
+      userInput: '实现任务',
+      currentNode: 'developer',
+      version: 2,
+      reviewIteration: 0,
+    }, 'bypassPermissions')
+    expect(developerOptions.allowDangerouslySkipPermissions).toBe(true)
+    expect(developerOptions.canUseTool).toBeUndefined()
+  })
+
+  test('v2 planner 缺少可验证 selected-task.md 时会中止，不生成方案文档', () => {
+    createContributionTask({
+      id: 'task-runner-planner-invalid-selected',
+      pipelineSessionId: 'session-runner-planner-invalid-selected',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      selectedReportId: 'report-001',
+      status: 'planning',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-planner-invalid-selected',
+      pipelineSessionId: 'session-runner-planner-invalid-selected',
+      repositoryRoot: repoRoot,
+      kind: 'selected_task',
+      createdByNode: 'explorer',
+      content: '# 已选任务：任务选择闭环\n\n用户必须选择报告后进入 planner。\n',
+    })
+    writeFileSync(join(repoRoot, 'patch-work', 'selected-task.md'), '# 已选任务：被篡改\n', 'utf-8')
+
+    expect(() => buildPipelineNodePrompts('planner', {
+      sessionId: 'session-runner-planner-invalid-selected',
+      userInput: '实现 Phase 3',
+      currentNode: 'planner',
+      version: 2,
+      reviewIteration: 0,
+    })).toThrow('selected-task.md')
+    expect(existsSync(join(repoRoot, 'patch-work', 'plan.md'))).toBe(false)
+  })
+
+  test('v2 planner 读取 selected-task.md 并写入 plan.md / test-plan.md', () => {
+    createContributionTask({
+      id: 'task-runner-planner',
+      pipelineSessionId: 'session-runner-planner',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      selectedReportId: 'report-001',
+      status: 'planning',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-planner',
+      pipelineSessionId: 'session-runner-planner',
+      repositoryRoot: repoRoot,
+      kind: 'selected_task',
+      createdByNode: 'explorer',
+      content: '# 已选任务：任务选择闭环\n\n用户必须选择报告后进入 planner。\n',
+    })
+
+    const prompts = buildPipelineNodePrompts('planner', {
+      sessionId: 'session-runner-planner',
+      userInput: '实现 Phase 3',
+      currentNode: 'planner',
+      version: 2,
+      reviewIteration: 0,
+    })
+    const result = buildNodeExecutionResult('planner', JSON.stringify({
+      summary: '按两步实现',
+      steps: ['补 IPC', '补 UI'],
+      risks: ['不能依赖 records'],
+      verification: ['bun test'],
+      planMarkdown: '# 开发方案\n\n## 目标行为\n用户选择任务后进入 planner。\n',
+      testPlanMarkdown: '# 测试方案\n\n## 单元测试\n覆盖 patch-work service。\n',
+    }))
+
+    const enriched = enrichPipelineV2PatchWorkArtifacts('planner', {
+      sessionId: 'session-runner-planner',
+      userInput: '实现 Phase 3',
+      currentNode: 'planner',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    expect(prompts.userPrompt).toContain('已选任务')
+    expect(enriched.stageOutput).toMatchObject({
+      node: 'planner',
+      planRef: {
+        relativePath: 'plan.md',
+        revision: 1,
+      },
+      testPlanRef: {
+        relativePath: 'test-plan.md',
+        revision: 1,
+      },
+    })
+    expect(existsSync(join(repoRoot, 'patch-work', 'plan.md'))).toBe(true)
+    expect(readFileSync(join(repoRoot, 'patch-work', 'test-plan.md'), 'utf-8')).toContain('覆盖 patch-work service')
   })
 })

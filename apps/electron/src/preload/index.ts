@@ -100,6 +100,7 @@ import type {
   AgentQueueMessageInput,
   PendingRequestsSnapshot,
   PipelineArtifactContentInput,
+  PipelineExplorerReportRef,
   PipelineSessionMeta,
   PipelineRecord,
   PipelineRecordsTailInput,
@@ -110,10 +111,15 @@ import type {
   PipelineResumeInput,
   PipelineGateRequest,
   PipelineGateResponse,
+  PipelinePatchWorkReadFileInput,
+  PipelinePatchWorkSessionInput,
+  PipelineSelectTaskInput,
+  PipelineSelectTaskResult,
   PipelineStateSnapshot,
   PipelineStreamPayload,
   PipelineStreamCompletePayload,
   PipelineStreamErrorPayload,
+  PatchWorkManifest,
 } from '@rv-insights/shared'
 import type { UserProfile, AppSettings, QuickTaskSubmitInput, QuickTaskOpenSessionData } from '../types'
 import { QUICK_TASK_IPC_CHANNELS } from '../types'
@@ -362,6 +368,18 @@ export interface ElectronAPI {
 
   /** 读取 Pipeline 阶段产物正文 */
   readPipelineArtifactContent: (input: PipelineArtifactContentInput) => Promise<string>
+
+  /** 读取 Pipeline v2 patch-work manifest */
+  getPipelinePatchWorkManifest: (input: PipelinePatchWorkSessionInput) => Promise<PatchWorkManifest>
+
+  /** 读取 Pipeline v2 patch-work 文件 */
+  readPipelinePatchWorkFile: (input: PipelinePatchWorkReadFileInput) => Promise<string>
+
+  /** 列出 Pipeline v2 Explorer 报告 */
+  listPipelineExplorerReports: (input: PipelinePatchWorkSessionInput) => Promise<PipelineExplorerReportRef[]>
+
+  /** 选择 Pipeline v2 Explorer report 作为任务 */
+  selectPipelineTask: (input: PipelineSelectTaskInput) => Promise<PipelineSelectTaskResult>
 
   /** 打开 Pipeline 产物目录 */
   openPipelineArtifactsDir: (sessionId: string) => Promise<boolean>
@@ -1146,6 +1164,22 @@ const electronAPI: ElectronAPI = {
 
   readPipelineArtifactContent: (input: PipelineArtifactContentInput) => {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.READ_ARTIFACT_CONTENT, input)
+  },
+
+  getPipelinePatchWorkManifest: (input: PipelinePatchWorkSessionInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.GET_PATCH_WORK_MANIFEST, input)
+  },
+
+  readPipelinePatchWorkFile: (input: PipelinePatchWorkReadFileInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.READ_PATCH_WORK_FILE, input)
+  },
+
+  listPipelineExplorerReports: (input: PipelinePatchWorkSessionInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.LIST_EXPLORER_REPORTS, input)
+  },
+
+  selectPipelineTask: (input: PipelineSelectTaskInput) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.SELECT_TASK, input)
   },
 
   openPipelineArtifactsDir: (sessionId: string) => {

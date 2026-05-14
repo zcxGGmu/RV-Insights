@@ -2,7 +2,16 @@ import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { agentChannelIdAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
-import type { PipelineGateRequest, PipelineNodeKind, PipelineRecord, PipelineSessionMeta, PipelineStateSnapshot } from '@rv-insights/shared'
+import type {
+  PipelineExplorerReportRef,
+  PipelineGateRequest,
+  PipelineNodeKind,
+  PipelinePatchWorkDocumentRef,
+  PipelinePlannerStageOutput,
+  PipelineRecord,
+  PipelineSessionMeta,
+  PipelineStateSnapshot,
+} from '@rv-insights/shared'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
   pipelinePendingGatesAtom,
@@ -17,6 +26,7 @@ import {
 } from '@/atoms/pipeline-atoms'
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
 import { resolvePipelineRunConfig, type PipelinePreflightError } from './pipeline-preflight'
+import { ExplorerTaskBoard } from './ExplorerTaskBoard'
 import { PipelineComposer } from './PipelineComposer'
 import { PipelineFailureCard } from './PipelineFailureCard'
 import { PipelineGateCard } from './PipelineGateCard'
@@ -29,6 +39,10 @@ import {
   mergePipelineRecordsTail,
   shouldApplyPipelineRecordsTailLoad,
 } from './pipeline-record-tail-model'
+import {
+  ReviewDocumentBoard,
+  collectPlannerDocumentRefs,
+} from './ReviewDocumentBoard'
 
 export function PipelineView({
   sessionId,
@@ -56,6 +70,10 @@ export function PipelineView({
   const [records, setRecords] = React.useState<PipelineRecord[]>([])
   const [preflightError, setPreflightError] = React.useState<PipelinePreflightError | null>(null)
   const [recordsFocusRequest, setRecordsFocusRequest] = React.useState<PipelineRecordsFocusRequest | null>(null)
+  const [explorerReports, setExplorerReports] = React.useState<PipelineExplorerReportRef[]>([])
+  const [documentContents, setDocumentContents] = React.useState<Map<string, string>>(new Map())
+  const [documentLoadingPaths, setDocumentLoadingPaths] = React.useState<Set<string>>(new Set())
+  const [documentReadErrors, setDocumentReadErrors] = React.useState<Map<string, string>>(new Map())
   const recordsCursorRef = React.useRef(0)
   const recordsLoadSeqRef = React.useRef(0)
   const recordsFocusSeqRef = React.useRef(0)
@@ -96,6 +114,20 @@ export function PipelineView({
     error: error ?? latestRecordError,
     partialOutput: liveOutput,
   }), [error, latestRecordError, liveOutput, state])
+  const explorerStageOutput = state?.stageOutputs?.explorer
+  const plannerStageOutput = state?.stageOutputs?.planner?.node === 'planner'
+    ? state.stageOutputs.planner as PipelinePlannerStageOutput
+    : null
+  const reviewDocuments = React.useMemo<PipelinePatchWorkDocumentRef[]>(
+    () => collectPlannerDocumentRefs(plannerStageOutput),
+    [plannerStageOutput],
+  )
+  const reviewDocumentKey = React.useMemo(
+    () => reviewDocuments.map((document) => `${document.relativePath}:${document.checksum ?? ''}`).join('|'),
+    [reviewDocuments],
+  )
+  const showExplorerTaskBoard = pendingGate?.kind === 'task_selection' && pendingGate.node === 'explorer'
+  const showPlannerDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'planner'
 
   React.useEffect(() => {
     recordsCursorRef.current = 0
@@ -179,6 +211,80 @@ export function PipelineView({
         // 还没有 checkpoint 时允许静默失败
       })
   }, [sessionId, setPendingGates, setSessions, setStateMap])
+
+  React.useEffect(() => {
+    if (!showExplorerTaskBoard) {
+      setExplorerReports([])
+      return
+    }
+
+    let cancelled = false
+    setExplorerReports(explorerStageOutput?.reports ?? [])
+    window.electronAPI.listPipelineExplorerReports({ sessionId })
+      .then((reports) => {
+        if (!cancelled) {
+          setExplorerReports(reports)
+        }
+      })
+      .catch((loadError) => {
+        console.error('[PipelineView] 读取 explorer reports 失败:', loadError)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [explorerStageOutput, sessionId, showExplorerTaskBoard])
+
+  React.useEffect(() => {
+    if (!showPlannerDocumentBoard || reviewDocuments.length === 0) {
+      setDocumentContents(new Map())
+      setDocumentLoadingPaths(new Set())
+      setDocumentReadErrors(new Map())
+      return
+    }
+
+    let cancelled = false
+    setDocumentContents(new Map())
+    setDocumentLoadingPaths(new Set(reviewDocuments.map((document) => document.relativePath)))
+    setDocumentReadErrors(new Map())
+
+    for (const document of reviewDocuments) {
+      window.electronAPI.readPipelinePatchWorkFile({
+        sessionId,
+        relativePath: document.relativePath,
+      })
+        .then((content) => {
+          if (cancelled) return
+          setDocumentContents((prev) => {
+            const next = new Map(prev)
+            next.set(document.relativePath, content)
+            return next
+          })
+        })
+        .catch((loadError) => {
+          console.error('[PipelineView] 读取 patch-work 文档失败:', loadError)
+          if (cancelled) return
+          const message = loadError instanceof Error ? loadError.message : '读取失败'
+          setDocumentReadErrors((prev) => {
+            const next = new Map(prev)
+            next.set(document.relativePath, message)
+            return next
+          })
+        })
+        .finally(() => {
+          if (cancelled) return
+          setDocumentLoadingPaths((prev) => {
+            const next = new Set(prev)
+            next.delete(document.relativePath)
+            return next
+          })
+        })
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [reviewDocumentKey, reviewDocuments, sessionId, showPlannerDocumentBoard])
 
   const handleStart = React.useCallback(async (userInput: string): Promise<void> => {
     const resolved = resolvePipelineRunConfig({
@@ -299,6 +405,15 @@ export function PipelineView({
     })
   }, [pendingGate, sessionId])
 
+  const handleSelectTask = React.useCallback(async (selectedReportId: string): Promise<void> => {
+    if (!pendingGate) return
+    await window.electronAPI.selectPipelineTask({
+      sessionId,
+      gateId: pendingGate.gateId,
+      selectedReportId,
+    })
+  }, [pendingGate, sessionId])
+
   const handleRestart = React.useCallback((): void => {
     if (!currentTask || running) return
     void handleStart(currentTask)
@@ -392,7 +507,24 @@ export function PipelineView({
               />
             </div>
             <aside className="order-first space-y-4 xl:order-none xl:sticky xl:top-4 xl:self-start">
-              {pendingGate ? (
+              {showExplorerTaskBoard ? (
+                <ExplorerTaskBoard
+                  reports={explorerReports}
+                  initialSelectedReportId={state?.stageOutputs?.explorer?.selectedReportId}
+                  onSelectTask={handleSelectTask}
+                  onRerun={() => handleRespond('rerun_node')}
+                />
+              ) : showPlannerDocumentBoard ? (
+                <ReviewDocumentBoard
+                  documents={reviewDocuments}
+                  contents={documentContents}
+                  loadingPaths={documentLoadingPaths}
+                  readErrors={documentReadErrors}
+                  onApprove={() => handleRespond('approve')}
+                  onReject={(feedback) => handleRespond('reject_with_feedback', feedback)}
+                  onRerun={() => handleRespond('rerun_node')}
+                />
+              ) : pendingGate ? (
                 <PipelineGateCard
                   request={pendingGate as PipelineGateRequest}
                   version={session?.version ?? state?.version}

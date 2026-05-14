@@ -2,17 +2,23 @@ import { ipcMain, shell } from 'electron'
 import { PIPELINE_IPC_CHANNELS } from '@rv-insights/shared'
 import type {
   PipelineArtifactContentInput,
+  PipelineExplorerReportRef,
   PipelineGateRequest,
   PipelineGateResponse,
+  PipelinePatchWorkReadFileInput,
+  PipelinePatchWorkSessionInput,
   PipelineRecord,
   PipelineRecordsSearchInput,
   PipelineRecordsSearchResult,
   PipelineRecordsTailInput,
   PipelineRecordsTailResult,
   PipelineResumeInput,
+  PipelineSelectTaskInput,
+  PipelineSelectTaskResult,
   PipelineSessionMeta,
   PipelineStartInput,
   PipelineStateSnapshot,
+  PatchWorkManifest,
 } from '@rv-insights/shared'
 import { getPipelineService } from '../lib/pipeline-service'
 import { pipelineStreamBus } from '../lib/pipeline-stream-bus'
@@ -62,6 +68,34 @@ export function registerPipelineIpcHandlers(): void {
     PIPELINE_IPC_CHANNELS.READ_ARTIFACT_CONTENT,
     async (_event, input: PipelineArtifactContentInput): Promise<string> => {
       return getPipelineService().readArtifactContent(input)
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.GET_PATCH_WORK_MANIFEST,
+    async (_event, input: PipelinePatchWorkSessionInput): Promise<PatchWorkManifest> => {
+      return getPipelineService().getPatchWorkManifest(input)
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.READ_PATCH_WORK_FILE,
+    async (_event, input: PipelinePatchWorkReadFileInput): Promise<string> => {
+      return getPipelineService().readPatchWorkFile(input)
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.LIST_EXPLORER_REPORTS,
+    async (_event, input: PipelinePatchWorkSessionInput): Promise<PipelineExplorerReportRef[]> => {
+      return getPipelineService().listExplorerReports(input)
+    }
+  )
+
+  ipcMain.handle(
+    PIPELINE_IPC_CHANNELS.SELECT_TASK,
+    async (_event, input: PipelineSelectTaskInput): Promise<PipelineSelectTaskResult> => {
+      return getPipelineService().selectTask(input, pipelineStreamBus.createCallbacks())
     }
   )
 

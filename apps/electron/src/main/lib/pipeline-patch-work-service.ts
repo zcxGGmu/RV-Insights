@@ -31,6 +31,7 @@ import type {
   PatchWorkFileRef,
   PatchWorkManifest,
   PatchWorkNodeKind,
+  PipelineExplorerReportRef,
 } from '@rv-insights/shared'
 import { readJsonFileSafe } from './safe-file'
 
@@ -54,6 +55,7 @@ interface FixedPatchWorkFileDefinition {
 }
 
 const MANIFEST_VERSION = 1
+const MARKDOWN_EXTENSION_PATTERN = /\.md$/i
 
 const FIXED_FILE_DEFINITIONS: Partial<Record<PatchWorkFileKind, FixedPatchWorkFileDefinition>> = {
   selected_task: {
@@ -347,10 +349,12 @@ function normalizeFileRef(value: unknown): PatchWorkFileRef | null {
   if (typeof value.updatedAt !== 'number') return null
 
   try {
+    const relativePath = normalizeRelativePath(value.relativePath)
+    assertWritablePatchWorkPath(relativePath)
     return {
       kind: value.kind as PatchWorkFileKind,
       displayName: value.displayName,
-      relativePath: normalizeRelativePath(value.relativePath),
+      relativePath,
       createdByNode: value.createdByNode as PatchWorkNodeKind,
       revision: Math.floor(value.revision),
       checksum: value.checksum,
@@ -418,6 +422,16 @@ function writeManifest(manifest: PatchWorkManifest): void {
     }
     throw error
   }
+}
+
+function updateManifest(
+  repositoryRoot: string,
+  transform: (manifest: PatchWorkManifest) => PatchWorkManifest,
+): PatchWorkManifest {
+  const manifest = readPatchWorkManifest(repositoryRoot)
+  const nextManifest = transform(manifest)
+  writeManifest(nextManifest)
+  return nextManifest
 }
 
 export function initializePatchWork(input: PatchWorkInitInput): PatchWorkManifest {
@@ -546,4 +560,235 @@ export function readPatchWorkFile(input: {
     { mustExist: true },
   )
   return readFileSync(targetPath, 'utf-8')
+}
+
+function readVerifiedPatchWorkFile(
+  repositoryRoot: string,
+  file: PatchWorkFileRef,
+): string {
+  const content = readPatchWorkFile({
+    repositoryRoot,
+    relativePath: file.relativePath,
+  })
+  const currentChecksum = checksum(content)
+  if (currentChecksum !== file.checksum) {
+    throw new Error(`patch-work 文件 checksum 已变化，请刷新后重试: ${file.relativePath}`)
+  }
+  return content
+}
+
+function assertManifestChecksumFresh(
+  manifest: PatchWorkManifest,
+  file: PatchWorkFileRef,
+): void {
+  const manifestChecksum = manifest.checksums[file.relativePath]
+  if (manifestChecksum !== file.checksum) {
+    throw new Error(`patch-work 文件 checksum 已变化，请刷新后重试: ${file.relativePath}`)
+  }
+}
+
+export function readPatchWorkManifestFile(input: {
+  repositoryRoot: string
+  relativePath: string
+}): string {
+  const manifest = readPatchWorkManifest(input.repositoryRoot)
+  const file = manifest.files.find((item) => item.relativePath === normalizeRelativePath(input.relativePath))
+  if (!file) {
+    throw new Error(`patch-work 文件未登记，无法读取: ${input.relativePath}`)
+  }
+
+  assertManifestChecksumFresh(manifest, file)
+  return readVerifiedPatchWorkFile(input.repositoryRoot, file)
+}
+
+function reportIdFromRelativePath(relativePath: string): string {
+  return basename(relativePath).replace(MARKDOWN_EXTENSION_PATTERN, '')
+}
+
+function titleFromReportContent(content: string, fallback: string): string {
+  const heading = content
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.startsWith('# '))
+    ?.replace(/^#\s+/, '')
+    .replace(/^探索报告[:：]\s*/, '')
+    .trim()
+
+  return heading || fallback.replace(MARKDOWN_EXTENSION_PATTERN, '')
+}
+
+function summaryFromReportContent(content: string): string | undefined {
+  const lines = content.split('\n').map((line) => line.trim())
+  const overviewIndex = lines.findIndex((line) => /^##\s+贡献点概述/.test(line))
+  const searchStart = overviewIndex >= 0 ? overviewIndex + 1 : 0
+
+  for (const line of lines.slice(searchStart)) {
+    if (!line || line.startsWith('#')) continue
+    return line
+  }
+
+  return undefined
+}
+
+function toExplorerReportRef(
+  file: PatchWorkFileRef,
+  content: string,
+): PipelineExplorerReportRef {
+  const title = titleFromReportContent(content, file.displayName)
+  return {
+    reportId: reportIdFromRelativePath(file.relativePath),
+    title,
+    summary: summaryFromReportContent(content),
+    displayName: file.displayName,
+    relativePath: file.relativePath,
+    checksum: file.checksum,
+    revision: file.revision,
+  }
+}
+
+export function listPatchWorkExplorerReports(input: {
+  repositoryRoot: string
+}): PipelineExplorerReportRef[] {
+  const manifest = readPatchWorkManifest(input.repositoryRoot)
+  return manifest.files
+    .filter((file) => file.kind === 'explorer_report')
+    .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+    .map((file) => {
+      assertManifestChecksumFresh(manifest, file)
+      return toExplorerReportRef(
+        file,
+        readVerifiedPatchWorkFile(input.repositoryRoot, file),
+      )
+    })
+}
+
+export interface SelectPatchWorkTaskInput {
+  repositoryRoot: string
+  selectedReportId: string
+  gateId?: string
+}
+
+export interface SelectPatchWorkTaskResult {
+  selectedReport: PipelineExplorerReportRef
+  selectedTaskRef: PatchWorkFileRef
+  manifest: PatchWorkManifest
+}
+
+export function selectPatchWorkTask(input: SelectPatchWorkTaskInput): SelectPatchWorkTaskResult {
+  const manifest = readPatchWorkManifest(input.repositoryRoot)
+  const reportFile = manifest.files
+    .filter((file) => file.kind === 'explorer_report')
+    .find((file) => reportIdFromRelativePath(file.relativePath) === input.selectedReportId)
+
+  if (!reportFile) {
+    throw new Error(`未找到 explorer report: ${input.selectedReportId}`)
+  }
+
+  assertManifestChecksumFresh(manifest, reportFile)
+  const reportContent = readVerifiedPatchWorkFile(input.repositoryRoot, reportFile)
+  const selectedReport = toExplorerReportRef(reportFile, reportContent)
+  const selectedTaskContent = [
+    `# 已选任务：${selectedReport.title}`,
+    '',
+    `来源报告：\`${reportFile.relativePath}\``,
+    `报告 ID：\`${selectedReport.reportId}\``,
+    `报告 checksum：\`${reportFile.checksum}\``,
+    '',
+    '---',
+    '',
+    reportContent.trim(),
+    '',
+  ].join('\n')
+  const selectedTaskRef = writePatchWorkFile({
+    contributionTaskId: manifest.contributionTaskId,
+    pipelineSessionId: manifest.pipelineSessionId,
+    repositoryRoot: input.repositoryRoot,
+    kind: 'selected_task',
+    createdByNode: 'explorer',
+    content: selectedTaskContent,
+  })
+  const acceptedAt = Date.now()
+  const nextManifest = updateManifest(input.repositoryRoot, (latestManifest) => ({
+    ...latestManifest,
+    selectedReportId: input.selectedReportId,
+    files: latestManifest.files.map((file) => {
+      if (file.relativePath !== reportFile.relativePath) return file
+      return {
+        ...file,
+        acceptedRevision: file.revision,
+        acceptedAt,
+        acceptedByGateId: input.gateId,
+      }
+    }),
+    updatedAt: acceptedAt,
+  }))
+
+  return {
+    selectedReport,
+    selectedTaskRef,
+    manifest: nextManifest,
+  }
+}
+
+export function acceptPatchWorkDocuments(input: {
+  repositoryRoot: string
+  gateId: string
+  kinds: PatchWorkFileKind[]
+}): PatchWorkFileRef[] {
+  const acceptedAt = Date.now()
+  const acceptedFiles: PatchWorkFileRef[] = []
+  updateManifest(input.repositoryRoot, (manifest) => {
+    const files = manifest.files.map((file) => {
+      if (!input.kinds.includes(file.kind)) return file
+      assertManifestChecksumFresh(manifest, file)
+      readVerifiedPatchWorkFile(input.repositoryRoot, file)
+      const acceptedFile = {
+        ...file,
+        acceptedRevision: file.revision,
+        acceptedAt,
+        acceptedByGateId: input.gateId,
+      }
+      acceptedFiles.push(acceptedFile)
+      return acceptedFile
+    })
+
+    const acceptedKinds = new Set(acceptedFiles.map((file) => file.kind))
+    for (const kind of input.kinds) {
+      if (!acceptedKinds.has(kind)) {
+        throw new Error(`patch-work 文档不存在，无法接受: ${kind}`)
+      }
+    }
+
+    return {
+      ...manifest,
+      files,
+      updatedAt: acceptedAt,
+    }
+  })
+
+  return input.kinds
+    .map((kind) => acceptedFiles.find((file) => file.kind === kind))
+    .filter((file): file is PatchWorkFileRef => Boolean(file))
+}
+
+export function clearPatchWorkFilesByKind(input: {
+  repositoryRoot: string
+  kind: PatchWorkFileKind
+}): PatchWorkManifest {
+  if (!FILE_KINDS.has(input.kind)) {
+    throw new Error(`无效 patch-work 文件类型: ${input.kind}`)
+  }
+
+  const updatedAt = Date.now()
+  return updateManifest(input.repositoryRoot, (manifest) => {
+    const files = manifest.files.filter((file) => file.kind !== input.kind)
+    const checksums = Object.fromEntries(files.map((file) => [file.relativePath, file.checksum]))
+    return {
+      ...manifest,
+      files,
+      checksums,
+      selectedReportId: input.kind === 'explorer_report' ? undefined : manifest.selectedReportId,
+      updatedAt,
+    }
+  })
 }
