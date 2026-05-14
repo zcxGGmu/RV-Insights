@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -28,6 +29,23 @@ const {
   readPatchWorkManifest,
   writePatchWorkFile,
 } = await import('./pipeline-patch-work-service')
+
+function git(repoRoot: string, args: string[]): string {
+  return execFileSync('git', ['-C', repoRoot, ...args], {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
+}
+
+function initializeGitRepo(repoRoot: string): void {
+  git(repoRoot, ['init'])
+  git(repoRoot, ['config', 'user.name', 'RV Test'])
+  git(repoRoot, ['config', 'user.email', 'rv-test@example.com'])
+  mkdirSync(join(repoRoot, 'src'), { recursive: true })
+  writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 1\n', 'utf-8')
+  git(repoRoot, ['add', 'src/index.ts'])
+  git(repoRoot, ['commit', '-m', 'initial'])
+}
 
 describe('pipeline-node-runner', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -190,6 +208,103 @@ describe('pipeline-node-runner', () => {
       summary: '审查通过',
       issues: [],
     })
+  })
+
+  test('tester 缺少 passed 时不会被误判为可继续', () => {
+    expect(() => buildNodeExecutionResult('tester', JSON.stringify({
+      summary: '测试结果缺少结论',
+      commands: ['bun test'],
+      results: ['有失败证据'],
+      blockers: [],
+      testEvidence: [
+        {
+          command: 'bun test',
+          status: 'failed',
+          summary: '失败',
+        },
+      ],
+    }))).toThrow(/缺少或非法字段: passed/)
+  })
+
+  test('tester 缺少 testEvidence 时不会被误判为测试通过', () => {
+    expect(() => buildNodeExecutionResult('tester', JSON.stringify({
+      summary: '测试结果缺少结构化证据',
+      commands: ['bun test'],
+      results: ['模型声称通过'],
+      blockers: [],
+      passed: true,
+    }))).toThrow(/缺少或非法字段: testEvidence/)
+  })
+
+  test('tester 即使 passed 为 true，只要测试证据失败也不能自动继续', () => {
+    const result = buildNodeExecutionResult('tester', JSON.stringify({
+      summary: '测试证据存在失败',
+      commands: ['bun test'],
+      results: ['有失败证据'],
+      blockers: [],
+      passed: true,
+      testEvidence: [
+        {
+          command: 'bun test',
+          status: 'failed',
+          summary: '失败',
+        },
+      ],
+    }))
+
+    expect(result.approved).toBe(false)
+    expect(result.stageOutput).toMatchObject({
+      node: 'tester',
+      passed: true,
+      testEvidence: [
+        {
+          status: 'failed',
+        },
+      ],
+    })
+  })
+
+  test('v2 tester fallback result.md 会按失败证据保持不通过结论', () => {
+    initializeGitRepo(repoRoot)
+    writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 2\n', 'utf-8')
+    createContributionTask({
+      id: 'task-runner-tester-failed-evidence',
+      pipelineSessionId: 'session-runner-tester-failed-evidence',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'testing',
+    })
+
+    const result = buildNodeExecutionResult('tester', JSON.stringify({
+      summary: '模型声称测试通过，但证据失败',
+      commands: ['bun test'],
+      results: ['模型声称通过'],
+      blockers: [],
+      passed: true,
+      testEvidence: [
+        {
+          command: 'bun test',
+          status: 'failed',
+          summary: '存在失败用例',
+        },
+      ],
+    }))
+    const enriched = enrichPipelineV2PatchWorkArtifacts('tester', {
+      sessionId: 'session-runner-tester-failed-evidence',
+      userInput: '实现 Phase 5',
+      currentNode: 'tester',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    const resultMarkdown = readFileSync(join(repoRoot, 'patch-work', 'result.md'), 'utf-8')
+    expect(enriched.approved).toBe(false)
+    expect(resultMarkdown).toContain('不通过')
+    expect(resultMarkdown).toContain('存在失败测试证据')
+    expect(resultMarkdown).not.toContain('## 测试结论\n通过。')
+    expect(resultMarkdown).not.toContain('可以进入提交草稿阶段。')
   })
 
   test('committer 支持解析提交材料草稿结构化输出', () => {

@@ -13,6 +13,7 @@ import type {
   PipelineReviewerStageOutput,
   PipelineSessionMeta,
   PipelineStateSnapshot,
+  PipelineTesterStageOutput,
 } from '@rv-insights/shared'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
@@ -48,6 +49,10 @@ import {
   collectPlannerDocumentRefs,
 } from './ReviewDocumentBoard'
 import { ReviewerIssueBoard } from './ReviewerIssueBoard'
+import {
+  TesterResultBoard,
+  collectTesterPatchWorkRefs,
+} from './TesterResultBoard'
 
 export function PipelineView({
   sessionId,
@@ -131,10 +136,17 @@ export function PipelineView({
   const reviewerStageOutput = state?.stageOutputs?.reviewer?.node === 'reviewer'
     ? state.stageOutputs.reviewer as PipelineReviewerStageOutput
     : null
+  const testerStageOutput = state?.stageOutputs?.tester?.node === 'tester'
+    ? state.stageOutputs.tester as PipelineTesterStageOutput
+    : null
   const showExplorerTaskBoard = pendingGate?.kind === 'task_selection' && pendingGate.node === 'explorer'
   const showPlannerDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'planner'
   const showDeveloperDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'developer'
   const showReviewerIssueBoard = pendingGate?.kind === 'review_iteration_limit' && pendingGate.node === 'reviewer'
+  const showTesterResultBoard = (
+    (pendingGate?.kind === 'document_review' || pendingGate?.kind === 'test_blocked')
+    && pendingGate.node === 'tester'
+  )
   const reviewDocuments = React.useMemo<PipelinePatchWorkDocumentRef[]>(() => {
     if (showPlannerDocumentBoard) return collectPlannerDocumentRefs(plannerStageOutput)
     if (showDeveloperDocumentBoard) return collectDeveloperDocumentRefs(developerStageOutput)
@@ -144,13 +156,14 @@ export function PipelineView({
         .filter((document, index, documents) =>
           documents.findIndex((item) => item.relativePath === document.relativePath) === index)
     }
+    if (showTesterResultBoard) return collectTesterPatchWorkRefs(testerStageOutput)
     return []
-  }, [developerStageOutput, plannerStageOutput, reviewerStageOutput, showDeveloperDocumentBoard, showPlannerDocumentBoard, showReviewerIssueBoard])
+  }, [developerStageOutput, plannerStageOutput, reviewerStageOutput, showDeveloperDocumentBoard, showPlannerDocumentBoard, showReviewerIssueBoard, showTesterResultBoard, testerStageOutput])
   const reviewDocumentKey = React.useMemo(
     () => reviewDocuments.map((document) => `${document.relativePath}:${document.checksum ?? ''}`).join('|'),
     [reviewDocuments],
   )
-  const showPatchWorkDocumentRead = showPlannerDocumentBoard || showDeveloperDocumentBoard || showReviewerIssueBoard
+  const showPatchWorkDocumentRead = showPlannerDocumentBoard || showDeveloperDocumentBoard || showReviewerIssueBoard || showTesterResultBoard
   const reviewerReviewContent = React.useMemo(() => {
     const reviewDoc = reviewerStageOutput?.reviewDocRef ?? reviewerStageOutput?.reviewDoc
     return reviewDoc ? documentContents.get(reviewDoc.relativePath) : undefined
@@ -639,7 +652,18 @@ export function PipelineView({
                   reviewContent={reviewerReviewContent}
                 />
               ) : null}
-              {showExplorerTaskBoard ? (
+              {showTesterResultBoard ? (
+                <TesterResultBoard
+                  output={testerStageOutput}
+                  contents={documentContents}
+                  loadingPaths={documentLoadingPaths}
+                  readErrors={documentReadErrors}
+                  gateKind={pendingGate?.kind}
+                  onApprove={() => handleRespond('approve')}
+                  onReject={(feedback) => handleRespond('reject_with_feedback', feedback)}
+                  onRerun={() => handleRespond('rerun_node')}
+                />
+              ) : showExplorerTaskBoard ? (
                 <ExplorerTaskBoard
                   reports={explorerReports}
                   initialSelectedReportId={state?.stageOutputs?.explorer?.selectedReportId}

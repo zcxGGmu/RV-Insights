@@ -229,6 +229,262 @@ describe('pipeline-graph', () => {
     expect(nodes).toEqual(['explorer', 'planner', 'developer', 'reviewer', 'tester', 'committer'])
   })
 
+  test('v2 tester 遇到环境阻塞时进入 test_blocked gate，接受风险后进入 committer', async () => {
+    const nodes: string[] = []
+    const graph = createPipelineGraphV2({
+      checkpointer: new MemorySaver(),
+      runNode: async (node) => {
+        nodes.push(node)
+        if (node === 'tester') {
+          return {
+            output: '缺少 Bun，无法执行测试',
+            summary: '测试环境阻塞',
+            approved: false,
+            issues: ['缺少 Bun'],
+            stageOutput: {
+              node: 'tester',
+              summary: '测试环境阻塞',
+              commands: ['bun test'],
+              results: [],
+              blockers: ['缺少 Bun'],
+              passed: false,
+              content: '缺少 Bun，无法执行测试',
+            },
+          }
+        }
+
+        return {
+          output: `${node}-ok`,
+          summary: `${node}-ok`,
+          approved: true,
+        }
+      },
+    })
+
+    const explorerPause = await graph.invoke({
+      sessionId: 'session-v2-test-blocked',
+      userInput: '请完成 v2 任务',
+    })
+    const plannerPause = await graph.resume({
+      sessionId: 'session-v2-test-blocked',
+      response: {
+        gateId: explorerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-blocked',
+        action: 'approve',
+        selectedReportId: 'report-001',
+        createdAt: Date.now(),
+      },
+    })
+    const developerPause = await graph.resume({
+      sessionId: 'session-v2-test-blocked',
+      response: {
+        gateId: plannerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-blocked',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+    const testerBlocked = await graph.resume({
+      sessionId: 'session-v2-test-blocked',
+      response: {
+        gateId: developerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-blocked',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(testerBlocked.interrupted).toMatchObject({
+      node: 'tester',
+      kind: 'test_blocked',
+    })
+    expect(testerBlocked.state.currentNode).toBe('tester')
+    expect(testerBlocked.state.status).toBe('waiting_human')
+
+    const committerPause = await graph.resume({
+      sessionId: 'session-v2-test-blocked',
+      response: {
+        gateId: testerBlocked.interrupted!.gateId,
+        sessionId: 'session-v2-test-blocked',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(committerPause.interrupted).toMatchObject({
+      node: 'committer',
+      kind: 'submission_review',
+    })
+    expect(committerPause.state.lastApprovedNode).toBe('tester')
+    expect(nodes).toEqual(['explorer', 'planner', 'developer', 'reviewer', 'tester', 'committer'])
+  })
+
+  test('v2 tester 存在失败测试证据时进入 test_blocked gate', async () => {
+    const graph = createPipelineGraphV2({
+      checkpointer: new MemorySaver(),
+      runNode: async (node) => {
+        if (node === 'tester') {
+          return {
+            output: '测试证据失败',
+            summary: '测试证据失败',
+            approved: false,
+            issues: ['bun test failed'],
+            stageOutput: {
+              node: 'tester',
+              summary: '测试证据失败',
+              commands: ['bun test'],
+              results: ['失败'],
+              blockers: [],
+              passed: true,
+              testEvidence: [
+                {
+                  command: 'bun test',
+                  status: 'failed',
+                  summary: '失败',
+                },
+              ],
+              content: '测试证据失败',
+            },
+          }
+        }
+
+        return {
+          output: `${node}-ok`,
+          summary: `${node}-ok`,
+          approved: true,
+        }
+      },
+    })
+
+    const explorerPause = await graph.invoke({
+      sessionId: 'session-v2-test-evidence-failed',
+      userInput: '请完成 v2 任务',
+    })
+    const plannerPause = await graph.resume({
+      sessionId: 'session-v2-test-evidence-failed',
+      response: {
+        gateId: explorerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-evidence-failed',
+        action: 'approve',
+        selectedReportId: 'report-001',
+        createdAt: Date.now(),
+      },
+    })
+    const developerPause = await graph.resume({
+      sessionId: 'session-v2-test-evidence-failed',
+      response: {
+        gateId: plannerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-evidence-failed',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+    const testerBlocked = await graph.resume({
+      sessionId: 'session-v2-test-evidence-failed',
+      response: {
+        gateId: developerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-evidence-failed',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(testerBlocked.interrupted).toMatchObject({
+      node: 'tester',
+      kind: 'test_blocked',
+    })
+  })
+
+  test('v2 tester 结果被要求修订时带反馈回到 developer', async () => {
+    const nodes: string[] = []
+    const graph = createPipelineGraphV2({
+      checkpointer: new MemorySaver(),
+      runNode: async (node) => {
+        nodes.push(node)
+        if (node === 'tester') {
+          return {
+            output: '测试失败',
+            summary: '测试失败',
+            approved: false,
+            issues: ['缺少回归测试'],
+            stageOutput: {
+              node: 'tester',
+              summary: '测试失败',
+              commands: ['bun test'],
+              results: ['回归测试失败'],
+              blockers: [],
+              passed: false,
+              content: '测试失败',
+            },
+          }
+        }
+
+        return {
+          output: `${node}-ok`,
+          summary: `${node}-ok`,
+          approved: true,
+        }
+      },
+    })
+
+    const explorerPause = await graph.invoke({
+      sessionId: 'session-v2-test-reject',
+      userInput: '请完成 v2 任务',
+    })
+    const plannerPause = await graph.resume({
+      sessionId: 'session-v2-test-reject',
+      response: {
+        gateId: explorerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-reject',
+        action: 'approve',
+        selectedReportId: 'report-001',
+        createdAt: Date.now(),
+      },
+    })
+    const developerPause = await graph.resume({
+      sessionId: 'session-v2-test-reject',
+      response: {
+        gateId: plannerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-reject',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+    const testerBlocked = await graph.resume({
+      sessionId: 'session-v2-test-reject',
+      response: {
+        gateId: developerPause.interrupted!.gateId,
+        sessionId: 'session-v2-test-reject',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(testerBlocked.interrupted).toMatchObject({
+      node: 'tester',
+      kind: 'test_blocked',
+    })
+
+    const developerRevision = await graph.resume({
+      sessionId: 'session-v2-test-reject',
+      response: {
+        gateId: testerBlocked.interrupted!.gateId,
+        sessionId: 'session-v2-test-reject',
+        action: 'reject_with_feedback',
+        feedback: '请补上失败用例并修复实现',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(developerRevision.interrupted).toMatchObject({
+      node: 'developer',
+      kind: 'document_review',
+    })
+    expect(developerRevision.state.currentNode).toBe('developer')
+    expect(developerRevision.state.status).toBe('waiting_human')
+    expect(nodes).toEqual(['explorer', 'planner', 'developer', 'reviewer', 'tester', 'developer'])
+  })
+
   test('v2 developer 完成后先进入文档审核 gate，用户接受后才运行 reviewer', async () => {
     const nodes: string[] = []
     const graph = createPipelineGraphV2({

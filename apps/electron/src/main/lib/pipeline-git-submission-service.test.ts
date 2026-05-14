@@ -1,0 +1,123 @@
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+import { execFileSync } from 'node:child_process'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { buildPipelinePatchSetDraft } from './pipeline-git-submission-service'
+
+function git(repoRoot: string, args: string[]): string {
+  return execFileSync('git', ['-C', repoRoot, ...args], {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
+}
+
+function setupGitRepo(repoRoot: string): void {
+  git(repoRoot, ['init'])
+  git(repoRoot, ['config', 'user.name', 'RV Test'])
+  git(repoRoot, ['config', 'user.email', 'rv-test@example.com'])
+  mkdirSync(join(repoRoot, 'src'), { recursive: true })
+  writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 1\n', 'utf-8')
+  git(repoRoot, ['add', 'src/index.ts'])
+  git(repoRoot, ['commit', '-m', 'initial'])
+}
+
+describe('pipeline-git-submission-service', () => {
+  let repoRoot = ''
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'rv-patch-set-repo-'))
+    setupGitRepo(repoRoot)
+  })
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true })
+  })
+
+  test('生成 patch-set 草稿时默认排除 patch-work/** 且不创建本地 commit', () => {
+    writeFileSync(join(repoRoot, 'src', 'index.ts'), [
+      'export const value = 2',
+      'export const label = "patch-work/** 只是正文字符串"',
+      '',
+    ].join('\n'), 'utf-8')
+    writeFileSync(join(repoRoot, 'src', 'new-file.ts'), 'export const added = true\n', 'utf-8')
+    git(repoRoot, ['add', 'src/index.ts'])
+    mkdirSync(join(repoRoot, 'patch-work', 'patch-set'), { recursive: true })
+    writeFileSync(join(repoRoot, 'patch-work', 'result.md'), '# 测试报告\n', 'utf-8')
+    writeFileSync(join(repoRoot, 'patch-work', 'patch-set', 'changes.patch'), '不应进入 patch-set\n', 'utf-8')
+    const commitCountBefore = git(repoRoot, ['rev-list', '--count', 'HEAD'])
+
+    const draft = buildPipelinePatchSetDraft({
+      repositoryRoot: repoRoot,
+      testEvidence: [
+        {
+          command: 'bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts',
+          status: 'passed',
+          durationMs: 12,
+          summary: '通过',
+        },
+      ],
+    })
+
+    expect(draft.excludesPatchWork).toBe(true)
+    expect(draft.patch).toContain('diff --git a/src/index.ts b/src/index.ts')
+    expect(draft.patch).toContain('diff --git a/src/new-file.ts b/src/new-file.ts')
+    expect(draft.patch).toContain('patch-work/** 只是正文字符串')
+    expect(draft.patch).not.toContain('patch-work/result.md')
+    expect(draft.patch).not.toContain('patch-work/patch-set/changes.patch')
+    expect(draft.changedFiles.map((file) => file.path).sort()).toEqual([
+      'src/index.ts',
+      'src/new-file.ts',
+    ])
+    expect(draft.changedFiles.find((file) => file.path === 'src/index.ts')).toMatchObject({
+      changeType: 'modified',
+    })
+    expect(draft.changedFiles.find((file) => file.path === 'src/new-file.ts')).toMatchObject({
+      changeType: 'added',
+    })
+    expect(draft.diffSummaryMarkdown).toContain('src/index.ts')
+    expect(draft.diffSummaryMarkdown).toContain('patch-work/** 已从 patch-set 中排除')
+    expect(draft.diffSummaryMarkdown).not.toContain('patch-work/result.md')
+    expect(draft.testEvidence).toEqual([
+      expect.objectContaining({
+        command: 'bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts',
+        status: 'passed',
+      }),
+    ])
+    expect(git(repoRoot, ['rev-list', '--count', 'HEAD'])).toBe(commitCountBefore)
+  })
+
+  test('非 Git 仓库不能生成 patch-set 草稿', () => {
+    const notRepo = mkdtempSync(join(tmpdir(), 'rv-not-git-'))
+    try {
+      expect(() => buildPipelinePatchSetDraft({
+        repositoryRoot: notRepo,
+        testEvidence: [],
+      })).toThrow('不是 Git 仓库')
+    } finally {
+      rmSync(notRepo, { recursive: true, force: true })
+    }
+  })
+
+  test('patch-set 草稿不读取 patch-work 内部历史补丁', () => {
+    mkdirSync(join(repoRoot, 'patch-work', 'patch-set'), { recursive: true })
+    writeFileSync(join(repoRoot, 'patch-work', 'patch-set', 'changes.patch'), [
+      'diff --git a/secret.ts b/secret.ts',
+      '+SECRET',
+    ].join('\n'), 'utf-8')
+
+    const draft = buildPipelinePatchSetDraft({
+      repositoryRoot: repoRoot,
+      testEvidence: [],
+    })
+
+    expect(draft.patch).not.toContain('SECRET')
+    expect(readFileSync(join(repoRoot, 'patch-work', 'patch-set', 'changes.patch'), 'utf-8')).toContain('SECRET')
+  })
+})

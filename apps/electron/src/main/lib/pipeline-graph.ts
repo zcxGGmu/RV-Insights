@@ -163,6 +163,18 @@ function gateKindForV2Node(node: PipelineNodeKind, state: PipelineGraphState): P
     return 'review_iteration_limit'
   }
 
+  if (node === 'tester' && state.stageOutputs?.tester?.node === 'tester') {
+    const testerOutput = state.stageOutputs.tester
+    const evidence = testerOutput.patchSet?.testEvidence ?? testerOutput.testEvidence ?? []
+    const hasNonPassingEvidence = evidence.some((item) => item.status !== 'passed')
+    const patchSetUnsafe = testerOutput.patchSet ? !testerOutput.patchSet.excludesPatchWork : false
+    const testDidNotPass = testerOutput.passed !== true || hasNonPassingEvidence || patchSetUnsafe
+    const testWasBlocked = testerOutput.blockers.length > 0 || testerOutput.commands.length === 0
+    if (testDidNotPass || testWasBlocked) {
+      return 'test_blocked'
+    }
+  }
+
   switch (node) {
     case 'explorer':
       return 'task_selection'
@@ -297,12 +309,25 @@ function createGateNode(
     const timestamp = now()
 
     if (response.action === 'approve') {
+      const nextStageOutputs = request.kind === 'test_blocked' && node === 'tester'
+        ? {
+            ...(state.stageOutputs ?? {}),
+            tester: state.stageOutputs?.tester?.node === 'tester'
+              ? {
+                  ...state.stageOutputs.tester,
+                  riskAccepted: true,
+                }
+              : state.stageOutputs?.tester,
+          }
+        : state.stageOutputs
+
       if (nextNode === END) {
         return new Command({
           goto: END,
           update: {
             currentNode: node,
             lastApprovedNode: node,
+            stageOutputs: nextStageOutputs,
             status: 'completed',
             updatedAt: timestamp,
           },
@@ -315,6 +340,7 @@ function createGateNode(
           currentNode: nextNode,
           lastApprovedNode: node,
           feedback: undefined,
+          stageOutputs: nextStageOutputs,
           status: 'running',
           updatedAt: timestamp,
         },
@@ -328,6 +354,18 @@ function createGateNode(
           currentNode: 'developer',
           feedback: response.feedback,
           reviewIteration: state.reviewIteration + 1,
+          status: 'running',
+          updatedAt: timestamp,
+        },
+      })
+    }
+
+    if (state.version === 2 && node === 'tester' && response.action === 'reject_with_feedback') {
+      return new Command({
+        goto: 'developer',
+        update: {
+          currentNode: 'developer',
+          feedback: response.feedback,
           status: 'running',
           updatedAt: timestamp,
         },
@@ -375,7 +413,7 @@ function createPipelineGraphForVersion(options: CreatePipelineGraphInternalOptio
     })
     .addNode('tester', createWorkerNode('tester', options.runNode, options.getSignal))
     .addNode('gate_tester', createGateNode('tester', testerNextNode), {
-      ends: options.version === 2 ? ['tester', 'committer'] : ['tester', END],
+      ends: options.version === 2 ? ['tester', 'developer', 'committer'] : ['tester', END],
     })
     .addEdge(START, 'explorer')
     .addEdge('explorer', 'gate_explorer')

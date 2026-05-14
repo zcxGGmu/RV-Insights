@@ -1,9 +1,10 @@
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import type {
   PipelineNodeKind,
   PipelineStreamEvent,
@@ -18,6 +19,9 @@ import {
 import {
   getAgentSessionWorkspacePath,
 } from './config-paths'
+import {
+  getContributionTaskByPipelineSessionId,
+} from './contribution-task-service'
 import {
   buildNodeExecutionResult,
   buildPipelineNodePrompts,
@@ -61,6 +65,22 @@ interface CodexRuntimeOptions {
   model?: string
 }
 
+interface CodexGitGuardSnapshot {
+  repositoryRoot: string
+  headCommit: string
+  refs: string
+  stagedStatus: string
+  dirtyPaths: string[]
+  configPath: string
+  configExists: boolean
+  configContent: string
+}
+
+interface CodexCommandGuard {
+  env: Record<string, string>
+  cleanup(): Promise<void>
+}
+
 export interface CodexCliRunInput {
   sessionId: string
   prompt: string
@@ -73,6 +93,7 @@ export interface CodexCliRunInput {
   model?: string
   sandboxMode: CodexSandboxMode
   approvalPolicy: CodexApprovalPolicy
+  networkAccessEnabled?: boolean
   signal?: AbortSignal
 }
 
@@ -98,6 +119,7 @@ export interface CodexSdkThreadOptions {
   workingDirectory?: string
   skipGitRepoCheck?: boolean
   approvalPolicy?: CodexApprovalPolicy
+  networkAccessEnabled?: boolean
   additionalDirectories?: string[]
 }
 
@@ -238,6 +260,301 @@ async function buildCodexEnv(): Promise<Record<string, string>> {
   return env
 }
 
+function runGitOrNull(repositoryRoot: string, args: string[]): string | null {
+  try {
+    return execFileSync('git', ['-C', repositoryRoot, ...args], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return null
+  }
+}
+
+function listGitRemotes(repositoryRoot: string): string[] {
+  return (runGitOrNull(repositoryRoot, ['remote']) ?? '')
+    .split('\n')
+    .map((remote) => remote.trim())
+    .filter(Boolean)
+}
+
+function withRemoteWriteGuards(
+  env: Record<string, string>,
+  repositoryRoot: string | undefined,
+): Record<string, string> {
+  const guarded: Record<string, string> = {
+    ...env,
+    GIT_TERMINAL_PROMPT: '0',
+  }
+  if (!repositoryRoot) return guarded
+
+  const remotes = listGitRemotes(repositoryRoot)
+  const existingCount = Number.parseInt(guarded.GIT_CONFIG_COUNT ?? '0', 10)
+  const baseIndex = Number.isFinite(existingCount) && existingCount > 0 ? existingCount : 0
+  remotes.forEach((remote, index) => {
+    const configIndex = baseIndex + index
+    guarded[`GIT_CONFIG_KEY_${configIndex}`] = `remote.${remote}.pushurl`
+    guarded[`GIT_CONFIG_VALUE_${configIndex}`] = 'file:///__rv_insights_remote_writes_disabled__'
+  })
+  guarded.GIT_CONFIG_COUNT = String(baseIndex + remotes.length)
+  return guarded
+}
+
+function gitGuardShellScript(): string {
+  return [
+    '#!/bin/sh',
+    'echo "RV-Insights Pipeline v2 禁止 Codex 节点直接执行 git；请依赖 Pipeline 提供的结构化上下文和 patch-set 服务。" >&2',
+    'exit 126',
+    '',
+  ].join('\n')
+}
+
+function gitGuardCmdScript(): string {
+  return [
+    '@echo off',
+    'echo RV-Insights Pipeline v2 禁止 Codex 节点直接执行 git；请依赖 Pipeline 提供的结构化上下文和 patch-set 服务。 1>&2',
+    'exit /b 126',
+    '',
+  ].join('\r\n')
+}
+
+function blockedCliShellScript(command: string): string {
+  return [
+    '#!/bin/sh',
+    `echo "RV-Insights Pipeline v2 禁止执行 ${command}" >&2`,
+    'exit 126',
+    '',
+  ].join('\n')
+}
+
+function blockedCliCmdScript(command: string): string {
+  return [
+    '@echo off',
+    `echo RV-Insights Pipeline v2 禁止执行 ${command} 1>&2`,
+    'exit /b 126',
+    '',
+  ].join('\r\n')
+}
+
+async function createCodexCommandGuard(
+  env: Record<string, string>,
+  repositoryRoot: string | undefined,
+): Promise<CodexCommandGuard> {
+  const guarded = withRemoteWriteGuards(env, repositoryRoot)
+  if (!repositoryRoot) {
+    return {
+      env: guarded,
+      cleanup: async () => {},
+    }
+  }
+
+  const originalPath = guarded.PATH ?? process.env.PATH ?? ''
+  const guardDir = await mkdtemp(join(tmpdir(), 'rv-codex-command-guard-'))
+  const guardHome = await mkdtemp(join(tmpdir(), 'rv-codex-home-'))
+  const gitConfigPath = join(guardHome, '.gitconfig')
+  const gitShellPath = join(guardDir, 'git')
+  const gitCmdPath = join(guardDir, 'git.cmd')
+  await writeFile(gitConfigPath, '', 'utf-8')
+  await writeFile(gitShellPath, gitGuardShellScript(), 'utf-8')
+  await writeFile(gitCmdPath, gitGuardCmdScript(), 'utf-8')
+  await chmod(gitShellPath, 0o755)
+
+  for (const command of ['gh', 'hub']) {
+    const shellPath = join(guardDir, command)
+    const cmdPath = join(guardDir, `${command}.cmd`)
+    await writeFile(shellPath, blockedCliShellScript(command), 'utf-8')
+    await writeFile(cmdPath, blockedCliCmdScript(command), 'utf-8')
+    await chmod(shellPath, 0o755)
+  }
+
+  return {
+    env: {
+      ...guarded,
+      HOME: guardHome,
+      USERPROFILE: guardHome,
+      XDG_CONFIG_HOME: join(guardHome, '.config'),
+      GIT_DIR: '/__rv_insights_git_disabled__',
+      GIT_CONFIG_GLOBAL: gitConfigPath,
+      GIT_CONFIG_NOSYSTEM: '1',
+      GCM_INTERACTIVE: 'Never',
+      GIT_ASKPASS: '',
+      SSH_ASKPASS: '',
+      RV_INSIGHTS_GIT_DISABLED: '1',
+      PATH: [guardDir, originalPath].filter(Boolean).join(delimiter),
+    },
+    cleanup: async () => {
+      await rm(guardDir, { recursive: true, force: true })
+      await rm(guardHome, { recursive: true, force: true })
+    },
+  }
+}
+
+function sanitizeCodexGitEnvironment(env: Record<string, string>): Record<string, string> {
+  const sanitized = { ...env }
+  for (const key of [
+    'GH_TOKEN',
+    'GITHUB_TOKEN',
+    'GITHUB_PAT',
+    'HUB_CONFIG',
+    'SSH_AUTH_SOCK',
+    'GIT_SSH',
+    'GIT_SSH_COMMAND',
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_ASKPASS',
+    'SSH_ASKPASS',
+    'RV_INSIGHTS_REAL_GIT',
+  ]) {
+    delete sanitized[key]
+  }
+  return sanitized
+}
+
+function parseGitRefs(output: string): Map<string, string> {
+  const refs = new Map<string, string>()
+  output.split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const separatorIndex = line.indexOf(':')
+      if (separatorIndex <= 0) return
+      const refName = line.slice(0, separatorIndex)
+      const objectName = line.slice(separatorIndex + 1)
+      if (!refName.startsWith('refs/') || !objectName) return
+      refs.set(refName, objectName)
+    })
+  return refs
+}
+
+function readGitConfigSnapshot(repositoryRoot: string): Pick<CodexGitGuardSnapshot, 'configPath' | 'configExists' | 'configContent'> {
+  const configPathRaw = runGitOrNull(repositoryRoot, ['rev-parse', '--git-path', 'config']) ?? '.git/config'
+  const configPath = resolve(repositoryRoot, configPathRaw)
+  const configExists = existsSync(configPath)
+  return {
+    configPath,
+    configExists,
+    configContent: configExists ? readFileSync(configPath, 'utf-8') : '',
+  }
+}
+
+function readProtectedDirtyPaths(repositoryRoot: string): string[] {
+  const output = runGitOrNull(repositoryRoot, [
+    'diff',
+    '--name-only',
+    'HEAD',
+    '--',
+    '.',
+    ':(exclude)patch-work',
+    ':(exclude)patch-work/**',
+  ]) ?? ''
+  return output.split('\n')
+    .map((line) => line.trim().replace(/\\/g, '/'))
+    .filter(Boolean)
+    .sort()
+}
+
+function createCodexGitGuardSnapshot(
+  node: CodexNodeKind,
+  context: PipelineNodeExecutionContext,
+): CodexGitGuardSnapshot | null {
+  if (context.version !== 2) return null
+  if (node !== 'developer' && node !== 'tester' && node !== 'committer') return null
+
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) return null
+  const headCommit = runGitOrNull(task.repositoryRoot, ['rev-parse', 'HEAD'])
+  if (!headCommit) return null
+
+  return {
+    repositoryRoot: task.repositoryRoot,
+    headCommit,
+    refs: runGitOrNull(task.repositoryRoot, [
+      'for-each-ref',
+      '--format=%(refname):%(objectname)',
+      'refs',
+    ]) ?? '',
+    stagedStatus: runGitOrNull(task.repositoryRoot, [
+      'diff',
+      '--cached',
+      '--name-status',
+      '--',
+      '.',
+      ':(exclude)patch-work',
+      ':(exclude)patch-work/**',
+    ]) ?? '',
+    dirtyPaths: readProtectedDirtyPaths(task.repositoryRoot),
+    ...readGitConfigSnapshot(task.repositoryRoot),
+  }
+}
+
+function assertCodexGitGuardUnchanged(snapshot: CodexGitGuardSnapshot | null): void {
+  if (!snapshot) return
+  const violations: string[] = []
+  const currentHead = runGitOrNull(snapshot.repositoryRoot, ['rev-parse', 'HEAD'])
+  if (currentHead && currentHead !== snapshot.headCommit) {
+    runGitOrNull(snapshot.repositoryRoot, ['reset', '--soft', snapshot.headCommit])
+    violations.push('创建真实 Git commit')
+  }
+
+  const currentRefsOutput = runGitOrNull(snapshot.repositoryRoot, [
+    'for-each-ref',
+    '--format=%(refname):%(objectname)',
+    'refs',
+  ]) ?? ''
+  if (currentRefsOutput !== snapshot.refs) {
+    const expectedRefs = parseGitRefs(snapshot.refs)
+    const currentRefs = parseGitRefs(currentRefsOutput)
+    for (const [refName] of currentRefs) {
+      if (!expectedRefs.has(refName)) {
+        runGitOrNull(snapshot.repositoryRoot, ['update-ref', '-d', refName])
+      }
+    }
+    for (const [refName, objectName] of expectedRefs) {
+      if (currentRefs.get(refName) !== objectName) {
+        runGitOrNull(snapshot.repositoryRoot, ['update-ref', refName, objectName])
+      }
+    }
+    violations.push('修改 Git refs')
+  }
+
+  const currentStagedStatus = runGitOrNull(snapshot.repositoryRoot, [
+    'diff',
+    '--cached',
+    '--name-status',
+    '--',
+    '.',
+    ':(exclude)patch-work',
+    ':(exclude)patch-work/**',
+  ]) ?? ''
+  if (currentStagedStatus !== snapshot.stagedStatus) {
+    if (!snapshot.stagedStatus.trim()) {
+      runGitOrNull(snapshot.repositoryRoot, ['reset', '-q'])
+    }
+    violations.push('修改 Git index')
+  }
+
+  const currentConfigExists = existsSync(snapshot.configPath)
+  const currentConfigContent = currentConfigExists ? readFileSync(snapshot.configPath, 'utf-8') : ''
+  if (currentConfigExists !== snapshot.configExists || currentConfigContent !== snapshot.configContent) {
+    if (snapshot.configExists) {
+      writeFileSync(snapshot.configPath, snapshot.configContent, 'utf-8')
+    } else {
+      rmSync(snapshot.configPath, { force: true })
+    }
+    violations.push('修改 Git config')
+  }
+
+  const currentDirtyPaths = readProtectedDirtyPaths(snapshot.repositoryRoot)
+  if (snapshot.dirtyPaths.length > 0 && currentDirtyPaths.length === 0) {
+    violations.push('丢弃工作区补丁')
+  }
+
+  if (violations.length > 0) {
+    throw new Error(`Pipeline v2 禁止节点${violations.join('、')}`)
+  }
+}
+
 function resolveCodexWorkspace(
   workspaceId: string | undefined,
   sessionId: string,
@@ -259,7 +576,7 @@ function resolveCodexWorkspace(
 }
 
 function codexSandboxModeForNode(node: CodexNodeKind): CodexSandboxMode {
-  return node === 'developer' ? 'workspace-write' : 'read-only'
+  return node === 'developer' || node === 'tester' ? 'workspace-write' : 'read-only'
 }
 
 function buildCodexPrompt(
@@ -336,6 +653,7 @@ export interface CodexCliCommandInput {
   model?: string
   sandboxMode: CodexSandboxMode
   approvalPolicy: CodexApprovalPolicy
+  networkAccessEnabled?: boolean
 }
 
 export function buildCodexCliArgs(input: CodexCliCommandInput): string[] {
@@ -359,6 +677,10 @@ export function buildCodexCliArgs(input: CodexCliCommandInput): string[] {
 
   if (input.model) {
     args.push('--model', input.model)
+  }
+
+  if (input.networkAccessEnabled !== undefined) {
+    args.push('--config', `sandbox_workspace_write.network_access=${input.networkAccessEnabled}`)
   }
 
   if (input.cwd) {
@@ -475,6 +797,7 @@ export class SpawnCodexCliExecutor implements CodexCliExecutor {
         model: input.model,
         sandboxMode: input.sandboxMode,
         approvalPolicy: input.approvalPolicy,
+        networkAccessEnabled: input.networkAccessEnabled,
       })
       const env = { ...input.env }
       if (input.apiKey) {
@@ -592,38 +915,52 @@ export class CodexCliPipelineNodeRunner implements PipelineNodeRunner {
 
     const workspace = resolveCodexWorkspace(this.workspaceId, context.sessionId)
     const runtime = resolveCodexRuntime(this.channelId)
-    const env = await buildCodexEnv()
+    const gitGuard = createCodexGitGuardSnapshot(node, context)
+    const commandGuard = await createCodexCommandGuard(
+      sanitizeCodexGitEnvironment(await buildCodexEnv()),
+      gitGuard?.repositoryRoot,
+    )
     const prompt = buildCodexPrompt(node, context, workspace.name)
 
-    emitNodeStart(this.onEvent, node)
-    const response = await this.executor.run({
-      sessionId: context.sessionId,
-      prompt,
-      schema: pipelineNodeJsonSchema(node),
-      cwd: workspace.cwd,
-      additionalDirectories: workspace.additionalDirectories,
-      env,
-      apiKey: runtime.apiKey,
-      baseUrl: runtime.baseUrl,
-      model: runtime.model,
-      sandboxMode: codexSandboxModeForNode(node),
-      approvalPolicy: 'never',
-      signal: context.signal,
-    })
-    if (context.signal?.aborted) {
-      throw new Error('Pipeline 节点执行已中止')
-    }
+    try {
+      emitNodeStart(this.onEvent, node)
+      const response = await this.executor.run({
+        sessionId: context.sessionId,
+        prompt,
+        schema: pipelineNodeJsonSchema(node),
+        cwd: workspace.cwd,
+        additionalDirectories: workspace.additionalDirectories,
+        env: commandGuard.env,
+        apiKey: runtime.apiKey,
+        baseUrl: runtime.baseUrl,
+        model: runtime.model,
+        sandboxMode: codexSandboxModeForNode(node),
+        approvalPolicy: 'never',
+        networkAccessEnabled: false,
+        signal: context.signal,
+      })
+      if (context.signal?.aborted) {
+        throw new Error('Pipeline 节点执行已中止')
+      }
+      assertCodexGitGuardUnchanged(gitGuard)
 
-    const result = enrichPipelineV2PatchWorkArtifacts(
-      node,
-      context,
-      buildNodeExecutionResult(node, response.finalResponse),
-    )
-    if (context.signal?.aborted) {
-      throw new Error('Pipeline 节点执行已中止')
+      const result = enrichPipelineV2PatchWorkArtifacts(
+        node,
+        context,
+        buildNodeExecutionResult(node, response.finalResponse),
+      )
+      if (context.signal?.aborted) {
+        throw new Error('Pipeline 节点执行已中止')
+      }
+      emitNodeResult(this.onEvent, node, result)
+      return result
+    } finally {
+      try {
+        assertCodexGitGuardUnchanged(gitGuard)
+      } finally {
+        await commandGuard.cleanup()
+      }
     }
-    emitNodeResult(this.onEvent, node, result)
-    return result
   }
 }
 
@@ -658,46 +995,60 @@ export class CodexSdkPipelineNodeRunner implements PipelineNodeRunner {
 
     const workspace = resolveCodexWorkspace(this.workspaceId, context.sessionId)
     const runtime = resolveCodexRuntime(this.channelId)
-    const env = await buildCodexEnv()
-    const prompt = buildCodexPrompt(node, context, workspace.name)
-    const client = await this.createCodexClient({
-      codexPathOverride: this.codexPath ?? resolveCodexCliPath(),
-      apiKey: runtime.apiKey,
-      baseUrl: runtime.baseUrl,
-      env,
-    })
-    if (context.signal?.aborted) {
-      throw new Error('Pipeline 节点执行已中止')
-    }
-    const thread = client.startThread({
-      model: runtime.model,
-      sandboxMode: codexSandboxModeForNode(node),
-      workingDirectory: workspace.cwd,
-      skipGitRepoCheck: true,
-      approvalPolicy: 'never',
-      additionalDirectories: workspace.additionalDirectories,
-    })
-    if (context.signal?.aborted) {
-      throw new Error('Pipeline 节点执行已中止')
-    }
-
-    emitNodeStart(this.onEvent, node)
-    const response = await thread.run(prompt, {
-      outputSchema: pipelineNodeJsonSchema(node),
-      signal: context.signal,
-    })
-    if (context.signal?.aborted) {
-      throw new Error('Pipeline 节点执行已中止')
-    }
-    const result = enrichPipelineV2PatchWorkArtifacts(
-      node,
-      context,
-      buildNodeExecutionResult(node, response.finalResponse),
+    const gitGuard = createCodexGitGuardSnapshot(node, context)
+    const commandGuard = await createCodexCommandGuard(
+      sanitizeCodexGitEnvironment(await buildCodexEnv()),
+      gitGuard?.repositoryRoot,
     )
-    if (context.signal?.aborted) {
-      throw new Error('Pipeline 节点执行已中止')
+    const prompt = buildCodexPrompt(node, context, workspace.name)
+    try {
+      const client = await this.createCodexClient({
+        codexPathOverride: this.codexPath ?? resolveCodexCliPath(),
+        apiKey: runtime.apiKey,
+        baseUrl: runtime.baseUrl,
+        env: commandGuard.env,
+      })
+      if (context.signal?.aborted) {
+        throw new Error('Pipeline 节点执行已中止')
+      }
+      const thread = client.startThread({
+        model: runtime.model,
+        sandboxMode: codexSandboxModeForNode(node),
+        workingDirectory: workspace.cwd,
+        skipGitRepoCheck: true,
+        approvalPolicy: 'never',
+        networkAccessEnabled: false,
+        additionalDirectories: workspace.additionalDirectories,
+      })
+      if (context.signal?.aborted) {
+        throw new Error('Pipeline 节点执行已中止')
+      }
+
+      emitNodeStart(this.onEvent, node)
+      const response = await thread.run(prompt, {
+        outputSchema: pipelineNodeJsonSchema(node),
+        signal: context.signal,
+      })
+      if (context.signal?.aborted) {
+        throw new Error('Pipeline 节点执行已中止')
+      }
+      assertCodexGitGuardUnchanged(gitGuard)
+      const result = enrichPipelineV2PatchWorkArtifacts(
+        node,
+        context,
+        buildNodeExecutionResult(node, response.finalResponse),
+      )
+      if (context.signal?.aborted) {
+        throw new Error('Pipeline 节点执行已中止')
+      }
+      emitNodeResult(this.onEvent, node, result)
+      return result
+    } finally {
+      try {
+        assertCodexGitGuardUnchanged(gitGuard)
+      } finally {
+        await commandGuard.cleanup()
+      }
     }
-    emitNodeResult(this.onEvent, node, result)
-    return result
   }
 }

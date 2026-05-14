@@ -551,6 +551,544 @@ describe('pipeline-service', () => {
     }
   })
 
+  test('tester document_review approve 会接受 result.md 和 patch-set 并进入 committing', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-tester-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-tester-result',
+      sessionId: 'session-tester-result',
+      node: 'tester',
+      kind: 'document_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => ({
+          state: {
+            sessionId: 'session-tester-result',
+            version: 2,
+            currentNode: 'committer',
+            status: 'running',
+            reviewIteration: 0,
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-tester-result',
+          version: 2,
+          currentNode: 'tester',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('tester 产物审核测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'tester',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-tester-result',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+      const refs = [
+        writePatchWorkFile({
+          contributionTaskId: 'task-tester-result',
+          pipelineSessionId: session.id,
+          repositoryRoot: repoRoot,
+          kind: 'test_result',
+          createdByNode: 'tester',
+          content: '# 测试报告\n\n通过。\n',
+        }),
+        writePatchWorkFile({
+          contributionTaskId: 'task-tester-result',
+          pipelineSessionId: session.id,
+          repositoryRoot: repoRoot,
+          kind: 'patch',
+          createdByNode: 'tester',
+          content: 'diff --git a/src/index.ts b/src/index.ts\n',
+        }),
+        writePatchWorkFile({
+          contributionTaskId: 'task-tester-result',
+          pipelineSessionId: session.id,
+          repositoryRoot: repoRoot,
+          kind: 'changed_files',
+          createdByNode: 'tester',
+          content: '[{"path":"src/index.ts"}]\n',
+        }),
+        writePatchWorkFile({
+          contributionTaskId: 'task-tester-result',
+          pipelineSessionId: session.id,
+          repositoryRoot: repoRoot,
+          kind: 'diff_summary',
+          createdByNode: 'tester',
+          content: '# Diff 摘要\n',
+        }),
+        writePatchWorkFile({
+          contributionTaskId: 'task-tester-result',
+          pipelineSessionId: session.id,
+          repositoryRoot: repoRoot,
+          kind: 'test_evidence',
+          createdByNode: 'tester',
+          content: '[{"command":"bun test","status":"passed","summary":"通过"}]\n',
+        }),
+      ]
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'document_review',
+        action: 'approve',
+        createdAt: Date.now(),
+      })
+
+      const manifest = readPatchWorkManifest(repoRoot)
+      for (const ref of refs) {
+        expect(manifest.files.find((file) => file.relativePath === ref.relativePath)).toMatchObject({
+          acceptedRevision: ref.revision,
+          acceptedByGateId: gateRequest.gateId,
+          checksum: ref.checksum,
+        })
+      }
+      expect(getContributionTask('task-tester-result')).toMatchObject({
+        status: 'committing',
+      })
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('tester document_review approve 会在后端拒绝包含 patch-work 的 patch-set', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-unsafe-patch-set-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-tester-unsafe-patch',
+      sessionId: 'session-tester-unsafe-patch',
+      node: 'tester',
+      kind: 'document_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('unsafe patch-set 不应恢复 graph')
+        },
+        getState: async () => ({
+          sessionId: 'session-tester-unsafe-patch',
+          version: 2,
+          currentNode: 'tester',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('unsafe patch-set 审核测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'tester',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-tester-unsafe-patch',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-unsafe-patch',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'test_result',
+        createdByNode: 'tester',
+        content: '# 测试报告\n\n通过。\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-unsafe-patch',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'patch',
+        createdByNode: 'tester',
+        content: 'diff --git a/patch-work/result.md b/patch-work/result.md\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-unsafe-patch',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'changed_files',
+        createdByNode: 'tester',
+        content: '[{"path":"patch-work/result.md"}]\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-unsafe-patch',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'diff_summary',
+        createdByNode: 'tester',
+        content: '# Diff 摘要\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-unsafe-patch',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'test_evidence',
+        createdByNode: 'tester',
+        content: '[{"command":"bun test","status":"passed","summary":"通过"}]\n',
+      })
+
+      await expect(service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'document_review',
+        action: 'approve',
+        createdAt: Date.now(),
+      })).rejects.toThrow('patch-set 包含 patch-work/**')
+      expect(getContributionTask('task-tester-unsafe-patch')).toMatchObject({
+        status: 'testing',
+      })
+      const patchEntry = readPatchWorkManifest(repoRoot).files.find((file) =>
+        file.relativePath === 'patch-set/changes.patch')
+      expect(patchEntry?.acceptedRevision).toBeUndefined()
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('tester document_review approve 会在后端拒绝未通过的测试证据', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-failed-evidence-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-tester-failed-evidence',
+      sessionId: 'session-tester-failed-evidence',
+      node: 'tester',
+      kind: 'document_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('失败测试证据不应恢复 graph')
+        },
+        getState: async () => ({
+          sessionId: 'session-tester-failed-evidence',
+          version: 2,
+          currentNode: 'tester',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('tester 失败证据审核测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'tester',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-tester-failed-evidence',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-failed-evidence',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'test_result',
+        createdByNode: 'tester',
+        content: '# 测试报告\n\n存在失败。\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-failed-evidence',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'patch',
+        createdByNode: 'tester',
+        content: 'diff --git a/src/index.ts b/src/index.ts\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-failed-evidence',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'changed_files',
+        createdByNode: 'tester',
+        content: '[{"path":"src/index.ts"}]\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-failed-evidence',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'diff_summary',
+        createdByNode: 'tester',
+        content: '# Diff 摘要\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-failed-evidence',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'test_evidence',
+        createdByNode: 'tester',
+        content: '[{"command":"bun test","status":"failed","summary":"失败"}]\n',
+      })
+
+      await expect(service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'document_review',
+        action: 'approve',
+        createdAt: Date.now(),
+      })).rejects.toThrow('tester 测试证据未全部通过')
+      expect(getContributionTask('task-tester-failed-evidence')).toMatchObject({
+        status: 'testing',
+      })
+      const evidenceEntry = readPatchWorkManifest(repoRoot).files.find((file) =>
+        file.relativePath === 'patch-set/test-evidence.json')
+      expect(evidenceEntry?.acceptedRevision).toBeUndefined()
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('tester test_blocked approve 会作为风险接受进入 committing', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-blocked-approve-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-tester-blocked-approve',
+      sessionId: 'session-tester-blocked-approve',
+      node: 'tester',
+      kind: 'test_blocked',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => ({
+          state: {
+            sessionId: 'session-tester-blocked-approve',
+            version: 2,
+            currentNode: 'committer',
+            status: 'running',
+            reviewIteration: 0,
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-tester-blocked-approve',
+          version: 2,
+          currentNode: 'tester',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('tester 阻塞风险接受测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'tester',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-tester-blocked-approve',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-blocked-approve',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'test_result',
+        createdByNode: 'tester',
+        content: '# 测试报告\n\n测试阻塞，人工接受风险。\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-blocked-approve',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'patch',
+        createdByNode: 'tester',
+        content: 'diff --git a/src/index.ts b/src/index.ts\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-blocked-approve',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'changed_files',
+        createdByNode: 'tester',
+        content: '[{"path":"src/index.ts"}]\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-blocked-approve',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'diff_summary',
+        createdByNode: 'tester',
+        content: '# Diff 摘要\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-tester-blocked-approve',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'test_evidence',
+        createdByNode: 'tester',
+        content: '[{"command":"bun test","status":"skipped","summary":"环境缺失"}]\n',
+      })
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'test_blocked',
+        action: 'approve',
+        createdAt: Date.now(),
+      })
+
+      expect(getContributionTask('task-tester-blocked-approve')).toMatchObject({
+        status: 'committing',
+      })
+      const evidenceEntry = readPatchWorkManifest(repoRoot).files.find((file) =>
+        file.relativePath === 'patch-set/test-evidence.json')
+      expect(evidenceEntry?.acceptedByGateId).toBe(gateRequest.gateId)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('tester test_blocked reject_with_feedback 会把 ContributionTask 退回 developing', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-tester-reject-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-tester-reject',
+      sessionId: 'session-tester-reject',
+      node: 'tester',
+      kind: 'test_blocked',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => ({
+          state: {
+            sessionId: 'session-tester-reject',
+            version: 2,
+            currentNode: 'developer',
+            status: 'running',
+            reviewIteration: 0,
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-tester-reject',
+          version: 2,
+          currentNode: 'tester',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('tester 退回开发测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'tester',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-tester-reject',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'test_blocked',
+        action: 'reject_with_feedback',
+        feedback: '请回到 developer 修复失败用例',
+        createdAt: Date.now(),
+      })
+
+      expect(getContributionTask('task-tester-reject')).toMatchObject({
+        status: 'developing',
+        currentGateId: gateRequest.gateId,
+      })
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   test('patch-work 文件读取只允许 manifest 登记文件', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-read-repo-'))
     const service = createPipelineService()

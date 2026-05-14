@@ -6,7 +6,7 @@
 
 ## 当前实现进度
 
-> 更新时间：2026-05-14
+> 更新时间：2026-05-15
 > 权威执行清单：`improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md`
 
 - Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
@@ -18,22 +18,24 @@
   - `71bcb1df`（`fix(pipeline): 容错 explorer 非 JSON 输出`）：explorer 非 JSON / 自然语言输出可恢复为 fallback report，避免卡在结构化解析失败。
   - `364cf964`（`fix(pipeline): 增加停止运行的可见反馈`）：stop IPC 返回结构化状态，前端显示停止中 / 已停止反馈。
   - `ffd1f309`（`fix(pipeline): 增加节点静默运行反馈`）：节点已启动但暂未产生 `text_delta` 时显示运行进度，避免 UI 看起来卡在等待输出。
-- Phase 4 已完成并由本轮提交落地：developer 读取 accepted `plan.md` / `test-plan.md`，写 `dev.md` 并进入 developer 文档审核；reviewer read-only 读取 accepted `dev.md`、输出结构化 issues 与 `review.md`，不通过未达上限自动回 developer，达到 3 轮进入人工接管 gate。
-- Phase 5-8 均未开始：下一步只能进入 Phase 5，不得跳阶段，不得提前接真实 commit、push 或 PR。
-- 当前版本状态：`@rv-insights/shared` 为 `0.1.29`，`@rv-insights/electron` 为 `0.0.54`。
-- 当前已知验证状态：Phase 4 聚焦测试 108 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 324 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3/4 或后续 bugfix 改动。
+- Phase 4 已完成并提交：commit `d10387cae3557ca57e3679f55c5ab48cd7e75766`（`feat(pipeline): 完成 Phase 4 开发审核与审查循环`）。developer 读取 accepted `plan.md` / `test-plan.md`，写 `dev.md` 并进入 developer 文档审核；reviewer read-only 读取 accepted `dev.md`、输出结构化 issues 与 `review.md`，不通过未达上限自动回 developer，达到 3 轮进入人工接管 gate。
+- Phase 5 已完成并提交：提交信息为 `feat(pipeline): 完成 Phase 5 测试报告与 patch-set`，最终 hash 以 `git log -1` 为准。tester 已读取 accepted `test-plan.md` / `dev.md` 和最新 `review.md`，以 Codex workspace-write 执行测试与必要修复；输出 `result.md`、测试证据和 patch-set 草稿，patch-set 默认排除 `patch-work/**`，且不执行真实 commit / push / PR。
+- Phase 5 已补安全闭环：Codex runner 在 v2 workspace-write 节点运行环境前置 Git / GitHub CLI 命令防护，并禁用默认 `GIT_DIR` 以阻断绝对路径 Git 调用；运行前后校验 Git HEAD、全部 refs、index、local config 和已有补丁未被整体丢弃，避免真实 commit / push / tag / reset / PR 污染；tester 结果必须保守处理 `passed`、缺失 / 失败 / skipped evidence 和 unsafe patch-set；backend approve 会服务端复验 patch-set 不包含 `patch-work/**` 且正常通过路径的测试证据全部 passed。
+- Phase 6-8 均未开始：下一步只能进入 Phase 6 Committer Draft-Only，不得跳阶段，不得提前接真实 commit、push 或 PR。
+- 当前版本状态：`@rv-insights/shared` 为 `0.1.30`，`@rv-insights/electron` 为 `0.0.55`。
+- 当前已知验证状态：Phase 5 聚焦测试 124 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 348 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3/4/5 或后续 bugfix 改动。
 
 ## 结论
 
-当前 RV-Insights 已经有一个可运行的 Pipeline 底座，并在 Phase 2 增加了 v2 六节点骨架；Phase 3 已接入 explorer 任务选择、planner 文档审核和 patch-work 结构化读取，Phase 4 已接入 Developer 文档审核与 Reviewer issue loop，但 Tester/Committer 的完整贡献闭环仍待 Phase 5+ 落地：
+当前 RV-Insights 已经有一个可运行的 Pipeline 底座，并在 Phase 2 增加了 v2 六节点骨架；Phase 3 已接入 explorer 任务选择、planner 文档审核和 patch-work 结构化读取，Phase 4 已接入 Developer 文档审核与 Reviewer issue loop，Phase 5 已接入 Tester 测试报告、测试证据和 patch-set 草稿：
 
 - LangGraph v2 编排：`explorer -> planner -> developer -> developer document gate -> reviewer -> tester -> committer`
 - 人工 gate、checkpoint、stream event、JSONL 记录和阶段 artifact 已具备
 - v1 中 `explorer / planner / tester` 保持 Claude Agent SDK 兼容链路，`developer / reviewer` 已可走 Codex SDK 或 `codex exec` CLI fallback
 - v2 strategy 已表驱动化：`explorer / planner` 使用 Claude，`developer / reviewer / tester / committer` 使用 Codex
-- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI，Phase 4 新增 Developer 文档审核和 Reviewer issue board
+- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI，Phase 4 新增 Developer 文档审核和 Reviewer issue board，Phase 5 新增 Tester result board
 
-但它还不是用户描述的完整“六 Agent AI 开源贡献工作流”。核心差距已经收敛到 tester patch-set、committer draft-only、本地 commit gate 和远端 PR gate 这些后续阶段对象。
+但它还不是用户描述的完整“六 Agent AI 开源贡献工作流”。核心差距已经收敛到 committer draft-only、本地 commit gate 和远端 PR gate 这些后续阶段对象。
 
 优先级最高的事情是先明确产品语义：
 
@@ -1056,51 +1058,75 @@ bun test apps/electron/src/renderer/components/pipeline/*.test.ts
 
 - fake runner happy path 能跑到 committer gate/completed。
 
-#### Phase 3：Explorer task selection + Planner/Developer document gate
+#### Phase 3：Explorer task selection + Planner document gate
 
 产出：
 
 - explorer 多报告 schema。
 - task selection gate。
 - planner 文档 gate。
-- developer 文档 gate。
 - 初版 `ExplorerTaskBoard` / `ReviewDocumentBoard`。
 
 验收：
 
 - 用户可在 UI 选择 report 并推进到 planner。
-- 用户可审核 `plan.md` 和 `dev.md`。
+- 用户可审核 `plan.md` 和 `test-plan.md`。
 
-#### Phase 4：Codex tester + patch-set
+#### Phase 4：Developer document gate + Reviewer issue loop
 
 产出：
 
-- tester 改 Codex CLI。
-- `result.md` 和 `patch-set` 生成。
+- developer 读取 accepted `plan.md` / `test-plan.md` 并写 `dev.md`。
+- developer 文档 gate。
+- reviewer read-only issue loop。
+- `ReviewerIssueBoard`。
+
+验收：
+
+- 用户可审核 `dev.md`。
+- reviewer 不通过时可回 developer，达到上限进入人工接管 gate。
+
+#### Phase 5：Codex tester + patch-set
+
+产出：
+
+- tester 走 Codex workspace-write，但禁止真实 commit / push / PR。
+- `result.md`、测试证据和 `patch-set` 草稿。
 - `TesterResultBoard`。
+- patch-set 默认排除 `patch-work/**`，backend approve 复验。
 
 验收：
 
 - tester 通过后 patch-set 存在。
-- tester 失败时能进入 blocker 或回 developer。
+- tester 失败、skipped evidence、缺少通过信号或 unsafe patch-set 时进入 `test_blocked` 或回 developer。
 
-#### Phase 5：Committer 草稿和本地 commit
+#### Phase 6：Committer Draft-Only
 
 产出：
 
 - committer prompt/schema。
 - `commit.md` / `pr.md`。
-- Git diff/status service。
-- 本地 commit gate。
 - `CommitterPanel`。
 
 验收：
 
 - 默认只生成提交材料。
-- 用户确认后可本地 commit。
+- 不会默认 commit、push 或创建 PR。
+
+#### Phase 7：受控本地 commit gate
+
+产出：
+
+- Git diff/status service。
+- 本地 commit gate。
+- commit result 回填。
+
+验收：
+
+- 用户明确确认后才允许本地 commit。
 - 不会默认 push。
 
-#### Phase 6：远端 PR 集成
+#### Phase 8：远端 PR 集成
 
 产出：
 
@@ -2171,7 +2197,7 @@ UI 建议增加“诊断”入口：
 - patch-work 文件契约
 - 文档审核看板
 - Codex CLI 路由
-- tester patch-set
+- tester patch-set（Phase 5 已完成，后续只需在 committer / commit / PR 阶段消费该产物）
 - committer 提交材料
 - Git/PR 安全 gate
 

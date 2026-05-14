@@ -98,12 +98,32 @@ export interface PipelineExplorerReportRef extends PipelinePatchWorkDocumentRef 
   summary?: string
 }
 
+export interface PipelinePatchSetFile extends PipelineChangedFile {
+  additions?: number
+  deletions?: number
+}
+
+export interface PipelineTestEvidence {
+  command: string
+  status: PipelineTestRunStatus
+  summary: string
+  durationMs?: number
+  outputRef?: PipelinePatchWorkDocumentRef
+}
+
 export interface PipelinePatchSetSummary {
-  files: string[]
+  files: PipelinePatchSetFile[]
   additions?: number
   deletions?: number
   patchRef?: PipelinePatchWorkDocumentRef
+  changedFilesRef?: PipelinePatchWorkDocumentRef
   excludesPatchWork: boolean
+  diffSummaryRef?: PipelinePatchWorkDocumentRef
+  testEvidenceRef?: PipelinePatchWorkDocumentRef
+  testEvidence?: PipelineTestEvidence[]
+  baseBranch?: string
+  workingBranch?: string
+  headCommit?: string
 }
 
 export type PipelineChangedFileType = 'added' | 'modified' | 'deleted' | 'renamed'
@@ -120,6 +140,8 @@ export interface PipelineTestRun {
   command: string
   status: PipelineTestRunStatus
   summary: string
+  durationMs?: number
+  outputRef?: PipelinePatchWorkDocumentRef
 }
 
 export type PipelineReviewIssueSeverity = 'blocker' | 'major' | 'minor' | 'nit'
@@ -206,6 +228,7 @@ export interface PipelineTesterStageOutput {
   patchSet?: PipelinePatchSetSummary
   passed?: boolean
   riskAccepted?: boolean
+  testEvidence?: PipelineTestEvidence[]
   changedFiles?: string[]
   content: string
 }

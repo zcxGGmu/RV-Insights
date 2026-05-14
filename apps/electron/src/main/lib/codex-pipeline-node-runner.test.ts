@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from 'bun:test'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type {
@@ -58,6 +59,31 @@ function context(node: PipelineNodeKind): PipelineNodeExecutionContext {
     currentNode: node,
     reviewIteration: 0,
   }
+}
+
+function git(repoRoot: string, args: string[]): string {
+  return execFileSync('git', ['-C', repoRoot, ...args], {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
+}
+
+function gitOrNull(repoRoot: string, args: string[]): string | null {
+  try {
+    return git(repoRoot, args)
+  } catch {
+    return null
+  }
+}
+
+function initializeGitRepo(repoRoot: string): void {
+  git(repoRoot, ['init'])
+  git(repoRoot, ['config', 'user.name', 'RV Test'])
+  git(repoRoot, ['config', 'user.email', 'rv-test@example.com'])
+  mkdirSync(join(repoRoot, 'src'), { recursive: true })
+  writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 1\n', 'utf-8')
+  git(repoRoot, ['add', 'src/index.ts'])
+  git(repoRoot, ['commit', '-m', 'initial'])
 }
 
 async function waitForCondition(predicate: () => boolean, timeoutMs = 3_000): Promise<void> {
@@ -128,12 +154,16 @@ function createProcessHandle(pid: number): {
 class FakeCodexCliExecutor implements CodexCliExecutor {
   readonly calls: CodexCliRunInput[] = []
 
-  constructor(private readonly finalResponse: string) {}
+  constructor(
+    private readonly finalResponse: string,
+    private readonly onRun?: (input: CodexCliRunInput) => void,
+  ) {}
 
   abort(): void {}
 
   async run(input: CodexCliRunInput) {
     this.calls.push(input)
+    this.onRun?.(input)
     return { finalResponse: this.finalResponse }
   }
 }
@@ -365,6 +395,373 @@ describe('codex-pipeline-node-runner', () => {
         },
       })
       expect(readFileSync(join(repoRoot, 'patch-work', 'dev.md'), 'utf-8')).toContain('写入 dev.md')
+    } finally {
+      if (previousConfigDir === undefined) {
+        delete process.env.RV_INSIGHTS_CONFIG_DIR
+      } else {
+        process.env.RV_INSIGHTS_CONFIG_DIR = previousConfigDir
+      }
+      rmSync(tempConfigDir, { recursive: true, force: true })
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('Codex CLI runner 在 v2 tester 后写入 result.md 和排除 patch-work 的 patch-set', async () => {
+    const previousConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
+    const tempConfigDir = mkdtempSync(join(tmpdir(), 'rv-codex-v2-tester-config-'))
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-codex-v2-tester-repo-'))
+    process.env.RV_INSIGHTS_CONFIG_DIR = tempConfigDir
+    try {
+      initializeGitRepo(repoRoot)
+      writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 2\n', 'utf-8')
+      createContributionTask({
+        id: 'task-codex-tester',
+        pipelineSessionId: 'session-codex-tester',
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester',
+        pipelineSessionId: 'session-codex-tester',
+        repositoryRoot: repoRoot,
+        kind: 'test_plan',
+        createdByNode: 'planner',
+        content: '# 测试方案\n\n- 运行 bun test\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester',
+        pipelineSessionId: 'session-codex-tester',
+        repositoryRoot: repoRoot,
+        kind: 'dev_doc',
+        createdByNode: 'developer',
+        content: '# 开发文档\n\n已修改 src/index.ts。\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester',
+        pipelineSessionId: 'session-codex-tester',
+        repositoryRoot: repoRoot,
+        kind: 'review_doc',
+        createdByNode: 'reviewer',
+        content: '# 审查报告\n\n通过，进入 tester。\n',
+      })
+      acceptPatchWorkDocuments({
+        repositoryRoot: repoRoot,
+        gateId: 'gate-test-plan',
+        kinds: ['test_plan', 'dev_doc'],
+      })
+      const executor = new FakeCodexCliExecutor(JSON.stringify({
+        summary: '测试通过',
+        commands: ['bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts'],
+        results: ['Phase 5 tester 测试通过'],
+        blockers: [],
+        passed: true,
+        testEvidence: [
+          {
+            command: 'bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts',
+            status: 'passed',
+            summary: '通过',
+            durationMs: 120,
+          },
+        ],
+        resultMarkdown: '# 测试报告\n\n## 测试结论\n通过。\n',
+      }))
+      const runner = new CodexCliPipelineNodeRunner({ executor })
+
+      const result = await runner.runNode('tester', {
+        sessionId: 'session-codex-tester',
+        userInput: '实现 Phase 5',
+        currentNode: 'tester',
+        version: 2,
+        reviewIteration: 0,
+      })
+
+      expect(executor.calls[0]?.sandboxMode).toBe('workspace-write')
+      expect(executor.calls[0]?.prompt).toContain('已接受测试方案（test-plan.md）')
+      expect(executor.calls[0]?.prompt).toContain('已接受开发文档（dev.md）')
+      expect(executor.calls[0]?.prompt).toContain('审查报告（review.md）')
+      expect(executor.calls[0]?.prompt).toContain('不要执行 git 命令、git commit、git push 或创建 PR')
+      expect(result.stageOutput).toMatchObject({
+        node: 'tester',
+        passed: true,
+        testResultRef: {
+          relativePath: 'result.md',
+        },
+        patchSet: {
+          excludesPatchWork: true,
+          patchRef: {
+            relativePath: 'patch-set/changes.patch',
+          },
+          changedFilesRef: {
+            relativePath: 'patch-set/changed-files.json',
+          },
+          diffSummaryRef: {
+            relativePath: 'patch-set/diff-summary.md',
+          },
+          testEvidenceRef: {
+            relativePath: 'patch-set/test-evidence.json',
+          },
+        },
+      })
+      expect(readFileSync(join(repoRoot, 'patch-work', 'result.md'), 'utf-8')).toContain('测试结论')
+      expect(readFileSync(join(repoRoot, 'patch-work', 'patch-set', 'changes.patch'), 'utf-8')).toContain('src/index.ts')
+      expect(readFileSync(join(repoRoot, 'patch-work', 'patch-set', 'changes.patch'), 'utf-8')).not.toContain('patch-work')
+    } finally {
+      if (previousConfigDir === undefined) {
+        delete process.env.RV_INSIGHTS_CONFIG_DIR
+      } else {
+        process.env.RV_INSIGHTS_CONFIG_DIR = previousConfigDir
+      }
+      rmSync(tempConfigDir, { recursive: true, force: true })
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('Codex CLI runner 在 v2 tester 中阻断 Git/PR 命令并回滚绝对路径 Git 污染', async () => {
+    const previousConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
+    const tempConfigDir = mkdtempSync(join(tmpdir(), 'rv-codex-v2-tester-commit-config-'))
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-codex-v2-tester-commit-repo-'))
+    process.env.RV_INSIGHTS_CONFIG_DIR = tempConfigDir
+    try {
+      initializeGitRepo(repoRoot)
+      const initialHead = git(repoRoot, ['rev-parse', 'HEAD'])
+      const realGitPath = execFileSync('sh', ['-lc', 'command -v git'], {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim()
+      createContributionTask({
+        id: 'task-codex-tester-commit',
+        pipelineSessionId: 'session-codex-tester-commit',
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester-commit',
+        pipelineSessionId: 'session-codex-tester-commit',
+        repositoryRoot: repoRoot,
+        kind: 'test_plan',
+        createdByNode: 'planner',
+        content: '# 测试方案\n\n- 运行 bun test\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester-commit',
+        pipelineSessionId: 'session-codex-tester-commit',
+        repositoryRoot: repoRoot,
+        kind: 'dev_doc',
+        createdByNode: 'developer',
+        content: '# 开发文档\n\n已修改 src/index.ts。\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester-commit',
+        pipelineSessionId: 'session-codex-tester-commit',
+        repositoryRoot: repoRoot,
+        kind: 'review_doc',
+        createdByNode: 'reviewer',
+        content: '# 审查报告\n\n通过，进入 tester。\n',
+      })
+      acceptPatchWorkDocuments({
+        repositoryRoot: repoRoot,
+        gateId: 'gate-test-plan',
+        kinds: ['test_plan', 'dev_doc'],
+      })
+      const executor = new FakeCodexCliExecutor(JSON.stringify({
+        summary: '测试通过且命令防护生效',
+        commands: ['bun test'],
+        results: ['通过'],
+        blockers: [],
+        passed: true,
+        testEvidence: [
+          {
+            command: 'bun test',
+            status: 'passed',
+            summary: '通过',
+          },
+        ],
+        resultMarkdown: '# 测试报告\n\n## 测试结论\n通过。\n',
+      }), (input) => {
+        const guardedEnv = {
+          ...process.env,
+          ...input.env,
+        }
+        let gitBlocked = false
+        let prBlocked = false
+        writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 3\n', 'utf-8')
+        try {
+          execFileSync('git', ['-C', repoRoot, 'status'], {
+            env: guardedEnv,
+            stdio: ['ignore', 'pipe', 'pipe'],
+          })
+        } catch {
+          gitBlocked = true
+        }
+        try {
+          execFileSync('gh', ['pr', 'create', '--title', 'blocked', '--body', 'blocked'], {
+            env: guardedEnv,
+            stdio: ['ignore', 'pipe', 'pipe'],
+          })
+        } catch {
+          prBlocked = true
+        }
+        expect(gitBlocked).toBe(true)
+        expect(prBlocked).toBe(true)
+        expect(input.env.RV_INSIGHTS_REAL_GIT).toBeUndefined()
+        expect(input.env.GIT_DIR).toBe('/__rv_insights_git_disabled__')
+
+        let absoluteGitBlocked = false
+        try {
+          execFileSync(realGitPath, ['-C', repoRoot, 'status'], {
+            env: guardedEnv,
+            stdio: ['ignore', 'pipe', 'pipe'],
+          })
+        } catch {
+          absoluteGitBlocked = true
+        }
+        expect(absoluteGitBlocked).toBe(true)
+
+        const bypassEnv = {
+          ...guardedEnv,
+          GIT_DIR: join(repoRoot, '.git'),
+          GIT_WORK_TREE: repoRoot,
+        }
+        execFileSync(realGitPath, ['-C', repoRoot, 'tag', 'rv-forbidden-tag'], {
+          env: bypassEnv,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        execFileSync(realGitPath, ['-C', repoRoot, 'branch', 'rv-forbidden-branch'], {
+          env: bypassEnv,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        execFileSync(realGitPath, ['-C', repoRoot, 'config', 'rv-insights.forbidden', 'true'], {
+          env: bypassEnv,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        execFileSync(realGitPath, ['-C', repoRoot, 'add', 'src/index.ts'], {
+          env: bypassEnv,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        execFileSync(realGitPath, ['-C', repoRoot, 'commit', '-m', 'tester should not commit'], {
+          env: bypassEnv,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+      })
+      const runner = new CodexCliPipelineNodeRunner({ executor })
+
+      await expect(runner.runNode('tester', {
+        sessionId: 'session-codex-tester-commit',
+        userInput: '实现 Phase 5',
+        currentNode: 'tester',
+        version: 2,
+        reviewIteration: 0,
+      })).rejects.toThrow('Pipeline v2 禁止节点创建真实 Git commit')
+
+      expect(executor.calls[0]?.env.GIT_TERMINAL_PROMPT).toBe('0')
+      expect(git(repoRoot, ['rev-parse', 'HEAD'])).toBe(initialHead)
+      expect(git(repoRoot, ['tag', '--list', 'rv-forbidden-tag'])).toBe('')
+      expect(git(repoRoot, ['branch', '--list', 'rv-forbidden-branch'])).toBe('')
+      expect(gitOrNull(repoRoot, ['config', '--local', '--get', 'rv-insights.forbidden'])).toBeNull()
+      expect(git(repoRoot, ['diff', '--cached', '--name-only'])).toBe('')
+      expect(existsSync(join(repoRoot, 'patch-work', 'result.md'))).toBe(false)
+    } finally {
+      if (previousConfigDir === undefined) {
+        delete process.env.RV_INSIGHTS_CONFIG_DIR
+      } else {
+        process.env.RV_INSIGHTS_CONFIG_DIR = previousConfigDir
+      }
+      rmSync(tempConfigDir, { recursive: true, force: true })
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('Codex CLI runner 在 v2 tester 中检测绝对路径 git reset --hard 丢弃补丁', async () => {
+    const previousConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
+    const tempConfigDir = mkdtempSync(join(tmpdir(), 'rv-codex-v2-tester-reset-config-'))
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-codex-v2-tester-reset-repo-'))
+    process.env.RV_INSIGHTS_CONFIG_DIR = tempConfigDir
+    try {
+      initializeGitRepo(repoRoot)
+      writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 2\n', 'utf-8')
+      const realGitPath = execFileSync('sh', ['-lc', 'command -v git'], {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim()
+      createContributionTask({
+        id: 'task-codex-tester-reset',
+        pipelineSessionId: 'session-codex-tester-reset',
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'testing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester-reset',
+        pipelineSessionId: 'session-codex-tester-reset',
+        repositoryRoot: repoRoot,
+        kind: 'test_plan',
+        createdByNode: 'planner',
+        content: '# 测试方案\n\n- 运行 bun test\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester-reset',
+        pipelineSessionId: 'session-codex-tester-reset',
+        repositoryRoot: repoRoot,
+        kind: 'dev_doc',
+        createdByNode: 'developer',
+        content: '# 开发文档\n\n已修改 src/index.ts。\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-tester-reset',
+        pipelineSessionId: 'session-codex-tester-reset',
+        repositoryRoot: repoRoot,
+        kind: 'review_doc',
+        createdByNode: 'reviewer',
+        content: '# 审查报告\n\n通过，进入 tester。\n',
+      })
+      acceptPatchWorkDocuments({
+        repositoryRoot: repoRoot,
+        gateId: 'gate-test-plan',
+        kinds: ['test_plan', 'dev_doc'],
+      })
+      const executor = new FakeCodexCliExecutor(JSON.stringify({
+        summary: '测试通过但不应丢弃补丁',
+        commands: ['bun test'],
+        results: ['通过'],
+        blockers: [],
+        passed: true,
+        testEvidence: [
+          {
+            command: 'bun test',
+            status: 'passed',
+            summary: '通过',
+          },
+        ],
+      }), (input) => {
+        execFileSync(realGitPath, ['-C', repoRoot, 'reset', '--hard', 'HEAD'], {
+          env: {
+            ...process.env,
+            ...input.env,
+            GIT_DIR: join(repoRoot, '.git'),
+            GIT_WORK_TREE: repoRoot,
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+      })
+      const runner = new CodexCliPipelineNodeRunner({ executor })
+
+      await expect(runner.runNode('tester', {
+        sessionId: 'session-codex-tester-reset',
+        userInput: '实现 Phase 5',
+        currentNode: 'tester',
+        version: 2,
+        reviewIteration: 0,
+      })).rejects.toThrow('Pipeline v2 禁止节点丢弃工作区补丁')
+
+      expect(existsSync(join(repoRoot, 'patch-work', 'result.md'))).toBe(false)
     } finally {
       if (previousConfigDir === undefined) {
         delete process.env.RV_INSIGHTS_CONFIG_DIR

@@ -9,12 +9,14 @@ import type {
   PipelineDeveloperStageOutput,
   PipelineExplorerReportRef,
   PipelineNodeKind,
+  PipelinePatchSetSummary,
   PipelinePlannerStageOutput,
   PipelineReviewIssue,
   PipelineReviewIssueCategory,
   PipelineReviewIssueSeverity,
   PipelineReviewIssueStatus,
   PipelineReviewerStageOutput,
+  PipelineTestEvidence,
   PipelineTestRun,
   PipelineVersion,
   PipelineStageOutput,
@@ -56,6 +58,7 @@ import {
   readPatchWorkManifestFile,
   writePatchWorkFile,
 } from './pipeline-patch-work-service'
+import { buildPipelinePatchSetDraft } from './pipeline-git-submission-service'
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6'
 const DEFAULT_ANTHROPIC_URL = 'https://api.anthropic.com'
@@ -386,6 +389,17 @@ function buildV2SystemPromptAppendix(
     ].join('\n')
   }
 
+  if (node === 'tester') {
+    return [
+      'Pipeline v2 约束：',
+      '- 必须读取已接受的 patch-work/test-plan.md、patch-work/dev.md 和最新 patch-work/review.md。',
+      '- 可以运行测试和做必要修复，但不要执行 git 命令、git commit、git push 或创建 PR。',
+      '- 应用会在节点结束后生成 patch-set，并保证排除 patch-work/**。',
+      '- 最终 JSON 可包含 passed、testEvidence 和 resultMarkdown；应用会写入 result.md 和 patch-work/patch-set/*。',
+      '- 如果环境缺失导致测试无法运行，请把原因写入 blockers，并将 passed 设为 false。',
+    ].join('\n')
+  }
+
   return undefined
 }
 
@@ -412,6 +426,7 @@ function readAcceptedPatchWorkDocumentForPrompt(input: {
   context: PipelineNodeExecutionContext
   kind: PatchWorkFileKind
   label: string
+  requireAccepted?: boolean
 }): AcceptedPatchWorkDocument {
   const task = getContributionTaskByPipelineSessionId(input.context.sessionId)
   if (!task) {
@@ -423,7 +438,7 @@ function readAcceptedPatchWorkDocumentForPrompt(input: {
   if (!file) {
     throw new Error(`patch-work 文档不存在，无法读取 ${input.label}`)
   }
-  if (!file.acceptedRevision) {
+  if (input.requireAccepted !== false && !file.acceptedRevision) {
     throw new Error(`patch-work 文档尚未通过人工审核，无法读取 ${input.label}`)
   }
 
@@ -500,6 +515,37 @@ function buildV2PatchWorkPromptSections(
         }),
       ),
       '请使用只读方式审查当前源码 diff：`git diff -- . \':!patch-work/**\'`，不要修改任何文件。',
+    ]
+  }
+
+  if (node === 'tester') {
+    return [
+      buildAcceptedDocumentPromptSection(
+        '已接受测试方案',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'test_plan',
+          label: 'test-plan.md',
+        }),
+      ),
+      buildAcceptedDocumentPromptSection(
+        '已接受开发文档',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'dev_doc',
+          label: 'dev.md',
+        }),
+      ),
+      buildAcceptedDocumentPromptSection(
+        '审查报告',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'review_doc',
+          label: 'review.md',
+          requireAccepted: false,
+        }),
+      ),
+      '请基于已接受文档和测试执行结果输出结构化测试结论。应用会在节点完成后基于 Git 状态生成 patch-set 草稿并排除 patch-work/**；不要执行 git 命令、git commit、git push 或创建 PR。',
     ]
   }
 
@@ -699,12 +745,32 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
       return {
         type: 'object',
         additionalProperties: false,
-        required: ['summary', 'commands', 'results', 'blockers'],
+        required: ['summary', 'commands', 'results', 'blockers', 'passed', 'testEvidence'],
         properties: {
           summary: { type: 'string' },
           commands: stringArraySchema(),
           results: stringArraySchema(),
           blockers: stringArraySchema(),
+          passed: { type: 'boolean' },
+          testEvidence: {
+            type: 'array',
+            minItems: 1,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['command', 'status', 'summary'],
+              properties: {
+                command: { type: 'string' },
+                status: {
+                  type: 'string',
+                  enum: ['passed', 'failed', 'skipped'],
+                },
+                summary: { type: 'string' },
+                durationMs: { type: 'number' },
+              },
+            },
+          },
+          resultMarkdown: { type: 'string' },
         },
       }
     case 'committer':
@@ -953,10 +1019,56 @@ function readOptionalTestRuns(
       issues.push(`缺少或非法字段: ${field}[${index}]`)
       return
     }
-    testsRun.push({ command, status, summary })
+    testsRun.push({
+      command,
+      status,
+      summary,
+      durationMs: typeof record.durationMs === 'number' && Number.isFinite(record.durationMs)
+        ? record.durationMs
+        : undefined,
+    })
   })
 
   return testsRun
+}
+
+function readOptionalTestEvidence(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): PipelineTestEvidence[] | undefined {
+  const value = parsed[field]
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(`缺少或非法字段: ${field}`)
+    return undefined
+  }
+
+  const evidence: PipelineTestEvidence[] = []
+  value.forEach((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      issues.push(`字段包含非法对象: ${field}[${index}]`)
+      return
+    }
+    const record = item as Record<string, unknown>
+    const command = typeof record.command === 'string' ? record.command.trim() : ''
+    const status = readEnumValue(record.status, ['passed', 'failed', 'skipped'] as const)
+    const summary = typeof record.summary === 'string' ? record.summary.trim() : ''
+    if (!command || !status || !summary) {
+      issues.push(`缺少或非法字段: ${field}[${index}]`)
+      return
+    }
+    evidence.push({
+      command,
+      status,
+      summary,
+      durationMs: typeof record.durationMs === 'number' && Number.isFinite(record.durationMs)
+        ? record.durationMs
+        : undefined,
+    })
+  })
+
+  return evidence
 }
 
 function buildStableReviewIssueId(index: number): string {
@@ -1485,6 +1597,194 @@ function enrichReviewerPatchWorkArtifacts(
   }
 }
 
+function buildTesterEvidenceFallback(output: Extract<PipelineStageOutput, { node: 'tester' }>): PipelineTestEvidence[] {
+  if (output.testEvidence?.length) return output.testEvidence
+
+  if (output.commands.length === 0) {
+    return output.blockers.length > 0
+      ? output.blockers.map((blocker) => ({
+          command: '未执行测试命令',
+          status: 'skipped',
+          summary: blocker,
+        }))
+      : []
+  }
+
+  return output.commands.map((command, index) => ({
+    command,
+    status: 'skipped',
+    summary: output.blockers[index]
+      ?? output.results[index]
+      ?? `缺少结构化测试证据，不能确认命令是否通过：${command}`,
+  }))
+}
+
+function isTesterOutputApproved(
+  output: Extract<PipelineStageOutput, { node: 'tester' }>,
+  evidence: PipelineTestEvidence[] | undefined = output.testEvidence,
+): boolean {
+  if (output.passed !== true) return false
+  if (output.blockers.length > 0 || output.commands.length === 0) return false
+  if (!evidence || evidence.length === 0) return false
+  return evidence.every((item) => item.status === 'passed')
+}
+
+function buildFallbackTestResultMarkdown(
+  output: Extract<PipelineStageOutput, { node: 'tester' }>,
+  evidence: PipelineTestEvidence[],
+): string {
+  const approved = isTesterOutputApproved(output, evidence)
+  const hasFailedEvidence = evidence.some((item) => item.status === 'failed')
+  const hasSkippedEvidence = evidence.some((item) => item.status === 'skipped')
+  const conclusion = approved
+    ? '通过。'
+    : output.blockers.length > 0
+      ? '阻塞，测试未完整运行。'
+      : hasFailedEvidence
+        ? '不通过，存在失败测试证据。'
+        : hasSkippedEvidence
+          ? '不通过，存在跳过或缺失的测试证据。'
+          : '不通过，需要回 developer 修复。'
+
+  return [
+    '# 测试报告',
+    '',
+    '## 测试结论',
+    conclusion,
+    '',
+    '## 执行环境',
+    '- 由 Pipeline Tester 节点在当前工作区执行。',
+    '',
+    '## 执行命令',
+    ...(output.commands.length > 0 ? output.commands.map((command) => `- \`${command}\``) : ['- 未执行测试命令。']),
+    '',
+    '## 通过项',
+    ...(evidence
+      .filter((item) => item.status === 'passed')
+      .map((item) => `- \`${item.command}\`：${item.summary}`)),
+    ...(evidence.some((item) => item.status === 'passed') ? [] : ['- 无。']),
+    '',
+    '## 失败项',
+    ...(evidence
+      .filter((item) => item.status === 'failed')
+      .map((item) => `- \`${item.command}\`：${item.summary}`)),
+    ...(evidence.some((item) => item.status === 'failed') ? [] : ['- 无。']),
+    '',
+    '## 修复尝试',
+    ...(output.results.length > 0 ? output.results.map((result) => `- ${result}`) : ['- 未记录额外修复尝试。']),
+    '',
+    '## 剩余阻塞',
+    ...(output.blockers.length > 0 ? output.blockers.map((blocker) => `- ${blocker}`) : ['- 无。']),
+    '',
+    '## 最终交付判断',
+    approved
+      ? '可以进入提交草稿阶段。'
+      : '暂不建议进入提交草稿，除非人工接受风险。',
+    '',
+  ].join('\n')
+}
+
+function buildPatchSetSummary(input: {
+  draft: ReturnType<typeof buildPipelinePatchSetDraft>
+  patchRef: PatchWorkFileRef
+  changedFilesRef: PatchWorkFileRef
+  diffSummaryRef: PatchWorkFileRef
+  testEvidenceRef: PatchWorkFileRef
+}): PipelinePatchSetSummary {
+  return {
+    files: input.draft.changedFiles,
+    additions: input.draft.additions,
+    deletions: input.draft.deletions,
+    patchRef: toPatchWorkDocumentRef(input.patchRef),
+    changedFilesRef: toPatchWorkDocumentRef(input.changedFilesRef),
+    diffSummaryRef: toPatchWorkDocumentRef(input.diffSummaryRef),
+    testEvidenceRef: toPatchWorkDocumentRef(input.testEvidenceRef),
+    excludesPatchWork: input.draft.excludesPatchWork,
+    testEvidence: input.draft.testEvidence,
+    baseBranch: input.draft.baseBranch,
+    workingBranch: input.draft.workingBranch,
+    headCommit: input.draft.headCommit,
+  }
+}
+
+function enrichTesterPatchWorkArtifacts(
+  context: PipelineNodeExecutionContext,
+  result: PipelineNodeExecutionResult,
+): PipelineNodeExecutionResult {
+  if (result.stageOutput?.node !== 'tester') return result
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) return result
+
+  const parsed = parseStructuredOutput('tester', result.output)
+  const evidence = buildTesterEvidenceFallback(result.stageOutput)
+  const resultMarkdown = readOptionalString(parsed, 'resultMarkdown')
+    ?? buildFallbackTestResultMarkdown(result.stageOutput, evidence)
+  const patchSetDraft = buildPipelinePatchSetDraft({
+    repositoryRoot: task.repositoryRoot,
+    testEvidence: evidence,
+  })
+  const testResultRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'test_result',
+    createdByNode: 'tester',
+    content: resultMarkdown,
+  })
+  const patchRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'patch',
+    createdByNode: 'tester',
+    content: patchSetDraft.patch ? `${patchSetDraft.patch}\n` : '',
+  })
+  const changedFilesRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'changed_files',
+    createdByNode: 'tester',
+    content: `${JSON.stringify(patchSetDraft.changedFiles, null, 2)}\n`,
+  })
+  const diffSummaryRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'diff_summary',
+    createdByNode: 'tester',
+    content: patchSetDraft.diffSummaryMarkdown,
+  })
+  const testEvidenceRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'test_evidence',
+    createdByNode: 'tester',
+    content: `${JSON.stringify(patchSetDraft.testEvidence, null, 2)}\n`,
+  })
+  const patchSet = buildPatchSetSummary({
+    draft: patchSetDraft,
+    patchRef,
+    changedFilesRef,
+    diffSummaryRef,
+    testEvidenceRef,
+  })
+
+  return {
+    ...result,
+    approved: isTesterOutputApproved(result.stageOutput, evidence) && patchSet.excludesPatchWork,
+    issues: result.stageOutput.blockers,
+    stageOutput: {
+      ...result.stageOutput,
+      testEvidence: evidence,
+      testResultRef: toPatchWorkDocumentRef(testResultRef),
+      patchSet,
+      changedFiles: patchSet.files.map((file) => file.path),
+    },
+  }
+}
+
 export function enrichPipelineV2PatchWorkArtifacts(
   node: PipelineNodeKind,
   context: PipelineNodeExecutionContext,
@@ -1495,6 +1795,7 @@ export function enrichPipelineV2PatchWorkArtifacts(
   if (node === 'planner') return enrichPlannerPatchWorkArtifacts(context, result)
   if (node === 'developer') return enrichDeveloperPatchWorkArtifacts(context, result)
   if (node === 'reviewer') return enrichReviewerPatchWorkArtifacts(context, result)
+  if (node === 'tester') return enrichTesterPatchWorkArtifacts(context, result)
   return result
 }
 
@@ -1583,13 +1884,28 @@ function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOu
       return output
     }
     case 'tester': {
-      const output = {
+      const testEvidence = readOptionalTestEvidence(parsed, 'testEvidence', issues)
+      const output: Extract<PipelineStageOutput, { node: 'tester' }> = {
         node,
         summary,
         commands: readRequiredStringArray(parsed, 'commands', issues),
         results: readRequiredStringArray(parsed, 'results', issues),
         blockers: readRequiredStringArray(parsed, 'blockers', issues),
         content: text,
+      }
+      if (typeof parsed.passed === 'boolean') {
+        output.passed = parsed.passed
+      } else {
+        issues.push('缺少或非法字段: passed')
+      }
+      if (testEvidence) {
+        if (testEvidence.length > 0) {
+          output.testEvidence = testEvidence
+        } else {
+          issues.push('缺少或非法字段: testEvidence')
+        }
+      } else {
+        issues.push('缺少或非法字段: testEvidence')
       }
       throwIfInvalid(node, issues, text)
       return output
@@ -1620,6 +1936,17 @@ export function buildNodeExecutionResult(node: PipelineNodeKind, text: string): 
       summary: stageOutput.summary,
       approved: stageOutput.approved,
       issues: stageOutput.issues,
+      stageOutput,
+    }
+  }
+
+  if (stageOutput.node === 'tester') {
+    const approved = isTesterOutputApproved(stageOutput)
+    return {
+      output: text,
+      summary: stageOutput.summary,
+      approved,
+      issues: stageOutput.blockers,
       stageOutput,
     }
   }

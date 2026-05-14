@@ -131,6 +131,36 @@ describe('pipeline-patch-work-service', () => {
     }
   })
 
+  test('支持 Phase 5 patch-set 固定文件并登记 manifest checksum', () => {
+    const fixedPatchSetKinds = [
+      ['patch', 'patch-set/changes.patch', '代码补丁.patch'],
+      ['changed_files', 'patch-set/changed-files.json', '变更文件.json'],
+      ['diff_summary', 'patch-set/diff-summary.md', 'Diff 摘要.md'],
+      ['test_evidence', 'patch-set/test-evidence.json', '测试证据.json'],
+    ] as const
+
+    for (const [kind, relativePath, displayName] of fixedPatchSetKinds) {
+      const ref = writePatchWorkFile({
+        contributionTaskId: 'task-1',
+        pipelineSessionId: 'session-1',
+        repositoryRoot: repoRoot,
+        kind,
+        createdByNode: 'tester',
+        content: relativePath.endsWith('.json') ? '{"ok":true}\n' : `# ${kind}\n`,
+      })
+
+      expect(ref).toMatchObject({
+        kind,
+        displayName,
+        relativePath,
+        createdByNode: 'tester',
+        revision: 1,
+      })
+      expect(existsSync(join(repoRoot, 'patch-work', relativePath))).toBe(true)
+      expect(readPatchWorkManifest(repoRoot).checksums[relativePath]).toBe(ref.checksum)
+    }
+  })
+
   test('拒绝绝对路径、上级路径和读取软链越界文件', () => {
     expect(() => writePatchWorkFile({
       contributionTaskId: 'task-1',

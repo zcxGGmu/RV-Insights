@@ -22,6 +22,8 @@ import type {
   PipelineStreamErrorPayload,
   PipelineStreamPayload,
   PipelineStreamEvent,
+  PipelineGateKind,
+  PipelineTestEvidence,
 } from '@rv-insights/shared'
 import type { PipelineNodeRunner } from './pipeline-node-runner'
 import { PipelineCheckpointer } from './pipeline-checkpointer'
@@ -347,6 +349,96 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     return task
   }
 
+  function patchTextContainsPatchWorkFile(patch: string): boolean {
+    return patch.split('\n').some((line) =>
+      line.startsWith('diff --git a/patch-work ')
+      || line.startsWith('diff --git a/patch-work/')
+      || line.includes(' b/patch-work/')
+      || line.endsWith(' b/patch-work'))
+  }
+
+  function parsePatchSetChangedFilePaths(content: string): string[] {
+    const parsed = JSON.parse(content) as unknown
+    if (!Array.isArray(parsed)) {
+      throw new Error('patch-set changed-files.json 不是合法数组')
+    }
+
+    return parsed.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new Error(`patch-set changed-files.json 包含非法对象: ${index}`)
+      }
+      const path = (item as { path?: unknown }).path
+      if (typeof path !== 'string' || !path.trim()) {
+        throw new Error(`patch-set changed-files.json 缺少 path: ${index}`)
+      }
+      return path.trim().replace(/\\/g, '/')
+    })
+  }
+
+  function parseTesterEvidence(content: string): PipelineTestEvidence[] {
+    const parsed = JSON.parse(content) as unknown
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error('patch-set test-evidence.json 不是非空数组')
+    }
+
+    return parsed.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new Error(`patch-set test-evidence.json 包含非法对象: ${index}`)
+      }
+      const record = item as Record<string, unknown>
+      const command = typeof record.command === 'string' ? record.command.trim() : ''
+      const status = typeof record.status === 'string' ? record.status.trim() : ''
+      const summary = typeof record.summary === 'string' ? record.summary.trim() : ''
+      if (!command || !['passed', 'failed', 'skipped'].includes(status) || !summary) {
+        throw new Error(`patch-set test-evidence.json 缺少或非法字段: ${index}`)
+      }
+      return {
+        command,
+        status: status as PipelineTestEvidence['status'],
+        summary,
+        durationMs: typeof record.durationMs === 'number' && Number.isFinite(record.durationMs)
+          ? record.durationMs
+          : undefined,
+      }
+    })
+  }
+
+  function assertTesterPatchSetExcludesPatchWork(repositoryRoot: string): void {
+    const patch = readPatchWorkManifestFile({
+      repositoryRoot,
+      relativePath: 'patch-set/changes.patch',
+    })
+    const changedFilesContent = readPatchWorkManifestFile({
+      repositoryRoot,
+      relativePath: 'patch-set/changed-files.json',
+    })
+    const changedFiles = parsePatchSetChangedFilePaths(changedFilesContent)
+    const hasPatchWorkFile = patchTextContainsPatchWorkFile(patch)
+      || changedFiles.some((path) => path === 'patch-work' || path.startsWith('patch-work/'))
+
+    if (hasPatchWorkFile) {
+      throw new Error('patch-set 包含 patch-work/**，禁止进入提交草稿')
+    }
+  }
+
+  function assertTesterEvidenceAllowsApprove(
+    repositoryRoot: string,
+    gateKind: PipelineGateKind,
+  ): void {
+    const evidenceContent = readPatchWorkManifestFile({
+      repositoryRoot,
+      relativePath: 'patch-set/test-evidence.json',
+    })
+    const evidence = parseTesterEvidence(evidenceContent)
+
+    if (gateKind === 'test_blocked') return
+
+    const hasNonPassingEvidence = evidence.some((item) => item.status !== 'passed')
+    if (hasNonPassingEvidence) {
+      throw new Error('tester 测试证据未全部通过，禁止以正常审核进入提交草稿')
+    }
+  }
+
   function ensureV2ContributionTask(
     meta: PipelineSessionMeta,
     workspaceId: string | undefined,
@@ -424,6 +516,18 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         if (task) {
           updateContributionTask(task.id, {
             status: response.action === 'rerun_node' ? 'reviewing' : 'developing',
+            currentGateId: pendingGate.gateId,
+          })
+        }
+      }
+      if (
+        (pendingGate.kind === 'document_review' || pendingGate.kind === 'test_blocked')
+        && pendingGate.node === 'tester'
+      ) {
+        const task = getContributionTaskForSession(response.sessionId)
+        if (task) {
+          updateContributionTask(task.id, {
+            status: response.action === 'reject_with_feedback' ? 'developing' : 'testing',
             currentGateId: pendingGate.gateId,
           })
         }
@@ -537,6 +641,48 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         payload: {
           status: 'testing',
           reason: 'review_iteration_limit_accepted',
+        },
+      })
+    }
+
+    if (
+      (pendingGate.kind === 'document_review' || pendingGate.kind === 'test_blocked')
+      && pendingGate.node === 'tester'
+    ) {
+      const task = getContributionTaskForSession(response.sessionId)
+      if (!task) return
+
+      assertTesterPatchSetExcludesPatchWork(task.repositoryRoot)
+      assertTesterEvidenceAllowsApprove(task.repositoryRoot, pendingGate.kind)
+      const accepted = acceptPatchWorkDocuments({
+        repositoryRoot: task.repositoryRoot,
+        gateId: pendingGate.gateId,
+        kinds: ['test_result', 'patch', 'changed_files', 'diff_summary', 'test_evidence'],
+      })
+      updateContributionTask(task.id, {
+        status: 'committing',
+        currentGateId: undefined,
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'patch_work_updated',
+        payload: {
+          acceptedDocuments: accepted.map((file) => ({
+            relativePath: file.relativePath,
+            checksum: file.checksum,
+            revision: file.revision,
+          })),
+          riskAccepted: pendingGate.kind === 'test_blocked',
+        },
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'task_updated',
+        payload: {
+          status: 'committing',
+          reason: pendingGate.kind === 'test_blocked'
+            ? 'test_blocked_risk_accepted'
+            : 'tester_result_accepted',
         },
       })
     }
