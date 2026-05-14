@@ -277,6 +277,7 @@ function compactStageOutputsForPrompt(stageOutputs: PipelineStageOutputMap | und
 }
 
 function buildSystemPrompt(node: PipelineNodeKind): string {
+  const jsonOnlyRule = '最终回复必须只包含一个 JSON object，不要输出 Markdown、解释文字、工具执行计划或 JSON 之外的任何前后缀。'
   switch (node) {
     case 'explorer':
       return [
@@ -284,6 +285,7 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
         '目标：基于用户需求快速梳理任务背景、代码入口和可执行方向。',
         '输出要求：给出简洁的探索结论、关键文件/模块、下一步建议。',
         '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
+        jsonOnlyRule,
       ].join('\n')
     case 'planner':
       return [
@@ -291,6 +293,7 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
         '目标：输出可执行的开发与验证方案，避免空泛描述。',
         '输出要求：方案步骤、风险点、验证方式。',
         '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
+        jsonOnlyRule,
       ].join('\n')
     case 'developer':
       return [
@@ -298,6 +301,7 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
         '目标：按计划直接完成代码实现和必要测试。',
         '输出要求：说明改动、验证结果、遗留风险。',
         '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
+        jsonOnlyRule,
       ].join('\n')
     case 'reviewer':
       return [
@@ -305,6 +309,7 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
         '目标：审查本轮开发结果，给出明确通过/驳回结论。',
         '请仅围绕正确性、回归风险、测试缺口、实现质量给出判断。',
         '必须严格遵守结构化输出 schema，approved 字段必须是 boolean。',
+        jsonOnlyRule,
       ].join('\n')
     case 'tester':
       return [
@@ -312,6 +317,7 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
         '目标：执行验证并输出测试结论。',
         '输出要求：运行了什么、结果如何、是否还有阻塞项。',
         '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
+        jsonOnlyRule,
       ].join('\n')
     case 'committer':
       return [
@@ -319,6 +325,7 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
         '目标：生成可审核的提交信息和 PR 草稿，不执行真实 commit、push 或创建 PR。',
         '输出要求：commit message、PR 标题、PR 正文、提交状态和风险说明。',
         '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
+        jsonOnlyRule,
       ].join('\n')
   }
 }
@@ -335,6 +342,7 @@ function buildV2SystemPromptAppendix(
       '- 不要修改源码或工作区文件。',
       '- 请输出多个候选 reports，应用会把它们写入 patch-work/explorer/report-*.md。',
       '- 每个 report 至少包含 title、summary、rationale、keyFiles。',
+      '- 如果需要先说明探索过程，也必须把说明压缩进 summary / findings / reports 字段里。',
     ].join('\n')
   }
 
@@ -689,6 +697,46 @@ function readSubmissionStatus(
   return 'blocked'
 }
 
+function splitNonEmptyTextBlocks(text: string): string[] {
+  return text
+    .split(/\n{2,}|\r?\n/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function truncateForSummary(text: string, maxLength: number): string {
+  const compact = text.replace(/\s+/g, ' ').trim()
+  if (compact.length <= maxLength) return compact
+  return `${compact.slice(0, maxLength - 1).trimEnd()}…`
+}
+
+function extractLikelyFilePaths(text: string): string[] {
+  const matches = text.match(/[A-Za-z0-9_.@/-]+\.(?:ts|tsx|js|jsx|json|md|go|rs|py|java|c|h|cpp|hpp|yml|yaml|toml|lock)\b/g) ?? []
+  return [...new Set(matches)].slice(0, 12)
+}
+
+function buildExplorerFallbackStageOutput(
+  text: string,
+): Extract<PipelineStageOutput, { node: 'explorer' }> {
+  const blocks = splitNonEmptyTextBlocks(text)
+  const summarySource = blocks[0] ?? 'Explorer 返回了非 JSON 探索结果'
+  const findings = blocks.length > 0
+    ? blocks.slice(0, 6).map((block) => truncateForSummary(block, 240))
+    : ['Explorer 没有返回可解析的结构化 JSON，已保留原始输出供人工选择。']
+
+  return {
+    node: 'explorer',
+    summary: truncateForSummary(summarySource, 160),
+    findings,
+    keyFiles: extractLikelyFilePaths(text),
+    nextSteps: [
+      '从 fallback 探索报告中选择一个任务方向后进入 planner。',
+      '在 planner 阶段将自然语言探索结果收敛为 plan.md 和 test-plan.md。',
+    ],
+    content: text,
+  }
+}
+
 interface ExplorerReportDraft {
   title: string
   summary: string
@@ -792,7 +840,7 @@ function enrichExplorerPatchWorkArtifacts(
   const task = getContributionTaskByPipelineSessionId(context.sessionId)
   if (!task) return result
 
-  const parsed = parseStructuredOutput('explorer', result.output)
+  const parsed = parseJsonObject(result.output) ?? {}
   const drafts = readExplorerReportDrafts(parsed, result.stageOutput)
   clearPatchWorkFilesByKind({
     repositoryRoot: task.repositoryRoot,
@@ -956,7 +1004,12 @@ function throwIfInvalid(node: PipelineNodeKind, issues: string[], text: string):
 }
 
 function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOutput {
-  const parsed = parseStructuredOutput(node, text)
+  const parsed = node === 'explorer'
+    ? parseJsonObject(text)
+    : parseStructuredOutput(node, text)
+  if (!parsed) {
+    return buildExplorerFallbackStageOutput(text)
+  }
   const issues: string[] = []
   const summary = readRequiredString(parsed, 'summary', issues)
 

@@ -101,6 +101,49 @@ describe('pipeline-node-runner', () => {
     })
   })
 
+  test('explorer 自然语言输出会生成可选择的 fallback 报告', () => {
+    createContributionTask({
+      id: 'task-runner-explorer-fallback',
+      pipelineSessionId: 'session-runner-explorer-fallback',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'exploring',
+    })
+
+    const rawOutput = [
+      'Let me explore the Linux RISC-V memory management landscape systematically.',
+      "I'll start by understanding the codebase structure and then dive into memory-related subsystems.",
+      'This is a fresh workspace with no kernel checkout yet, so the first actionable task is to select a concrete repository entry point.',
+    ].join('\n\n')
+    const result = buildNodeExecutionResult('explorer', rawOutput)
+    const enriched = enrichPipelineV2PatchWorkArtifacts('explorer', {
+      sessionId: 'session-runner-explorer-fallback',
+      userInput: '探索 Linux RISC-V 内存管理贡献方向',
+      currentNode: 'explorer',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    expect(enriched.summary).toContain('Let me explore')
+    expect(enriched.stageOutput).toMatchObject({
+      node: 'explorer',
+      findings: [
+        'Let me explore the Linux RISC-V memory management landscape systematically.',
+        "I'll start by understanding the codebase structure and then dive into memory-related subsystems.",
+        'This is a fresh workspace with no kernel checkout yet, so the first actionable task is to select a concrete repository entry point.',
+      ],
+      reports: [
+        {
+          reportId: 'report-001',
+          relativePath: 'explorer/report-001.md',
+        },
+      ],
+    })
+    expect(readFileSync(join(repoRoot, 'patch-work', 'explorer', 'report-001.md'), 'utf-8')).toContain('Linux RISC-V memory management')
+  })
+
   test('planner 支持解析前后带说明文字的 JSON 输出', () => {
     const result = buildNodeExecutionResult('planner', [
       '下面是结构化结果：',
