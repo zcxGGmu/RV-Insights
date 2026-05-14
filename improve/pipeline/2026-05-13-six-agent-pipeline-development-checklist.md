@@ -73,39 +73,39 @@ Pipeline v2 总体完成前必须满足：
 
 **阶段状态**
 
-- [ ] 阶段开始
-- [ ] 阶段完成
+- [x] 阶段开始
+- [x] 阶段完成
 
 **入口条件**
 
-- [ ] 已阅读 Pipeline v2 分析文档。
-- [ ] 已确认本清单是后续开发的执行依据。
-- [ ] 本阶段不修改运行时代码，只允许补规格、测试骨架和 fixture 设计。
+- [x] 已阅读 Pipeline v2 分析文档。
+- [x] 已确认本清单是后续开发的执行依据。
+- [x] 本阶段不修改运行时代码，只允许补规格、测试骨架和 fixture 设计。
 
 **开发任务**
 
-- [ ] 将核心状态机整理为 graph Mermaid 和状态表，必要时独立成 `docs` 或 `improve/pipeline` 文档。
-- [ ] 定义 BDD 场景清单：task selection、plan gate、dev gate、review loop、tester blocked、committer draft。
-- [ ] 设计 fixture repo，用于后续本地 Pipeline v2 E2E。
-- [ ] 明确 v1/v2 共存策略：旧会话默认 `version=1`，新贡献 Pipeline 使用 `version=2`。
-- [ ] 明确本阶段涉及 package version 是否需要变更；若仅文档可不变更。
+- [x] 将核心状态机整理为 graph Mermaid 和状态表，必要时独立成 `docs` 或 `improve/pipeline` 文档。
+- [x] 定义 BDD 场景清单：task selection、plan gate、dev gate、review loop、tester blocked、committer draft。
+- [x] 设计 fixture repo，用于后续本地 Pipeline v2 E2E。
+- [x] 明确 v1/v2 共存策略：旧会话默认 `version=1`，新贡献 Pipeline 使用 `version=2`。
+- [x] 明确本阶段涉及 package version 是否需要变更；若仅文档可不变更。
 
 **建议文件**
 
-- [ ] `improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md`
-- [ ] `improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md`
-- [ ] 后续可新增 `docs/pipeline-v2-spec.md`，但需确认文档同步范围。
+- [x] `improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md`
+- [x] `improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md`
+- [x] 后续可新增 `docs/pipeline-v2-spec.md`，但需确认文档同步范围。本阶段选择继续使用 `improve/pipeline` 文档，不修改 README / AGENTS。
 
 **验证**
 
-- [ ] `git diff --check`
-- [ ] 关键章节可通过 `rg` 检索：`Phase 0`、`ContributionTask`、`patch-work`、`committer`。
+- [x] `git diff --check`
+- [x] 关键章节可通过 `rg` 检索：`Phase 0`、`ContributionTask`、`patch-work`、`committer`。
 
 **完成定义**
 
-- [ ] 规格明确回答每个节点 runtime、输入、输出、gate、失败循环和产物文件。
-- [ ] BDD 场景足以驱动后续测试先行开发。
-- [ ] 用户或维护者确认可以进入 Phase 1。
+- [x] 规格明确回答每个节点 runtime、输入、输出、gate、失败循环和产物文件。
+- [x] BDD 场景足以驱动后续测试先行开发。
+- [x] 用户或维护者确认可以进入 Phase 1。
 
 **禁止事项**
 
@@ -117,51 +117,51 @@ Pipeline v2 总体完成前必须满足：
 
 **阶段状态**
 
-- [ ] 阶段开始
-- [ ] 阶段完成
+- [x] 阶段开始
+- [x] 阶段完成
 
 **入口条件**
 
-- [ ] Phase 0 已完成。
-- [ ] 已确认本阶段目标是领域对象和文件契约，不扩展六节点 graph。
+- [x] Phase 0 已完成。
+- [x] 已确认本阶段目标是领域对象和文件契约，不扩展六节点 graph。
 
 **开发任务**
 
-- [ ] 新增 `ContributionTask` 共享类型，包含 task id、session id、repo root、branch、mode、status、patchWorkDir。
-- [ ] 新增贡献任务索引服务，使用 `~/.rv-insights/contribution-tasks.json`。
-- [ ] 新增贡献任务 JSONL event 存储：`~/.rv-insights/contribution-tasks/{taskId}.jsonl`。
-- [ ] 新增 `pipeline-preflight-service.ts`。
-- [ ] preflight 检查 Git root、branch、remote、未提交变更、冲突、Claude CLI、Codex CLI、Git、包管理器。
-- [ ] 新增 `pipeline-patch-work-service.ts`。
-- [ ] 支持安全创建 `patch-work/manifest.json`。
-- [ ] 支持固定文件读写：`selected-task.md`、`plan.md`、`test-plan.md`、`dev.md`、`review.md`、`result.md`、`commit.md`、`pr.md`。
-- [ ] 支持 `patch-work/revisions/{node}/` 修订归档。
-- [ ] 支持原子写入：先写临时文件，再 rename 到正式路径。
-- [ ] 校验路径安全：禁止绝对路径、`..`、软链越界。
+- [x] 新增 `ContributionTask` 共享类型，包含 task id、session id、repo root、branch、mode、status、patchWorkDir。
+- [x] 新增贡献任务索引服务，使用 `~/.rv-insights/contribution-tasks.json`。
+- [x] 新增贡献任务 JSONL event 存储：`~/.rv-insights/contribution-tasks/{taskId}.jsonl`。
+- [x] 新增 `pipeline-preflight-service.ts`。
+- [x] preflight 检查 Git root、branch、remote、未提交变更、冲突、Claude CLI、Codex CLI、Git、包管理器。
+- [x] 新增 `pipeline-patch-work-service.ts`。
+- [x] 支持安全创建 `patch-work/manifest.json`。
+- [x] 支持固定文件读写：`selected-task.md`、`plan.md`、`test-plan.md`、`dev.md`、`review.md`、`result.md`、`commit.md`、`pr.md`。
+- [x] 支持 `patch-work/revisions/{node}/` 修订归档。
+- [x] 支持原子写入：先写临时文件，再 rename 到正式路径。
+- [x] 校验路径安全：禁止绝对路径、`..`、软链越界。
 
 **建议文件**
 
-- [ ] `packages/shared/src/types/pipeline.ts`
-- [ ] `apps/electron/src/main/lib/pipeline-preflight-service.ts`
-- [ ] `apps/electron/src/main/lib/pipeline-patch-work-service.ts`
-- [ ] `apps/electron/src/main/lib/contribution-task-service.ts`
-- [ ] 对应测试文件。
+- [x] `packages/shared/src/types/pipeline.ts`
+- [x] `apps/electron/src/main/lib/pipeline-preflight-service.ts`
+- [x] `apps/electron/src/main/lib/pipeline-patch-work-service.ts`
+- [x] `apps/electron/src/main/lib/contribution-task-service.ts`
+- [x] 对应测试文件。
 
 **测试**
 
-- [ ] `bun test apps/electron/src/main/lib/pipeline-preflight-service.test.ts`
-- [ ] `bun test apps/electron/src/main/lib/pipeline-patch-work-service.test.ts`
-- [ ] `bun test apps/electron/src/main/lib/contribution-task-service.test.ts`
-- [ ] `bun test packages/shared/src/utils/pipeline-state.test.ts`
+- [x] `bun test apps/electron/src/main/lib/pipeline-preflight-service.test.ts`
+- [x] `bun test apps/electron/src/main/lib/pipeline-patch-work-service.test.ts`
+- [x] `bun test apps/electron/src/main/lib/contribution-task-service.test.ts`
+- [x] `bun test packages/shared/src/utils/pipeline-state.test.ts`
 
 **完成定义**
 
-- [ ] 可以创建 `ContributionTask` 并持久化。
-- [ ] 可以在 fixture repo 安全创建 `patch-work`。
-- [ ] manifest 能记录文件 ref、checksum、revision 和更新时间。
-- [ ] 越界路径写入会失败。
-- [ ] preflight 能在 CLI 不可用、非 Git root、存在冲突时返回 blocker。
-- [ ] v1 Pipeline 行为未变化。
+- [x] 可以创建 `ContributionTask` 并持久化。
+- [x] 可以在 fixture repo 安全创建 `patch-work`。
+- [x] manifest 能记录文件 ref、checksum、revision 和更新时间。
+- [x] 越界路径写入会失败。
+- [x] preflight 能在 CLI 不可用、非 Git root、存在冲突时返回 blocker。
+- [x] v1 Pipeline 行为未变化。
 
 **禁止事项**
 
@@ -581,6 +581,26 @@ Pipeline v2 总体完成前必须满足：
 是否允许进入下一阶段：
 ```
 
+```text
+阶段：Phase 0 规格冻结与测试骨架
+完成日期：2026-05-13
+负责人：Codex
+主要变更：补充 Phase 0 冻结确认，明确 fixture repo 设计、v1/v2 共存和 Phase 1 边界。
+验证命令：git diff --check；rg -n "Phase 0|ContributionTask|patch-work|committer|flowchart TD|BDD 验收场景|节点输入输出契约" improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md
+剩余风险：后续仍需用真实测试覆盖 Phase 1 服务契约。
+是否允许进入下一阶段：是，进入 Phase 1。
+```
+
+```text
+阶段：Phase 1 Preflight、ContributionTask、PatchWork 基础
+完成日期：2026-05-13
+负责人：Codex
+主要变更：新增 ContributionTask 共享类型、贡献任务 JSON/JSONL 服务、preflight 服务、patch-work manifest/revision/固定文件服务和严格路径安全测试；同步 shared/electron package patch version 与 bun.lock workspace metadata。
+验证命令：bun test apps/electron/src/main/lib/contribution-task-service.test.ts apps/electron/src/main/lib/pipeline-patch-work-service.test.ts apps/electron/src/main/lib/pipeline-preflight-service.test.ts packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main/lib/pipeline-graph.test.ts；bun run typecheck；git diff --check；bun install --frozen-lockfile --dry-run；bun test
+剩余风险：全量 bun test 仍有 1 个既有失败，位于 apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts 的 Electron named export 测试环境问题，未指向 Phase 1 改动。
+是否允许进入下一阶段：是，进入 Phase 2。
+```
+
 ## 当前执行建议
 
-下一步应从 Phase 0 开始。若维护者已经确认当前方案可作为规格冻结，则直接进入 Phase 1，先实现 `preflight + ContributionTask + patch-work service + manifest/revision`，不要先改六节点 graph。
+Phase 1 已完成。下一步应进入 Phase 2：Shared v2 类型与六节点状态机骨架。继续遵守阶段边界：先补 shared/state/graph/router/display model 测试，再实现 v2 类型、`committer` 节点枚举、v1/v2 replay 分支和 fake graph，不接真实 CLI 复杂行为，不开启 commit / push。

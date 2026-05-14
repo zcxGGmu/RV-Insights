@@ -2157,3 +2157,31 @@ UI 建议增加“诊断”入口：
 - Git/PR 安全 gate
 
 这样才能从“能跑多 Agent 任务”升级为“能带用户完成一次开源贡献”。
+
+## Phase 0 冻结确认
+
+本节作为进入 Phase 1 前的冻结记录，不修改运行时代码。
+
+### 冻结范围
+
+- 以本文“推荐的最终状态机” Mermaid 图作为 Pipeline v2 主流程依据。
+- 以“节点输入输出契约”和各节点详细规格作为 runtime、输入、输出、gate、失败循环和产物文件的冻结版本。
+- 以“BDD 验收场景”作为后续测试先行开发的场景清单。
+- 以 `improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md` 作为唯一阶段推进清单。
+
+### Fixture Repo 设计
+
+后续 E2E 使用最小 Git fixture repo，不直接使用大型真实开源项目：
+
+- repo 包含 `README.md`、`CONTRIBUTING.md`、`package.json`、`src/` 和至少一个可失败/可通过的测试文件。
+- 初始分支保持干净，测试用例会显式构造：非 Git 目录、冲突状态、未提交变更、已有 `patch-work/`、缺失 CLI。
+- `patch-work/` 由测试中的服务创建，fixture 不预置该目录。
+- patch-set 和提交候选必须默认排除 `patch-work/**`。
+- v1 兼容测试继续使用旧 Pipeline session / records；v2 fixture 只验证新贡献领域对象和文件契约。
+
+### v1 / v2 共存结论
+
+- 旧会话默认按 `version=1` 解释，不要求迁移。
+- 新贡献 Pipeline 创建 `ContributionTask`，并在后续 shared 类型阶段显式标记 `version=2`。
+- Phase 1 只落地领域对象、preflight 和 `patch-work` 文件契约，不改主进程 graph，不改 UI 行为。
+- 本阶段仅修改规划文档，不涉及 package version 变更。

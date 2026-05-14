@@ -139,6 +139,167 @@ export interface PipelineArtifactManifest {
   updatedAt: number
 }
 
+/** Pipeline v2 贡献模式 */
+export type ContributionMode = 'local_patch' | 'local_commit' | 'remote_pr'
+
+/** Pipeline v2 贡献任务状态 */
+export type ContributionTaskStatus =
+  | 'created'
+  | 'exploring'
+  | 'task_selected'
+  | 'planning'
+  | 'plan_review'
+  | 'developing'
+  | 'dev_review'
+  | 'reviewing'
+  | 'testing'
+  | 'committing'
+  | 'completed'
+  | 'failed'
+
+/** 一次开源贡献任务，承载仓库、分支、patch-work 和 Pipeline session 的领域状态 */
+export interface ContributionTask {
+  id: string
+  pipelineSessionId: string
+  workspaceId?: string
+  repositoryRoot: string
+  repositoryUrl?: string
+  issueUrl?: string
+  baseBranch?: string
+  workingBranch?: string
+  baseCommit?: string
+  selectedReportId?: string
+  selectedTaskTitle?: string
+  patchWorkDir: string
+  contributionMode: ContributionMode
+  allowRemoteWrites: boolean
+  status: ContributionTaskStatus
+  currentGateId?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export type ContributionTaskEventType =
+  | 'task_created'
+  | 'task_updated'
+  | 'preflight_completed'
+  | 'patch_work_updated'
+  | 'document_revision_created'
+  | 'task_failed'
+
+/** 贡献任务审计事件，按 taskId 写入 JSONL */
+export interface ContributionTaskEvent {
+  id: string
+  taskId: string
+  pipelineSessionId: string
+  type: ContributionTaskEventType
+  payload?: Record<string, unknown>
+  createdAt: number
+}
+
+/** patch-work 文件归属节点。Phase 1 不扩展 PipelineNodeKind，只为文件契约预留 committer。 */
+export type PatchWorkNodeKind = PipelineNodeKind | 'preflight' | 'committer'
+
+export type PatchWorkFileKind =
+  | 'explorer_report'
+  | 'selected_task'
+  | 'implementation_plan'
+  | 'test_plan'
+  | 'dev_doc'
+  | 'review_doc'
+  | 'test_result'
+  | 'patch'
+  | 'changed_files'
+  | 'diff_summary'
+  | 'test_evidence'
+  | 'commit_doc'
+  | 'pr_doc'
+
+/** 指向 patch-work 内文件的安全引用 */
+export interface PatchWorkFileRef {
+  kind: PatchWorkFileKind
+  displayName: string
+  relativePath: string
+  createdByNode: PatchWorkNodeKind
+  revision: number
+  checksum: string
+  updatedAt: number
+  acceptedRevision?: number
+  acceptedAt?: number
+  acceptedByGateId?: string
+}
+
+/** patch-work 文件事实源 manifest */
+export interface PatchWorkManifest {
+  version: 1
+  contributionTaskId: string
+  pipelineSessionId: string
+  repositoryRoot: string
+  patchWorkDir: string
+  selectedReportId?: string
+  files: PatchWorkFileRef[]
+  checksums: Record<string, string>
+  updatedAt: number
+}
+
+export type PipelinePackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn' | 'unknown'
+
+export type PipelinePreflightRuntimeKind =
+  | 'claude-cli'
+  | 'codex-cli'
+  | 'git'
+  | 'github'
+
+export type PipelinePreflightIssueCode =
+  | 'repository_missing'
+  | 'repository_not_git_root'
+  | 'git_missing'
+  | 'git_conflicts'
+  | 'git_uncommitted_changes'
+  | 'git_detached_head'
+  | 'git_remote_missing'
+  | 'claude_cli_missing'
+  | 'codex_cli_missing'
+  | 'package_manager_unknown'
+
+export interface PipelinePreflightIssue {
+  code: PipelinePreflightIssueCode
+  message: string
+}
+
+export interface PipelinePreflightRuntimeStatus {
+  kind: PipelinePreflightRuntimeKind
+  available: boolean
+  version?: string
+  path?: string
+  error?: string
+}
+
+export interface PipelinePreflightRepositoryStatus {
+  root: string
+  currentBranch?: string
+  baseBranch?: string
+  remoteUrl?: string
+  hasUncommittedChanges: boolean
+  hasConflicts: boolean
+}
+
+export interface PipelinePreflightInput {
+  repositoryRoot: string
+  requireClaudeCli?: boolean
+  requireCodexCli?: boolean
+  requireGit?: boolean
+}
+
+export interface PipelinePreflightResult {
+  ok: boolean
+  repository: PipelinePreflightRepositoryStatus
+  runtimes: PipelinePreflightRuntimeStatus[]
+  packageManager: PipelinePackageManager
+  warnings: PipelinePreflightIssue[]
+  blockers: PipelinePreflightIssue[]
+}
+
 /** 启动 Pipeline 输入 */
 export interface PipelineStartInput {
   sessionId: string

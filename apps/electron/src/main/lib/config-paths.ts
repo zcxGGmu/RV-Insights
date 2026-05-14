@@ -348,6 +348,41 @@ export function getPipelineSessionArtifactsDir(sessionId: string): string {
 }
 
 /**
+ * 获取贡献任务索引文件路径
+ *
+ * @returns ~/.rv-insights/contribution-tasks.json
+ */
+export function getContributionTasksIndexPath(): string {
+  return join(getConfigDir(), 'contribution-tasks.json')
+}
+
+/**
+ * 获取贡献任务事件目录
+ *
+ * @returns ~/.rv-insights/contribution-tasks/
+ */
+export function getContributionTaskEventsDir(): string {
+  const dir = join(getConfigDir(), 'contribution-tasks')
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+    console.log(`[配置] 已创建贡献任务事件目录: ${dir}`)
+  }
+
+  return dir
+}
+
+/**
+ * 获取指定贡献任务的事件 JSONL 路径
+ *
+ * @param id 贡献任务 ID
+ * @returns ~/.rv-insights/contribution-tasks/{id}.jsonl
+ */
+export function getContributionTaskEventsPath(id: string): string {
+  return join(getContributionTaskEventsDir(), `${id}.jsonl`)
+}
+
+/**
  * 获取 Agent 工作区索引文件路径
  *
  * @returns ~/.rv-insights/agent-workspaces.json
