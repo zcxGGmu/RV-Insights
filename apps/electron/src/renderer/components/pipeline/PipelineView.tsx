@@ -14,6 +14,7 @@ import type {
 } from '@rv-insights/shared'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
+  clearPipelineLiveOutputForSession,
   pipelinePendingGatesAtom,
   pipelineCodexChannelIdAtom,
   getPipelineLiveOutput,
@@ -65,6 +66,8 @@ export function PipelineView({
   const setStateMap = useSetAtom(pipelineSessionStateMapAtom)
   const setPendingGates = useSetAtom(pipelinePendingGatesAtom)
   const setErrors = useSetAtom(pipelineStreamErrorsAtom)
+  const setRecordRefresh = useSetAtom(pipelineRecordRefreshAtom)
+  const setLiveOutput = useSetAtom(pipelineLiveOutputAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setSettingsTab = useSetAtom(settingsTabAtom)
   const [records, setRecords] = React.useState<PipelineRecord[]>([])
@@ -390,9 +393,103 @@ export function PipelineView({
     })
   }, [channels, fallbackChannelId, fallbackWorkspaceId, pipelineCodexChannelId, session, sessionId, setDraftSessionIds, setErrors, setPendingGates, setSessions, setStateMap, state, workspaces])
 
+  const applyStoppedState = React.useCallback((stoppedState: PipelineStateSnapshot): void => {
+    setPendingGates((prev) => {
+      if (!prev.has(sessionId)) return prev
+      const next = new Map(prev)
+      next.delete(sessionId)
+      return next
+    })
+    setErrors((prev) => {
+      if (!prev.has(sessionId)) return prev
+      const next = new Map(prev)
+      next.delete(sessionId)
+      return next
+    })
+    setLiveOutput((prev) => clearPipelineLiveOutputForSession(prev, sessionId))
+    setStateMap((prev) => {
+      const next = new Map(prev)
+      next.set(sessionId, stoppedState)
+      return next
+    })
+    setSessions((prev) => prev.map((item) => (
+      item.id === sessionId
+        ? {
+            ...item,
+            version: stoppedState.version ?? item.version,
+            currentNode: stoppedState.currentNode,
+            status: stoppedState.status,
+            reviewIteration: stoppedState.reviewIteration,
+            lastApprovedNode: stoppedState.lastApprovedNode,
+            pendingGate: null,
+            updatedAt: stoppedState.updatedAt,
+          }
+        : item
+    )))
+    setRecordRefresh((prev) => {
+      const next = new Map(prev)
+      next.set(sessionId, (prev.get(sessionId) ?? 0) + 1)
+      return next
+    })
+  }, [sessionId, setErrors, setLiveOutput, setPendingGates, setRecordRefresh, setSessions, setStateMap])
+
   const handleStop = React.useCallback(async (): Promise<void> => {
-    await window.electronAPI.stopPipeline(sessionId)
-  }, [sessionId])
+    const previousState = state
+    const previousSession = session
+    const previousPendingGate = pendingGates.get(sessionId) ?? null
+    const previousError = errorMap.get(sessionId) ?? null
+    const stoppedAt = Date.now()
+    const optimisticState: PipelineStateSnapshot = {
+      sessionId,
+      version: state?.version ?? session?.version,
+      currentNode: state?.currentNode ?? session?.currentNode ?? 'explorer',
+      status: 'terminated',
+      reviewIteration: state?.reviewIteration ?? session?.reviewIteration ?? 0,
+      lastApprovedNode: state?.lastApprovedNode ?? session?.lastApprovedNode,
+      pendingGate: null,
+      stageOutputs: state?.stageOutputs,
+      updatedAt: stoppedAt,
+    }
+
+    applyStoppedState(optimisticState)
+
+    try {
+      const stoppedState = await window.electronAPI.stopPipeline(sessionId)
+      applyStoppedState(stoppedState)
+    } catch (error) {
+      if (previousState) {
+        setStateMap((prev) => {
+          const next = new Map(prev)
+          next.set(sessionId, previousState)
+          return next
+        })
+      }
+      if (previousSession) {
+        setSessions((prev) => prev.map((item) => (
+          item.id === sessionId ? previousSession : item
+        )))
+      }
+      setPendingGates((prev) => {
+        const next = new Map(prev)
+        if (previousPendingGate) {
+          next.set(sessionId, previousPendingGate)
+        } else {
+          next.delete(sessionId)
+        }
+        return next
+      })
+      setErrors((prev) => {
+        const next = new Map(prev)
+        if (previousError) {
+          next.set(sessionId, previousError)
+        } else {
+          next.delete(sessionId)
+        }
+        return next
+      })
+      throw error
+    }
+  }, [applyStoppedState, errorMap, pendingGates, session, sessionId, setErrors, setPendingGates, setSessions, setStateMap, state])
 
   const handleRespond = React.useCallback(async (
     action: 'approve' | 'reject_with_feedback' | 'rerun_node',
@@ -537,6 +634,7 @@ export function PipelineView({
               <PipelineComposer
                 disabled={running}
                 currentTask={currentTask}
+                status={state?.status ?? session?.status}
                 onSubmit={handleStart}
                 onStop={handleStop}
               />

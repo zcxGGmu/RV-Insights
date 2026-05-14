@@ -567,9 +567,14 @@ describe('pipeline-service', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 0))
-    service.stop(session.id)
+    const stoppedState = service.stop(session.id)
     await startPromise
 
+    expect(stoppedState).toMatchObject({
+      sessionId: session.id,
+      status: 'terminated',
+      pendingGate: null,
+    })
     expect(graphCalls).toEqual(['invoke'])
     expect((await service.listSessions()).find((item) => item.id === session.id)?.status).toBe('terminated')
     expect(events.some((payload) =>

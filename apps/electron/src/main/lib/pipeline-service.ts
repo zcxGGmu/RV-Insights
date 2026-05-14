@@ -841,8 +841,12 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       await this.respondGate(input.response, callbacks)
     },
 
-    stop(sessionId: string): void {
+    stop(sessionId: string): PipelineStateSnapshot {
       const meta = getPipelineSessionMeta(sessionId)
+      if (!meta) {
+        throw new Error(`未找到 Pipeline 会话: ${sessionId}`)
+      }
+
       activeControllers.get(sessionId)?.abort()
       activeRunners.get(sessionId)?.abort?.(sessionId)
       const updatedMeta = updatePipelineSessionMeta(sessionId, {
@@ -853,6 +857,17 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       emitStatusChange(sessionId, 'terminated', updatedMeta.currentNode)
       if (meta?.pendingGate) {
         gateService.clearSessionPending(sessionId)
+      }
+
+      return {
+        sessionId: updatedMeta.id,
+        version: updatedMeta.version,
+        currentNode: updatedMeta.currentNode,
+        status: 'terminated',
+        reviewIteration: updatedMeta.reviewIteration,
+        lastApprovedNode: updatedMeta.lastApprovedNode,
+        pendingGate: null,
+        updatedAt: updatedMeta.updatedAt,
       }
     },
 

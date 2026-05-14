@@ -177,8 +177,8 @@ export function registerPipelineIpcHandlers(): void {
 
   ipcMain.handle(
     PIPELINE_IPC_CHANNELS.STOP,
-    async (_event, sessionId: string): Promise<void> => {
-      getPipelineService().stop(sessionId)
+    async (_event, sessionId: string): Promise<PipelineStateSnapshot> => {
+      return getPipelineService().stop(sessionId)
     }
   )
 

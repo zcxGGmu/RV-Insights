@@ -407,7 +407,7 @@ export interface ElectronAPI {
   respondPipelineGate: (response: PipelineGateResponse) => Promise<void>
 
   /** 中止 Pipeline */
-  stopPipeline: (sessionId: string) => Promise<void>
+  stopPipeline: (sessionId: string) => Promise<PipelineStateSnapshot>
 
   /** 获取待审批 gate 列表 */
   getPendingPipelineGates: () => Promise<PipelineGateRequest[]>
