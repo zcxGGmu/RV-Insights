@@ -102,6 +102,7 @@ import type {
   PipelineArtifactContentInput,
   PipelineExplorerReportRef,
   PipelineSessionMeta,
+  PipelineVersion,
   PipelineRecord,
   PipelineRecordsTailInput,
   PipelineRecordsTailResult,
@@ -355,7 +356,7 @@ export interface ElectronAPI {
   listPipelineSessions: () => Promise<PipelineSessionMeta[]>
 
   /** 创建 Pipeline 会话 */
-  createPipelineSession: (title?: string, channelId?: string, workspaceId?: string) => Promise<PipelineSessionMeta>
+  createPipelineSession: (title?: string, channelId?: string, workspaceId?: string, version?: PipelineVersion) => Promise<PipelineSessionMeta>
 
   /** 获取 Pipeline 记录 */
   getPipelineRecords: (sessionId: string) => Promise<PipelineRecord[]>
@@ -1146,8 +1147,8 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.LIST_SESSIONS)
   },
 
-  createPipelineSession: (title?: string, channelId?: string, workspaceId?: string) => {
-    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.CREATE_SESSION, title, channelId, workspaceId)
+  createPipelineSession: (title?: string, channelId?: string, workspaceId?: string, version?: PipelineVersion) => {
+    return ipcRenderer.invoke(PIPELINE_IPC_CHANNELS.CREATE_SESSION, title, channelId, workspaceId, version)
   },
 
   getPipelineRecords: (sessionId: string) => {

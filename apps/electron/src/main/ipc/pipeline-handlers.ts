@@ -18,6 +18,7 @@ import type {
   PipelineSessionMeta,
   PipelineStartInput,
   PipelineStateSnapshot,
+  PipelineVersion,
   PatchWorkManifest,
 } from '@rv-insights/shared'
 import { getPipelineService } from '../lib/pipeline-service'
@@ -38,8 +39,9 @@ export function registerPipelineIpcHandlers(): void {
       title?: string,
       channelId?: string,
       workspaceId?: string,
+      version?: PipelineVersion,
     ): Promise<PipelineSessionMeta> => {
-      return getPipelineService().createSession(title, channelId, workspaceId)
+      return getPipelineService().createSession(title, channelId, workspaceId, version)
     }
   )
 

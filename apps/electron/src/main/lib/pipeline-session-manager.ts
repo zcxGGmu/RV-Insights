@@ -17,6 +17,7 @@ import type {
   PipelineRecordsSearchMatch,
   PipelineRecordsSearchResult,
   PipelineSessionMeta,
+  PipelineVersion,
 } from '@rv-insights/shared'
 import {
   applyPipelineRecord,
@@ -57,6 +58,12 @@ function writeIndex(index: PipelineSessionsIndex): void {
   writeJsonFileAtomic(getPipelineSessionsIndexPath(), index)
 }
 
+function assertPipelineVersion(version: PipelineVersion | undefined): void {
+  if (version !== undefined && version !== 1 && version !== 2) {
+    throw new Error(`无效 Pipeline 版本: ${version}`)
+  }
+}
+
 export function listPipelineSessions(): PipelineSessionMeta[] {
   return readIndex().sessions.sort((a, b) => b.updatedAt - a.updatedAt)
 }
@@ -69,13 +76,16 @@ export function createPipelineSession(
   title?: string,
   channelId?: string,
   workspaceId?: string,
+  version?: PipelineVersion,
 ): PipelineSessionMeta {
+  assertPipelineVersion(version)
   const index = readIndex()
   const now = Date.now()
-  const state = createInitialPipelineState(randomUUID(), now)
+  const state = createInitialPipelineState(randomUUID(), now, { version })
 
   const meta: PipelineSessionMeta = {
     id: state.sessionId,
+    ...(version ? { version } : {}),
     title: title || '新 Pipeline 会话',
     channelId,
     workspaceId,

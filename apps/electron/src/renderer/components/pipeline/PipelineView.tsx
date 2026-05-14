@@ -301,8 +301,10 @@ export function PipelineView({
       return
     }
 
+    const pipelineVersion = session?.version ?? state?.version
     const optimisticState: PipelineStateSnapshot = {
       sessionId,
+      ...(pipelineVersion ? { version: pipelineVersion } : {}),
       currentNode: 'explorer',
       status: 'running',
       reviewIteration: state?.reviewIteration ?? session?.reviewIteration ?? 0,
@@ -333,6 +335,7 @@ export function PipelineView({
       item.id === sessionId
         ? {
             ...item,
+            version: pipelineVersion ?? item.version,
             channelId: resolved.config.channelId,
             workspaceId: resolved.config.workspaceId,
             currentNode: optimisticState.currentNode,

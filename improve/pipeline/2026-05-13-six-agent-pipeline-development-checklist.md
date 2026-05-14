@@ -647,6 +647,7 @@ Pipeline v2 总体完成前必须满足：
 - [x] Phase 3 已实现 patch-work manifest / 文件 / explorer reports / select-task IPC 与 preload 契约。
 - [x] Phase 3 已实现 `ExplorerTaskBoard` / `ReviewDocumentBoard`，主 UI 通过结构化 IPC 读取 patch-work，不从 records 反推主业务状态。
 - [x] Phase 3 已加固 explorer / planner：运行时只读工具约束、旧 explorer report 清理、受管文档 checksum 校验和未登记文件读取拒绝。
+- [x] Phase 3 前端可见性修复：新建 Pipeline 入口显式创建 v2 贡献会话，启动前自动创建 `ContributionTask` 和 `patch-work` manifest，确保 task selection / planner document gate 能从正常 UI 路径出现。
 
 ### 未完成
 
@@ -667,7 +668,7 @@ Pipeline v2 总体完成前必须满足：
 
 ### 已知风险
 
-- 全量 `bun test` 已运行，结果为 297 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 改动；进入 Phase 4 前后仍需继续标注为既有风险，除非另行修复。
+- 全量 `bun test` 已运行，结果为 300 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 改动；进入 Phase 4 前后仍需继续标注为既有风险，除非另行修复。
 
 ## 当前执行建议
 

@@ -37,6 +37,8 @@ interface CreateSessionActions {
   createAgent: (options?: CreateSessionOptions) => Promise<string | undefined>
 }
 
+const CONTRIBUTION_PIPELINE_VERSION = 2
+
 export function useCreateSession(): CreateSessionActions {
   const openSession = useOpenSession()
   const setActiveView = useSetAtom(activeViewAtom)
@@ -61,6 +63,7 @@ export function useCreateSession(): CreateSessionActions {
         undefined,
         agentChannelId || undefined,
         currentWorkspaceId || undefined,
+        CONTRIBUTION_PIPELINE_VERSION,
       )
       setPipelineSessions((prev) => [meta, ...prev])
       setCurrentPipelineSessionId(meta.id)

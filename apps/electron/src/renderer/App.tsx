@@ -11,6 +11,8 @@ import { environmentCheckDialogOpenAtom } from './atoms/environment'
 import { tabsAtom, activeTabIdAtom, openTab } from './atoms/tab-atoms'
 import type { AppShellContextType } from './contexts/AppShellContext'
 
+const CONTRIBUTION_PIPELINE_VERSION = 2
+
 export default function App(): React.ReactElement {
   // [FLASH-DEBUG] 监控 App 组件重渲染（如果看到频繁日志，说明根组件被频繁重渲染）
   const appRenderCountRef = React.useRef(0)
@@ -46,7 +48,12 @@ export default function App(): React.ReactElement {
   // 完成 onboarding 回调：创建欢迎 Pipeline 会话
   const handleOnboardingComplete = async () => {
     try {
-      const meta = await window.electronAPI.createPipelineSession('欢迎使用 RV Pipeline')
+      const meta = await window.electronAPI.createPipelineSession(
+        '欢迎使用 RV Pipeline',
+        undefined,
+        undefined,
+        CONTRIBUTION_PIPELINE_VERSION,
+      )
       if (meta) {
         const sessions = store.get(pipelineSessionsAtom)
         store.set(pipelineSessionsAtom, [meta, ...sessions])

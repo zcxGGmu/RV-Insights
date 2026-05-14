@@ -47,6 +47,24 @@ describe('pipeline-session-manager', () => {
     expect(records[0]?.type).toBe('user_input')
   })
 
+  test('创建 v2 会话会持久化 version，旧调用保持 v1 兼容语义', () => {
+    const legacy = createPipelineSession('旧 Pipeline', 'channel-1', 'workspace-1')
+    const contribution = createPipelineSession('贡献 Pipeline', 'channel-1', 'workspace-1', 2)
+
+    expect(legacy.version).toBeUndefined()
+    expect(contribution.version).toBe(2)
+    expect(getPipelineSessionMeta(contribution.id)?.version).toBe(2)
+  })
+
+  test('拒绝非法 Pipeline version', () => {
+    expect(() => createPipelineSession(
+      '非法版本',
+      'channel-1',
+      'workspace-1',
+      3 as 1,
+    )).toThrow('无效 Pipeline 版本')
+  })
+
   test('updatedAt 新的会话排在前面', async () => {
     const first = createPipelineSession('旧会话', 'channel-1', 'workspace-1')
     await new Promise((resolve) => setTimeout(resolve, 2))

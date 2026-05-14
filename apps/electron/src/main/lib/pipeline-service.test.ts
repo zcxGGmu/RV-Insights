@@ -15,11 +15,16 @@ import {
 import { getPipelineRecords, updatePipelineSessionMeta } from './pipeline-session-manager'
 import { resolvePipelineSessionArtifactsDir } from './pipeline-artifact-service'
 import { getPipelineSessionCheckpointDir } from './config-paths'
-import { createContributionTask, getContributionTask } from './contribution-task-service'
+import {
+  createContributionTask,
+  getContributionTask,
+  getContributionTaskByPipelineSessionId,
+} from './contribution-task-service'
 import {
   readPatchWorkManifest,
   writePatchWorkFile,
 } from './pipeline-patch-work-service'
+import { createAgentWorkspace } from './agent-workspace-manager'
 
 describe('pipeline-service', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -123,6 +128,60 @@ describe('pipeline-service', () => {
       type: 'gate_decision',
       kind: 'task_selection',
       selectedReportId: 'report-1',
+    })
+  })
+
+  test('启动 v2 会话前会创建 ContributionTask 和 patch-work manifest', async () => {
+    const workspace = createAgentWorkspace('贡献工作区')
+    const service = createPipelineService({
+      createGraph: (meta) => ({
+        invoke: async () => ({
+          state: {
+            sessionId: meta.id,
+            version: 2,
+            currentNode: 'committer',
+            status: 'completed',
+            reviewIteration: 0,
+            lastApprovedNode: 'committer',
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        resume: async () => {
+          throw new Error('resume 不应被调用')
+        },
+        getState: async () => ({
+          sessionId: meta.id,
+          version: 2,
+          currentNode: 'committer',
+          status: 'completed',
+          reviewIteration: 0,
+          lastApprovedNode: 'committer',
+          pendingGate: null,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    const session = service.createSession('贡献 Pipeline', 'channel-1', workspace.id, 2)
+    await service.start({
+      sessionId: session.id,
+      userInput: '请执行 v2 贡献流程',
+      channelId: 'channel-1',
+      workspaceId: workspace.id,
+    })
+
+    const task = getContributionTaskByPipelineSessionId(session.id)
+    expect(task).toMatchObject({
+      pipelineSessionId: session.id,
+      workspaceId: workspace.id,
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'exploring',
+    })
+    expect(readPatchWorkManifest(task!.repositoryRoot)).toMatchObject({
+      contributionTaskId: task!.id,
+      pipelineSessionId: session.id,
     })
   })
 

@@ -12,9 +12,9 @@
 - Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
 - Phase 1 已完成并提交：commit `9da48f1d4373d1c4b9648a1a25724d7c1c9f5651`，已落地 `ContributionTask`、preflight、`patch-work` manifest/revision/fixed files 基础服务与测试。
 - Phase 2 已完成并提交：commit `53119675ee4f975f463f7214d2b00a2ae9e0c4a5`（`feat(pipeline): 接入 Phase 2 六 Agent v2 骨架`），已落地 shared v2 类型、`committer`、v1/v2 replay 分支、`createPipelineGraphV2` fake graph builder、runner strategy 表驱动映射和六节点 StageRail display model 测试。
-- Phase 3 已完成：已落地 explorer 多报告写入与任务选择、`selected-task.md`、planner `plan.md` / `test-plan.md`、文档审核 checksum、patch-work 结构化 IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard`。
+- Phase 3 已完成：已落地 explorer 多报告写入与任务选择、`selected-task.md`、planner `plan.md` / `test-plan.md`、文档审核 checksum、patch-work 结构化 IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard`；新建 Pipeline 入口已显式创建 v2 贡献会话，启动前会创建 `ContributionTask` 和 `patch-work` manifest，确保前端看板可从正常路径出现。
 - Phase 4-8 均未开始：下一步只能进入 Phase 4，不得跳阶段，不得提前接真实 commit、push 或 PR。
-- 当前已知验证状态：Phase 3 聚焦测试 65 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 已运行，结果为 297 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3 改动。
+- 当前已知验证状态：Phase 3 聚焦测试 65 pass，Phase 3 前端可见性修复聚焦测试 47 pass、扩展测试 76 pass，`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 已运行，结果为 300 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3 改动。
 
 ## 结论
 

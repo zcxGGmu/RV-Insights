@@ -1,4 +1,5 @@
 import { rmSync } from 'node:fs'
+import { join } from 'node:path'
 import type {
   PipelineArtifactContentInput,
   PipelineExplorerReportRef,
@@ -16,6 +17,7 @@ import type {
   PipelineStageArtifactRecord,
   PipelineStartInput,
   PipelineStateSnapshot,
+  PipelineVersion,
   PipelineStreamCompletePayload,
   PipelineStreamErrorPayload,
   PipelineStreamPayload,
@@ -46,16 +48,20 @@ import { getSettings } from './settings-service'
 import { resolvePipelineCodexChannelId } from './pipeline-codex-settings'
 import {
   appendContributionTaskEvent,
+  createContributionTask,
   getContributionTaskByPipelineSessionId,
   updateContributionTask,
 } from './contribution-task-service'
 import {
   acceptPatchWorkDocuments,
+  initializePatchWork,
   listPatchWorkExplorerReports,
   readPatchWorkManifestFile,
   readPatchWorkManifest,
   selectPatchWorkTask,
 } from './pipeline-patch-work-service'
+import { getAgentWorkspace } from './agent-workspace-manager'
+import { getAgentSessionWorkspacePath } from './config-paths'
 
 export interface PipelineServiceCallbacks {
   onEvent?: (payload: PipelineStreamPayload) => void
@@ -341,6 +347,55 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     return task
   }
 
+  function ensureV2ContributionTask(
+    meta: PipelineSessionMeta,
+    workspaceId: string | undefined,
+  ): void {
+    if (meta.version !== 2) return
+
+    const existing = getContributionTaskByPipelineSessionId(meta.id)
+    if (existing) {
+      if (existing.status === 'created') {
+        updateContributionTask(existing.id, { status: 'exploring' })
+      }
+      return
+    }
+
+    if (!workspaceId) {
+      throw new Error('Pipeline v2 需要先选择工作区，才能创建贡献任务。')
+    }
+
+    const workspace = getAgentWorkspace(workspaceId)
+    if (!workspace) {
+      throw new Error(`Pipeline v2 工作区不存在: ${workspaceId}`)
+    }
+
+    const repositoryRoot = getAgentSessionWorkspacePath(workspace.slug, meta.id)
+    const task = createContributionTask({
+      pipelineSessionId: meta.id,
+      workspaceId,
+      repositoryRoot,
+      patchWorkDir: join(repositoryRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'exploring',
+    })
+
+    initializePatchWork({
+      contributionTaskId: task.id,
+      pipelineSessionId: meta.id,
+      repositoryRoot,
+    })
+    appendContributionTaskEvent(task.id, {
+      pipelineSessionId: meta.id,
+      type: 'task_created',
+      payload: {
+        repositoryRoot,
+        contributionMode: 'local_patch',
+      },
+    })
+  }
+
   function applyV2GateSideEffects(
     pendingGate: PipelineGateRequest,
     response: PipelineGateResponse,
@@ -618,8 +673,9 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       title?: string,
       channelId?: string,
       workspaceId?: string,
+      version?: PipelineVersion,
     ): PipelineSessionMeta {
-      return createPipelineSession(title, channelId, workspaceId)
+      return createPipelineSession(title, channelId, workspaceId, version)
     },
 
     getRecords(sessionId: string) {
@@ -710,9 +766,12 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         createdAt: Date.now(),
       })
 
+      const effectiveWorkspaceId = input.workspaceId ?? meta.workspaceId
+      ensureV2ContributionTask(meta, effectiveWorkspaceId)
+
       updatePipelineSessionMeta(meta.id, {
         channelId: input.channelId ?? meta.channelId,
-        workspaceId: input.workspaceId ?? meta.workspaceId,
+        workspaceId: effectiveWorkspaceId,
         threadId: input.threadId ?? meta.threadId,
         status: 'running',
         pendingGate: null,

@@ -72,6 +72,8 @@ const SUMMARY_SIGNAL_CLASS: Record<PipelineSidebarSessionTone, string> = {
   success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
 }
 
+const CONTRIBUTION_PIPELINE_VERSION = 2
+
 function indicatorToAccent(indicator: SessionIndicatorStatus): SessionLeftAccent | undefined {
   switch (indicator) {
     case 'running':
@@ -366,6 +368,7 @@ export function PipelineSidebar(): React.ReactElement {
       undefined,
       currentChannelId ?? undefined,
       currentWorkspaceId ?? undefined,
+      CONTRIBUTION_PIPELINE_VERSION,
     )
     setSessions((prev) => [meta, ...prev])
     setCurrentPipelineSessionId(meta.id)
@@ -469,7 +472,7 @@ export function PipelineSidebar(): React.ReactElement {
                 <Plus size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">新建 Pipeline</TooltipContent>
+            <TooltipContent side="right">新建贡献 Pipeline v2</TooltipContent>
           </Tooltip>
         </div>
 
@@ -531,7 +534,10 @@ export function PipelineSidebar(): React.ReactElement {
           className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13px] font-medium text-foreground/70 bg-primary/5 hover:bg-primary/10 transition-colors duration-100 titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))]"
         >
           <Plus size={14} />
-          <span>新建 Pipeline</span>
+          <span>新建贡献 Pipeline</span>
+          <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            v2
+          </span>
         </button>
         <Tooltip>
           <TooltipTrigger asChild>
