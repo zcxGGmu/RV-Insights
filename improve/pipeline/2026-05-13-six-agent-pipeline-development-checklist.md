@@ -629,8 +629,9 @@ Pipeline v2 总体完成前必须满足：
 ## 最新开发状态快照
 
 > 更新时间：2026-05-14
-> 最近阶段提交：Phase 3 本轮提交完成后以 git log 为准。
+> 最近阶段提交：`ffd1f309905c08fdd1bf471ef560361d3585d236`（`fix(pipeline): 增加节点静默运行反馈`）。
 > 最新完成阶段：Phase 3 已完成。Phase 4 尚未开始。
+> 当前分支状态：`base/pipeline-v0` 相对 `origin/base/pipeline-v0` ahead 8 commits；未执行 push / PR。
 
 ### 已完成
 
@@ -647,7 +648,14 @@ Pipeline v2 总体完成前必须满足：
 - [x] Phase 3 已实现 patch-work manifest / 文件 / explorer reports / select-task IPC 与 preload 契约。
 - [x] Phase 3 已实现 `ExplorerTaskBoard` / `ReviewDocumentBoard`，主 UI 通过结构化 IPC 读取 patch-work，不从 records 反推主业务状态。
 - [x] Phase 3 已加固 explorer / planner：运行时只读工具约束、旧 explorer report 清理、受管文档 checksum 校验和未登记文件读取拒绝。
+- [x] Phase 3 已提交，commit `881c7ad1`（`feat(pipeline): 完成 Phase 3 任务选择与文档审核`）。
 - [x] Phase 3 前端可见性修复：新建 Pipeline 入口显式创建 v2 贡献会话，启动前自动创建 `ContributionTask` 和 `patch-work` manifest，确保 task selection / planner document gate 能从正常 UI 路径出现。
+- [x] Phase 3 后续可用性修复已提交：
+  - `e65f8ac2`（`fix(pipeline): 接通 v2 贡献 Pipeline 前端入口`）。
+  - `71bcb1df`（`fix(pipeline): 容错 explorer 非 JSON 输出`）。
+  - `364cf964`（`fix(pipeline): 增加停止运行的可见反馈`）。
+  - `ffd1f309`（`fix(pipeline): 增加节点静默运行反馈`）。
+- [x] 当前 `@rv-insights/shared` 版本为 `0.1.28`，`@rv-insights/electron` 版本为 `0.0.53`。
 
 ### 未完成
 
@@ -668,7 +676,7 @@ Pipeline v2 总体完成前必须满足：
 
 ### 已知风险
 
-- 全量 `bun test` 已运行，结果为 300 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 改动；进入 Phase 4 前后仍需继续标注为既有风险，除非另行修复。
+- 全量 `bun test` 已运行，最新结果为 306 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 或 Phase 3 后续 bugfix；进入 Phase 4 前后仍需继续标注为既有风险，除非另行修复。
 
 ## 当前执行建议
 
@@ -691,9 +699,12 @@ Phase 3 已完成。下一步只允许进入 Phase 4：Developer 文档审核与
 2. Phase 1 已完成并提交，commit 为 9da48f1d4373d1c4b9648a1a25724d7c1c9f5651。
 3. Phase 1 已实现 ContributionTask、preflight、patch-work manifest/revision/fixed files 基础服务与测试。
 4. Phase 2 已完成并提交，commit 为 53119675ee4f975f463f7214d2b00a2ae9e0c4a5；已实现 shared v2 类型、committer、v1/v2 replay、v2 fake graph builder、runner strategy 和六节点 StageRail display model。
-5. Phase 3 已完成：Explorer 任务选择、Planner 文档审核、patch-work IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard` 已接入。
-6. Phase 4-8 均未完成；后续只能从 Phase 4 开始，不得跳阶段。
-7. 当前仍没有 Developer 文档审核、Reviewer issue loop、Tester patch-set、Committer draft-only、本地 commit 或远端 PR 闭环；不要误认为 UI 已接入完整 v2 贡献工作流。
+5. Phase 3 已完成并提交，commit 为 881c7ad1；已实现 Explorer 任务选择、Planner 文档审核、patch-work IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard`。
+6. Phase 3 后续可用性修复已提交：e65f8ac2 接通 v2 贡献 Pipeline 前端入口，71bcb1df 容错 explorer 非 JSON 输出，364cf964 增加停止运行反馈，ffd1f309 增加节点静默运行反馈。
+7. 当前 `@rv-insights/shared` 版本为 0.1.28，`@rv-insights/electron` 版本为 0.0.53。
+8. Phase 4-8 均未完成；后续只能从 Phase 4 开始，不得跳阶段。
+9. 当前仍没有 Developer 文档审核、Reviewer issue loop、Tester patch-set、Committer draft-only、本地 commit 或远端 PR 闭环；不要误认为 UI 已接入完整 v2 贡献工作流。
+10. 当前已知验证状态：Phase 3 及后续 bugfix 聚焦测试、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 306 pass / 1 fail / 1 error，失败仍为既有 `completion-signal.test.ts` Electron named export 测试环境问题。
 
 开发纪律：
 - 开始 Phase 4 前，先检查 git status，保护已有用户变更。

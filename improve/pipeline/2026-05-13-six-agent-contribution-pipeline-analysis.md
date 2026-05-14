@@ -12,9 +12,15 @@
 - Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
 - Phase 1 已完成并提交：commit `9da48f1d4373d1c4b9648a1a25724d7c1c9f5651`，已落地 `ContributionTask`、preflight、`patch-work` manifest/revision/fixed files 基础服务与测试。
 - Phase 2 已完成并提交：commit `53119675ee4f975f463f7214d2b00a2ae9e0c4a5`（`feat(pipeline): 接入 Phase 2 六 Agent v2 骨架`），已落地 shared v2 类型、`committer`、v1/v2 replay 分支、`createPipelineGraphV2` fake graph builder、runner strategy 表驱动映射和六节点 StageRail display model 测试。
-- Phase 3 已完成：已落地 explorer 多报告写入与任务选择、`selected-task.md`、planner `plan.md` / `test-plan.md`、文档审核 checksum、patch-work 结构化 IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard`；新建 Pipeline 入口已显式创建 v2 贡献会话，启动前会创建 `ContributionTask` 和 `patch-work` manifest，确保前端看板可从正常路径出现。
+- Phase 3 已完成并提交：commit `881c7ad1`（`feat(pipeline): 完成 Phase 3 任务选择与文档审核`）。已落地 explorer 多报告写入与任务选择、`selected-task.md`、planner `plan.md` / `test-plan.md`、文档审核 checksum、patch-work 结构化 IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard`。
+- Phase 3 后续可用性修复已提交：
+  - `e65f8ac2`（`fix(pipeline): 接通 v2 贡献 Pipeline 前端入口`）：新建 Pipeline 入口显式创建 v2 贡献会话，启动前创建 `ContributionTask` 和 `patch-work` manifest，确保前端看板可从正常路径出现。
+  - `71bcb1df`（`fix(pipeline): 容错 explorer 非 JSON 输出`）：explorer 非 JSON / 自然语言输出可恢复为 fallback report，避免卡在结构化解析失败。
+  - `364cf964`（`fix(pipeline): 增加停止运行的可见反馈`）：stop IPC 返回结构化状态，前端显示停止中 / 已停止反馈。
+  - `ffd1f309`（`fix(pipeline): 增加节点静默运行反馈`）：节点已启动但暂未产生 `text_delta` 时显示运行进度，避免 UI 看起来卡在等待输出。
 - Phase 4-8 均未开始：下一步只能进入 Phase 4，不得跳阶段，不得提前接真实 commit、push 或 PR。
-- 当前已知验证状态：Phase 3 聚焦测试 65 pass，Phase 3 前端可见性修复聚焦测试 47 pass、扩展测试 76 pass，`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 已运行，结果为 300 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3 改动。
+- 当前版本状态：`@rv-insights/shared` 为 `0.1.28`，`@rv-insights/electron` 为 `0.0.53`。
+- 当前已知验证状态：Phase 3 及后续 bugfix 聚焦测试、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 306 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3 或后续 bugfix 改动。
 
 ## 结论
 
