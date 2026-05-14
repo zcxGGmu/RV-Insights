@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { PipelineNodeKind, PipelineStateSnapshot } from '@rv-insights/shared'
+import type { PipelineNodeKind, PipelineStateSnapshot, PipelineVersion } from '@rv-insights/shared'
 import {
   AlertCircle,
   Check,
@@ -45,11 +45,13 @@ function StageIcon({ status }: { status: PipelineStageVisualStatus }): React.Rea
 export function PipelineStageRail({
   onSelectStage,
   state,
+  version,
 }: {
   onSelectStage?: (node: PipelineNodeKind) => void
   state: PipelineStateSnapshot | null
+  version?: PipelineVersion
 }): React.ReactElement {
-  const stages = buildPipelineStageViewModels(state)
+  const stages = buildPipelineStageViewModels(state, { version })
 
   return (
     <div className="rounded-2xl border bg-card px-4 py-4 shadow-sm">

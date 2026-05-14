@@ -20,6 +20,7 @@ const NODE_LABELS: Record<PipelineNodeKind, string> = {
   developer: '开发',
   reviewer: '审查',
   tester: '测试',
+  committer: '提交',
 }
 
 function isSafeSessionId(sessionId: string): boolean {
@@ -154,6 +155,16 @@ function appendArtifactSections(lines: string[], artifact: PipelineStageOutput):
       appendListSection(lines, '执行命令', artifact.commands)
       appendListSection(lines, '验证结果', artifact.results)
       appendListSection(lines, '阻塞问题', artifact.blockers)
+      break
+    case 'committer':
+      lines.push('', '## 提交材料', '')
+      lines.push(`Commit message：${artifact.commitMessage}`)
+      lines.push(`PR 标题：${artifact.prTitle}`)
+      lines.push(`提交状态：${artifact.submissionStatus}`)
+      appendListSection(lines, '风险点', artifact.risks)
+      if (artifact.prBody.trim()) {
+        lines.push('', '## PR 正文', '', artifact.prBody)
+      }
       break
   }
 }

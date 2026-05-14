@@ -4,6 +4,7 @@ import { normalizeAnthropicBaseUrlForSdk } from '@rv-insights/core'
 import type {
   JsonSchemaOutputFormat,
   PipelineNodeKind,
+  PipelineVersion,
   PipelineStageOutput,
   PipelineStageOutputMap,
   PipelineStreamEvent,
@@ -41,6 +42,7 @@ export interface PipelineNodeExecutionContext {
   sessionId: string
   userInput: string
   currentNode: PipelineNodeKind
+  version?: PipelineVersion
   reviewIteration: number
   lastApprovedNode?: PipelineNodeKind
   feedback?: string
@@ -294,6 +296,13 @@ function buildSystemPrompt(node: PipelineNodeKind): string {
         '输出要求：运行了什么、结果如何、是否还有阻塞项。',
         '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
       ].join('\n')
+    case 'committer':
+      return [
+        '你是 RV Pipeline 的 Committer 节点。',
+        '目标：生成可审核的提交信息和 PR 草稿，不执行真实 commit、push 或创建 PR。',
+        '输出要求：commit message、PR 标题、PR 正文、提交状态和风险说明。',
+        '必须严格遵守结构化输出 schema，不要返回 schema 之外的字段。',
+      ].join('\n')
   }
 }
 
@@ -392,6 +401,30 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
           commands: stringArraySchema(),
           results: stringArraySchema(),
           blockers: stringArraySchema(),
+        },
+      }
+    case 'committer':
+      return {
+        type: 'object',
+        additionalProperties: false,
+        required: ['summary', 'commitMessage', 'prTitle', 'prBody', 'submissionStatus', 'risks'],
+        properties: {
+          summary: { type: 'string' },
+          commitMessage: { type: 'string' },
+          prTitle: { type: 'string' },
+          prBody: { type: 'string' },
+          submissionStatus: {
+            type: 'string',
+            enum: [
+              'draft_only',
+              'local_commit_ready',
+              'local_commit_created',
+              'remote_pr_ready',
+              'remote_pr_created',
+              'blocked',
+            ],
+          },
+          risks: stringArraySchema(),
         },
       }
   }
@@ -549,6 +582,26 @@ function readRequiredBoolean(
   return false
 }
 
+function readSubmissionStatus(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): 'draft_only' | 'local_commit_ready' | 'local_commit_created' | 'remote_pr_ready' | 'remote_pr_created' | 'blocked' {
+  const value = parsed[field]
+  if (
+    value === 'draft_only'
+    || value === 'local_commit_ready'
+    || value === 'local_commit_created'
+    || value === 'remote_pr_ready'
+    || value === 'remote_pr_created'
+    || value === 'blocked'
+  ) {
+    return value
+  }
+  issues.push(`缺少或非法字段: ${field}`)
+  return 'blocked'
+}
+
 function parseStructuredOutput(node: PipelineNodeKind, text: string): Record<string, unknown> {
   const parsed = parseJsonObject(text)
   if (!parsed) {
@@ -623,6 +676,20 @@ function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOu
         commands: readRequiredStringArray(parsed, 'commands', issues),
         results: readRequiredStringArray(parsed, 'results', issues),
         blockers: readRequiredStringArray(parsed, 'blockers', issues),
+        content: text,
+      }
+      throwIfInvalid(node, issues, text)
+      return output
+    }
+    case 'committer': {
+      const output = {
+        node,
+        summary,
+        commitMessage: readRequiredString(parsed, 'commitMessage', issues),
+        prTitle: readRequiredString(parsed, 'prTitle', issues),
+        prBody: readRequiredString(parsed, 'prBody', issues),
+        submissionStatus: readSubmissionStatus(parsed, 'submissionStatus', issues),
+        risks: readRequiredStringArray(parsed, 'risks', issues),
         content: text,
       }
       throwIfInvalid(node, issues, text)

@@ -15,11 +15,13 @@ import type {
 } from '@langchain/langgraph'
 import type {
   PipelineGateRequest,
+  PipelineGateKind,
   PipelineGateResponse,
   PipelineNodeKind,
   PipelineSessionStatus,
   PipelineStageOutputMap,
   PipelineStateSnapshot,
+  PipelineVersion,
 } from '@rv-insights/shared'
 import type {
   PipelineNodeExecutionContext,
@@ -38,6 +40,7 @@ type PipelineGraphState = PipelineStateSnapshot & {
 const PipelineGraphAnnotation = Annotation.Root({
   sessionId: Annotation<string>,
   userInput: Annotation<string>,
+  version: Annotation<PipelineVersion | undefined>,
   currentNode: Annotation<PipelineNodeKind>,
   status: Annotation<PipelineSessionStatus>,
   reviewIteration: Annotation<number>,
@@ -58,6 +61,10 @@ export interface CreatePipelineGraphOptions {
   ) => Promise<PipelineNodeExecutionResult>
   checkpointer?: BaseCheckpointSaver
   getSignal?: (sessionId: string) => AbortSignal | undefined
+}
+
+interface CreatePipelineGraphInternalOptions extends CreatePipelineGraphOptions {
+  version: PipelineVersion
 }
 
 export interface PipelineGraphInvokeInput {
@@ -84,6 +91,7 @@ function buildContext(state: PipelineGraphState): PipelineNodeExecutionContext {
     sessionId: state.sessionId,
     userInput: state.userInput,
     currentNode: state.currentNode,
+    version: state.version,
     reviewIteration: state.reviewIteration,
     lastApprovedNode: state.lastApprovedNode,
     feedback: state.feedback,
@@ -94,6 +102,7 @@ function buildContext(state: PipelineGraphState): PipelineNodeExecutionContext {
 function buildStateSnapshot(state: PipelineGraphState): PipelineStateSnapshot {
   return {
     sessionId: state.sessionId,
+    ...(state.version ? { version: state.version } : {}),
     currentNode: state.currentNode,
     status: state.status,
     reviewIteration: state.reviewIteration,
@@ -119,10 +128,15 @@ function createGateRequest(
   state: PipelineGraphState,
   node: PipelineNodeKind,
 ): PipelineGateRequest {
+  const kind: PipelineGateKind | undefined = state.version === 2
+    ? gateKindForV2Node(node)
+    : undefined
+
   return {
     gateId: randomUUID(),
     sessionId: state.sessionId,
     node,
+    ...(kind ? { kind } : {}),
     title: `${node} 节点待审核`,
     summary: state.latestSummary,
     feedbackHint: node === 'reviewer'
@@ -130,6 +144,21 @@ function createGateRequest(
       : '可填写反馈后重跑当前节点',
     iteration: state.reviewIteration,
     createdAt: now(),
+  }
+}
+
+function gateKindForV2Node(node: PipelineNodeKind): PipelineGateKind {
+  switch (node) {
+    case 'explorer':
+      return 'task_selection'
+    case 'committer':
+      return 'submission_review'
+    case 'planner':
+    case 'developer':
+    case 'reviewer':
+    case 'tester':
+    default:
+      return 'document_review'
   }
 }
 
@@ -261,7 +290,8 @@ function graphConfig(sessionId: string) {
   }
 }
 
-export function createPipelineGraph(options: CreatePipelineGraphOptions) {
+function createPipelineGraphForVersion(options: CreatePipelineGraphInternalOptions) {
+  const testerNextNode = options.version === 2 ? 'committer' : END
   const builder = new StateGraph(PipelineGraphAnnotation)
     .addNode('explorer', createWorkerNode('explorer', options.runNode, options.getSignal))
     .addNode('gate_explorer', createGateNode('explorer', 'planner'), {
@@ -279,8 +309,8 @@ export function createPipelineGraph(options: CreatePipelineGraphOptions) {
       ends: ['developer', 'reviewer', 'tester'],
     })
     .addNode('tester', createWorkerNode('tester', options.runNode, options.getSignal))
-    .addNode('gate_tester', createGateNode('tester', END), {
-      ends: ['tester', END],
+    .addNode('gate_tester', createGateNode('tester', testerNextNode), {
+      ends: options.version === 2 ? ['tester', 'committer'] : ['tester', END],
     })
     .addEdge(START, 'explorer')
     .addEdge('explorer', 'gate_explorer')
@@ -289,6 +319,15 @@ export function createPipelineGraph(options: CreatePipelineGraphOptions) {
     .addEdge('tester', 'gate_tester')
     .addEdge('gate_explorer', 'planner')
     .addEdge('gate_planner', 'developer')
+
+  if (options.version === 2) {
+    builder
+      .addNode('committer', createWorkerNode('committer', options.runNode, options.getSignal))
+      .addNode('gate_committer', createGateNode('committer', END), {
+        ends: ['committer', END],
+      })
+      .addEdge('committer', 'gate_committer')
+  }
 
   const graph = builder.compile({
     checkpointer: options.checkpointer ?? new MemorySaver(),
@@ -343,6 +382,7 @@ export function createPipelineGraph(options: CreatePipelineGraphOptions) {
       const initialState: PipelineGraphState = {
         sessionId: input.sessionId,
         userInput: input.userInput,
+        ...(options.version === 2 ? { version: 2 as const } : {}),
         currentNode: 'explorer',
         status: 'running',
         reviewIteration: 0,
@@ -367,4 +407,12 @@ export function createPipelineGraph(options: CreatePipelineGraphOptions) {
       return getSnapshot(sessionId)
     },
   }
+}
+
+export function createPipelineGraph(options: CreatePipelineGraphOptions) {
+  return createPipelineGraphForVersion({ ...options, version: 1 })
+}
+
+export function createPipelineGraphV2(options: CreatePipelineGraphOptions) {
+  return createPipelineGraphForVersion({ ...options, version: 2 })
 }

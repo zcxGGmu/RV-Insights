@@ -117,4 +117,25 @@ describe('pipeline-node-runner', () => {
       issues: [],
     })
   })
+
+  test('committer 支持解析提交材料草稿结构化输出', () => {
+    const result = buildNodeExecutionResult('committer', JSON.stringify({
+      summary: '提交材料已生成',
+      commitMessage: 'feat: add pipeline v2 skeleton',
+      prTitle: 'Add Pipeline v2 skeleton',
+      prBody: 'This PR adds the v2 skeleton.',
+      submissionStatus: 'draft_only',
+      risks: ['未执行真实 commit'],
+    }))
+
+    expect(result.approved).toBe(true)
+    expect(result.stageOutput).toMatchObject({
+      node: 'committer',
+      summary: '提交材料已生成',
+      commitMessage: 'feat: add pipeline v2 skeleton',
+      prTitle: 'Add Pipeline v2 skeleton',
+      submissionStatus: 'draft_only',
+      risks: ['未执行真实 commit'],
+    })
+  })
 })

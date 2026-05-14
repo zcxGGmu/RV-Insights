@@ -1,20 +1,22 @@
 import * as React from 'react'
-import type { PipelineGateRequest } from '@rv-insights/shared'
+import type { PipelineGateRequest, PipelineVersion } from '@rv-insights/shared'
 import { buildPipelineGateViewModel } from './pipeline-display-model'
 
 export function PipelineGateCard({
   request,
   onRespond,
+  version,
 }: {
   request: PipelineGateRequest
   onRespond: (action: 'approve' | 'reject_with_feedback' | 'rerun_node', feedback?: string) => Promise<void>
+  version?: PipelineVersion
 }): React.ReactElement {
   const [feedback, setFeedback] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
   const [submittedGateId, setSubmittedGateId] = React.useState<string | null>(null)
   const [feedbackError, setFeedbackError] = React.useState<string | null>(null)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
-  const viewModel = buildPipelineGateViewModel(request)
+  const viewModel = buildPipelineGateViewModel(request, { version })
   const locked = submitting || submittedGateId === request.gateId
 
   React.useEffect(() => {

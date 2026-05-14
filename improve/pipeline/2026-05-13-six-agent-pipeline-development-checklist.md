@@ -173,53 +173,63 @@ Pipeline v2 总体完成前必须满足：
 
 **阶段状态**
 
-- [ ] 阶段开始
-- [ ] 阶段完成
+- [x] 阶段开始
+- [x] 阶段完成
 
 **入口条件**
 
-- [ ] Phase 1 已完成。
-- [ ] `ContributionTask` 和 `patch-work` 文件契约已稳定。
+- [x] Phase 1 已完成。
+- [x] `ContributionTask` 和 `patch-work` 文件契约已稳定。
 
 **开发任务**
 
-- [ ] 为 Pipeline meta 增加 `version?: 1 | 2`。
-- [ ] `PipelineNodeKind` 增加 `committer`。
-- [ ] 新增或扩展 v2 stage output 类型：explorer reports、planner refs、developer devDoc、review issues、tester patchSet、committer submission。
-- [ ] 新增 gate kind：`task_selection`、`document_review`、`review_iteration_limit`、`test_blocked`、`submission_review`、`remote_write_confirmation`。
-- [ ] state replay 支持 v1/v2 分支。
-- [ ] LangGraph 新增 v2 fake graph 或 v2 builder，不替换 v1 graph。
-- [ ] 新增六节点 StageRail 的 display model 测试。
-- [ ] runner strategy 表驱动化：节点到 runtime 的映射明确可测。
+- [x] 为 Pipeline meta 增加 `version?: 1 | 2`。
+- [x] `PipelineNodeKind` 增加 `committer`。
+- [x] 新增或扩展 v2 stage output 类型：explorer reports、planner refs、developer devDoc、review issues、tester patchSet、committer submission。
+- [x] 新增 gate kind：`task_selection`、`document_review`、`review_iteration_limit`、`test_blocked`、`submission_review`、`remote_write_confirmation`。
+- [x] state replay 支持 v1/v2 分支。
+- [x] LangGraph 新增 v2 fake graph 或 v2 builder，不替换 v1 graph。
+- [x] 新增六节点 StageRail 的 display model 测试。
+- [x] runner strategy 表驱动化：节点到 runtime 的映射明确可测。
 
 **建议文件**
 
-- [ ] `packages/shared/src/types/pipeline.ts`
-- [ ] `packages/shared/src/utils/pipeline-state.ts`
-- [ ] `apps/electron/src/main/lib/pipeline-graph.ts`
-- [ ] `apps/electron/src/main/lib/pipeline-node-router.ts`
-- [ ] `apps/electron/src/renderer/components/pipeline/pipeline-display-model.ts`
+- [x] `packages/shared/src/types/pipeline.ts`
+- [x] `packages/shared/src/utils/pipeline-state.ts`
+- [x] `apps/electron/src/main/lib/pipeline-graph.ts`
+- [x] `apps/electron/src/main/lib/pipeline-node-router.ts`
+- [x] `apps/electron/src/renderer/components/pipeline/pipeline-display-model.ts`
 
 **测试**
 
-- [ ] `bun test packages/shared/src/utils/pipeline-state.test.ts`
-- [ ] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
-- [ ] `bun test apps/electron/src/main/lib/pipeline-node-router.test.ts`
-- [ ] `bun test apps/electron/src/renderer/components/pipeline/pipeline-display-model.test.ts`
+- [x] `bun test packages/shared/src/utils/pipeline-state.test.ts`
+- [x] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
+- [x] `bun test apps/electron/src/main/lib/pipeline-node-router.test.ts`
+- [x] `bun test apps/electron/src/renderer/components/pipeline/pipeline-display-model.test.ts`
 
 **完成定义**
 
-- [ ] v1 records replay 不变。
-- [ ] v2 happy path 能从 explorer 推进到 committer。
-- [ ] tester approve 后不再直接 completed，而是进入 committer。
-- [ ] runtime strategy 明确显示 explorer/planner 为 Claude，developer/reviewer/tester/committer 为 Codex。
-- [ ] fake runner 测试可以覆盖六节点 graph。
+- [x] v1 records replay 不变。
+- [x] v2 happy path 能从 explorer 推进到 committer。
+- [x] tester approve 后不再直接 completed，而是进入 committer。
+- [x] runtime strategy 明确显示 explorer/planner 为 Claude，developer/reviewer/tester/committer 为 Codex。
+- [x] fake runner 测试可以覆盖六节点 graph。
 
 **禁止事项**
 
 - [ ] 不在此阶段接真实 CLI 复杂行为。
 - [ ] 不做 UI 大改。
 - [ ] 不开启真实 commit 或 push。
+
+**验证结果（2026-05-14）**
+
+- [x] Phase 2 指定测试通过：`pipeline-state.test.ts`、`pipeline-graph.test.ts`、`pipeline-node-router.test.ts`、`pipeline-display-model.test.ts`。
+- [x] 补充验证通过：`pipeline-service.test.ts`、`pipeline-node-runner.test.ts`、`codex-pipeline-node-runner.test.ts`。
+- [x] `bun run typecheck` 通过。
+- [x] `git diff --check` 通过。
+- [x] `bun install --frozen-lockfile --dry-run` 通过。
+- [!] 全量 `bun test` 结果为 274 pass / 1 fail / 1 error；失败仍为既有 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` Electron named export 测试环境问题，未指向 Phase 2 改动。
+- [x] 本阶段未接真实 CLI 复杂行为，未做 UI 大改，未开启真实 commit / push / PR。
 
 ## Phase 3：Explorer 任务选择与 Planner 文档审核
 
@@ -601,6 +611,110 @@ Pipeline v2 总体完成前必须满足：
 是否允许进入下一阶段：是，进入 Phase 2。
 ```
 
+### Phase 2 完成记录
+
+```text
+阶段：Phase 2 Shared v2 类型与六节点状态机骨架
+完成日期：2026-05-14
+负责人：Codex
+主要变更：新增 Pipeline version、committer 节点、v2 stage output / gate kind；state replay 按 v1/v2 分支处理 tester -> completed / tester -> committer；新增 createPipelineGraphV2 fake graph builder；runner strategy 表驱动化；StageRail display model 可按 v2 展示六节点。
+审查修复：v2 explorer gate kind 明确为 task_selection；gate decision record 持久化 kind、selectedReportId、submissionMode。
+验证命令：bun test apps/electron/src/main/lib/pipeline-graph.test.ts apps/electron/src/main/lib/pipeline-service.test.ts packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main/lib/pipeline-node-router.test.ts apps/electron/src/renderer/components/pipeline/pipeline-display-model.test.ts apps/electron/src/main/lib/pipeline-node-runner.test.ts apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts；bun run typecheck；git diff --check；bun install --frozen-lockfile --dry-run；bun test
+剩余风险：全量 bun test 仍有 1 个既有失败 / 1 个对应 unhandled error，位于 apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts 的 Electron named export 测试环境问题，未指向 Phase 2 改动。
+代码审查：复核通过，无阻塞 finding。
+提交状态：尚未提交，等待用户明确要求。
+是否允许进入下一阶段：是，进入 Phase 3；但不得自动开始 Phase 3，需按阶段规则先写计划并等待用户安排。
+```
+
+## 最新开发状态快照
+
+> 更新时间：2026-05-14
+> 最近阶段提交：`9da48f1d4373d1c4b9648a1a25724d7c1c9f5651`（`feat(pipeline): 完成六 Agent 工作流 Phase 1 基础设施`）
+> 最新完成阶段：Phase 2 已完成但尚未提交。
+
+### 已完成
+
+- [x] Phase 0：规格冻结与测试骨架。
+- [x] Phase 1：Preflight、ContributionTask、PatchWork 基础。
+- [x] Phase 1 已提交，提交范围不包含 `patch-work/**`，也没有前端功能变更。
+- [x] Phase 1 已递增受影响 package patch version：`@rv-insights/shared`、`@rv-insights/electron`。
+- [x] Phase 1 验证已记录：阶段测试、v1 graph 兼容测试、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 通过。
+- [x] Phase 2：Shared v2 类型与六节点状态机骨架。
+- [x] Phase 2 已递增受影响 package patch version：`@rv-insights/shared`、`@rv-insights/electron`。
+- [x] Phase 2 验证已记录：阶段测试、补充 service/runner 测试、代码审查复核、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 通过。
+
+### 未完成
+
+- [ ] Phase 3：Explorer 任务选择与 Planner 文档审核，尚未开始。
+- [ ] Phase 4：Developer 文档审核与 Reviewer Issue Loop，尚未开始。
+- [ ] Phase 5：Codex Tester、测试报告与 PatchSet，尚未开始。
+- [ ] Phase 6：Committer Draft-Only，尚未开始。
+- [ ] Phase 7：受控本地 Commit Gate，尚未开始，且需要用户明确允许实现本地 commit 能力。
+- [ ] Phase 8：远端 PR 集成，尚未开始，且需要单独安全评审和用户明确允许远端写能力。
+- [ ] 全局完成定义尚未完成：六节点 UI 展示、v2 records/replay、patch-work UI 读取、reviewer/tester 循环、committer draft-only、本地 commit gate、远端 PR gate 仍待后续阶段落地。
+
+### 当前边界
+
+- 下一步只允许进入 Phase 3，不得跳到 Phase 4+。
+- Phase 3 必须先写测试或 BDD 场景，再实现功能。
+- Phase 3 不开启真实 commit / push / PR，不让 explorer / planner 修改源码。
+- README 和 AGENTS 不修改，除非用户明确允许。
+- 每完成一个阶段并满足完成定义后，必须单独提交一次。
+
+### 已知风险
+
+- 全量 `bun test` 仍有 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 或 Phase 2 改动；进入 Phase 3 前后仍需继续标注为既有风险，除非另行修复。
+
 ## 当前执行建议
 
-Phase 1 已完成。下一步应进入 Phase 2：Shared v2 类型与六节点状态机骨架。继续遵守阶段边界：先补 shared/state/graph/router/display model 测试，再实现 v2 类型、`committer` 节点枚举、v1/v2 replay 分支和 fake graph，不接真实 CLI 复杂行为，不开启 commit / push。
+Phase 2 已完成但尚未提交。下一步应先按用户要求提交 Phase 2，之后才能进入 Phase 3：Explorer 任务选择与 Planner 文档审核。继续遵守阶段边界：Phase 3 先补 explorer report / document gate / IPC / UI board 测试，再实现，不开启 commit / push / PR，不让 explorer 或 planner 修改源码。
+
+## 下次启动提示词
+
+```text
+你正在 RV-Insights 仓库继续开发 Pipeline v2 六 Agent 开源贡献工作流。
+
+请先阅读并遵守：
+- AGENTS.md
+- tasks/lessons.md
+- tasks/todo.md
+- improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md
+- improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md 中“当前实现进度”和 Phase 3 相关内容
+
+当前进度：
+1. Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
+2. Phase 1 已完成并提交，commit 为 9da48f1d4373d1c4b9648a1a25724d7c1c9f5651。
+3. Phase 1 已实现 ContributionTask、preflight、patch-work manifest/revision/fixed files 基础服务与测试。
+4. Phase 2 已完成但尚未提交；已实现 shared v2 类型、committer、v1/v2 replay、v2 fake graph builder、runner strategy 和六节点 StageRail display model。
+5. Phase 3 尚未开始。后续只能从 Phase 3 开始，不得跳阶段。
+6. Phase 4-8 均未完成。
+7. 当前仍没有 Phase 3 的任务选择 / 文档审核 UI 和 IPC；不要误认为 UI 已接入完整 v2 贡献工作流。
+
+开发纪律：
+- 开始 Phase 3 前，先检查 git status，保护已有用户变更。
+- Phase 2 按规则应先单独提交；不要默认执行 git commit，等待用户明确要求。
+- 开始 Phase 3 前，在 tasks/todo.md 写 Phase 3 计划，并把 checklist 中 Phase 3 的“阶段开始”标为已开始。
+- 每个阶段必须先补测试或 BDD 场景，再实现功能。
+- 未满足 Phase 3 完成定义前，不得进入 Phase 4。
+- 每完成一个阶段并通过完成定义后，单独提交一次。
+- 不得默认执行 git commit、git push 或创建 PR，除非我明确要求；但阶段完成后请询问或等待我要求提交。
+- 不得把 patch-work/** 默认加入 patch-set 或 commit。
+- 使用 Bun：bun test、bun run typecheck。
+- 状态管理继续使用 Jotai。
+- 本地存储继续使用 JSON / JSONL / manifest，不引入本地数据库。
+- README 和 AGENTS.md 只有在我明确允许后再修改。
+- 完成功能代码变更时，递增受影响 package 的 patch 版本。
+
+Phase 3 目标：
+- 先补 explorer task selection、planner document gate、patch-work IPC、ExplorerTaskBoard / ReviewDocumentBoard 测试。
+- explorer 输出多份 Markdown 报告到 patch-work/explorer/report-*.md。
+- 用户必须选择一个 report 后才能进入 planner，并生成 / 更新 selected-task.md。
+- planner 读取 selected-task.md，写 plan.md 和 test-plan.md。
+- planner gate 展示 Markdown 文档和 checksum，反馈产生 revision。
+- 新增读取 patch-work manifest / 文件 / explorer reports / select-task 的 IPC 与 preload 契约。
+
+Phase 3 禁止事项：
+- 不让 explorer 或 planner 修改源码。
+- 不用 records 反推主业务状态，主 UI 走结构化 IPC。
+- 不开启真实 commit、push 或 PR。
+```

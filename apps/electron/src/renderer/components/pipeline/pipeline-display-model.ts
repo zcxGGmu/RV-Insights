@@ -1,6 +1,7 @@
 import type {
   PipelineGateRequest,
   PipelineNodeKind,
+  PipelineVersion,
   PipelineSessionMeta,
   PipelineSessionStatus,
   PipelineStateSnapshot,
@@ -78,12 +79,18 @@ export const PIPELINE_NODE_ORDER: PipelineNodeKind[] = [
   'tester',
 ]
 
+export const PIPELINE_V2_NODE_ORDER: PipelineNodeKind[] = [
+  ...PIPELINE_NODE_ORDER,
+  'committer',
+]
+
 const NODE_LABELS: Record<PipelineNodeKind, string> = {
   explorer: '探索',
   planner: '计划',
   developer: '开发',
   reviewer: '审查',
   tester: '测试',
+  committer: '提交',
 }
 
 const STATUS_DISPLAY: Record<PipelineSessionStatus, PipelineStatusDisplay> = {
@@ -96,8 +103,18 @@ const STATUS_DISPLAY: Record<PipelineSessionStatus, PipelineStatusDisplay> = {
   recovery_failed: { label: '恢复失败', tone: 'failed' },
 }
 
-function nodeIndex(node: PipelineNodeKind | undefined): number {
-  return node ? PIPELINE_NODE_ORDER.indexOf(node) : -1
+function resolvePipelineVersion(version: PipelineVersion | undefined): PipelineVersion {
+  return version ?? 1
+}
+
+export function getPipelineNodeOrder(version: PipelineVersion | undefined): PipelineNodeKind[] {
+  return resolvePipelineVersion(version) === 2
+    ? PIPELINE_V2_NODE_ORDER
+    : PIPELINE_NODE_ORDER
+}
+
+function nodeIndex(node: PipelineNodeKind | undefined, order: readonly PipelineNodeKind[]): number {
+  return node ? order.indexOf(node) : -1
 }
 
 function buildSummary(status: PipelineSessionStatus, nodeLabel: string): string {
@@ -155,11 +172,14 @@ export function buildPipelineHeaderViewModel({
 
 export function buildPipelineStageViewModels(
   state: PipelineStateSnapshot | null,
+  options: { version?: PipelineVersion } = {},
 ): PipelineStageViewModel[] {
-  const lastApprovedIndex = nodeIndex(state?.lastApprovedNode)
-  const currentIndex = nodeIndex(state?.currentNode)
+  const version = options.version ?? state?.version
+  const order = getPipelineNodeOrder(version)
+  const lastApprovedIndex = nodeIndex(state?.lastApprovedNode, order)
+  const currentIndex = nodeIndex(state?.currentNode, order)
 
-  return PIPELINE_NODE_ORDER.map((node, index) => {
+  return order.map((node, index) => {
     let status: PipelineStageVisualStatus = lastApprovedIndex >= index ? 'done' : 'todo'
 
     if (state?.status === 'completed' && currentIndex >= index) {
@@ -181,7 +201,7 @@ export function buildPipelineStageViewModels(
   })
 }
 
-function approveLabelForNode(node: PipelineNodeKind): string {
+function approveLabelForNode(node: PipelineNodeKind, version: PipelineVersion): string {
   switch (node) {
     case 'explorer':
       return '确认方向，进入计划'
@@ -190,16 +210,21 @@ function approveLabelForNode(node: PipelineNodeKind): string {
     case 'reviewer':
       return '进入测试'
     case 'tester':
-      return '确认完成'
+      return version === 2 ? '确认测试，进入提交' : '确认完成'
+    case 'committer':
+      return '确认提交材料'
     case 'developer':
     default:
       return '通过并继续'
   }
 }
 
-export function buildPipelineGateViewModel(request: PipelineGateRequest): PipelineGateViewModel {
+export function buildPipelineGateViewModel(
+  request: PipelineGateRequest,
+  options: { version?: PipelineVersion } = {},
+): PipelineGateViewModel {
   const nodeLabel = getPipelineNodeLabel(request.node)
-  const approveLabel = approveLabelForNode(request.node)
+  const approveLabel = approveLabelForNode(request.node, resolvePipelineVersion(options.version))
 
   return {
     title: `${nodeLabel}节点待确认`,

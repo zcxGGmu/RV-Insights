@@ -75,6 +75,13 @@ function buildStageArtifactBullets(artifact: PipelineStageOutput): string[] {
         ...prefixedItems('结果', artifact.results),
         ...prefixedItems('阻塞', artifact.blockers),
       ]
+    case 'committer':
+      return [
+        `Commit: ${artifact.commitMessage}`,
+        `PR: ${artifact.prTitle}`,
+        `状态: ${artifact.submissionStatus}`,
+        ...prefixedItems('风险', artifact.risks),
+      ]
   }
 }
 

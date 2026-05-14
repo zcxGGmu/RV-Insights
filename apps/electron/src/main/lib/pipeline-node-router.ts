@@ -1,11 +1,11 @@
 import type {
   PipelineNodeKind,
+  PipelineVersion,
   PipelineStreamEvent,
 } from '@rv-insights/shared'
 import {
   CodexCliPipelineNodeRunner,
   CodexSdkPipelineNodeRunner,
-  isCodexPipelineNode,
   type CodexPipelineBackend,
 } from './codex-pipeline-node-runner'
 import {
@@ -15,7 +15,37 @@ import {
   type PipelineNodeRunner,
 } from './pipeline-node-runner'
 
+export type PipelineNodeRuntimeStrategy = 'claude' | 'codex'
+
+const V1_RUNTIME_STRATEGY: Record<PipelineNodeKind, PipelineNodeRuntimeStrategy> = {
+  explorer: 'claude',
+  planner: 'claude',
+  developer: 'codex',
+  reviewer: 'codex',
+  tester: 'claude',
+  committer: 'codex',
+}
+
+const V2_RUNTIME_STRATEGY: Record<PipelineNodeKind, PipelineNodeRuntimeStrategy> = {
+  explorer: 'claude',
+  planner: 'claude',
+  developer: 'codex',
+  reviewer: 'codex',
+  tester: 'codex',
+  committer: 'codex',
+}
+
+export function getPipelineNodeRuntimeStrategy(
+  node: PipelineNodeKind,
+  version: PipelineVersion = 1,
+): PipelineNodeRuntimeStrategy {
+  return version === 2
+    ? V2_RUNTIME_STRATEGY[node]
+    : V1_RUNTIME_STRATEGY[node]
+}
+
 export interface RoutedPipelineNodeRunnerOptions {
+  version?: PipelineVersion
   channelId?: string
   claudeChannelId?: string
   codexChannelId?: string
@@ -29,8 +59,10 @@ export interface RoutedPipelineNodeRunnerOptions {
 export class RoutedPipelineNodeRunner implements PipelineNodeRunner {
   private readonly claudeRunner: PipelineNodeRunner
   private readonly codexRunner: PipelineNodeRunner
+  private readonly version: PipelineVersion
 
   constructor(options: RoutedPipelineNodeRunnerOptions) {
+    this.version = options.version ?? 1
     const claudeChannelId = options.claudeChannelId ?? options.channelId
     this.claudeRunner = options.claudeRunner ?? new ClaudePipelineNodeRunner({
       channelId: claudeChannelId,
@@ -61,7 +93,7 @@ export class RoutedPipelineNodeRunner implements PipelineNodeRunner {
     node: PipelineNodeKind,
     context: PipelineNodeExecutionContext,
   ): Promise<PipelineNodeExecutionResult> {
-    if (isCodexPipelineNode(node)) {
+    if (getPipelineNodeRuntimeStrategy(node, this.version) === 'codex') {
       return this.codexRunner.runNode(node, context)
     }
 

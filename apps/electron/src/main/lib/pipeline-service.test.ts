@@ -40,6 +40,7 @@ describe('pipeline-service', () => {
       gateId: 'gate-1',
       sessionId: 'session-1',
       node: 'explorer',
+      kind: 'task_selection',
       iteration: 0,
       createdAt: Date.now(),
     }
@@ -97,7 +98,9 @@ describe('pipeline-service', () => {
     await service.respondGate({
       gateId: 'gate-1',
       sessionId: session.id,
+      kind: 'task_selection',
       action: 'approve',
+      selectedReportId: 'report-1',
       createdAt: Date.now(),
     })
 
@@ -110,6 +113,11 @@ describe('pipeline-service', () => {
     expect(service.getSessionState(session.id)).resolves.toMatchObject({
       status: 'completed',
       lastApprovedNode: 'tester',
+    })
+    expect(getPipelineRecords(session.id).find((record) => record.type === 'gate_decision')).toMatchObject({
+      type: 'gate_decision',
+      kind: 'task_selection',
+      selectedReportId: 'report-1',
     })
   })
 

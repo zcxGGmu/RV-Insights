@@ -45,6 +45,7 @@ const NODE_LABELS: Record<PipelineNodeKind, string> = {
   developer: '开发',
   reviewer: '审查',
   tester: '测试',
+  committer: '提交',
 }
 
 function readIndex(): PipelineSessionsIndex {
@@ -310,6 +311,16 @@ function getStageArtifactSearchFields(
         ...artifact.commands,
         ...artifact.results,
         ...artifact.blockers,
+      ].filter((field): field is string => Boolean(field))
+    case 'committer':
+      return [
+        artifact.summary,
+        boundedSearchField(artifact.content),
+        artifact.commitMessage,
+        artifact.prTitle,
+        artifact.prBody,
+        artifact.submissionStatus,
+        ...artifact.risks,
       ].filter((field): field is string => Boolean(field))
   }
 }

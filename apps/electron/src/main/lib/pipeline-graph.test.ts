@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { MemorySaver } from '@langchain/langgraph'
-import { createPipelineGraph } from './pipeline-graph'
+import { createPipelineGraph, createPipelineGraphV2 } from './pipeline-graph'
 
 describe('pipeline-graph', () => {
   test('reviewer 首次拒绝后仍进入 reviewer gate，人工驳回后回到 developer 并再次审核', async () => {
@@ -134,6 +134,95 @@ describe('pipeline-graph', () => {
     expect(completed.interrupted).toBeUndefined()
     expect(completed.state.status).toBe('completed')
     expect(completed.state.lastApprovedNode).toBe('tester')
+  })
+
+  test('v2 tester 审核通过后进入 committer，committer 审核通过后 completed', async () => {
+    const nodes: string[] = []
+    const graph = createPipelineGraphV2({
+      checkpointer: new MemorySaver(),
+      runNode: async (node) => {
+        nodes.push(node)
+        return {
+          output: `${node}-ok`,
+          summary: `${node}-ok`,
+          approved: true,
+        }
+      },
+    })
+
+    const explorerPause = await graph.invoke({
+      sessionId: 'session-v2-complete',
+      userInput: '请完成 v2 任务',
+    })
+
+    expect(explorerPause.interrupted?.kind).toBe('task_selection')
+
+    const plannerPause = await graph.resume({
+      sessionId: 'session-v2-complete',
+      response: {
+        gateId: explorerPause.interrupted!.gateId,
+        sessionId: 'session-v2-complete',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(plannerPause.interrupted?.kind).toBe('document_review')
+
+    const reviewerPause = await graph.resume({
+      sessionId: 'session-v2-complete',
+      response: {
+        gateId: plannerPause.interrupted!.gateId,
+        sessionId: 'session-v2-complete',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    const testerPause = await graph.resume({
+      sessionId: 'session-v2-complete',
+      response: {
+        gateId: reviewerPause.interrupted!.gateId,
+        sessionId: 'session-v2-complete',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(testerPause.interrupted?.node).toBe('tester')
+
+    const committerPause = await graph.resume({
+      sessionId: 'session-v2-complete',
+      response: {
+        gateId: testerPause.interrupted!.gateId,
+        sessionId: 'session-v2-complete',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(committerPause.interrupted?.node).toBe('committer')
+    expect(committerPause.interrupted?.kind).toBe('submission_review')
+    expect(committerPause.state.currentNode).toBe('committer')
+    expect(committerPause.state.lastApprovedNode).toBe('tester')
+    expect(committerPause.state.status).toBe('waiting_human')
+
+    const completed = await graph.resume({
+      sessionId: 'session-v2-complete',
+      response: {
+        gateId: committerPause.interrupted!.gateId,
+        sessionId: 'session-v2-complete',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(completed.interrupted).toBeUndefined()
+    expect(completed.state.version).toBe(2)
+    expect(completed.state.status).toBe('completed')
+    expect(completed.state.currentNode).toBe('committer')
+    expect(completed.state.lastApprovedNode).toBe('committer')
+    expect(nodes).toEqual(['explorer', 'planner', 'developer', 'reviewer', 'tester', 'committer'])
   })
 
   test('getState 会从 checkpoint interrupt 回填 pendingGate', async () => {

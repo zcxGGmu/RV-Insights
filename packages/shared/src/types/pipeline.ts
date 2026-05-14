@@ -4,6 +4,9 @@
  * 定义 RV Pipeline 的会话元数据、记录、流式事件和 IPC 通道常量。
  */
 
+/** Pipeline 工作流版本。缺省按 v1 处理，保证旧会话兼容。 */
+export type PipelineVersion = 1 | 2
+
 /** Pipeline 固定节点类型 */
 export type PipelineNodeKind =
   | 'explorer'
@@ -11,6 +14,7 @@ export type PipelineNodeKind =
   | 'developer'
   | 'reviewer'
   | 'tester'
+  | 'committer'
 
 /** Pipeline 会话状态 */
 export type PipelineSessionStatus =
@@ -28,9 +32,19 @@ export type PipelineGateAction =
   | 'reject_with_feedback'
   | 'rerun_node'
 
+/** Pipeline v2 人工 gate 语义类型 */
+export type PipelineGateKind =
+  | 'task_selection'
+  | 'document_review'
+  | 'review_iteration_limit'
+  | 'test_blocked'
+  | 'submission_review'
+  | 'remote_write_confirmation'
+
 /** Pipeline 会话元数据 */
 export interface PipelineSessionMeta {
   id: string
+  version?: PipelineVersion
   title: string
   channelId?: string
   workspaceId?: string
@@ -51,6 +65,7 @@ export interface PipelineGateRequest {
   gateId: string
   sessionId: string
   node: PipelineNodeKind
+  kind?: PipelineGateKind
   title?: string
   summary?: string
   feedbackHint?: string
@@ -62,9 +77,33 @@ export interface PipelineGateRequest {
 export interface PipelineGateResponse {
   gateId: string
   sessionId: string
+  kind?: PipelineGateKind
   action: PipelineGateAction
   feedback?: string
+  selectedReportId?: string
+  submissionMode?: ContributionMode
   createdAt: number
+}
+
+export interface PipelinePatchWorkDocumentRef {
+  displayName: string
+  relativePath: string
+  checksum?: string
+  revision?: number
+}
+
+export interface PipelineExplorerReportRef extends PipelinePatchWorkDocumentRef {
+  reportId: string
+  title: string
+  summary?: string
+}
+
+export interface PipelinePatchSetSummary {
+  files: string[]
+  additions?: number
+  deletions?: number
+  patchRef?: PipelinePatchWorkDocumentRef
+  excludesPatchWork: boolean
 }
 
 export interface PipelineExplorerStageOutput {
@@ -73,6 +112,8 @@ export interface PipelineExplorerStageOutput {
   findings: string[]
   keyFiles: string[]
   nextSteps: string[]
+  reports?: PipelineExplorerReportRef[]
+  selectedReportId?: string
   content: string
 }
 
@@ -82,6 +123,9 @@ export interface PipelinePlannerStageOutput {
   steps: string[]
   risks: string[]
   verification: string[]
+  planRef?: PipelinePatchWorkDocumentRef
+  testPlanRef?: PipelinePatchWorkDocumentRef
+  documentRefs?: PipelinePatchWorkDocumentRef[]
   content: string
 }
 
@@ -91,6 +135,8 @@ export interface PipelineDeveloperStageOutput {
   changes: string[]
   tests: string[]
   risks: string[]
+  devDoc?: PipelinePatchWorkDocumentRef
+  fixedFiles?: string[]
   content: string
 }
 
@@ -99,6 +145,8 @@ export interface PipelineReviewerStageOutput {
   summary: string
   approved: boolean
   issues: string[]
+  reviewDoc?: PipelinePatchWorkDocumentRef
+  iterationLimitReached?: boolean
   content: string
 }
 
@@ -108,6 +156,45 @@ export interface PipelineTesterStageOutput {
   commands: string[]
   results: string[]
   blockers: string[]
+  testResultRef?: PipelinePatchWorkDocumentRef
+  patchSet?: PipelinePatchSetSummary
+  passed?: boolean
+  riskAccepted?: boolean
+  changedFiles?: string[]
+  content: string
+}
+
+export type PipelineSubmissionStatus =
+  | 'draft_only'
+  | 'local_commit_ready'
+  | 'local_commit_created'
+  | 'remote_pr_ready'
+  | 'remote_pr_created'
+  | 'blocked'
+
+export interface PipelineCommitterStageOutput {
+  node: 'committer'
+  summary: string
+  commitMessage: string
+  prTitle: string
+  prBody: string
+  submissionStatus: PipelineSubmissionStatus
+  risks: string[]
+  commitRef?: PipelinePatchWorkDocumentRef
+  prRef?: PipelinePatchWorkDocumentRef
+  localCommit?: {
+    attempted: boolean
+    commitHash?: string
+    status: 'not_requested' | 'created' | 'failed'
+    error?: string
+  }
+  remoteSubmission?: {
+    attempted: boolean
+    type?: 'push' | 'pull_request'
+    url?: string
+    status: 'not_requested' | 'created' | 'failed'
+    error?: string
+  }
   content: string
 }
 
@@ -117,8 +204,18 @@ export type PipelineStageOutput =
   | PipelineDeveloperStageOutput
   | PipelineReviewerStageOutput
   | PipelineTesterStageOutput
+  | PipelineCommitterStageOutput
 
-export type PipelineStageOutputMap = Partial<Record<PipelineNodeKind, PipelineStageOutput>>
+export interface PipelineStageOutputByNode {
+  explorer: PipelineExplorerStageOutput
+  planner: PipelinePlannerStageOutput
+  developer: PipelineDeveloperStageOutput
+  reviewer: PipelineReviewerStageOutput
+  tester: PipelineTesterStageOutput
+  committer: PipelineCommitterStageOutput
+}
+
+export type PipelineStageOutputMap = Partial<PipelineStageOutputByNode>
 
 export type PipelineArtifactFileKind = 'markdown' | 'json' | 'content'
 
@@ -197,8 +294,8 @@ export interface ContributionTaskEvent {
   createdAt: number
 }
 
-/** patch-work 文件归属节点。Phase 1 不扩展 PipelineNodeKind，只为文件契约预留 committer。 */
-export type PatchWorkNodeKind = PipelineNodeKind | 'preflight' | 'committer'
+/** patch-work 文件归属节点。preflight 不是 Agent 阶段，但会写入检查产物。 */
+export type PatchWorkNodeKind = PipelineNodeKind | 'preflight'
 
 export type PatchWorkFileKind =
   | 'explorer_report'
@@ -372,6 +469,7 @@ export interface PipelineArtifactContentInput {
 /** 当前 Pipeline 运行快照 */
 export interface PipelineStateSnapshot {
   sessionId: string
+  version?: PipelineVersion
   currentNode: PipelineNodeKind
   status: PipelineSessionStatus
   reviewIteration: number
@@ -441,6 +539,7 @@ export interface PipelineGateRequestedRecord {
   sessionId: string
   type: 'gate_requested'
   node: PipelineNodeKind
+  kind?: PipelineGateKind
   gateId: string
   title?: string
   summary?: string
@@ -455,8 +554,11 @@ export interface PipelineGateDecisionRecord {
   sessionId: string
   type: 'gate_decision'
   node: PipelineNodeKind
+  kind?: PipelineGateKind
   action: PipelineGateAction
   feedback?: string
+  selectedReportId?: string
+  submissionMode?: ContributionMode
   createdAt: number
 }
 

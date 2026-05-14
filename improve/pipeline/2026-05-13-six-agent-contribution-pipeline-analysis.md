@@ -4,6 +4,17 @@
 > 范围：当前仓库真实实现、README / tutorial / 历史改进文档、Pipeline 主进程、共享类型、渲染层 UI。
 > 目标：对照目标工作流 `explorer / planner / developer / reviewer / tester / committer`，分析当前 RV-Insights 还需要哪些完善和优化。
 
+## 当前实现进度
+
+> 更新时间：2026-05-14
+> 权威执行清单：`improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md`
+
+- Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
+- Phase 1 已完成并提交：commit `9da48f1d4373d1c4b9648a1a25724d7c1c9f5651`，已落地 `ContributionTask`、preflight、`patch-work` manifest/revision/fixed files 基础服务与测试。
+- Phase 2 已完成但尚未提交：已落地 shared v2 类型、`committer`、v1/v2 replay 分支、`createPipelineGraphV2` fake graph builder、runner strategy 表驱动映射和六节点 StageRail display model 测试。
+- Phase 3-8 均未开始：下一步只能进入 Phase 3，不得跳阶段，不得提前接真实 commit、push 或 PR。
+- 当前已知验证状态：Phase 2 指定测试、补充 service/runner 测试、代码审查复核、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 仍有 1 个既有失败 / 1 个对应 unhandled error，位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2 改动。
+
 ## 结论
 
 当前 RV-Insights 已经有一个可运行的五节点 Pipeline 底座：

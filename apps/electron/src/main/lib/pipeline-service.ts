@@ -30,7 +30,7 @@ import {
   updatePipelineSessionMeta,
 } from './pipeline-session-manager'
 import { PipelineHumanGateService } from './pipeline-human-gate-service'
-import { createPipelineGraph } from './pipeline-graph'
+import { createPipelineGraph, createPipelineGraphV2 } from './pipeline-graph'
 import { buildPipelineRecordsFromNodeComplete } from './pipeline-record-builder'
 import {
   persistPipelineStageArtifactRecord,
@@ -278,6 +278,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     const { RoutedPipelineNodeRunner } = await import('./pipeline-node-router')
     const codexChannelId = resolvePipelineCodexChannelId(getSettings())
     const runner = new RoutedPipelineNodeRunner({
+      version: meta.version ?? 1,
       claudeChannelId: meta.channelId,
       codexChannelId,
       workspaceId: meta.workspaceId,
@@ -305,7 +306,8 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       activeRunners.set(meta.id, runner)
     }
 
-    return createPipelineGraph({
+    const createGraph = meta.version === 2 ? createPipelineGraphV2 : createPipelineGraph
+    return createGraph({
       checkpointer,
       getSignal: () => signal,
       runNode: (node, context) => runner.runNode(node, context),
@@ -339,6 +341,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         sessionId: meta.id,
         type: 'gate_requested',
         node: current.interrupted.node,
+        kind: current.interrupted.kind,
         gateId: current.interrupted.gateId,
         title: current.interrupted.title,
         summary: current.interrupted.summary,
@@ -363,8 +366,11 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         sessionId: meta.id,
         type: 'gate_decision',
         node: current.interrupted.node,
+        kind: response.kind ?? current.interrupted.kind,
         action: response.action,
         feedback: response.feedback,
+        selectedReportId: response.selectedReportId,
+        submissionMode: response.submissionMode,
         createdAt: response.createdAt,
       })
       emitEvent(meta.id, callbacks, {
@@ -586,8 +592,11 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         sessionId: meta.id,
         type: 'gate_decision',
         node: pendingGate.node,
+        kind: response.kind ?? pendingGate.kind,
         action: response.action,
         feedback: response.feedback,
+        selectedReportId: response.selectedReportId,
+        submissionMode: response.submissionMode,
         createdAt: response.createdAt,
       })
       emitEvent(meta.id, callbacks, {

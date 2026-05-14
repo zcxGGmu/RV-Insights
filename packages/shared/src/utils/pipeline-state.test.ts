@@ -44,7 +44,7 @@ describe('pipeline-state', () => {
     expect(next.status).toBe('running')
   })
 
-  test('tester 审核通过后进入 completed', () => {
+  test('v1 tester 审核通过后仍进入 completed', () => {
     const state = createInitialPipelineState('session-2')
 
     const next = applyPipelineRecord(state, {
@@ -59,6 +59,37 @@ describe('pipeline-state', () => {
     expect(next.currentNode).toBe('tester')
     expect(next.lastApprovedNode).toBe('tester')
     expect(next.status).toBe('completed')
+  })
+
+  test('v2 tester 审核通过后进入 committer，committer 通过后才完成', () => {
+    const state = createInitialPipelineState('session-v2', 1, { version: 2 })
+
+    const afterTester = applyPipelineRecord(state, {
+      id: 'record-v2-tester',
+      sessionId: 'session-v2',
+      type: 'gate_decision',
+      node: 'tester',
+      action: 'approve',
+      createdAt: 10,
+    })
+
+    expect(afterTester.version).toBe(2)
+    expect(afterTester.currentNode).toBe('committer')
+    expect(afterTester.lastApprovedNode).toBe('tester')
+    expect(afterTester.status).toBe('running')
+
+    const completed = applyPipelineRecord(afterTester, {
+      id: 'record-v2-committer',
+      sessionId: 'session-v2',
+      type: 'gate_decision',
+      node: 'committer',
+      action: 'approve',
+      createdAt: 20,
+    })
+
+    expect(completed.currentNode).toBe('committer')
+    expect(completed.lastApprovedNode).toBe('committer')
+    expect(completed.status).toBe('completed')
   })
 
   test('stage_artifact 会写入状态中的阶段产物映射', () => {
@@ -82,6 +113,32 @@ describe('pipeline-state', () => {
 
     expect(next.currentNode).toBe('planner')
     expect(next.stageOutputs?.planner?.summary).toBe('按三步实现')
+  })
+
+  test('v2 committer 阶段产物会写入 stageOutputs.committer', () => {
+    const state = createInitialPipelineState('session-committer', 1, { version: 2 })
+
+    const next = applyPipelineRecord(state, {
+      id: 'record-committer',
+      sessionId: 'session-committer',
+      type: 'stage_artifact',
+      node: 'committer',
+      artifact: {
+        node: 'committer',
+        summary: '提交材料已生成',
+        commitMessage: 'feat: add pipeline v2 skeleton',
+        prTitle: 'Add Pipeline v2 skeleton',
+        prBody: 'This PR adds the v2 pipeline skeleton.',
+        submissionStatus: 'draft_only',
+        risks: ['未执行真实提交'],
+        content: '{"summary":"提交材料已生成"}',
+      },
+      createdAt: 30,
+    })
+
+    expect(next.currentNode).toBe('committer')
+    expect(next.stageOutputs?.committer?.summary).toBe('提交材料已生成')
+    expect(next.stageOutputs?.committer?.submissionStatus).toBe('draft_only')
   })
 
   test('records replay 能恢复 pendingGate、reviewIteration 和终态', () => {
@@ -122,6 +179,24 @@ describe('pipeline-state', () => {
     expect(state.lastApprovedNode).toBe('tester')
     expect(state.status).toBe('completed')
     expect(state.updatedAt).toBe(30)
+  })
+
+  test('v2 records replay 会保留六节点推进语义', () => {
+    const state = replayPipelineRecords('session-v2-replay', [
+      {
+        id: 'record-v2-1',
+        sessionId: 'session-v2-replay',
+        type: 'gate_decision',
+        node: 'tester',
+        action: 'approve',
+        createdAt: 10,
+      },
+    ], { version: 2, now: 1 })
+
+    expect(state.version).toBe(2)
+    expect(state.currentNode).toBe('committer')
+    expect(state.lastApprovedNode).toBe('tester')
+    expect(state.status).toBe('running')
   })
 
   test('node_failed / terminated replay 会清理 pendingGate', () => {
@@ -174,6 +249,7 @@ describe('pipeline-state', () => {
       },
       createdAt: 1,
       updatedAt: 60,
+      version: 2,
     })
 
     expect(buildPipelineSessionStatePatch(state)).toEqual({
@@ -188,6 +264,7 @@ describe('pipeline-state', () => {
         iteration: 2,
         createdAt: 50,
       },
+      version: 2,
     })
   })
 })

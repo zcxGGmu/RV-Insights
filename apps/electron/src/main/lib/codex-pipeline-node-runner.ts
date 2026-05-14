@@ -27,7 +27,7 @@ import {
   type PipelineNodeRunner,
 } from './pipeline-node-runner'
 
-type CodexNodeKind = Extract<PipelineNodeKind, 'developer' | 'reviewer'>
+type CodexNodeKind = Extract<PipelineNodeKind, 'developer' | 'reviewer' | 'tester' | 'committer'>
 type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 type CodexApprovalPolicy = 'never' | 'on-request' | 'on-failure' | 'untrusted'
 export type CodexPipelineBackend = 'sdk' | 'cli'
@@ -138,7 +138,10 @@ export interface CodexSdkPipelineNodeRunnerOptions extends CodexPipelineNodeRunn
 }
 
 export function isCodexPipelineNode(node: PipelineNodeKind): node is CodexNodeKind {
-  return node === 'developer' || node === 'reviewer'
+  return node === 'developer'
+    || node === 'reviewer'
+    || node === 'tester'
+    || node === 'committer'
 }
 
 function resolveCodexTargetTriple(): string {

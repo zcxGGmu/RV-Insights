@@ -7,11 +7,24 @@ import type {
   PipelineSessionMeta,
   PipelineSessionStatus,
   PipelineStateSnapshot,
+  PipelineVersion,
 } from '../types/pipeline'
 
 const INITIAL_NODE: PipelineNodeKind = 'explorer'
 
-function nextNodeAfterApproval(node: PipelineNodeKind): PipelineNodeKind {
+interface PipelineStateOptions {
+  version?: PipelineVersion
+}
+
+export interface PipelineReplayOptions extends PipelineStateOptions {
+  now?: number
+}
+
+function resolvePipelineVersion(version: PipelineVersion | undefined): PipelineVersion {
+  return version ?? 1
+}
+
+function nextNodeAfterApproval(node: PipelineNodeKind, version: PipelineVersion): PipelineNodeKind {
   switch (node) {
     case 'explorer':
       return 'planner'
@@ -20,15 +33,20 @@ function nextNodeAfterApproval(node: PipelineNodeKind): PipelineNodeKind {
     case 'reviewer':
       return 'tester'
     case 'tester':
-      return 'tester'
+      return version === 2 ? 'committer' : 'tester'
+    case 'committer':
+      return 'committer'
     case 'developer':
     default:
       return node
   }
 }
 
-function isTerminalApproval(node: PipelineNodeKind): boolean {
-  return node === 'tester'
+function isTerminalApproval(node: PipelineNodeKind, version: PipelineVersion): boolean {
+  if (version === 2) {
+    return node === 'committer'
+  }
+  return node === 'tester' || node === 'committer'
 }
 
 function updateBase(
@@ -71,9 +89,10 @@ function applyGateDecision(
   record: PipelineGateDecisionRecord,
 ): PipelineStateSnapshot {
   if (record.action === 'approve') {
-    const terminal = isTerminalApproval(record.node)
+    const version = resolvePipelineVersion(state.version)
+    const terminal = isTerminalApproval(record.node, version)
     return updateBase(state, record.createdAt, {
-      currentNode: terminal ? record.node : nextNodeAfterApproval(record.node),
+      currentNode: terminal ? record.node : nextNodeAfterApproval(record.node, version),
       lastApprovedNode: record.node,
       pendingGate: null,
       status: terminal ? 'completed' : 'running',
@@ -102,9 +121,11 @@ function applyGateDecision(
 export function createInitialPipelineState(
   sessionId: string,
   now = Date.now(),
+  options: PipelineStateOptions = {},
 ): PipelineStateSnapshot {
   return {
     sessionId,
+    ...(options.version ? { version: options.version } : {}),
     currentNode: INITIAL_NODE,
     status: 'idle',
     reviewIteration: 0,
@@ -125,6 +146,7 @@ export function createPipelineStateFromSessionMeta(
 ): PipelineStateSnapshot {
   return {
     sessionId: meta.id,
+    ...(meta.version ? { version: meta.version } : {}),
     currentNode: meta.currentNode,
     status: meta.status,
     reviewIteration: meta.reviewIteration,
@@ -164,6 +186,7 @@ export function applyPipelineRecord(
           gateId: record.gateId,
           sessionId: record.sessionId,
           node: record.node,
+          kind: record.kind,
           title: record.title,
           summary: record.summary,
           feedbackHint: record.feedbackHint,
@@ -198,17 +221,23 @@ export function applyPipelineRecord(
 export function replayPipelineRecords(
   sessionId: string,
   records: readonly PipelineRecord[],
-  now = Date.now(),
+  optionsOrNow: PipelineReplayOptions | number = Date.now(),
 ): PipelineStateSnapshot {
+  const options = typeof optionsOrNow === 'number'
+    ? { now: optionsOrNow }
+    : optionsOrNow
   return serializePipelineState(
     records.reduce(
       (state, record) => applyPipelineRecord(state, record),
-      createInitialPipelineState(sessionId, records[0]?.createdAt ?? now),
+      createInitialPipelineState(sessionId, records[0]?.createdAt ?? options.now ?? Date.now(), {
+        version: options.version,
+      }),
     ),
   )
 }
 
 export interface PipelineSessionStatePatch {
+  version?: PipelineVersion
   currentNode: PipelineNodeKind
   status: PipelineSessionStatus
   reviewIteration: number
@@ -223,6 +252,7 @@ export function buildPipelineSessionStatePatch(
   state: PipelineStateSnapshot,
 ): PipelineSessionStatePatch {
   return {
+    ...(state.version ? { version: state.version } : {}),
     currentNode: state.currentNode,
     status: state.status,
     reviewIteration: state.reviewIteration,

@@ -341,7 +341,11 @@ export function PipelineView({
         <div className="mx-auto flex max-w-7xl flex-col gap-4">
           <PipelineHeader session={session} state={state} />
           <div className="overflow-x-auto">
-            <PipelineStageRail state={state} onSelectStage={requestStageFocus} />
+            <PipelineStageRail
+              state={state}
+              version={session?.version ?? state?.version}
+              onSelectStage={requestStageFocus}
+            />
           </div>
 
           {failureViewModel ? (
@@ -389,7 +393,11 @@ export function PipelineView({
             </div>
             <aside className="order-first space-y-4 xl:order-none xl:sticky xl:top-4 xl:self-start">
               {pendingGate ? (
-                <PipelineGateCard request={pendingGate as PipelineGateRequest} onRespond={handleRespond} />
+                <PipelineGateCard
+                  request={pendingGate as PipelineGateRequest}
+                  version={session?.version ?? state?.version}
+                  onRespond={handleRespond}
+                />
               ) : null}
               <PipelineComposer
                 disabled={running}

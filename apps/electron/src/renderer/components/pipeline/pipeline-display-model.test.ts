@@ -47,6 +47,7 @@ describe('pipeline display model', () => {
       tone: 'waiting',
     })
     expect(getPipelineNodeLabel('developer')).toBe('开发')
+    expect(getPipelineNodeLabel('committer')).toBe('提交')
   })
 
   test('Header view model 合并 session 与 state，并显示节点、状态和轮次', () => {
@@ -86,6 +87,43 @@ describe('pipeline display model', () => {
     ])
   })
 
+  test('StageRail 默认按 v1 五节点展示，v2 会展示 committer', () => {
+    expect(buildPipelineStageViewModels(makeState()).map((stage) => stage.node)).toEqual([
+      'explorer',
+      'planner',
+      'developer',
+      'reviewer',
+      'tester',
+    ])
+
+    expect(buildPipelineStageViewModels(makeState({ version: 2 }), { version: 2 }).map((stage) => stage.node)).toEqual([
+      'explorer',
+      'planner',
+      'developer',
+      'reviewer',
+      'tester',
+      'committer',
+    ])
+  })
+
+  test('StageRail v2 会在 tester 通过后激活 committer', () => {
+    const stages = buildPipelineStageViewModels(makeState({
+      version: 2,
+      currentNode: 'committer',
+      lastApprovedNode: 'tester',
+      status: 'running',
+    }), { version: 2 })
+
+    expect(stages.map((stage) => [stage.node, stage.status])).toEqual([
+      ['explorer', 'done'],
+      ['planner', 'done'],
+      ['developer', 'done'],
+      ['reviewer', 'done'],
+      ['tester', 'done'],
+      ['committer', 'active'],
+    ])
+  })
+
   test('StageRail 能表达等待人工审核与失败态', () => {
     expect(buildPipelineStageViewModels(makeState({
       currentNode: 'planner',
@@ -98,6 +136,20 @@ describe('pipeline display model', () => {
       status: 'node_failed',
       lastApprovedNode: 'reviewer',
     })).map((stage) => stage.status)).toEqual(['done', 'done', 'done', 'done', 'failed'])
+
+    expect(buildPipelineStageViewModels(makeState({
+      version: 2,
+      currentNode: 'committer',
+      status: 'waiting_human',
+      lastApprovedNode: 'tester',
+    }), { version: 2 }).map((stage) => stage.status)).toEqual([
+      'done',
+      'done',
+      'done',
+      'done',
+      'done',
+      'waiting',
+    ])
   })
 
   test('Gate view model 按节点给出清晰的动作语义', () => {
@@ -124,11 +176,23 @@ describe('pipeline display model', () => {
       node: 'tester',
       iteration: 2,
       createdAt: 1,
-    })).toMatchObject({
+    }, { version: 2 })).toMatchObject({
       title: '测试节点待确认',
       iterationLabel: '第 3 轮',
-      approveLabel: '确认完成',
+      approveLabel: '确认测试，进入提交',
       rerunLabel: '重跑测试',
+    })
+
+    expect(buildPipelineGateViewModel({
+      gateId: 'gate-3',
+      sessionId: 'session-1',
+      node: 'committer',
+      iteration: 0,
+      createdAt: 1,
+    })).toMatchObject({
+      title: '提交节点待确认',
+      approveLabel: '确认提交材料',
+      rerunLabel: '重跑提交',
     })
   })
 
