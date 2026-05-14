@@ -194,6 +194,22 @@ describe('pipeline display model', () => {
       approveLabel: '确认提交材料',
       rerunLabel: '重跑提交',
     })
+
+    expect(buildPipelineGateViewModel({
+      gateId: 'gate-4',
+      sessionId: 'session-1',
+      node: 'reviewer',
+      kind: 'review_iteration_limit',
+      title: 'Reviewer 多轮未通过，等待人工接管',
+      iteration: 3,
+      createdAt: 1,
+    })).toMatchObject({
+      title: 'Reviewer 多轮未通过，等待人工接管',
+      iterationLabel: '已完成 3 轮审查',
+      primaryActionHint: '接受风险并进入测试',
+      approveLabel: '接受风险并进入测试',
+      rerunLabel: '重跑审查',
+    })
   })
 
   test('Failure view model 能显示失败节点、错误详情和恢复入口', () => {

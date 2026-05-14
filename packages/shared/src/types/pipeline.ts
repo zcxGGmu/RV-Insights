@@ -106,6 +106,46 @@ export interface PipelinePatchSetSummary {
   excludesPatchWork: boolean
 }
 
+export type PipelineChangedFileType = 'added' | 'modified' | 'deleted' | 'renamed'
+
+export interface PipelineChangedFile {
+  path: string
+  changeType: PipelineChangedFileType
+  summary: string
+}
+
+export type PipelineTestRunStatus = 'passed' | 'failed' | 'skipped'
+
+export interface PipelineTestRun {
+  command: string
+  status: PipelineTestRunStatus
+  summary: string
+}
+
+export type PipelineReviewIssueSeverity = 'blocker' | 'major' | 'minor' | 'nit'
+
+export type PipelineReviewIssueCategory =
+  | 'correctness'
+  | 'regression'
+  | 'test_gap'
+  | 'maintainability'
+  | 'security'
+  | 'style'
+
+export type PipelineReviewIssueStatus = 'open' | 'fixed' | 'accepted_risk'
+
+export interface PipelineReviewIssue {
+  id: string
+  severity: PipelineReviewIssueSeverity
+  category: PipelineReviewIssueCategory
+  title: string
+  detail: string
+  status: PipelineReviewIssueStatus
+  file?: string
+  line?: number
+  suggestedFix?: string
+}
+
 export interface PipelineExplorerStageOutput {
   node: 'explorer'
   summary: string
@@ -135,7 +175,10 @@ export interface PipelineDeveloperStageOutput {
   changes: string[]
   tests: string[]
   risks: string[]
+  changedFiles?: PipelineChangedFile[]
+  testsRun?: PipelineTestRun[]
   devDoc?: PipelinePatchWorkDocumentRef
+  devDocRef?: PipelinePatchWorkDocumentRef
   fixedFiles?: string[]
   content: string
 }
@@ -145,7 +188,10 @@ export interface PipelineReviewerStageOutput {
   summary: string
   approved: boolean
   issues: string[]
+  structuredIssues?: PipelineReviewIssue[]
   reviewDoc?: PipelinePatchWorkDocumentRef
+  reviewDocRef?: PipelinePatchWorkDocumentRef
+  reviewIteration?: number
   iterationLimitReached?: boolean
   content: string
 }

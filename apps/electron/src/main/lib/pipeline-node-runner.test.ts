@@ -23,7 +23,11 @@ const {
   enrichPipelineV2PatchWorkArtifacts,
 } = await import('./pipeline-node-runner')
 const { createContributionTask } = await import('./contribution-task-service')
-const { writePatchWorkFile } = await import('./pipeline-patch-work-service')
+const {
+  acceptPatchWorkDocuments,
+  readPatchWorkManifest,
+  writePatchWorkFile,
+} = await import('./pipeline-patch-work-service')
 
 describe('pipeline-node-runner', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -470,5 +474,345 @@ describe('pipeline-node-runner', () => {
     })
     expect(existsSync(join(repoRoot, 'patch-work', 'plan.md'))).toBe(true)
     expect(readFileSync(join(repoRoot, 'patch-work', 'test-plan.md'), 'utf-8')).toContain('覆盖 patch-work service')
+  })
+
+  test('v2 developer 必须读取已接受 plan.md / test-plan.md 并写入 dev.md', () => {
+    createContributionTask({
+      id: 'task-runner-developer',
+      pipelineSessionId: 'session-runner-developer',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      selectedReportId: 'report-001',
+      status: 'developing',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer',
+      pipelineSessionId: 'session-runner-developer',
+      repositoryRoot: repoRoot,
+      kind: 'implementation_plan',
+      createdByNode: 'planner',
+      content: '# 开发方案\n\n## 实施步骤\n- 补 developer gate\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer',
+      pipelineSessionId: 'session-runner-developer',
+      repositoryRoot: repoRoot,
+      kind: 'test_plan',
+      createdByNode: 'planner',
+      content: '# 测试方案\n\n## 单元测试\n- 覆盖 developer gate\n',
+    })
+    acceptPatchWorkDocuments({
+      repositoryRoot: repoRoot,
+      gateId: 'gate-plan',
+      kinds: ['implementation_plan', 'test_plan'],
+    })
+
+    const prompts = buildPipelineNodePrompts('developer', {
+      sessionId: 'session-runner-developer',
+      userInput: '实现 Phase 4',
+      currentNode: 'developer',
+      version: 2,
+      reviewIteration: 0,
+    })
+    const result = buildNodeExecutionResult('developer', JSON.stringify({
+      summary: '完成 developer gate',
+      changes: ['新增 developer 文档审核'],
+      changedFiles: [
+        {
+          path: 'apps/electron/src/main/lib/pipeline-graph.ts',
+          changeType: 'modified',
+          summary: 'developer 后进入 document gate',
+        },
+      ],
+      tests: ['bun test apps/electron/src/main/lib/pipeline-graph.test.ts'],
+      testsRun: [
+        {
+          command: 'bun test apps/electron/src/main/lib/pipeline-graph.test.ts',
+          status: 'passed',
+          summary: 'Phase 4 graph 场景通过',
+        },
+      ],
+      risks: ['reviewer loop 仍需人工接管上限'],
+      devMarkdown: '# 开发文档\n\n## 需求复述\n实现 Phase 4。\n',
+    }))
+    const enriched = enrichPipelineV2PatchWorkArtifacts('developer', {
+      sessionId: 'session-runner-developer',
+      userInput: '实现 Phase 4',
+      currentNode: 'developer',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    expect(prompts.userPrompt).toContain('已接受开发方案（plan.md）')
+    expect(prompts.userPrompt).toContain('补 developer gate')
+    expect(prompts.userPrompt).toContain('已接受测试方案（test-plan.md）')
+    expect(enriched.stageOutput).toMatchObject({
+      node: 'developer',
+      changedFiles: [
+        {
+          path: 'apps/electron/src/main/lib/pipeline-graph.ts',
+          changeType: 'modified',
+        },
+      ],
+      testsRun: [
+        {
+          status: 'passed',
+        },
+      ],
+      devDoc: {
+        relativePath: 'dev.md',
+        revision: 1,
+      },
+      devDocRef: {
+        relativePath: 'dev.md',
+        revision: 1,
+      },
+    })
+    expect(readFileSync(join(repoRoot, 'patch-work', 'dev.md'), 'utf-8')).toContain('实现 Phase 4')
+  })
+
+  test('v2 developer 缺少已接受方案文档时会中止', () => {
+    createContributionTask({
+      id: 'task-runner-developer-unaccepted',
+      pipelineSessionId: 'session-runner-developer-unaccepted',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'developing',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer-unaccepted',
+      pipelineSessionId: 'session-runner-developer-unaccepted',
+      repositoryRoot: repoRoot,
+      kind: 'implementation_plan',
+      createdByNode: 'planner',
+      content: '# 开发方案\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer-unaccepted',
+      pipelineSessionId: 'session-runner-developer-unaccepted',
+      repositoryRoot: repoRoot,
+      kind: 'test_plan',
+      createdByNode: 'planner',
+      content: '# 测试方案\n',
+    })
+
+    expect(() => buildPipelineNodePrompts('developer', {
+      sessionId: 'session-runner-developer-unaccepted',
+      userInput: '实现 Phase 4',
+      currentNode: 'developer',
+      version: 2,
+      reviewIteration: 0,
+    })).toThrow('尚未通过人工审核')
+    expect(existsSync(join(repoRoot, 'patch-work', 'dev.md'))).toBe(false)
+  })
+
+  test('v2 developer fallback dev.md 对缺失 testsRun 保持保守说明', () => {
+    createContributionTask({
+      id: 'task-runner-developer-fallback',
+      pipelineSessionId: 'session-runner-developer-fallback',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      selectedReportId: 'report-001',
+      status: 'developing',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer-fallback',
+      pipelineSessionId: 'session-runner-developer-fallback',
+      repositoryRoot: repoRoot,
+      kind: 'implementation_plan',
+      createdByNode: 'planner',
+      content: '# 开发方案\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer-fallback',
+      pipelineSessionId: 'session-runner-developer-fallback',
+      repositoryRoot: repoRoot,
+      kind: 'test_plan',
+      createdByNode: 'planner',
+      content: '# 测试方案\n',
+    })
+    acceptPatchWorkDocuments({
+      repositoryRoot: repoRoot,
+      gateId: 'gate-plan',
+      kinds: ['implementation_plan', 'test_plan'],
+    })
+
+    const result = buildNodeExecutionResult('developer', JSON.stringify({
+      summary: '完成 developer 文档',
+      changes: ['新增 dev.md fallback'],
+      tests: ['bun test apps/electron/src/main/lib/pipeline-node-runner.test.ts'],
+      risks: [],
+    }))
+    enrichPipelineV2PatchWorkArtifacts('developer', {
+      sessionId: 'session-runner-developer-fallback',
+      userInput: '实现 Phase 4',
+      currentNode: 'developer',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    const devMarkdown = readFileSync(join(repoRoot, 'patch-work', 'dev.md'), 'utf-8')
+    expect(devMarkdown).toContain('developer 未提供结构化 testsRun')
+    expect(devMarkdown).not.toContain('## 未执行验证及原因\n- 无。')
+  })
+
+  test('v2 developer fallback dev.md 在空 testsRun 时也保持保守说明', () => {
+    createContributionTask({
+      id: 'task-runner-developer-empty-tests',
+      pipelineSessionId: 'session-runner-developer-empty-tests',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      selectedReportId: 'report-001',
+      status: 'developing',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer-empty-tests',
+      pipelineSessionId: 'session-runner-developer-empty-tests',
+      repositoryRoot: repoRoot,
+      kind: 'implementation_plan',
+      createdByNode: 'planner',
+      content: '# 开发方案\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-developer-empty-tests',
+      pipelineSessionId: 'session-runner-developer-empty-tests',
+      repositoryRoot: repoRoot,
+      kind: 'test_plan',
+      createdByNode: 'planner',
+      content: '# 测试方案\n',
+    })
+    acceptPatchWorkDocuments({
+      repositoryRoot: repoRoot,
+      gateId: 'gate-plan',
+      kinds: ['implementation_plan', 'test_plan'],
+    })
+
+    const result = buildNodeExecutionResult('developer', JSON.stringify({
+      summary: '完成 developer 文档',
+      changes: ['新增 dev.md fallback'],
+      tests: ['bun test apps/electron/src/main/lib/pipeline-node-runner.test.ts'],
+      testsRun: [],
+      risks: [],
+    }))
+    enrichPipelineV2PatchWorkArtifacts('developer', {
+      sessionId: 'session-runner-developer-empty-tests',
+      userInput: '实现 Phase 4',
+      currentNode: 'developer',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    const devMarkdown = readFileSync(join(repoRoot, 'patch-work', 'dev.md'), 'utf-8')
+    expect(devMarkdown).toContain('developer 未提供结构化 testsRun')
+  })
+
+  test('v2 reviewer 读取 dev.md 并写入 review.md 和稳定 issue ids', () => {
+    createContributionTask({
+      id: 'task-runner-reviewer',
+      pipelineSessionId: 'session-runner-reviewer',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'reviewing',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-reviewer',
+      pipelineSessionId: 'session-runner-reviewer',
+      repositoryRoot: repoRoot,
+      kind: 'implementation_plan',
+      createdByNode: 'planner',
+      content: '# 开发方案\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-reviewer',
+      pipelineSessionId: 'session-runner-reviewer',
+      repositoryRoot: repoRoot,
+      kind: 'test_plan',
+      createdByNode: 'planner',
+      content: '# 测试方案\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-reviewer',
+      pipelineSessionId: 'session-runner-reviewer',
+      repositoryRoot: repoRoot,
+      kind: 'dev_doc',
+      createdByNode: 'developer',
+      content: '# 开发文档\n\n## 已执行验证\n未执行。\n',
+    })
+    acceptPatchWorkDocuments({
+      repositoryRoot: repoRoot,
+      gateId: 'gate-plan',
+      kinds: ['implementation_plan', 'test_plan'],
+    })
+    acceptPatchWorkDocuments({
+      repositoryRoot: repoRoot,
+      gateId: 'gate-dev',
+      kinds: ['dev_doc'],
+    })
+
+    const prompts = buildPipelineNodePrompts('reviewer', {
+      sessionId: 'session-runner-reviewer',
+      userInput: '实现 Phase 4',
+      currentNode: 'reviewer',
+      version: 2,
+      reviewIteration: 1,
+    })
+    const result = buildNodeExecutionResult('reviewer', JSON.stringify({
+      approved: false,
+      summary: '缺少验证',
+      issues: ['缺少 Developer UI 状态测试'],
+      structuredIssues: [
+        {
+          severity: 'major',
+          category: 'test_gap',
+          title: '缺少 Developer UI 状态测试',
+          detail: '需要覆盖 dev.md 文档审核状态。',
+          status: 'open',
+        },
+      ],
+      reviewMarkdown: '# 审查报告\n\n## 结论\n不通过。\n',
+    }))
+    const enriched = enrichPipelineV2PatchWorkArtifacts('reviewer', {
+      sessionId: 'session-runner-reviewer',
+      userInput: '实现 Phase 4',
+      currentNode: 'reviewer',
+      version: 2,
+      reviewIteration: 1,
+    }, result)
+    const manifest = readPatchWorkManifest(repoRoot)
+
+    expect(prompts.userPrompt).toContain('已接受开发文档（dev.md）')
+    expect(prompts.userPrompt).toContain('git diff -- .')
+    expect(enriched.stageOutput).toMatchObject({
+      node: 'reviewer',
+      approved: false,
+      structuredIssues: [
+        {
+          id: 'RV-REV-001',
+          severity: 'major',
+          status: 'open',
+        },
+      ],
+      reviewDoc: {
+        relativePath: 'review.md',
+      },
+      reviewDocRef: {
+        relativePath: 'review.md',
+      },
+    })
+    expect(manifest.files.find((file) => file.relativePath === 'review.md')).toMatchObject({
+      kind: 'review_doc',
+      createdByNode: 'reviewer',
+    })
+    expect(readFileSync(join(repoRoot, 'patch-work', 'review.md'), 'utf-8')).toContain('不通过')
   })
 })

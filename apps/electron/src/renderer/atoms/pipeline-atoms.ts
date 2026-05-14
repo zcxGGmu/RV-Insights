@@ -116,6 +116,7 @@ export function applyPipelineStreamState(
             ...prev,
             currentNode: event.request.node,
             status: 'waiting_human',
+            reviewIteration: event.request.iteration,
             pendingGate: event.request,
             updatedAt: event.createdAt,
           }

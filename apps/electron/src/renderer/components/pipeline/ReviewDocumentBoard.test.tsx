@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import type {
+  PipelineDeveloperStageOutput,
   PipelinePatchWorkDocumentRef,
   PipelinePlannerStageOutput,
 } from '@rv-insights/shared'
 import {
   buildReviewDocumentBoardViewModel,
+  collectDeveloperDocumentRefs,
   collectPlannerDocumentRefs,
 } from './ReviewDocumentBoard'
 
@@ -39,6 +41,25 @@ describe('ReviewDocumentBoard', () => {
     expect(collectPlannerDocumentRefs(output).map((document) => document.relativePath)).toEqual([
       'plan.md',
       'test-plan.md',
+    ])
+  })
+
+  test('从 developer stage output 收集 dev.md', () => {
+    const output: PipelineDeveloperStageOutput = {
+      node: 'developer',
+      summary: '完成实现',
+      changes: ['新增 developer gate'],
+      tests: ['bun test'],
+      risks: [],
+      devDoc: makeDocument({
+        displayName: '开发文档.md',
+        relativePath: 'dev.md',
+      }),
+      content: '{}',
+    }
+
+    expect(collectDeveloperDocumentRefs(output).map((document) => document.relativePath)).toEqual([
+      'dev.md',
     ])
   })
 
@@ -81,6 +102,26 @@ describe('ReviewDocumentBoard', () => {
         loading: true,
       },
     ])
+  })
+
+  test('developer 文档审核模型使用开发阶段文案', () => {
+    const viewModel = buildReviewDocumentBoardViewModel({
+      stage: 'developer',
+      documents: [
+        makeDocument({
+          displayName: '开发文档.md',
+          relativePath: 'dev.md',
+        }),
+      ],
+      contents: new Map([['dev.md', '# 开发文档']]),
+      loadingPaths: new Set(),
+      readErrors: new Map(),
+      submitting: false,
+    })
+
+    expect(viewModel.approveDisabled).toBe(false)
+    expect(viewModel.approveLabel).toBe('接受开发文档并开始审查')
+    expect(viewModel.title).toBe('审核 Developer 开发文档')
   })
 
   test('文档仍在加载或读取失败时不能通过审核', () => {

@@ -181,6 +181,31 @@ describe('applyPipelineStreamState', () => {
     expect(state?.updatedAt).toBe(2)
   })
 
+  test('gate_waiting 会把已有快照的 reviewer 轮次同步为 gate iteration', () => {
+    const state = applyPipelineStreamState({
+      sessionId: 'session-1',
+      currentNode: 'reviewer',
+      status: 'running',
+      reviewIteration: 2,
+      pendingGate: null,
+      updatedAt: 1,
+    }, payload({
+      type: 'gate_waiting',
+      request: {
+        gateId: 'gate-review-limit',
+        sessionId: 'session-1',
+        node: 'reviewer',
+        kind: 'review_iteration_limit',
+        iteration: 3,
+        createdAt: 2,
+      },
+      createdAt: 2,
+    }))
+
+    expect(state?.reviewIteration).toBe(3)
+    expect(state?.pendingGate?.iteration).toBe(3)
+  })
+
   test('stream error 会把已有快照落为失败态并清理 pending gate', () => {
     const state = applyPipelineStreamErrorState({
       sessionId: 'session-1',

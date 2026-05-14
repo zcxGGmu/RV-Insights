@@ -293,55 +293,55 @@ Pipeline v2 总体完成前必须满足：
 
 **阶段状态**
 
-- [ ] 阶段开始
-- [ ] 阶段完成
+- [x] 阶段开始
+- [x] 阶段完成
 
 **入口条件**
 
-- [ ] Phase 3 已完成。
-- [ ] planner 文档 gate 已能记录 accepted checksum。
+- [x] Phase 3 已完成。
+- [x] planner 文档 gate 已能记录 accepted checksum。
 
 **开发任务**
 
-- [ ] developer 必须读取 accepted `plan.md` 和 `test-plan.md`。
-- [ ] developer 完成源码修改后写 `dev.md`。
-- [ ] developer output 包含 changed files、diff summary、testsRun、risks。
-- [ ] developer 完成后新增 document gate，用户接受后才能进入 reviewer。
-- [ ] reviewer 读取 `dev.md`、Git diff 和测试方案。
-- [ ] reviewer 输出 `review.md` 和 stable issue ids。
-- [ ] reviewer 保持 read-only。
-- [ ] reviewer approved=false 且未达上限时自动回 developer。
-- [ ] 达到 review iteration 上限时进入人工 gate。
-- [ ] UI 增加 reviewer issue board 或在现有 board 中展示 severity/status。
+- [x] developer 必须读取 accepted `plan.md` 和 `test-plan.md`。
+- [x] developer 完成源码修改后写 `dev.md`。
+- [x] developer output 包含 changed files、diff summary、testsRun、risks。
+- [x] developer 完成后新增 document gate，用户接受后才能进入 reviewer。
+- [x] reviewer 读取 `dev.md`、Git diff 和测试方案。
+- [x] reviewer 输出 `review.md` 和 stable issue ids。
+- [x] reviewer 保持 read-only。
+- [x] reviewer approved=false 且未达上限时自动回 developer。
+- [x] 达到 review iteration 上限时进入人工 gate。
+- [x] UI 增加 reviewer issue board 或在现有 board 中展示 severity/status。
 
 **建议文件**
 
-- [ ] `apps/electron/src/main/lib/codex-pipeline-node-runner.ts`
-- [ ] `apps/electron/src/main/lib/pipeline-graph.ts`
-- [ ] `apps/electron/src/main/lib/pipeline-service.ts`
-- [ ] `apps/electron/src/renderer/components/pipeline/ReviewerIssueBoard.tsx`
-- [ ] `packages/shared/src/types/pipeline.ts`
+- [x] `apps/electron/src/main/lib/codex-pipeline-node-runner.ts`
+- [x] `apps/electron/src/main/lib/pipeline-graph.ts`
+- [x] `apps/electron/src/main/lib/pipeline-service.ts`
+- [x] `apps/electron/src/renderer/components/pipeline/ReviewerIssueBoard.tsx`
+- [x] `packages/shared/src/types/pipeline.ts`
 
 **测试**
 
-- [ ] `bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts`
-- [ ] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
-- [ ] `bun test apps/electron/src/renderer/components/pipeline/ReviewerIssueBoard.test.tsx`
-- [ ] `bun run typecheck`
+- [x] `bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts`
+- [x] `bun test apps/electron/src/main/lib/pipeline-graph.test.ts`
+- [x] `bun test apps/electron/src/renderer/components/pipeline/ReviewerIssueBoard.test.tsx`
+- [x] `bun run typecheck`
 
 **完成定义**
 
-- [ ] `dev.md` 固定生成，且 UI 可审核。
-- [ ] 用户接受 developer 文档后才进入 reviewer。
-- [ ] reviewer issue loop 可自动回 developer。
-- [ ] review iteration 有上限和人工接管。
-- [ ] reviewer 阶段不产生源码变更；若产生则标记失败。
+- [x] `dev.md` 固定生成，且 UI 可审核。
+- [x] 用户接受 developer 文档后才进入 reviewer。
+- [x] reviewer issue loop 可自动回 developer。
+- [x] review iteration 有上限和人工接管。
+- [x] reviewer 阶段不产生源码变更；若产生则标记失败。
 
 **禁止事项**
 
-- [ ] reviewer 不直接修代码。
-- [ ] 不跳过 developer gate。
-- [ ] 不允许 reviewer 无限循环。
+- [x] reviewer 不直接修代码。
+- [x] 不跳过 developer gate。
+- [x] 不允许 reviewer 无限循环。
 
 ## Phase 5：Codex Tester、测试报告与 PatchSet
 
@@ -352,8 +352,8 @@ Pipeline v2 总体完成前必须满足：
 
 **入口条件**
 
-- [ ] Phase 4 已完成。
-- [ ] developer/reviewer loop 已稳定。
+- [x] Phase 4 已完成。
+- [x] developer/reviewer loop 已稳定。
 
 **开发任务**
 
@@ -629,9 +629,9 @@ Pipeline v2 总体完成前必须满足：
 ## 最新开发状态快照
 
 > 更新时间：2026-05-14
-> 最近阶段提交：`ffd1f309905c08fdd1bf471ef560361d3585d236`（`fix(pipeline): 增加节点静默运行反馈`）。
-> 最新完成阶段：Phase 3 已完成。Phase 4 尚未开始。
-> 当前分支状态：`base/pipeline-v0` 相对 `origin/base/pipeline-v0` ahead 8 commits；未执行 push / PR。
+> 最近阶段提交：Phase 4 单独提交由本轮变更创建（commit hash 以 `git log -1` 为准）。
+> 最新完成阶段：Phase 4 已完成。Phase 5 尚未开始。
+> 当前分支状态：`base/pipeline-v0` 相对 `origin/base/pipeline-v0` ahead 10 commits；未执行 push / PR。
 
 ### 已完成
 
@@ -655,32 +655,35 @@ Pipeline v2 总体完成前必须满足：
   - `71bcb1df`（`fix(pipeline): 容错 explorer 非 JSON 输出`）。
   - `364cf964`（`fix(pipeline): 增加停止运行的可见反馈`）。
   - `ffd1f309`（`fix(pipeline): 增加节点静默运行反馈`）。
-- [x] 当前 `@rv-insights/shared` 版本为 `0.1.28`，`@rv-insights/electron` 版本为 `0.0.53`。
+- [x] Phase 4：Developer 文档审核与 Reviewer Issue Loop。
+- [x] Phase 4 已实现 developer 读取 accepted `plan.md` / `test-plan.md`，输出 `dev.md` 并进入 developer 文档审核。
+- [x] Phase 4 已实现 reviewer read-only issue loop：读取 accepted `dev.md`、输出结构化 issues 与 `review.md`，不通过未达上限自动回 developer，达到 3 轮进入人工接管 gate。
+- [x] Phase 4 UI 已接入 developer document review 和 `ReviewerIssueBoard`，继续通过结构化 IPC 读取 patch-work 文档，不从 records 反推主业务状态。
+- [x] 当前 `@rv-insights/shared` 版本为 `0.1.29`，`@rv-insights/electron` 版本为 `0.0.54`。
 
 ### 未完成
 
-- [ ] Phase 4：Developer 文档审核与 Reviewer Issue Loop，尚未开始。
 - [ ] Phase 5：Codex Tester、测试报告与 PatchSet，尚未开始。
 - [ ] Phase 6：Committer Draft-Only，尚未开始。
 - [ ] Phase 7：受控本地 Commit Gate，尚未开始，且需要用户明确允许实现本地 commit 能力。
 - [ ] Phase 8：远端 PR 集成，尚未开始，且需要单独安全评审和用户明确允许远端写能力。
-- [ ] 全局完成定义尚未完成：developer 文档审核、reviewer/tester 循环、committer draft-only、本地 commit gate、远端 PR gate 仍待后续阶段落地。
+- [ ] 全局完成定义尚未完成：tester patch-set、committer draft-only、本地 commit gate、远端 PR gate 仍待后续阶段落地。
 
 ### 当前边界
 
-- 下一步只允许进入 Phase 4，不得跳到 Phase 5+。
-- Phase 4 必须先写测试或 BDD 场景，再实现功能。
-- Phase 4 不开启真实 commit / push / PR；Developer 可进入源码修改闭环，但仍不得提交。
+- 下一步只允许进入 Phase 5，不得跳到 Phase 6+。
+- Phase 5 必须先写测试或 BDD 场景，再实现功能。
+- Phase 5 不开启真实 commit / push / PR；仍不得把 `patch-work/**` 默认加入 patch-set 或 commit。
 - README 和 AGENTS 不修改，除非用户明确允许。
 - 每完成一个阶段并满足完成定义后，必须单独提交一次；不默认 push 或创建 PR，除非用户明确要求。
 
 ### 已知风险
 
-- 全量 `bun test` 已运行，最新结果为 306 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 或 Phase 3 后续 bugfix；进入 Phase 4 前后仍需继续标注为既有风险，除非另行修复。
+- 全量 `bun test` 已运行，最新结果为 324 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 / Phase 4 或 Phase 3 后续 bugfix；进入 Phase 5 前后仍需继续标注为既有风险，除非另行修复。
 
 ## 当前执行建议
 
-Phase 3 已完成。下一步只允许进入 Phase 4：Developer 文档审核与 Reviewer Issue Loop。继续遵守阶段边界：Phase 4 开始前先检查 `git status`、在 `tasks/todo.md` 写计划并标记本 checklist 的 Phase 4“阶段开始”；随后先补 developer document gate / reviewer issue loop / patch-work dev/review doc 测试，再实现，不开启真实 commit / push / PR。
+Phase 4 已完成。下一步只允许进入 Phase 5：Codex Tester、测试报告与 PatchSet。继续遵守阶段边界：Phase 5 开始前先检查 `git status`、在 `tasks/todo.md` 写计划并标记本 checklist 的 Phase 5“阶段开始”；随后先补 tester result / patch-set / UI 状态测试，再实现，不开启真实 commit / push / PR。
 
 ## 下次启动提示词
 
@@ -692,7 +695,7 @@ Phase 3 已完成。下一步只允许进入 Phase 4：Developer 文档审核与
 - tasks/lessons.md
 - tasks/todo.md
 - improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md
-- improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md 中“当前实现进度”和 Phase 4 相关内容
+- improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md 中“当前实现进度”和 Phase 5 相关内容
 
 当前进度：
 1. Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
@@ -701,16 +704,17 @@ Phase 3 已完成。下一步只允许进入 Phase 4：Developer 文档审核与
 4. Phase 2 已完成并提交，commit 为 53119675ee4f975f463f7214d2b00a2ae9e0c4a5；已实现 shared v2 类型、committer、v1/v2 replay、v2 fake graph builder、runner strategy 和六节点 StageRail display model。
 5. Phase 3 已完成并提交，commit 为 881c7ad1；已实现 Explorer 任务选择、Planner 文档审核、patch-work IPC / preload、`ExplorerTaskBoard` / `ReviewDocumentBoard`。
 6. Phase 3 后续可用性修复已提交：e65f8ac2 接通 v2 贡献 Pipeline 前端入口，71bcb1df 容错 explorer 非 JSON 输出，364cf964 增加停止运行反馈，ffd1f309 增加节点静默运行反馈。
-7. 当前 `@rv-insights/shared` 版本为 0.1.28，`@rv-insights/electron` 版本为 0.0.53。
-8. Phase 4-8 均未完成；后续只能从 Phase 4 开始，不得跳阶段。
-9. 当前仍没有 Developer 文档审核、Reviewer issue loop、Tester patch-set、Committer draft-only、本地 commit 或远端 PR 闭环；不要误认为 UI 已接入完整 v2 贡献工作流。
-10. 当前已知验证状态：Phase 3 及后续 bugfix 聚焦测试、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 306 pass / 1 fail / 1 error，失败仍为既有 `completion-signal.test.ts` Electron named export 测试环境问题。
+7. Phase 4 已完成并已单独提交；已实现 Developer 文档审核与 Reviewer Issue Loop。
+8. 当前 `@rv-insights/shared` 版本为 0.1.29，`@rv-insights/electron` 版本为 0.0.54。
+9. Phase 5-8 均未完成；后续只能从 Phase 5 开始，不得跳阶段。
+10. 当前仍没有 Tester patch-set、Committer draft-only、本地 commit 或远端 PR 闭环；不要误认为 UI 已接入完整 v2 贡献工作流。
+11. 当前已知验证状态：Phase 4 聚焦测试、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 324 pass / 1 fail / 1 error，失败仍为既有 `completion-signal.test.ts` Electron named export 测试环境问题。
 
 开发纪律：
-- 开始 Phase 4 前，先检查 git status，保护已有用户变更。
-- 开始 Phase 4 前，在 tasks/todo.md 写 Phase 4 计划，并把 checklist 中 Phase 4 的“阶段开始”标为已开始。
+- 开始 Phase 5 前，先检查 git status，保护已有用户变更。
+- 开始 Phase 5 前，在 tasks/todo.md 写 Phase 5 计划，并把 checklist 中 Phase 5 的“阶段开始”标为已开始。
 - 每个阶段必须先补测试或 BDD 场景，再实现功能。
-- 未满足 Phase 4 完成定义前，不得进入 Phase 5。
+- 未满足 Phase 5 完成定义前，不得进入 Phase 6。
 - 每完成一个阶段并通过完成定义后，单独提交一次；重新启动 Codex 会话后也要主动延续这个纪律。
 - 不得默认执行 git push 或创建 PR，除非我明确要求。
 - 不得把 patch-work/** 默认加入 patch-set 或 commit。
@@ -720,14 +724,13 @@ Phase 3 已完成。下一步只允许进入 Phase 4：Developer 文档审核与
 - README 和 AGENTS.md 只有在我明确允许后再修改。
 - 完成功能代码变更时，递增受影响 package 的 patch 版本。
 
-Phase 4 目标：
-- 先补 developer document gate、reviewer issue loop、patch-work dev/review doc、Developer/Reviewer UI 状态测试。
-- developer 基于 plan.md / test-plan.md 进入实现，但仍不执行真实 commit / push / PR。
-- developer 输出 dev.md / patch draft，并进入 developer 文档审核。
-- reviewer 输出结构化 issues 和 review.md；用户拒绝或 reviewer 不通过时回到 developer 并产生新 revision。
+Phase 5 目标：
+- 先补 tester result、patch-set manifest、patch-set 排除 `patch-work/**`、Tester UI 状态测试。
+- tester 基于 accepted `dev.md` / `review.md` / `test-plan.md` 执行测试和必要修复，但仍不执行真实 commit / push / PR。
+- tester 输出 `result.md`、测试证据和 patch-set 草稿。
 - UI 继续通过结构化 IPC 读取 patch-work 文档，不用 records 反推主业务状态。
 
-Phase 4 禁止事项：
+Phase 5 禁止事项：
 - 不开启真实 commit、push 或 PR。
 - 不得把 patch-work/** 默认加入 patch-set 或 commit。
 ```

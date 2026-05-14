@@ -225,16 +225,18 @@ export function buildPipelineGateViewModel(
 ): PipelineGateViewModel {
   const nodeLabel = getPipelineNodeLabel(request.node)
   const approveLabel = approveLabelForNode(request.node, resolvePipelineVersion(options.version))
+  const isReviewIterationLimit = request.kind === 'review_iteration_limit'
+  const reviewIterationLimitApproveLabel = '接受风险并进入测试'
 
   return {
-    title: `${nodeLabel}节点待确认`,
+    title: isReviewIterationLimit && request.title ? request.title : `${nodeLabel}节点待确认`,
     nodeLabel,
-    iterationLabel: `第 ${request.iteration + 1} 轮`,
+    iterationLabel: isReviewIterationLimit ? `已完成 ${request.iteration} 轮审查` : `第 ${request.iteration + 1} 轮`,
     priorityLabel: '待你处理',
-    primaryActionHint: approveLabel,
+    primaryActionHint: isReviewIterationLimit ? reviewIterationLimitApproveLabel : approveLabel,
     summary: request.summary,
     feedbackPlaceholder: request.feedbackHint ?? '填写反馈后可以要求修改或重跑当前节点',
-    approveLabel,
+    approveLabel: isReviewIterationLimit ? reviewIterationLimitApproveLabel : approveLabel,
     rejectLabel: '要求修改',
     rerunLabel: `重跑${nodeLabel}`,
     rejectRequiresFeedback: true,

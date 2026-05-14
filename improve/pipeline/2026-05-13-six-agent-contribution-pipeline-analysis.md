@@ -18,21 +18,22 @@
   - `71bcb1df`（`fix(pipeline): 容错 explorer 非 JSON 输出`）：explorer 非 JSON / 自然语言输出可恢复为 fallback report，避免卡在结构化解析失败。
   - `364cf964`（`fix(pipeline): 增加停止运行的可见反馈`）：stop IPC 返回结构化状态，前端显示停止中 / 已停止反馈。
   - `ffd1f309`（`fix(pipeline): 增加节点静默运行反馈`）：节点已启动但暂未产生 `text_delta` 时显示运行进度，避免 UI 看起来卡在等待输出。
-- Phase 4-8 均未开始：下一步只能进入 Phase 4，不得跳阶段，不得提前接真实 commit、push 或 PR。
-- 当前版本状态：`@rv-insights/shared` 为 `0.1.28`，`@rv-insights/electron` 为 `0.0.53`。
-- 当前已知验证状态：Phase 3 及后续 bugfix 聚焦测试、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 306 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3 或后续 bugfix 改动。
+- Phase 4 已完成并由本轮提交落地：developer 读取 accepted `plan.md` / `test-plan.md`，写 `dev.md` 并进入 developer 文档审核；reviewer read-only 读取 accepted `dev.md`、输出结构化 issues 与 `review.md`，不通过未达上限自动回 developer，达到 3 轮进入人工接管 gate。
+- Phase 5-8 均未开始：下一步只能进入 Phase 5，不得跳阶段，不得提前接真实 commit、push 或 PR。
+- 当前版本状态：`@rv-insights/shared` 为 `0.1.29`，`@rv-insights/electron` 为 `0.0.54`。
+- 当前已知验证状态：Phase 4 聚焦测试 108 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 324 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3/4 或后续 bugfix 改动。
 
 ## 结论
 
-当前 RV-Insights 已经有一个可运行的五节点 Pipeline 底座，并在 Phase 2 增加了 v2 六节点骨架；Phase 3 已接入 explorer 任务选择、planner 文档审核和 patch-work 结构化读取，但 Developer/Reviewer/Tester/Committer 的完整贡献闭环仍待 Phase 4+ 落地：
+当前 RV-Insights 已经有一个可运行的 Pipeline 底座，并在 Phase 2 增加了 v2 六节点骨架；Phase 3 已接入 explorer 任务选择、planner 文档审核和 patch-work 结构化读取，Phase 4 已接入 Developer 文档审核与 Reviewer issue loop，但 Tester/Committer 的完整贡献闭环仍待 Phase 5+ 落地：
 
-- LangGraph 编排：`explorer -> planner -> developer -> reviewer -> tester`
+- LangGraph v2 编排：`explorer -> planner -> developer -> developer document gate -> reviewer -> tester -> committer`
 - 人工 gate、checkpoint、stream event、JSONL 记录和阶段 artifact 已具备
 - v1 中 `explorer / planner / tester` 保持 Claude Agent SDK 兼容链路，`developer / reviewer` 已可走 Codex SDK 或 `codex exec` CLI fallback
 - v2 strategy 已表驱动化：`explorer / planner` 使用 Claude，`developer / reviewer / tester / committer` 使用 Codex
-- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI
+- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI，Phase 4 新增 Developer 文档审核和 Reviewer issue board
 
-但它还不是用户描述的“六 Agent AI 开源贡献工作流”。核心差距不只是少一个 `committer` 节点，而是缺少贡献任务选择、`patch-work` 工作区契约、可审核文档看板、测试产物和社区提交流程这些一等产品对象。
+但它还不是用户描述的完整“六 Agent AI 开源贡献工作流”。核心差距已经收敛到 tester patch-set、committer draft-only、本地 commit gate 和远端 PR gate 这些后续阶段对象。
 
 优先级最高的事情是先明确产品语义：
 

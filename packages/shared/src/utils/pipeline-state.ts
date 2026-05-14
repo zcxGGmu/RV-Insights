@@ -32,11 +32,12 @@ function nextNodeAfterApproval(node: PipelineNodeKind, version: PipelineVersion)
       return 'developer'
     case 'reviewer':
       return 'tester'
+    case 'developer':
+      return version === 2 ? 'reviewer' : 'developer'
     case 'tester':
       return version === 2 ? 'committer' : 'tester'
     case 'committer':
       return 'committer'
-    case 'developer':
     default:
       return node
   }

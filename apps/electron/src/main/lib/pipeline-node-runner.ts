@@ -3,9 +3,19 @@ import { dirname, join } from 'node:path'
 import { normalizeAnthropicBaseUrlForSdk } from '@rv-insights/core'
 import type {
   JsonSchemaOutputFormat,
+  PatchWorkFileKind,
+  PatchWorkFileRef,
+  PipelineChangedFile,
+  PipelineDeveloperStageOutput,
   PipelineExplorerReportRef,
   PipelineNodeKind,
   PipelinePlannerStageOutput,
+  PipelineReviewIssue,
+  PipelineReviewIssueCategory,
+  PipelineReviewIssueSeverity,
+  PipelineReviewIssueStatus,
+  PipelineReviewerStageOutput,
+  PipelineTestRun,
   PipelineVersion,
   PipelineStageOutput,
   PipelineStageOutputMap,
@@ -42,6 +52,7 @@ import { getContributionTaskByPipelineSessionId } from './contribution-task-serv
 import {
   clearPatchWorkFilesByKind,
   listPatchWorkExplorerReports,
+  readPatchWorkManifest,
   readPatchWorkManifestFile,
   writePatchWorkFile,
 } from './pipeline-patch-work-service'
@@ -355,6 +366,26 @@ function buildV2SystemPromptAppendix(
     ].join('\n')
   }
 
+  if (node === 'developer') {
+    return [
+      'Pipeline v2 约束：',
+      '- 必须基于已接受的 patch-work/plan.md 和 patch-work/test-plan.md 完成实现。',
+      '- 可以修改源码和测试，但不要执行 git commit、git push 或创建 PR。',
+      '- 最终 JSON 可包含 devMarkdown；应用会把它写入 patch-work/dev.md。',
+      '- devMarkdown 必须覆盖需求复述、实现摘要、变更文件、验证情况、未执行验证、风险和 reviewer 关注点。',
+    ].join('\n')
+  }
+
+  if (node === 'reviewer') {
+    return [
+      'Pipeline v2 约束：',
+      '- 必须保持 read-only，不要修改源码、patch-work 或 Git 状态。',
+      '- 必须读取已接受的 patch-work/dev.md，并结合 git diff -- . \':!patch-work/**\' 审查源码变更。',
+      '- issues 字段保留问题标题数组；structuredIssues 提供 stable id、severity、category、detail 和 status。',
+      '- 最终 JSON 可包含 reviewMarkdown；应用会把它写入 patch-work/review.md。',
+    ].join('\n')
+  }
+
   return undefined
 }
 
@@ -372,6 +403,109 @@ function readSelectedTaskForPrompt(context: PipelineNodeExecutionContext): strin
   })
 }
 
+interface AcceptedPatchWorkDocument {
+  ref: PatchWorkFileRef
+  content: string
+}
+
+function readAcceptedPatchWorkDocumentForPrompt(input: {
+  context: PipelineNodeExecutionContext
+  kind: PatchWorkFileKind
+  label: string
+}): AcceptedPatchWorkDocument {
+  const task = getContributionTaskByPipelineSessionId(input.context.sessionId)
+  if (!task) {
+    throw new Error(`未找到 Pipeline 贡献任务，无法读取 ${input.label}: ${input.context.sessionId}`)
+  }
+
+  const manifest = readPatchWorkManifest(task.repositoryRoot)
+  const file = manifest.files.find((item) => item.kind === input.kind)
+  if (!file) {
+    throw new Error(`patch-work 文档不存在，无法读取 ${input.label}`)
+  }
+  if (!file.acceptedRevision) {
+    throw new Error(`patch-work 文档尚未通过人工审核，无法读取 ${input.label}`)
+  }
+
+  return {
+    ref: file,
+    content: readPatchWorkManifestFile({
+      repositoryRoot: task.repositoryRoot,
+      relativePath: file.relativePath,
+    }),
+  }
+}
+
+function buildAcceptedDocumentPromptSection(
+  title: string,
+  document: AcceptedPatchWorkDocument,
+): string {
+  return [
+    `${title}（${document.ref.relativePath}）：`,
+    document.content,
+  ].join('\n')
+}
+
+function buildV2PatchWorkPromptSections(
+  node: PipelineNodeKind,
+  context: PipelineNodeExecutionContext,
+): string[] {
+  if (context.version !== 2) return []
+
+  if (node === 'developer') {
+    return [
+      buildAcceptedDocumentPromptSection(
+        '已接受开发方案',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'implementation_plan',
+          label: 'plan.md',
+        }),
+      ),
+      buildAcceptedDocumentPromptSection(
+        '已接受测试方案',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'test_plan',
+          label: 'test-plan.md',
+        }),
+      ),
+    ]
+  }
+
+  if (node === 'reviewer') {
+    return [
+      buildAcceptedDocumentPromptSection(
+        '已接受开发方案',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'implementation_plan',
+          label: 'plan.md',
+        }),
+      ),
+      buildAcceptedDocumentPromptSection(
+        '已接受测试方案',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'test_plan',
+          label: 'test-plan.md',
+        }),
+      ),
+      buildAcceptedDocumentPromptSection(
+        '已接受开发文档',
+        readAcceptedPatchWorkDocumentForPrompt({
+          context,
+          kind: 'dev_doc',
+          label: 'dev.md',
+        }),
+      ),
+      '请使用只读方式审查当前源码 diff：`git diff -- . \':!patch-work/**\'`，不要修改任何文件。',
+    ]
+  }
+
+  return []
+}
+
 function buildUserPrompt(
   node: PipelineNodeKind,
   context: PipelineNodeExecutionContext,
@@ -385,6 +519,7 @@ function buildUserPrompt(
     selectedTaskContent
       ? `已选任务（selected-task.md）：\n${selectedTaskContent}`
       : undefined,
+    ...buildV2PatchWorkPromptSections(node, context),
     compactStageOutputsForPrompt(context.stageOutputs).trim() || undefined,
     context.feedback ? `人工反馈：${context.feedback}` : undefined,
     `用户需求：${context.userInput}`,
@@ -431,6 +566,66 @@ function explorerReportDraftSchema(): Record<string, unknown> {
   }
 }
 
+function changedFileSchema(): Record<string, unknown> {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['path', 'changeType', 'summary'],
+    properties: {
+      path: { type: 'string' },
+      changeType: {
+        type: 'string',
+        enum: ['added', 'modified', 'deleted', 'renamed'],
+      },
+      summary: { type: 'string' },
+    },
+  }
+}
+
+function testRunSchema(): Record<string, unknown> {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['command', 'status', 'summary'],
+    properties: {
+      command: { type: 'string' },
+      status: {
+        type: 'string',
+        enum: ['passed', 'failed', 'skipped'],
+      },
+      summary: { type: 'string' },
+    },
+  }
+}
+
+function reviewIssueSchema(): Record<string, unknown> {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['severity', 'category', 'title', 'detail', 'status'],
+    properties: {
+      id: { type: 'string' },
+      severity: {
+        type: 'string',
+        enum: ['blocker', 'major', 'minor', 'nit'],
+      },
+      category: {
+        type: 'string',
+        enum: ['correctness', 'regression', 'test_gap', 'maintainability', 'security', 'style'],
+      },
+      title: { type: 'string' },
+      detail: { type: 'string' },
+      status: {
+        type: 'string',
+        enum: ['open', 'fixed', 'accepted_risk'],
+      },
+      file: { type: 'string' },
+      line: { type: 'number' },
+      suggestedFix: { type: 'string' },
+    },
+  }
+}
+
 export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, unknown> {
   switch (node) {
     case 'explorer':
@@ -473,6 +668,15 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
           changes: stringArraySchema(),
           tests: stringArraySchema(),
           risks: stringArraySchema(),
+          changedFiles: {
+            type: 'array',
+            items: changedFileSchema(),
+          },
+          testsRun: {
+            type: 'array',
+            items: testRunSchema(),
+          },
+          devMarkdown: { type: 'string' },
         },
       }
     case 'reviewer':
@@ -484,6 +688,11 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
           approved: { type: 'boolean' },
           summary: { type: 'string' },
           issues: stringArraySchema(),
+          structuredIssues: {
+            type: 'array',
+            items: reviewIssueSchema(),
+          },
+          reviewMarkdown: { type: 'string' },
         },
       }
     case 'tester':
@@ -675,6 +884,142 @@ function readRequiredBoolean(
   if (typeof value === 'boolean') return value
   issues.push(`缺少或非法字段: ${field}`)
   return false
+}
+
+function readEnumValue<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+): T | null {
+  return typeof value === 'string' && allowed.includes(value as T)
+    ? value as T
+    : null
+}
+
+function readOptionalChangedFiles(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): PipelineChangedFile[] | undefined {
+  const value = parsed[field]
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(`缺少或非法字段: ${field}`)
+    return undefined
+  }
+
+  const changedFiles: PipelineChangedFile[] = []
+  value.forEach((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      issues.push(`字段包含非法对象: ${field}[${index}]`)
+      return
+    }
+    const record = item as Record<string, unknown>
+    const path = typeof record.path === 'string' ? record.path.trim() : ''
+    const changeType = readEnumValue(record.changeType, ['added', 'modified', 'deleted', 'renamed'] as const)
+    const summary = typeof record.summary === 'string' ? record.summary.trim() : ''
+    if (!path || !changeType || !summary) {
+      issues.push(`缺少或非法字段: ${field}[${index}]`)
+      return
+    }
+    changedFiles.push({ path, changeType, summary })
+  })
+
+  return changedFiles
+}
+
+function readOptionalTestRuns(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): PipelineTestRun[] | undefined {
+  const value = parsed[field]
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(`缺少或非法字段: ${field}`)
+    return undefined
+  }
+
+  const testsRun: PipelineTestRun[] = []
+  value.forEach((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      issues.push(`字段包含非法对象: ${field}[${index}]`)
+      return
+    }
+    const record = item as Record<string, unknown>
+    const command = typeof record.command === 'string' ? record.command.trim() : ''
+    const status = readEnumValue(record.status, ['passed', 'failed', 'skipped'] as const)
+    const summary = typeof record.summary === 'string' ? record.summary.trim() : ''
+    if (!command || !status || !summary) {
+      issues.push(`缺少或非法字段: ${field}[${index}]`)
+      return
+    }
+    testsRun.push({ command, status, summary })
+  })
+
+  return testsRun
+}
+
+function buildStableReviewIssueId(index: number): string {
+  return `RV-REV-${String(index + 1).padStart(3, '0')}`
+}
+
+function readOptionalReviewIssues(
+  parsed: Record<string, unknown>,
+  field: string,
+  issues: string[],
+): PipelineReviewIssue[] | undefined {
+  const value = parsed[field]
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(`缺少或非法字段: ${field}`)
+    return undefined
+  }
+
+  const reviewIssues: PipelineReviewIssue[] = []
+  value.forEach((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      issues.push(`字段包含非法对象: ${field}[${index}]`)
+      return
+    }
+    const record = item as Record<string, unknown>
+    const id = typeof record.id === 'string' && record.id.trim()
+      ? record.id.trim()
+      : buildStableReviewIssueId(index)
+    const severity = readEnumValue<PipelineReviewIssueSeverity>(
+      record.severity,
+      ['blocker', 'major', 'minor', 'nit'] as const,
+    )
+    const category = readEnumValue<PipelineReviewIssueCategory>(
+      record.category,
+      ['correctness', 'regression', 'test_gap', 'maintainability', 'security', 'style'] as const,
+    )
+    const title = typeof record.title === 'string' ? record.title.trim() : ''
+    const detail = typeof record.detail === 'string' ? record.detail.trim() : ''
+    const status = readEnumValue<PipelineReviewIssueStatus>(
+      record.status,
+      ['open', 'fixed', 'accepted_risk'] as const,
+    )
+    if (!severity || !category || !title || !detail || !status) {
+      issues.push(`缺少或非法字段: ${field}[${index}]`)
+      return
+    }
+
+    reviewIssues.push({
+      id,
+      severity,
+      category,
+      title,
+      detail,
+      status,
+      file: typeof record.file === 'string' && record.file.trim() ? record.file.trim() : undefined,
+      line: typeof record.line === 'number' && Number.isFinite(record.line) ? record.line : undefined,
+      suggestedFix: typeof record.suggestedFix === 'string' && record.suggestedFix.trim()
+        ? record.suggestedFix.trim()
+        : undefined,
+    })
+  })
+
+  return reviewIssues
 }
 
 function readSubmissionStatus(
@@ -978,6 +1323,168 @@ function enrichPlannerPatchWorkArtifacts(
   }
 }
 
+function buildFallbackDevMarkdown(output: PipelineDeveloperStageOutput): string {
+  const testsRunLines = output.testsRun?.length
+    ? output.testsRun.map((testRun) => `- ${testRun.status}: \`${testRun.command}\` - ${testRun.summary}`)
+    : output.tests.map((test) => `- ${test}`)
+  const skippedTestsRunLines = output.testsRun?.length
+    ? output.testsRun
+        .filter((testRun) => testRun.status === 'skipped')
+        .map((testRun) => `- \`${testRun.command}\` - ${testRun.summary}`)
+    : ['- developer 未提供结构化 testsRun，请结合原始输出和 diff 人工核对。']
+
+  return [
+    '# 开发文档',
+    '',
+    '## 需求复述',
+    output.summary,
+    '',
+    '## 实现摘要',
+    output.summary,
+    '',
+    '## 变更文件',
+    ...(output.changedFiles?.length
+      ? output.changedFiles.map((file) => `- \`${file.path}\` (${file.changeType})：${file.summary}`)
+      : output.changes.map((change) => `- ${change}`)),
+    '',
+    '## 关键代码路径',
+    ...(output.changedFiles?.length
+      ? output.changedFiles.map((file) => `- \`${file.path}\``)
+      : ['- 详见本轮代码 diff。']),
+    '',
+    '## 类型/API/IPC 变更',
+    '- 详见实现摘要和变更文件。',
+    '',
+    '## UI 行为变更',
+    '- 详见实现摘要和变更文件。',
+    '',
+    '## 已执行验证',
+    ...testsRunLines,
+    '',
+    '## 未执行验证及原因',
+    ...skippedTestsRunLines,
+    ...(output.testsRun?.length && output.testsRun.every((testRun) => testRun.status !== 'skipped')
+      ? ['- 无。']
+      : []),
+    '',
+    '## 已知风险',
+    ...(output.risks.length > 0 ? output.risks.map((risk) => `- ${risk}`) : ['- 暂无明确风险。']),
+    '',
+    '## 对 reviewer 的关注点',
+    '- 请重点检查实现是否符合 plan.md / test-plan.md，以及补丁是否排除了 patch-work/**。',
+    '',
+  ].join('\n')
+}
+
+function enrichDeveloperPatchWorkArtifacts(
+  context: PipelineNodeExecutionContext,
+  result: PipelineNodeExecutionResult,
+): PipelineNodeExecutionResult {
+  if (result.stageOutput?.node !== 'developer') return result
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) return result
+
+  const parsed = parseStructuredOutput('developer', result.output)
+  const devMarkdown = readOptionalString(parsed, 'devMarkdown')
+    ?? buildFallbackDevMarkdown(result.stageOutput)
+  const devDocRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'dev_doc',
+    createdByNode: 'developer',
+    content: devMarkdown,
+  })
+  const documentRef = toPatchWorkDocumentRef(devDocRef)
+
+  return {
+    ...result,
+    stageOutput: {
+      ...result.stageOutput,
+      devDoc: documentRef,
+      devDocRef: documentRef,
+    },
+  }
+}
+
+function buildReviewIssuesFromStrings(issues: string[]): PipelineReviewIssue[] {
+  return issues.map((issue, index) => ({
+    id: buildStableReviewIssueId(index),
+    severity: 'major',
+    category: 'correctness',
+    title: issue,
+    detail: issue,
+    status: 'open',
+  }))
+}
+
+function buildFallbackReviewMarkdown(
+  output: PipelineReviewerStageOutput,
+  structuredIssues: PipelineReviewIssue[],
+): string {
+  return [
+    '# 审查报告',
+    '',
+    '## 结论',
+    output.approved ? '通过。' : '不通过，需要回到 developer 修订。',
+    '',
+    '## 摘要',
+    output.summary,
+    '',
+    '## 结构化问题',
+    ...(structuredIssues.length > 0
+      ? structuredIssues.map((issue) => [
+        `- [${issue.id}] ${issue.severity} / ${issue.category} / ${issue.status}`,
+        `  - ${issue.title}`,
+        `  - ${issue.detail}`,
+        issue.file ? `  - 文件：${issue.file}${issue.line ? `:${issue.line}` : ''}` : undefined,
+        issue.suggestedFix ? `  - 建议：${issue.suggestedFix}` : undefined,
+      ].filter((line): line is string => Boolean(line)).join('\n'))
+      : ['- 无。']),
+    '',
+    '## Reviewer 说明',
+    '- reviewer 保持 read-only，修复由 developer 执行。',
+    '',
+  ].join('\n')
+}
+
+function enrichReviewerPatchWorkArtifacts(
+  context: PipelineNodeExecutionContext,
+  result: PipelineNodeExecutionResult,
+): PipelineNodeExecutionResult {
+  if (result.stageOutput?.node !== 'reviewer') return result
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) return result
+
+  const parsed = parseStructuredOutput('reviewer', result.output)
+  const structuredIssues = result.stageOutput.structuredIssues?.length
+    ? result.stageOutput.structuredIssues
+    : buildReviewIssuesFromStrings(result.stageOutput.issues)
+  const reviewMarkdown = readOptionalString(parsed, 'reviewMarkdown')
+    ?? buildFallbackReviewMarkdown(result.stageOutput, structuredIssues)
+  const reviewDocRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'review_doc',
+    createdByNode: 'reviewer',
+    content: reviewMarkdown,
+  })
+  const documentRef = toPatchWorkDocumentRef(reviewDocRef)
+
+  return {
+    ...result,
+    issues: result.stageOutput.issues,
+    stageOutput: {
+      ...result.stageOutput,
+      structuredIssues,
+      reviewDoc: documentRef,
+      reviewDocRef: documentRef,
+      reviewIteration: context.reviewIteration,
+    },
+  }
+}
+
 export function enrichPipelineV2PatchWorkArtifacts(
   node: PipelineNodeKind,
   context: PipelineNodeExecutionContext,
@@ -986,6 +1493,8 @@ export function enrichPipelineV2PatchWorkArtifacts(
   if (context.version !== 2) return result
   if (node === 'explorer') return enrichExplorerPatchWorkArtifacts(context, result)
   if (node === 'planner') return enrichPlannerPatchWorkArtifacts(context, result)
+  if (node === 'developer') return enrichDeveloperPatchWorkArtifacts(context, result)
+  if (node === 'reviewer') return enrichReviewerPatchWorkArtifacts(context, result)
   return result
 }
 
@@ -1039,7 +1548,9 @@ function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOu
       return output
     }
     case 'developer': {
-      const output = {
+      const changedFiles = readOptionalChangedFiles(parsed, 'changedFiles', issues)
+      const testsRun = readOptionalTestRuns(parsed, 'testsRun', issues)
+      const output: PipelineDeveloperStageOutput = {
         node,
         summary,
         changes: readRequiredStringArray(parsed, 'changes', issues),
@@ -1047,16 +1558,26 @@ function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOu
         risks: readRequiredStringArray(parsed, 'risks', issues),
         content: text,
       }
+      if (changedFiles) {
+        output.changedFiles = changedFiles
+      }
+      if (testsRun) {
+        output.testsRun = testsRun
+      }
       throwIfInvalid(node, issues, text)
       return output
     }
     case 'reviewer': {
-      const output = {
+      const structuredIssues = readOptionalReviewIssues(parsed, 'structuredIssues', issues)
+      const output: PipelineReviewerStageOutput = {
         node,
         summary,
         approved: readRequiredBoolean(parsed, 'approved', issues),
         issues: readRequiredStringArray(parsed, 'issues', issues),
         content: text,
+      }
+      if (structuredIssues) {
+        output.structuredIssues = structuredIssues
       }
       throwIfInvalid(node, issues, text)
       return output

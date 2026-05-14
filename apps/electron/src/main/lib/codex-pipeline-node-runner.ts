@@ -21,6 +21,7 @@ import {
 import {
   buildNodeExecutionResult,
   buildPipelineNodePrompts,
+  enrichPipelineV2PatchWorkArtifacts,
   pipelineNodeJsonSchema,
   type PipelineNodeExecutionContext,
   type PipelineNodeExecutionResult,
@@ -613,7 +614,11 @@ export class CodexCliPipelineNodeRunner implements PipelineNodeRunner {
       throw new Error('Pipeline 节点执行已中止')
     }
 
-    const result = buildNodeExecutionResult(node, response.finalResponse)
+    const result = enrichPipelineV2PatchWorkArtifacts(
+      node,
+      context,
+      buildNodeExecutionResult(node, response.finalResponse),
+    )
     if (context.signal?.aborted) {
       throw new Error('Pipeline 节点执行已中止')
     }
@@ -661,6 +666,9 @@ export class CodexSdkPipelineNodeRunner implements PipelineNodeRunner {
       baseUrl: runtime.baseUrl,
       env,
     })
+    if (context.signal?.aborted) {
+      throw new Error('Pipeline 节点执行已中止')
+    }
     const thread = client.startThread({
       model: runtime.model,
       sandboxMode: codexSandboxModeForNode(node),
@@ -669,13 +677,26 @@ export class CodexSdkPipelineNodeRunner implements PipelineNodeRunner {
       approvalPolicy: 'never',
       additionalDirectories: workspace.additionalDirectories,
     })
+    if (context.signal?.aborted) {
+      throw new Error('Pipeline 节点执行已中止')
+    }
 
     emitNodeStart(this.onEvent, node)
     const response = await thread.run(prompt, {
       outputSchema: pipelineNodeJsonSchema(node),
       signal: context.signal,
     })
-    const result = buildNodeExecutionResult(node, response.finalResponse)
+    if (context.signal?.aborted) {
+      throw new Error('Pipeline 节点执行已中止')
+    }
+    const result = enrichPipelineV2PatchWorkArtifacts(
+      node,
+      context,
+      buildNodeExecutionResult(node, response.finalResponse),
+    )
+    if (context.signal?.aborted) {
+      throw new Error('Pipeline 节点执行已中止')
+    }
     emitNodeResult(this.onEvent, node, result)
     return result
   }

@@ -92,6 +92,24 @@ describe('pipeline-state', () => {
     expect(completed.status).toBe('completed')
   })
 
+  test('v2 developer 文档审核通过后进入 reviewer', () => {
+    const state = createInitialPipelineState('session-v2-dev', 1, { version: 2 })
+
+    const next = applyPipelineRecord(state, {
+      id: 'record-v2-developer',
+      sessionId: 'session-v2-dev',
+      type: 'gate_decision',
+      node: 'developer',
+      kind: 'document_review',
+      action: 'approve',
+      createdAt: 10,
+    })
+
+    expect(next.currentNode).toBe('reviewer')
+    expect(next.lastApprovedNode).toBe('developer')
+    expect(next.status).toBe('running')
+  })
+
   test('stage_artifact 会写入状态中的阶段产物映射', () => {
     const state = createInitialPipelineState('session-3')
 

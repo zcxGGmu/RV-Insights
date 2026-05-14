@@ -37,6 +37,8 @@ type PipelineGraphState = PipelineStateSnapshot & {
   feedback?: string
 }
 
+const MAX_REVIEW_ITERATIONS = 3
+
 const PipelineGraphAnnotation = Annotation.Root({
   sessionId: Annotation<string>,
   userInput: Annotation<string>,
@@ -129,7 +131,7 @@ function createGateRequest(
   node: PipelineNodeKind,
 ): PipelineGateRequest {
   const kind: PipelineGateKind | undefined = state.version === 2
-    ? gateKindForV2Node(node)
+    ? gateKindForV2Node(node, state)
     : undefined
 
   return {
@@ -137,17 +139,30 @@ function createGateRequest(
     sessionId: state.sessionId,
     node,
     ...(kind ? { kind } : {}),
-    title: `${node} 节点待审核`,
+    title: kind === 'review_iteration_limit'
+      ? 'Reviewer 多轮未通过，等待人工接管'
+      : `${node} 节点待审核`,
     summary: state.latestSummary,
-    feedbackHint: node === 'reviewer'
-      ? '可填写 reviewer 反馈后回到 developer'
-      : '可填写反馈后重跑当前节点',
+    feedbackHint: kind === 'review_iteration_limit'
+      ? '接受风险会进入 tester；填写反馈会回到 developer；也可重跑 reviewer。'
+      : node === 'reviewer'
+        ? '可填写 reviewer 反馈后回到 developer'
+        : '可填写反馈后重跑当前节点',
     iteration: state.reviewIteration,
     createdAt: now(),
   }
 }
 
-function gateKindForV2Node(node: PipelineNodeKind): PipelineGateKind {
+function gateKindForV2Node(node: PipelineNodeKind, state: PipelineGraphState): PipelineGateKind {
+  if (
+    node === 'reviewer'
+    && state.stageOutputs?.reviewer?.node === 'reviewer'
+    && state.stageOutputs.reviewer.approved === false
+    && state.reviewIteration >= MAX_REVIEW_ITERATIONS
+  ) {
+    return 'review_iteration_limit'
+  }
+
   switch (node) {
     case 'explorer':
       return 'task_selection'
@@ -181,6 +196,56 @@ function createWorkerNode(
       : state.stageOutputs
 
     if (node === 'reviewer') {
+      if (state.version === 2) {
+        if (result.approved === false) {
+          const nextIteration = state.reviewIteration + 1
+          if (nextIteration >= MAX_REVIEW_ITERATIONS) {
+            return new Command({
+              goto: 'gate_reviewer',
+              update: {
+                currentNode: 'reviewer',
+                latestOutput: result.output,
+                latestSummary: result.summary,
+                latestIssues: result.issues,
+                reviewIteration: nextIteration,
+                stageOutputs,
+                status: 'waiting_human',
+                updatedAt: timestamp,
+              },
+            })
+          }
+
+          return new Command({
+            goto: 'developer',
+            update: {
+              currentNode: 'developer',
+              latestOutput: result.output,
+              latestSummary: result.summary,
+              latestIssues: result.issues,
+              feedback: result.issues?.join('\n') || result.summary,
+              reviewIteration: nextIteration,
+              stageOutputs,
+              status: 'running',
+              updatedAt: timestamp,
+            },
+          })
+        }
+
+        return new Command({
+          goto: 'tester',
+          update: {
+            currentNode: 'tester',
+            latestOutput: result.output,
+            latestSummary: result.summary,
+            latestIssues: result.issues,
+            lastApprovedNode: 'reviewer',
+            stageOutputs,
+            status: 'running',
+            updatedAt: timestamp,
+          },
+        })
+      }
+
       if (result.approved === false) {
         return new Command({
           goto: 'gate_reviewer',
@@ -303,7 +368,7 @@ function createPipelineGraphForVersion(options: CreatePipelineGraphInternalOptio
     })
     .addNode('developer', createWorkerNode('developer', options.runNode, options.getSignal))
     .addNode('reviewer', createWorkerNode('reviewer', options.runNode, options.getSignal), {
-      ends: ['developer', 'gate_reviewer'],
+      ends: ['developer', 'gate_reviewer', 'tester'],
     })
     .addNode('gate_reviewer', createGateNode('reviewer', 'tester'), {
       ends: ['developer', 'reviewer', 'tester'],
@@ -315,18 +380,23 @@ function createPipelineGraphForVersion(options: CreatePipelineGraphInternalOptio
     .addEdge(START, 'explorer')
     .addEdge('explorer', 'gate_explorer')
     .addEdge('planner', 'gate_planner')
-    .addEdge('developer', 'reviewer')
     .addEdge('tester', 'gate_tester')
     .addEdge('gate_explorer', 'planner')
     .addEdge('gate_planner', 'developer')
 
   if (options.version === 2) {
     builder
+      .addNode('gate_developer', createGateNode('developer', 'reviewer'), {
+        ends: ['developer', 'reviewer'],
+      })
+      .addEdge('developer', 'gate_developer')
       .addNode('committer', createWorkerNode('committer', options.runNode, options.getSignal))
       .addNode('gate_committer', createGateNode('committer', END), {
         ends: ['committer', END],
       })
       .addEdge('committer', 'gate_committer')
+  } else {
+    builder.addEdge('developer', 'reviewer')
   }
 
   const graph = builder.compile({

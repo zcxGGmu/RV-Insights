@@ -170,7 +170,7 @@ describe('pipeline-graph', () => {
 
     expect(plannerPause.interrupted?.kind).toBe('document_review')
 
-    const reviewerPause = await graph.resume({
+    const developerPause = await graph.resume({
       sessionId: 'session-v2-complete',
       response: {
         gateId: plannerPause.interrupted!.gateId,
@@ -180,10 +180,13 @@ describe('pipeline-graph', () => {
       },
     })
 
+    expect(developerPause.interrupted?.node).toBe('developer')
+    expect(developerPause.interrupted?.kind).toBe('document_review')
+
     const testerPause = await graph.resume({
       sessionId: 'session-v2-complete',
       response: {
-        gateId: reviewerPause.interrupted!.gateId,
+        gateId: developerPause.interrupted!.gateId,
         sessionId: 'session-v2-complete',
         action: 'approve',
         createdAt: Date.now(),
@@ -224,6 +227,153 @@ describe('pipeline-graph', () => {
     expect(completed.state.currentNode).toBe('committer')
     expect(completed.state.lastApprovedNode).toBe('committer')
     expect(nodes).toEqual(['explorer', 'planner', 'developer', 'reviewer', 'tester', 'committer'])
+  })
+
+  test('v2 developer 完成后先进入文档审核 gate，用户接受后才运行 reviewer', async () => {
+    const nodes: string[] = []
+    const graph = createPipelineGraphV2({
+      checkpointer: new MemorySaver(),
+      runNode: async (node) => {
+        nodes.push(node)
+        return {
+          output: `${node}-ok`,
+          summary: `${node}-ok`,
+          approved: true,
+        }
+      },
+    })
+
+    const explorerPause = await graph.invoke({
+      sessionId: 'session-v2-dev-gate',
+      userInput: '请完成 Phase 4',
+    })
+    const plannerPause = await graph.resume({
+      sessionId: 'session-v2-dev-gate',
+      response: {
+        gateId: explorerPause.interrupted!.gateId,
+        sessionId: 'session-v2-dev-gate',
+        action: 'approve',
+        selectedReportId: 'report-001',
+        createdAt: Date.now(),
+      },
+    })
+    const developerPause = await graph.resume({
+      sessionId: 'session-v2-dev-gate',
+      response: {
+        gateId: plannerPause.interrupted!.gateId,
+        sessionId: 'session-v2-dev-gate',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(nodes).toEqual(['explorer', 'planner', 'developer'])
+    expect(developerPause.interrupted).toMatchObject({
+      node: 'developer',
+      kind: 'document_review',
+    })
+    expect(developerPause.state.currentNode).toBe('developer')
+    expect(developerPause.state.status).toBe('waiting_human')
+
+    const testerPause = await graph.resume({
+      sessionId: 'session-v2-dev-gate',
+      response: {
+        gateId: developerPause.interrupted!.gateId,
+        sessionId: 'session-v2-dev-gate',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    expect(nodes).toEqual(['explorer', 'planner', 'developer', 'reviewer', 'tester'])
+    expect(testerPause.interrupted?.node).toBe('tester')
+    expect(testerPause.state.lastApprovedNode).toBe('reviewer')
+  })
+
+  test('v2 reviewer 不通过时未达上限自动回 developer，达到上限进入人工接管 gate', async () => {
+    const nodes: string[] = []
+    const graph = createPipelineGraphV2({
+      checkpointer: new MemorySaver(),
+      runNode: async (node) => {
+        nodes.push(node)
+        if (node === 'reviewer') {
+          return {
+            output: '需要返工',
+            summary: '需要返工',
+            approved: false,
+            issues: ['缺少测试'],
+            stageOutput: {
+              node: 'reviewer',
+              summary: '需要返工',
+              approved: false,
+              issues: ['缺少测试'],
+              content: '需要返工',
+            },
+          }
+        }
+        return {
+          output: `${node}-ok`,
+          summary: `${node}-ok`,
+          approved: true,
+        }
+      },
+    })
+
+    const explorerPause = await graph.invoke({
+      sessionId: 'session-v2-review-loop',
+      userInput: '请完成 Phase 4',
+    })
+    const plannerPause = await graph.resume({
+      sessionId: 'session-v2-review-loop',
+      response: {
+        gateId: explorerPause.interrupted!.gateId,
+        sessionId: 'session-v2-review-loop',
+        action: 'approve',
+        selectedReportId: 'report-001',
+        createdAt: Date.now(),
+      },
+    })
+
+    let current = await graph.resume({
+      sessionId: 'session-v2-review-loop',
+      response: {
+        gateId: plannerPause.interrupted!.gateId,
+        sessionId: 'session-v2-review-loop',
+        action: 'approve',
+        createdAt: Date.now(),
+      },
+    })
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      current = await graph.resume({
+        sessionId: 'session-v2-review-loop',
+        response: {
+          gateId: current.interrupted!.gateId,
+          sessionId: 'session-v2-review-loop',
+          action: 'approve',
+          createdAt: Date.now(),
+        },
+      })
+    }
+
+    expect(nodes).toEqual([
+      'explorer',
+      'planner',
+      'developer',
+      'reviewer',
+      'developer',
+      'reviewer',
+      'developer',
+      'reviewer',
+    ])
+    expect(current.interrupted).toMatchObject({
+      node: 'reviewer',
+      kind: 'review_iteration_limit',
+      iteration: 3,
+    })
+    expect(current.state.currentNode).toBe('reviewer')
+    expect(current.state.status).toBe('waiting_human')
+    expect(current.state.reviewIteration).toBe(3)
   })
 
   test('getState 会从 checkpoint interrupt 回填 pendingGate', async () => {

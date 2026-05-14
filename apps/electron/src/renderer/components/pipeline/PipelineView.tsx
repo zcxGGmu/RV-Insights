@@ -3,12 +3,14 @@ import { useAtomValue, useSetAtom } from 'jotai'
 import { agentChannelIdAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
 import type {
+  PipelineDeveloperStageOutput,
   PipelineExplorerReportRef,
   PipelineGateRequest,
   PipelineNodeKind,
   PipelinePatchWorkDocumentRef,
   PipelinePlannerStageOutput,
   PipelineRecord,
+  PipelineReviewerStageOutput,
   PipelineSessionMeta,
   PipelineStateSnapshot,
 } from '@rv-insights/shared'
@@ -42,8 +44,10 @@ import {
 } from './pipeline-record-tail-model'
 import {
   ReviewDocumentBoard,
+  collectDeveloperDocumentRefs,
   collectPlannerDocumentRefs,
 } from './ReviewDocumentBoard'
+import { ReviewerIssueBoard } from './ReviewerIssueBoard'
 
 export function PipelineView({
   sessionId,
@@ -121,16 +125,36 @@ export function PipelineView({
   const plannerStageOutput = state?.stageOutputs?.planner?.node === 'planner'
     ? state.stageOutputs.planner as PipelinePlannerStageOutput
     : null
-  const reviewDocuments = React.useMemo<PipelinePatchWorkDocumentRef[]>(
-    () => collectPlannerDocumentRefs(plannerStageOutput),
-    [plannerStageOutput],
-  )
+  const developerStageOutput = state?.stageOutputs?.developer?.node === 'developer'
+    ? state.stageOutputs.developer as PipelineDeveloperStageOutput
+    : null
+  const reviewerStageOutput = state?.stageOutputs?.reviewer?.node === 'reviewer'
+    ? state.stageOutputs.reviewer as PipelineReviewerStageOutput
+    : null
+  const showExplorerTaskBoard = pendingGate?.kind === 'task_selection' && pendingGate.node === 'explorer'
+  const showPlannerDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'planner'
+  const showDeveloperDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'developer'
+  const showReviewerIssueBoard = pendingGate?.kind === 'review_iteration_limit' && pendingGate.node === 'reviewer'
+  const reviewDocuments = React.useMemo<PipelinePatchWorkDocumentRef[]>(() => {
+    if (showPlannerDocumentBoard) return collectPlannerDocumentRefs(plannerStageOutput)
+    if (showDeveloperDocumentBoard) return collectDeveloperDocumentRefs(developerStageOutput)
+    if (showReviewerIssueBoard) {
+      return [reviewerStageOutput?.reviewDocRef, reviewerStageOutput?.reviewDoc]
+        .filter((document): document is PipelinePatchWorkDocumentRef => Boolean(document))
+        .filter((document, index, documents) =>
+          documents.findIndex((item) => item.relativePath === document.relativePath) === index)
+    }
+    return []
+  }, [developerStageOutput, plannerStageOutput, reviewerStageOutput, showDeveloperDocumentBoard, showPlannerDocumentBoard, showReviewerIssueBoard])
   const reviewDocumentKey = React.useMemo(
     () => reviewDocuments.map((document) => `${document.relativePath}:${document.checksum ?? ''}`).join('|'),
     [reviewDocuments],
   )
-  const showExplorerTaskBoard = pendingGate?.kind === 'task_selection' && pendingGate.node === 'explorer'
-  const showPlannerDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'planner'
+  const showPatchWorkDocumentRead = showPlannerDocumentBoard || showDeveloperDocumentBoard || showReviewerIssueBoard
+  const reviewerReviewContent = React.useMemo(() => {
+    const reviewDoc = reviewerStageOutput?.reviewDocRef ?? reviewerStageOutput?.reviewDoc
+    return reviewDoc ? documentContents.get(reviewDoc.relativePath) : undefined
+  }, [documentContents, reviewerStageOutput])
 
   React.useEffect(() => {
     recordsCursorRef.current = 0
@@ -239,7 +263,7 @@ export function PipelineView({
   }, [explorerStageOutput, sessionId, showExplorerTaskBoard])
 
   React.useEffect(() => {
-    if (!showPlannerDocumentBoard || reviewDocuments.length === 0) {
+    if (!showPatchWorkDocumentRead || reviewDocuments.length === 0) {
       setDocumentContents(new Map())
       setDocumentLoadingPaths(new Set())
       setDocumentReadErrors(new Map())
@@ -287,7 +311,7 @@ export function PipelineView({
     return () => {
       cancelled = true
     }
-  }, [reviewDocumentKey, reviewDocuments, sessionId, showPlannerDocumentBoard])
+  }, [reviewDocumentKey, reviewDocuments, sessionId, showPatchWorkDocumentRead])
 
   const handleStart = React.useCallback(async (userInput: string): Promise<void> => {
     const resolved = resolvePipelineRunConfig({
@@ -607,6 +631,14 @@ export function PipelineView({
               />
             </div>
             <aside className="order-first space-y-4 xl:order-none xl:sticky xl:top-4 xl:self-start">
+              {showReviewerIssueBoard ? (
+                <ReviewerIssueBoard
+                  output={reviewerStageOutput}
+                  iteration={pendingGate?.iteration ?? state?.reviewIteration ?? 0}
+                  maxIterations={3}
+                  reviewContent={reviewerReviewContent}
+                />
+              ) : null}
               {showExplorerTaskBoard ? (
                 <ExplorerTaskBoard
                   reports={explorerReports}
@@ -614,8 +646,9 @@ export function PipelineView({
                   onSelectTask={handleSelectTask}
                   onRerun={() => handleRespond('rerun_node')}
                 />
-              ) : showPlannerDocumentBoard ? (
+              ) : showPlannerDocumentBoard || showDeveloperDocumentBoard ? (
                 <ReviewDocumentBoard
+                  stage={showDeveloperDocumentBoard ? 'developer' : 'planner'}
                   documents={reviewDocuments}
                   contents={documentContents}
                   loadingPaths={documentLoadingPaths}

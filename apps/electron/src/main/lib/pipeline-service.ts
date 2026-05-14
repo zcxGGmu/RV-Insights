@@ -410,6 +410,24 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
           })
         }
       }
+      if (pendingGate.kind === 'document_review' && pendingGate.node === 'developer') {
+        const task = getContributionTaskForSession(response.sessionId)
+        if (task) {
+          updateContributionTask(task.id, {
+            status: 'developing',
+            currentGateId: pendingGate.gateId,
+          })
+        }
+      }
+      if (pendingGate.kind === 'review_iteration_limit') {
+        const task = getContributionTaskForSession(response.sessionId)
+        if (task) {
+          updateContributionTask(task.id, {
+            status: response.action === 'rerun_node' ? 'reviewing' : 'developing',
+            currentGateId: pendingGate.gateId,
+          })
+        }
+      }
       return
     }
 
@@ -474,6 +492,51 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
             checksum: file.checksum,
             revision: file.revision,
           })),
+        },
+      })
+    }
+
+    if (pendingGate.kind === 'document_review' && pendingGate.node === 'developer') {
+      const task = getContributionTaskForSession(response.sessionId)
+      if (!task) return
+
+      const accepted = acceptPatchWorkDocuments({
+        repositoryRoot: task.repositoryRoot,
+        gateId: pendingGate.gateId,
+        kinds: ['dev_doc'],
+      })
+      updateContributionTask(task.id, {
+        status: 'reviewing',
+        currentGateId: undefined,
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'patch_work_updated',
+        payload: {
+          acceptedDocuments: accepted.map((file) => ({
+            relativePath: file.relativePath,
+            checksum: file.checksum,
+            revision: file.revision,
+          })),
+        },
+      })
+      return
+    }
+
+    if (pendingGate.kind === 'review_iteration_limit') {
+      const task = getContributionTaskForSession(response.sessionId)
+      if (!task) return
+
+      updateContributionTask(task.id, {
+        status: 'testing',
+        currentGateId: undefined,
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'task_updated',
+        payload: {
+          status: 'testing',
+          reason: 'review_iteration_limit_accepted',
         },
       })
     }

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type {
+  PipelineDeveloperStageOutput,
   PipelinePatchWorkDocumentRef,
   PipelinePlannerStageOutput,
 } from '@rv-insights/shared'
@@ -18,9 +19,18 @@ export interface ReviewDocumentBoardViewModel {
   empty: boolean
   approveDisabled: boolean
   approveLabel: string
+  title: string
+  subtitle: string
+  countLabel: string
+  feedbackPlaceholder: string
+  rejectFeedbackError: string
+  rejectLabel: string
+  rerunLabel: string
   warning?: string
   documents: ReviewDocumentItemViewModel[]
 }
+
+type ReviewDocumentStage = 'planner' | 'developer'
 
 function checksumLabel(checksum?: string): string {
   return checksum ? `sha256:${checksum.slice(0, 8)}` : 'checksum 缺失'
@@ -36,13 +46,52 @@ export function collectPlannerDocumentRefs(
     .filter((ref): ref is PipelinePatchWorkDocumentRef => Boolean(ref))
 }
 
+export function collectDeveloperDocumentRefs(
+  output: PipelineDeveloperStageOutput | null | undefined,
+): PipelinePatchWorkDocumentRef[] {
+  if (!output) return []
+  return [output.devDocRef, output.devDoc]
+    .filter((ref): ref is PipelinePatchWorkDocumentRef => Boolean(ref))
+    .filter((ref, index, refs) => refs.findIndex((item) => item.relativePath === ref.relativePath) === index)
+}
+
+function textForStage(stage: ReviewDocumentStage) {
+  if (stage === 'developer') {
+    return {
+      title: '审核 Developer 开发文档',
+      subtitle: '文档审核',
+      approveLabel: '接受开发文档并开始审查',
+      submittingApproveLabel: '正在进入审查',
+      warningSubject: 'Developer 文档',
+      feedbackPlaceholder: '指出 dev.md 或代码实现需要 developer 修订的地方',
+      rejectFeedbackError: '请填写需要 developer 修订的具体反馈。',
+      rejectLabel: '要求修订',
+      rerunLabel: '重跑开发',
+    }
+  }
+
+  return {
+    title: '审核 Planner 方案',
+    subtitle: '文档审核',
+    approveLabel: '接受方案并开始开发',
+    submittingApproveLabel: '正在进入开发',
+    warningSubject: 'Planner 文档',
+    feedbackPlaceholder: '指出 plan.md 或 test-plan.md 需要 planner 修订的地方',
+    rejectFeedbackError: '请填写需要 planner 修订的具体反馈。',
+    rejectLabel: '要求修订',
+    rerunLabel: '重跑计划',
+  }
+}
+
 export function buildReviewDocumentBoardViewModel({
+  stage = 'planner',
   documents,
   contents,
   loadingPaths,
   readErrors,
   submitting,
 }: {
+  stage?: ReviewDocumentStage
   documents: PipelinePatchWorkDocumentRef[]
   contents: Map<string, string>
   loadingPaths: Set<string>
@@ -59,18 +108,26 @@ export function buildReviewDocumentBoardViewModel({
       && (!content || !content.trim())
   })
   const empty = documents.length === 0
+  const text = textForStage(stage)
   const warning = (() => {
     if (missingChecksum) return '存在缺少 checksum 的文档，不能继续审核。'
-    if (hasLoading) return '仍在读取 Planner 文档，加载完成后才能继续审核。'
-    if (hasReadErrors) return '存在读取失败的 Planner 文档，请刷新后重试。'
-    if (missingContent) return '存在缺少正文的 Planner 文档，请刷新后重试。'
+    if (hasLoading) return `仍在读取 ${text.warningSubject}，加载完成后才能继续审核。`
+    if (hasReadErrors) return `存在读取失败的 ${text.warningSubject}，请刷新后重试。`
+    if (missingContent) return `存在缺少正文的 ${text.warningSubject}，请刷新后重试。`
     return undefined
   })()
 
   return {
     empty,
     approveDisabled: submitting || empty || missingChecksum || hasLoading || hasReadErrors || missingContent,
-    approveLabel: submitting ? '正在进入开发' : '接受方案并开始开发',
+    approveLabel: submitting ? text.submittingApproveLabel : text.approveLabel,
+    title: text.title,
+    subtitle: text.subtitle,
+    countLabel: `${documents.length} 份文档`,
+    feedbackPlaceholder: text.feedbackPlaceholder,
+    rejectFeedbackError: text.rejectFeedbackError,
+    rejectLabel: text.rejectLabel,
+    rerunLabel: text.rerunLabel,
     warning,
     documents: documents.map((document) => ({
       displayName: document.displayName,
@@ -85,6 +142,7 @@ export function buildReviewDocumentBoardViewModel({
 }
 
 export function ReviewDocumentBoard({
+  stage = 'planner',
   documents,
   contents,
   loadingPaths,
@@ -93,6 +151,7 @@ export function ReviewDocumentBoard({
   onReject,
   onRerun,
 }: {
+  stage?: ReviewDocumentStage
   documents: PipelinePatchWorkDocumentRef[]
   contents: Map<string, string>
   loadingPaths: Set<string>
@@ -106,6 +165,7 @@ export function ReviewDocumentBoard({
   const [error, setError] = React.useState<string | null>(null)
   const [feedbackError, setFeedbackError] = React.useState<string | null>(null)
   const viewModel = buildReviewDocumentBoardViewModel({
+    stage,
     documents,
     contents,
     loadingPaths,
@@ -129,7 +189,7 @@ export function ReviewDocumentBoard({
   const handleReject = async (): Promise<void> => {
     const trimmed = feedback.trim()
     if (!trimmed) {
-      setFeedbackError('请填写需要 planner 修订的具体反馈。')
+      setFeedbackError(viewModel.rejectFeedbackError)
       return
     }
     setFeedbackError(null)
@@ -140,11 +200,11 @@ export function ReviewDocumentBoard({
     <section className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-4 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-medium text-sky-700 dark:text-sky-200">文档审核</div>
-          <h2 className="mt-1 text-base font-semibold">审核 Planner 方案</h2>
+          <div className="text-xs font-medium text-sky-700 dark:text-sky-200">{viewModel.subtitle}</div>
+          <h2 className="mt-1 text-base font-semibold">{viewModel.title}</h2>
         </div>
         <div className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-200">
-          {documents.length} 份文档
+          {viewModel.countLabel}
         </div>
       </div>
 
@@ -197,7 +257,7 @@ export function ReviewDocumentBoard({
           if (feedbackError) setFeedbackError(null)
           if (error) setError(null)
         }}
-        placeholder="指出 plan.md 或 test-plan.md 需要 planner 修订的地方"
+        placeholder={viewModel.feedbackPlaceholder}
         className="mt-2 min-h-24 w-full rounded-xl border border-sky-200 bg-background px-3 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary dark:border-sky-500/30"
       />
       {feedbackError ? (
@@ -222,7 +282,7 @@ export function ReviewDocumentBoard({
           onClick={() => void handleReject()}
           className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
         >
-          要求修订
+          {viewModel.rejectLabel}
         </button>
         <button
           type="button"
@@ -230,7 +290,7 @@ export function ReviewDocumentBoard({
           onClick={() => void runAction(onRerun)}
           className="rounded-lg border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted/60 disabled:opacity-50"
         >
-          重跑计划
+          {viewModel.rerunLabel}
         </button>
       </div>
     </section>

@@ -386,6 +386,171 @@ describe('pipeline-service', () => {
     }
   })
 
+  test('developer document_review approve 会记录 dev.md accepted checksum 并进入 reviewing', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-dev-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-dev-review',
+      sessionId: 'session-dev-review',
+      node: 'developer',
+      kind: 'document_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => ({
+          state: {
+            sessionId: 'session-dev-review',
+            version: 2,
+            currentNode: 'reviewer',
+            status: 'running',
+            reviewIteration: 0,
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-dev-review',
+          version: 2,
+          currentNode: 'developer',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('开发文档审核测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'developer',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-dev-review',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'dev_review',
+      })
+      const devRef = writePatchWorkFile({
+        contributionTaskId: 'task-dev-review',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'dev_doc',
+        createdByNode: 'developer',
+        content: '# 开发文档\n\n## 实现摘要\n完成 developer gate。\n',
+      })
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'document_review',
+        action: 'approve',
+        createdAt: Date.now(),
+      })
+
+      const manifest = readPatchWorkManifest(repoRoot)
+      expect(manifest.files.find((file) => file.relativePath === 'dev.md')).toMatchObject({
+        acceptedRevision: devRef.revision,
+        acceptedByGateId: gateRequest.gateId,
+        checksum: devRef.checksum,
+      })
+      expect(getContributionTask('task-dev-review')).toMatchObject({
+        status: 'reviewing',
+      })
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('review iteration limit gate 按用户选择进入 testing 或回 developer', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-review-limit-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-review-limit',
+      sessionId: 'session-review-limit',
+      node: 'reviewer',
+      kind: 'review_iteration_limit',
+      iteration: 3,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async (_input: { sessionId: string; response: PipelineGateResponse }) => ({
+          state: {
+            sessionId: 'session-review-limit',
+            version: 2,
+            currentNode: 'tester',
+            status: 'running',
+            reviewIteration: 3,
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-review-limit',
+          version: 2,
+          currentNode: 'reviewer',
+          status: 'waiting_human',
+          reviewIteration: 3,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('review 上限测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'reviewer',
+        status: 'waiting_human',
+        reviewIteration: 3,
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-review-limit',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'reviewing',
+      })
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'review_iteration_limit',
+        action: 'approve',
+        createdAt: Date.now(),
+      })
+
+      expect(getContributionTask('task-review-limit')).toMatchObject({
+        status: 'testing',
+      })
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   test('patch-work 文件读取只允许 manifest 登记文件', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-read-repo-'))
     const service = createPipelineService()

@@ -31,6 +31,11 @@ const {
 const { RoutedPipelineNodeRunner } = await import('./pipeline-node-router')
 const { resolvePipelineCodexChannelId } = await import('./pipeline-codex-settings')
 const { createChannel } = await import('./channel-manager')
+const { createContributionTask } = await import('./contribution-task-service')
+const {
+  acceptPatchWorkDocuments,
+  writePatchWorkFile,
+} = await import('./pipeline-patch-work-service')
 
 import type {
   CodexCliExecutor,
@@ -299,6 +304,78 @@ describe('codex-pipeline-node-runner', () => {
     ])
   })
 
+  test('Codex CLI runner 在 v2 developer 后写入 dev.md 并回填文档 ref', async () => {
+    const previousConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
+    const tempConfigDir = mkdtempSync(join(tmpdir(), 'rv-codex-v2-dev-config-'))
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-codex-v2-dev-repo-'))
+    process.env.RV_INSIGHTS_CONFIG_DIR = tempConfigDir
+    try {
+      createContributionTask({
+        id: 'task-codex-dev-doc',
+        pipelineSessionId: 'session-codex-dev-doc',
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'developing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-dev-doc',
+        pipelineSessionId: 'session-codex-dev-doc',
+        repositoryRoot: repoRoot,
+        kind: 'implementation_plan',
+        createdByNode: 'planner',
+        content: '# 开发方案\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-dev-doc',
+        pipelineSessionId: 'session-codex-dev-doc',
+        repositoryRoot: repoRoot,
+        kind: 'test_plan',
+        createdByNode: 'planner',
+        content: '# 测试方案\n',
+      })
+      acceptPatchWorkDocuments({
+        repositoryRoot: repoRoot,
+        gateId: 'gate-plan',
+        kinds: ['implementation_plan', 'test_plan'],
+      })
+      const executor = new FakeCodexCliExecutor(JSON.stringify({
+        summary: '完成 Phase 4 developer',
+        changes: ['写入 dev.md'],
+        tests: ['bun test apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts'],
+        risks: [],
+        devMarkdown: '# 开发文档\n\n## 实现摘要\n写入 dev.md。\n',
+      }))
+      const runner = new CodexCliPipelineNodeRunner({ executor })
+
+      const result = await runner.runNode('developer', {
+        sessionId: 'session-codex-dev-doc',
+        userInput: '实现 Phase 4',
+        currentNode: 'developer',
+        version: 2,
+        reviewIteration: 0,
+      })
+
+      expect(executor.calls[0]?.prompt).toContain('已接受开发方案（plan.md）')
+      expect(result.stageOutput).toMatchObject({
+        node: 'developer',
+        devDoc: {
+          relativePath: 'dev.md',
+        },
+      })
+      expect(readFileSync(join(repoRoot, 'patch-work', 'dev.md'), 'utf-8')).toContain('写入 dev.md')
+    } finally {
+      if (previousConfigDir === undefined) {
+        delete process.env.RV_INSIGHTS_CONFIG_DIR
+      } else {
+        process.env.RV_INSIGHTS_CONFIG_DIR = previousConfigDir
+      }
+      rmSync(tempConfigDir, { recursive: true, force: true })
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   test('Codex CLI runner 在 executor 返回后若 signal 已中止则不发送 node_complete', async () => {
     const controller = new AbortController()
     const events: PipelineStreamEvent[] = []
@@ -496,6 +573,118 @@ describe('codex-pipeline-node-runner', () => {
 
     await expect(runner.runNode('reviewer', context('reviewer'))).rejects.toThrow(/输出不是合法 JSON 对象/)
     expect(events.map((event) => event.type)).toEqual(['node_start'])
+  })
+
+  test('Codex SDK runner 若在准备阶段中止则不启动 turn 或发送 node_start', async () => {
+    const controller = new AbortController()
+    const events: PipelineStreamEvent[] = []
+    let startThreadCalled = false
+    const createCodexClient: CreateCodexSdkClient = () => {
+      controller.abort()
+      return {
+        startThread: () => {
+          startThreadCalled = true
+          return {
+            run: async () => {
+              throw new Error('run 不应被调用')
+            },
+          }
+        },
+      }
+    }
+    const runner = new CodexSdkPipelineNodeRunner({
+      createCodexClient,
+      codexPath: '/mock/codex',
+      onEvent: (event) => events.push(event),
+    })
+
+    await expect(runner.runNode('developer', {
+      ...context('developer'),
+      signal: controller.signal,
+    })).rejects.toThrow(/Pipeline 节点执行已中止/)
+    expect(startThreadCalled).toBe(false)
+    expect(events).toEqual([])
+  })
+
+  test('Codex SDK runner 在返回后若 signal 已中止则不写 dev.md 或发送 node_complete', async () => {
+    const previousConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
+    const tempConfigDir = mkdtempSync(join(tmpdir(), 'rv-codex-sdk-abort-config-'))
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-codex-sdk-abort-repo-'))
+    const controller = new AbortController()
+    const events: PipelineStreamEvent[] = []
+    process.env.RV_INSIGHTS_CONFIG_DIR = tempConfigDir
+    try {
+      createContributionTask({
+        id: 'task-codex-sdk-abort',
+        pipelineSessionId: 'session-codex-sdk-abort',
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'developing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-sdk-abort',
+        pipelineSessionId: 'session-codex-sdk-abort',
+        repositoryRoot: repoRoot,
+        kind: 'implementation_plan',
+        createdByNode: 'planner',
+        content: '# 开发方案\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-sdk-abort',
+        pipelineSessionId: 'session-codex-sdk-abort',
+        repositoryRoot: repoRoot,
+        kind: 'test_plan',
+        createdByNode: 'planner',
+        content: '# 测试方案\n',
+      })
+      acceptPatchWorkDocuments({
+        repositoryRoot: repoRoot,
+        gateId: 'gate-plan',
+        kinds: ['implementation_plan', 'test_plan'],
+      })
+      const createCodexClient: CreateCodexSdkClient = () => ({
+        startThread: () => ({
+          run: async () => {
+            controller.abort()
+            return {
+              finalResponse: JSON.stringify({
+                summary: '不应写入 dev.md',
+                changes: ['不应落盘'],
+                tests: [],
+                risks: [],
+                devMarkdown: '# 开发文档\n\n不应出现。\n',
+              }),
+            }
+          },
+        }),
+      })
+      const runner = new CodexSdkPipelineNodeRunner({
+        createCodexClient,
+        codexPath: '/mock/codex',
+        onEvent: (event) => events.push(event),
+      })
+
+      await expect(runner.runNode('developer', {
+        sessionId: 'session-codex-sdk-abort',
+        userInput: '实现 Phase 4',
+        currentNode: 'developer',
+        version: 2,
+        reviewIteration: 0,
+        signal: controller.signal,
+      })).rejects.toThrow(/Pipeline 节点执行已中止/)
+      expect(events.map((event) => event.type)).toEqual(['node_start'])
+      expect(existsSync(join(repoRoot, 'patch-work', 'dev.md'))).toBe(false)
+    } finally {
+      if (previousConfigDir === undefined) {
+        delete process.env.RV_INSIGHTS_CONFIG_DIR
+      } else {
+        process.env.RV_INSIGHTS_CONFIG_DIR = previousConfigDir
+      }
+      rmSync(tempConfigDir, { recursive: true, force: true })
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
   })
 
   test('Codex SDK runner 会读取 OpenAI 兼容渠道配置', async () => {
