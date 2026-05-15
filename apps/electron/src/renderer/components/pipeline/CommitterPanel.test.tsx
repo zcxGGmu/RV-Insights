@@ -82,6 +82,9 @@ function makeTesterOutput(): PipelineTesterStageOutput {
       ],
       additions: 4,
       deletions: 1,
+      baseBranch: 'main',
+      workingBranch: 'feature/pipeline-v2',
+      headCommit: 'a'.repeat(40),
       testEvidence: [
         {
           command: 'bun test',
@@ -124,6 +127,11 @@ describe('CommitterPanel', () => {
     expect(viewModel.commitMessage).toBe('feat(pipeline): add draft submission')
     expect(viewModel.prTitle).toBe('Add draft submission materials')
     expect(viewModel.patchSetSummary).toBe('1 个文件，+4 / -1')
+    expect(viewModel.branchSummary).toBe('main -> feature/pipeline-v2')
+    expect(viewModel.commitCandidateItems).toEqual(['src/index.ts'])
+    expect(viewModel.excludedItems).toContain('patch-work/**')
+    expect(viewModel.localCommitLabel).toBe('创建本地 commit')
+    expect(viewModel.localCommitDisabled).toBe(false)
     expect(viewModel.evidenceItems).toEqual([
       expect.objectContaining({
         command: 'bun test',
@@ -185,30 +193,23 @@ describe('CommitterPanel', () => {
     expect(viewModel.blockers).toEqual(['缺少上游 CONTRIBUTING'])
   })
 
-  test('Phase 6 遇到本地 commit 或远端 PR 状态时禁止完成', () => {
+  test('构建本地 commit 已创建状态并展示 commit hash', () => {
     const viewModel = buildCommitterPanelViewModel({
       output: makeCommitterOutput({
         submissionStatus: 'local_commit_created',
-      }),
-      testerOutput: makeTesterOutput(),
-      contents: new Map([
-        ['commit.md', '# Commit 准备'],
-        ['pr.md', '# PR 草稿'],
-      ]),
-      loadingPaths: new Set(),
-      readErrors: new Map(),
-      submitting: false,
-    })
-
-    expect(viewModel.approveDisabled).toBe(true)
-    expect(viewModel.warning).toContain('Phase 6')
-
-    const attemptedViewModel = buildCommitterPanelViewModel({
-      output: makeCommitterOutput({
         localCommit: {
           attempted: true,
           status: 'created',
-          commitHash: 'abc123',
+          operationId: 'op-local-commit-ui',
+          commitHash: 'abc123def456',
+          files: [
+            {
+              path: 'src/index.ts',
+              changeType: 'modified',
+              summary: '更新实现',
+            },
+          ],
+          excludedFiles: ['patch-work/commit.md'],
         },
       }),
       testerOutput: makeTesterOutput(),
@@ -221,7 +222,29 @@ describe('CommitterPanel', () => {
       submitting: false,
     })
 
-    expect(attemptedViewModel.approveDisabled).toBe(true)
-    expect(attemptedViewModel.warning).toContain('Phase 6')
+    expect(viewModel.statusLabel).toBe('本地 commit 已创建')
+    expect(viewModel.localCommitDisabled).toBe(true)
+    expect(viewModel.localCommitResult).toContain('abc123def456')
+    expect(viewModel.commitCandidateItems).toEqual(['src/index.ts'])
+    expect(viewModel.excludedItems).toContain('patch-work/commit.md')
+  })
+
+  test('远端 PR 状态仍禁止完成', () => {
+    const viewModel = buildCommitterPanelViewModel({
+      output: makeCommitterOutput({
+        submissionStatus: 'remote_pr_created',
+      }),
+      testerOutput: makeTesterOutput(),
+      contents: new Map([
+        ['commit.md', '# Commit 准备'],
+        ['pr.md', '# PR 草稿'],
+      ]),
+      loadingPaths: new Set(),
+      readErrors: new Map(),
+      submitting: false,
+    })
+
+    expect(viewModel.approveDisabled).toBe(true)
+    expect(viewModel.warning).toContain('远端')
   })
 })

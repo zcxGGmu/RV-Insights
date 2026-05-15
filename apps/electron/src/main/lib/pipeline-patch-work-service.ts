@@ -735,6 +735,8 @@ export function acceptPatchWorkDocuments(input: {
   gateId: string
   kinds: PatchWorkFileKind[]
 }): PatchWorkFileRef[] {
+  assertPatchWorkDocumentsAcceptable(input)
+
   const acceptedAt = Date.now()
   const acceptedFiles: PatchWorkFileRef[] = []
   updateManifest(input.repositoryRoot, (manifest) => {
@@ -769,6 +771,24 @@ export function acceptPatchWorkDocuments(input: {
   return input.kinds
     .map((kind) => acceptedFiles.find((file) => file.kind === kind))
     .filter((file): file is PatchWorkFileRef => Boolean(file))
+}
+
+export function assertPatchWorkDocumentsAcceptable(input: {
+  repositoryRoot: string
+  kinds: PatchWorkFileKind[]
+}): PatchWorkFileRef[] {
+  const manifest = readPatchWorkManifest(input.repositoryRoot)
+
+  return input.kinds.map((kind) => {
+    const file = manifest.files.find((item) => item.kind === kind)
+    if (!file) {
+      throw new Error(`patch-work 文档不存在，无法接受: ${kind}`)
+    }
+
+    assertManifestChecksumFresh(manifest, file)
+    readVerifiedPatchWorkFile(input.repositoryRoot, file)
+    return file
+  })
 }
 
 export function clearPatchWorkFilesByKind(input: {

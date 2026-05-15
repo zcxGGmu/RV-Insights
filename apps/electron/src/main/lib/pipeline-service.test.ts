@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -6,6 +7,7 @@ import type {
   PipelineGateRequest,
   PipelineGateResponse,
   PipelineStateSnapshot,
+  PipelineStreamCompletePayload,
   PipelineStreamPayload,
 } from '@rv-insights/shared'
 import {
@@ -18,6 +20,7 @@ import { getPipelineSessionCheckpointDir } from './config-paths'
 import {
   createContributionTask,
   getContributionTask,
+  getContributionTaskEvents,
   getContributionTaskByPipelineSessionId,
 } from './contribution-task-service'
 import {
@@ -25,6 +28,23 @@ import {
   writePatchWorkFile,
 } from './pipeline-patch-work-service'
 import { createAgentWorkspace } from './agent-workspace-manager'
+
+function runGit(repoRoot: string, args: string[]): string {
+  return execFileSync('git', ['-C', repoRoot, ...args], {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
+}
+
+function setupPipelineGitRepo(repoRoot: string): void {
+  runGit(repoRoot, ['init'])
+  runGit(repoRoot, ['config', 'user.name', 'RV Test'])
+  runGit(repoRoot, ['config', 'user.email', 'rv-test@example.com'])
+  mkdirSync(join(repoRoot, 'src'), { recursive: true })
+  writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 1\n', 'utf-8')
+  runGit(repoRoot, ['add', 'src/index.ts'])
+  runGit(repoRoot, ['commit', '-m', 'initial'])
+}
 
 describe('pipeline-service', () => {
   const originalConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
@@ -222,7 +242,6 @@ describe('pipeline-service', () => {
         }),
       }),
     })
-
     try {
       const session = service.createSession('任务选择测试', 'channel-1', 'workspace-1')
       updatePipelineSessionMeta(session.id, {
@@ -321,7 +340,6 @@ describe('pipeline-service', () => {
         }),
       }),
     })
-
     try {
       const session = service.createSession('文档审核测试', 'channel-1', 'workspace-1')
       updatePipelineSessionMeta(session.id, {
@@ -676,8 +694,9 @@ describe('pipeline-service', () => {
     }
   })
 
-  test('committer submission_review approve 只接受提交草稿并拒绝本地 commit 模式', async () => {
+  test('committer submission_review local_commit 会创建本地提交并通过 operation id 保持幂等', async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-committer-repo-'))
+    setupPipelineGitRepo(repoRoot)
     const gateRequest: PipelineGateRequest = {
       gateId: 'gate-committer-submission',
       sessionId: 'session-committer-submission',
@@ -691,9 +710,9 @@ describe('pipeline-service', () => {
         invoke: async () => {
           throw new Error('invoke 不应被调用')
         },
-        resume: async () => ({
+        resume: async (input: { sessionId: string }) => ({
           state: {
-            sessionId: 'session-committer-submission',
+            sessionId: input.sessionId,
             version: 2,
             currentNode: 'committer',
             status: 'completed',
@@ -714,6 +733,7 @@ describe('pipeline-service', () => {
         }),
       }),
     })
+    const completePayloads: PipelineStreamCompletePayload[] = []
 
     try {
       const session = service.createSession('committer 草稿审核测试', 'channel-1', 'workspace-1')
@@ -731,10 +751,12 @@ describe('pipeline-service', () => {
         pipelineSessionId: session.id,
         repositoryRoot: repoRoot,
         patchWorkDir: join(repoRoot, 'patch-work'),
-        contributionMode: 'local_patch',
+        contributionMode: 'local_commit',
         allowRemoteWrites: false,
         status: 'committing',
       })
+      writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 2\n', 'utf-8')
+      const commitCountBefore = Number(runGit(repoRoot, ['rev-list', '--count', 'HEAD']))
       const commitRef = writePatchWorkFile({
         contributionTaskId: 'task-committer-submission',
         pipelineSessionId: session.id,
@@ -782,22 +804,18 @@ describe('pipeline-service', () => {
         createdAt: Date.now(),
       })
 
-      await expect(service.respondGate({
+      const response: PipelineGateResponse = {
         gateId: gateRequest.gateId,
         sessionId: session.id,
         kind: 'submission_review',
         action: 'approve',
         submissionMode: 'local_commit',
+        localCommitOperationId: 'op-service-local-commit',
         createdAt: Date.now(),
-      })).rejects.toThrow('Phase 6 仅允许保存提交材料草稿')
+      }
 
-      await service.respondGate({
-        gateId: gateRequest.gateId,
-        sessionId: session.id,
-        kind: 'submission_review',
-        action: 'approve',
-        submissionMode: 'local_patch',
-        createdAt: Date.now(),
+      await service.respondGate(response, {
+        onComplete: (payload) => completePayloads.push(payload),
       })
 
       const manifest = readPatchWorkManifest(repoRoot)
@@ -811,12 +829,186 @@ describe('pipeline-service', () => {
       })
       expect(getContributionTask('task-committer-submission')).toMatchObject({
         status: 'completed',
+        contributionMode: 'local_commit',
+      })
+      expect(Number(runGit(repoRoot, ['rev-list', '--count', 'HEAD']))).toBe(commitCountBefore + 1)
+      const commitHash = runGit(repoRoot, ['rev-parse', 'HEAD'])
+      expect(runGit(repoRoot, ['show', '--name-only', '--pretty=format:', 'HEAD'])
+        .split('\n')
+        .filter(Boolean)).toEqual(['src/index.ts'])
+      const events = getContributionTaskEvents('task-committer-submission')
+        .filter((event) => event.type === 'local_commit_created')
+      expect(events).toHaveLength(1)
+      expect(events[0]?.payload).toMatchObject({
+        operationId: 'op-service-local-commit',
+        commitHash,
+        files: ['src/index.ts'],
+      })
+      await expect(service.getSessionState(session.id)).resolves.toMatchObject({
+        stageOutputs: {
+          committer: {
+            submissionStatus: 'local_commit_created',
+            localCommit: {
+              attempted: true,
+              status: 'created',
+              operationId: 'op-service-local-commit',
+              commitHash,
+            },
+          },
+        },
+      })
+      expect(completePayloads[0]?.state.stageOutputs?.committer).toMatchObject({
+        submissionStatus: 'local_commit_created',
+        localCommit: {
+          attempted: true,
+          status: 'created',
+          operationId: 'op-service-local-commit',
+          commitHash,
+        },
       })
       expect(getPipelineRecords(session.id).find((record) => record.type === 'gate_decision')).toMatchObject({
         type: 'gate_decision',
         kind: 'submission_review',
-        submissionMode: 'local_patch',
+        submissionMode: 'local_commit',
+        localCommitOperationId: 'op-service-local-commit',
       })
+
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'committer',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      await service.respondGate(response)
+      expect(Number(runGit(repoRoot, ['rev-list', '--count', 'HEAD']))).toBe(commitCountBefore + 1)
+      expect(getContributionTaskEvents('task-committer-submission')
+        .filter((event) => event.type === 'local_commit_created')).toHaveLength(1)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('committer submission_review local_commit 会先校验提交材料再执行本地提交', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-committer-docs-repo-'))
+    setupPipelineGitRepo(repoRoot)
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-committer-docs',
+      sessionId: 'session-committer-docs',
+      node: 'committer',
+      kind: 'submission_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('提交材料校验失败时不应恢复 graph')
+        },
+        getState: async () => ({
+          sessionId: 'session-committer-docs',
+          version: 2,
+          currentNode: 'committer',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('committer 提交材料校验测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'committer',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-committer-docs',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_commit',
+        allowRemoteWrites: false,
+        status: 'committing',
+      })
+      writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 3\n', 'utf-8')
+      const commitRef = writePatchWorkFile({
+        contributionTaskId: 'task-committer-docs',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'commit_doc',
+        createdByNode: 'committer',
+        content: '# Commit 准备\n',
+      })
+      const prRef = writePatchWorkFile({
+        contributionTaskId: 'task-committer-docs',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'pr_doc',
+        createdByNode: 'committer',
+        content: '# PR 草稿\n',
+      })
+      appendPipelineNodeCompleteRecords(session.id, {
+        type: 'node_complete',
+        node: 'committer',
+        output: '{}',
+        summary: '提交材料已生成',
+        approved: true,
+        issues: [],
+        artifact: {
+          node: 'committer',
+          summary: '提交材料已生成',
+          commitMessage: 'feat(pipeline): validate submission docs',
+          prTitle: 'Validate submission docs',
+          prBody: '## Summary\n- Validate submission docs',
+          submissionStatus: 'draft_only',
+          blockers: [],
+          risks: [],
+          commitDocRef: commitRef,
+          prDocRef: prRef,
+          localCommit: {
+            attempted: false,
+            status: 'not_requested',
+          },
+          remoteSubmission: {
+            attempted: false,
+            status: 'not_requested',
+          },
+          content: '{}',
+        },
+        createdAt: Date.now(),
+      })
+      writeFileSync(join(repoRoot, 'patch-work', 'commit.md'), '# Commit 准备\n\n被外部修改\n', 'utf-8')
+      const commitCountBefore = Number(runGit(repoRoot, ['rev-list', '--count', 'HEAD']))
+
+      await expect(service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'submission_review',
+        action: 'approve',
+        submissionMode: 'local_commit',
+        localCommitOperationId: 'op-service-local-commit-docs',
+        createdAt: Date.now(),
+      })).rejects.toThrow('checksum 已变化')
+
+      expect(Number(runGit(repoRoot, ['rev-list', '--count', 'HEAD']))).toBe(commitCountBefore)
+      expect(getContributionTask('task-committer-docs')).toMatchObject({
+        status: 'committing',
+      })
+      expect(getContributionTaskEvents('task-committer-docs')
+        .filter((event) => event.type === 'local_commit_failed')).toHaveLength(1)
+      expect(getPipelineRecords(session.id).find((record) => record.type === 'gate_decision')).toBeUndefined()
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

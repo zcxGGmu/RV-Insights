@@ -82,6 +82,7 @@ export interface PipelineGateResponse {
   feedback?: string
   selectedReportId?: string
   submissionMode?: ContributionMode
+  localCommitOperationId?: string
   createdAt: number
 }
 
@@ -241,6 +242,23 @@ export type PipelineSubmissionStatus =
   | 'remote_pr_created'
   | 'blocked'
 
+export type PipelineLocalCommitStatus = 'not_requested' | 'created' | 'failed'
+
+export interface PipelineLocalCommitSummary {
+  attempted: boolean
+  operationId?: string
+  commitHash?: string
+  commitMessage?: string
+  status: PipelineLocalCommitStatus
+  error?: string
+  files?: PipelinePatchSetFile[]
+  excludedFiles?: string[]
+  baseBranch?: string
+  workingBranch?: string
+  headCommit?: string
+  createdAt?: number
+}
+
 export interface PipelineCommitterStageOutput {
   node: 'committer'
   summary: string
@@ -254,12 +272,7 @@ export interface PipelineCommitterStageOutput {
   prDocRef?: PipelinePatchWorkDocumentRef
   commitRef?: PipelinePatchWorkDocumentRef
   prRef?: PipelinePatchWorkDocumentRef
-  localCommit?: {
-    attempted: boolean
-    commitHash?: string
-    status: 'not_requested' | 'created' | 'failed'
-    error?: string
-  }
+  localCommit?: PipelineLocalCommitSummary
   remoteSubmission?: {
     attempted: boolean
     type?: 'push' | 'pull_request'
@@ -354,6 +367,8 @@ export type ContributionTaskEventType =
   | 'preflight_completed'
   | 'patch_work_updated'
   | 'document_revision_created'
+  | 'local_commit_created'
+  | 'local_commit_failed'
   | 'task_failed'
 
 /** 贡献任务审计事件，按 taskId 写入 JSONL */
@@ -650,6 +665,7 @@ export interface PipelineGateDecisionRecord {
   feedback?: string
   selectedReportId?: string
   submissionMode?: ContributionMode
+  localCommitOperationId?: string
   createdAt: number
 }
 

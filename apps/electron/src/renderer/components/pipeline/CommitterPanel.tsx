@@ -40,6 +40,12 @@ export interface CommitterPanelViewModel {
   blockers: string[]
   risks: string[]
   patchSetSummary: string
+  branchSummary: string
+  commitCandidateItems: string[]
+  excludedItems: string[]
+  localCommitLabel: string
+  localCommitDisabled: boolean
+  localCommitResult?: string
   evidenceItems: CommitterEvidenceViewModel[]
   documents: CommitterDocumentViewModel[]
 }
@@ -104,7 +110,7 @@ export function buildCommitterPanelViewModel({
   const blockers = output?.blockers ?? []
   const missingRequiredDocuments = Boolean(output)
     && ((!output?.commitDocRef && !output?.commitRef) || (!output?.prDocRef && !output?.prRef))
-  const hasForbiddenSubmissionAttempt = Boolean(output?.localCommit?.attempted || output?.remoteSubmission?.attempted)
+  const hasForbiddenRemoteAttempt = Boolean(output?.remoteSubmission?.attempted)
   const missingChecksum = documents.some((document) => !document.checksum)
   const hasLoading = documents.some((document) => loadingPaths.has(document.relativePath))
   const hasReadErrors = documents.some((document) => readErrors.has(document.relativePath))
@@ -114,16 +120,19 @@ export function buildCommitterPanelViewModel({
       && !readErrors.has(document.relativePath)
       && (!content || !content.trim())
   })
+  const localCommitCreated = output?.submissionStatus === 'local_commit_created' || output?.localCommit?.status === 'created'
   const statusTone: CommitterPanelViewModel['statusTone'] = blockers.length > 0
     ? 'warning'
-    : output?.submissionStatus === 'draft_only'
+    : output?.submissionStatus === 'draft_only' || localCommitCreated
       ? 'success'
       : 'neutral'
   const warning = (() => {
     if (!output) return 'Committer 尚未生成提交材料。'
     if (blockers.length > 0) return '存在提交材料 blocker，需要修订后才能完成。'
-    if (output.submissionStatus !== 'draft_only') return 'Phase 6 仅允许保存 draft-only 提交材料，不允许本地 commit 或远端 PR。'
-    if (hasForbiddenSubmissionAttempt) return '提交材料包含本地 commit 或远端提交尝试记录，Phase 6 禁止继续。'
+    if (output.submissionStatus !== 'draft_only' && output.submissionStatus !== 'local_commit_created') {
+      return 'Phase 7 仍禁止远端提交；本地 commit 只能通过受控确认按钮执行。'
+    }
+    if (hasForbiddenRemoteAttempt) return '提交材料包含远端提交尝试记录，Phase 7 禁止继续。'
     if (missingRequiredDocuments) return '缺少 commit.md 或 pr.md 提交材料，不能继续。'
     if (missingChecksum) return '存在缺少 checksum 的提交材料，不能继续。'
     if (hasLoading) return '仍在读取提交材料，加载完成后才能继续。'
@@ -133,13 +142,31 @@ export function buildCommitterPanelViewModel({
   })()
   const stats = sumPatchSetStats(testerOutput)
   const evidence = testerOutput?.patchSet?.testEvidence ?? testerOutput?.testEvidence ?? []
+  const commitCandidateFiles = output?.localCommit?.files?.length
+    ? output.localCommit.files
+    : testerOutput?.patchSet?.files ?? []
+  const excludedItems = output?.localCommit?.excludedFiles?.length
+    ? output.localCommit.excludedFiles
+    : ['patch-work/**']
+  const baseBranch = output?.localCommit?.baseBranch ?? testerOutput?.patchSet?.baseBranch
+  const workingBranch = output?.localCommit?.workingBranch ?? testerOutput?.patchSet?.workingBranch
+  const branchSummary = baseBranch && workingBranch
+    ? `${baseBranch} -> ${workingBranch}`
+    : workingBranch ?? '工作分支未知'
+  const localCommitResult = output?.localCommit?.status === 'created' && output.localCommit.commitHash
+    ? `已创建 ${output.localCommit.commitHash}`
+    : output?.localCommit?.status === 'failed'
+      ? `提交失败：${output.localCommit.error ?? '未知错误'}`
+      : undefined
 
   return {
     title: '审核提交材料',
     subtitle: '提交草稿',
     statusLabel: blockers.length > 0
       ? '提交材料阻塞'
-      : output?.submissionStatus === 'draft_only'
+      : localCommitCreated
+        ? '本地 commit 已创建'
+        : output?.submissionStatus === 'draft_only'
         ? '草稿待确认'
         : output
           ? '非草稿状态已阻止'
@@ -148,7 +175,7 @@ export function buildCommitterPanelViewModel({
     summary: output?.summary ?? '等待 Committer 输出 commit.md 和 pr.md。',
     commitMessage: output?.commitMessage ?? '',
     prTitle: output?.prTitle ?? '',
-    approveDisabled: submitting || Boolean(warning),
+    approveDisabled: submitting || Boolean(warning) || localCommitCreated,
     approveLabel: submitting ? '正在保存提交材料' : '仅保存提交材料并完成',
     rejectLabel: '要求修订',
     rerunLabel: '重跑提交草稿',
@@ -158,6 +185,16 @@ export function buildCommitterPanelViewModel({
     blockers,
     risks: output?.risks ?? [],
     patchSetSummary: `${stats.files} 个文件，+${stats.additions} / -${stats.deletions}`,
+    branchSummary,
+    commitCandidateItems: commitCandidateFiles.map((file) => file.path),
+    excludedItems,
+    localCommitLabel: localCommitCreated
+      ? '本地 commit 已创建'
+      : submitting
+        ? '正在创建本地 commit'
+        : '创建本地 commit',
+    localCommitDisabled: submitting || Boolean(warning) || localCommitCreated,
+    localCommitResult,
     evidenceItems: evidence.map((item) => ({
       command: item.command,
       statusLabel: statusLabel(item.status),
@@ -188,6 +225,7 @@ export function CommitterPanel({
   loadingPaths,
   readErrors,
   onApprove,
+  onLocalCommit,
   onReject,
   onRerun,
 }: {
@@ -197,6 +235,7 @@ export function CommitterPanel({
   loadingPaths: Set<string>
   readErrors: Map<string, string>
   onApprove: () => Promise<void>
+  onLocalCommit: () => Promise<void>
   onReject: (feedback: string) => Promise<void>
   onRerun: () => Promise<void>
 }): React.ReactElement {
@@ -252,7 +291,9 @@ export function CommitterPanel({
       <div className="mt-3 space-y-2 rounded-lg bg-background/80 px-3 py-2 text-xs text-muted-foreground">
         <div>Commit：{viewModel.commitMessage || '待生成'}</div>
         <div>PR：{viewModel.prTitle || '待生成'}</div>
+        <div>分支：{viewModel.branchSummary}</div>
         <div>Patch-set：{viewModel.patchSetSummary}</div>
+        {viewModel.localCommitResult ? <div>本地提交：{viewModel.localCommitResult}</div> : null}
       </div>
 
       {viewModel.warning ? (
@@ -299,6 +340,23 @@ export function CommitterPanel({
           </ul>
         </div>
       ) : null}
+
+      <div className="mt-3 grid gap-3 rounded-lg bg-background/80 px-3 py-2 text-xs">
+        <div>
+          <div className="font-medium">本地 commit 候选文件</div>
+          <ul className="mt-2 space-y-1 text-muted-foreground">
+            {viewModel.commitCandidateItems.length > 0
+              ? viewModel.commitCandidateItems.map((item) => <li key={item}>- {item}</li>)
+              : <li>- 无候选文件</li>}
+          </ul>
+        </div>
+        <div>
+          <div className="font-medium">默认排除</div>
+          <ul className="mt-2 space-y-1 text-muted-foreground">
+            {viewModel.excludedItems.map((item) => <li key={item}>- {item}</li>)}
+          </ul>
+        </div>
+      </div>
 
       <div className="mt-4 space-y-3">
         {viewModel.documents.map((document) => (
@@ -351,6 +409,14 @@ export function CommitterPanel({
           className="rounded-xl bg-sky-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {viewModel.approveLabel}
+        </button>
+        <button
+          type="button"
+          disabled={viewModel.localCommitDisabled}
+          onClick={() => runAction(onLocalCommit)}
+          className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {viewModel.localCommitLabel}
         </button>
         <button
           type="button"

@@ -37,6 +37,41 @@ export interface PipelineSubmissionDraftContext {
   headCommit?: string
 }
 
+export interface ValidateCommitPreconditionsInput {
+  repositoryRoot: string
+  commitMessage: string
+  operationId: string
+}
+
+export interface PipelineLocalCommitPlan {
+  operationId: string
+  commitMessage: string
+  canCommit: boolean
+  blockers: string[]
+  changedFiles: PipelinePatchSetFile[]
+  excludedFiles: string[]
+  baseBranch?: string
+  workingBranch?: string
+  headCommit?: string
+}
+
+export interface CreateLocalPipelineCommitInput extends ValidateCommitPreconditionsInput {
+  confirmed: boolean
+}
+
+export interface PipelineLocalCommitResult {
+  operationId: string
+  commitMessage: string
+  status: 'created'
+  commitHash: string
+  files: PipelinePatchSetFile[]
+  excludedFiles: string[]
+  baseBranch?: string
+  workingBranch?: string
+  headCommit?: string
+  createdAt: number
+}
+
 interface GitStatusEntry {
   path: string
   changeType: PipelinePatchSetFile['changeType']
@@ -121,11 +156,28 @@ function normalizeGitPath(repositoryRoot: string, gitPath: string): string {
   return normalized
 }
 
+function toLiteralPathspec(path: string): string {
+  return `:(literal)${path}`
+}
+
 function parseChangeType(status: string): PipelinePatchSetFile['changeType'] {
   if (status.includes('D')) return 'deleted'
   if (status.includes('R')) return 'renamed'
   if (status.includes('A') || status === '??') return 'added'
   return 'modified'
+}
+
+function parseStatusLine(repositoryRoot: string, line: string): GitStatusEntry | null {
+  if (!line.trim()) return null
+  const status = line.slice(0, 2)
+  const rawPath = line.slice(3)
+  const path = status.includes('R') && rawPath.includes(' -> ')
+    ? rawPath.split(' -> ').at(-1) ?? rawPath
+    : rawPath
+  return {
+    path: normalizeGitPath(repositoryRoot, path),
+    changeType: parseChangeType(status),
+  }
 }
 
 function parseStatusEntries(repositoryRoot: string): GitStatusEntry[] {
@@ -141,21 +193,29 @@ function parseStatusEntries(repositoryRoot: string): GitStatusEntry[] {
   const entries: GitStatusEntry[] = []
 
   for (const line of output.split('\n')) {
-    if (!line.trim()) continue
-    const status = line.slice(0, 2)
-    const rawPath = line.slice(3)
-    const path = status.includes('R') && rawPath.includes(' -> ')
-      ? rawPath.split(' -> ').at(-1) ?? rawPath
-      : rawPath
-    const normalized = normalizeGitPath(repositoryRoot, path)
+    const entry = parseStatusLine(repositoryRoot, line)
+    if (!entry) continue
+    const normalized = entry.path
     if (normalized === 'patch-work' || normalized.startsWith('patch-work/')) continue
     entries.push({
       path: normalized,
-      changeType: parseChangeType(status),
+      changeType: entry.changeType,
     })
   }
 
   return entries
+}
+
+function parseAllStatusEntries(repositoryRoot: string): GitStatusEntry[] {
+  const output = runGit(repositoryRoot, [
+    'status',
+    '--porcelain=v1',
+    '--untracked-files=all',
+  ])
+  return output
+    .split('\n')
+    .map((line) => parseStatusLine(repositoryRoot, line))
+    .filter((entry): entry is GitStatusEntry => Boolean(entry))
 }
 
 function parseNumstat(repositoryRoot: string): Map<string, GitNumstatEntry> {
@@ -268,6 +328,37 @@ function readStatusPorcelain(repositoryRoot: string): string {
     ':(exclude)patch-work',
     ':(exclude)patch-work/**',
   ]).trimEnd()
+}
+
+function readExcludedPatchWorkFiles(repositoryRoot: string): string[] {
+  return parseAllStatusEntries(repositoryRoot)
+    .map((entry) => entry.path)
+    .filter((path) => path === 'patch-work' || path.startsWith('patch-work/'))
+    .filter((path, index, paths) => paths.indexOf(path) === index)
+    .sort((a, b) => a.localeCompare(b))
+}
+
+function readStagedPatchWorkFiles(repositoryRoot: string): string[] {
+  return runGit(repositoryRoot, [
+    'diff',
+    '--cached',
+    '--name-only',
+    '--',
+    'patch-work',
+    'patch-work/**',
+  ])
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
+}
+
+function readUnmergedFiles(repositoryRoot: string): string[] {
+  return runGit(repositoryRoot, ['diff', '--name-only', '--diff-filter=U'])
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
 }
 
 function readContributingGuidelines(repositoryRoot: string): {
@@ -435,5 +526,88 @@ export function readPipelineSubmissionDraftContext(input: {
     contributingGuidelinesPath: contributing.relativePath,
     workingBranch,
     headCommit,
+  }
+}
+
+export function validateCommitPreconditions(
+  input: ValidateCommitPreconditionsInput,
+): PipelineLocalCommitPlan {
+  const repositoryRoot = ensureGitRepository(input.repositoryRoot)
+  const commitMessage = input.commitMessage.trim()
+  const changedFiles = buildChangedFiles(repositoryRoot)
+  const excludedFiles = readExcludedPatchWorkFiles(repositoryRoot)
+  const stagedPatchWorkFiles = readStagedPatchWorkFiles(repositoryRoot)
+  const unmergedFiles = readUnmergedFiles(repositoryRoot)
+  const workingBranch = resolveBranchName(repositoryRoot)
+  const headCommit = runGit(repositoryRoot, ['rev-parse', 'HEAD']).trim()
+  const blockers: string[] = []
+
+  if (!input.operationId.trim()) {
+    blockers.push('缺少本地 commit operation id')
+  }
+  if (!commitMessage) {
+    blockers.push('缺少 commit message')
+  }
+  if (!workingBranch) {
+    blockers.push('当前不在具名分支，禁止自动本地 commit')
+  }
+  if (changedFiles.length === 0) {
+    blockers.push('没有可提交的源码变更')
+  }
+  if (unmergedFiles.length > 0) {
+    blockers.push(`存在未解决冲突文件: ${unmergedFiles.join(', ')}`)
+  }
+  if (stagedPatchWorkFiles.length > 0) {
+    blockers.push(`patch-work/** 已进入 Git index，禁止本地 commit: ${stagedPatchWorkFiles.join(', ')}`)
+  }
+
+  return {
+    operationId: input.operationId,
+    commitMessage,
+    canCommit: blockers.length === 0,
+    blockers,
+    changedFiles,
+    excludedFiles,
+    workingBranch,
+    headCommit,
+  }
+}
+
+export function createLocalPipelineCommit(
+  input: CreateLocalPipelineCommitInput,
+): PipelineLocalCommitResult {
+  if (!input.confirmed) {
+    throw new Error('用户未确认本地 commit，禁止执行 git commit')
+  }
+
+  const repositoryRoot = ensureGitRepository(input.repositoryRoot)
+  const plan = validateCommitPreconditions({
+    repositoryRoot,
+    commitMessage: input.commitMessage,
+    operationId: input.operationId,
+  })
+  if (!plan.canCommit) {
+    throw new Error(`本地 commit 前置条件未满足: ${plan.blockers.join('；')}`)
+  }
+
+  runGit(repositoryRoot, ['add', '--', ...plan.changedFiles.map((file) => toLiteralPathspec(file.path))])
+  const stagedPatchWorkFiles = readStagedPatchWorkFiles(repositoryRoot)
+  if (stagedPatchWorkFiles.length > 0) {
+    throw new Error(`patch-work/** 已进入 Git index，禁止本地 commit: ${stagedPatchWorkFiles.join(', ')}`)
+  }
+  runGit(repositoryRoot, ['commit', '-m', plan.commitMessage])
+  const commitHash = runGit(repositoryRoot, ['rev-parse', 'HEAD']).trim()
+
+  return {
+    operationId: plan.operationId,
+    commitMessage: plan.commitMessage,
+    status: 'created',
+    commitHash,
+    files: plan.changedFiles,
+    excludedFiles: plan.excludedFiles,
+    baseBranch: plan.baseBranch,
+    workingBranch: plan.workingBranch,
+    headCommit: plan.headCommit,
+    createdAt: Date.now(),
   }
 }

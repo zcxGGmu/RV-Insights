@@ -77,6 +77,8 @@ const EVENT_TYPES = new Set<ContributionTaskEventType>([
   'preflight_completed',
   'patch_work_updated',
   'document_revision_created',
+  'local_commit_created',
+  'local_commit_failed',
   'task_failed',
 ])
 

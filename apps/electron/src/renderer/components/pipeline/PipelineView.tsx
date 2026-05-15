@@ -546,7 +546,7 @@ export function PipelineView({
   const handleRespond = React.useCallback(async (
     action: 'approve' | 'reject_with_feedback' | 'rerun_node',
     feedback?: string,
-    options?: { submissionMode?: ContributionMode },
+    options?: { submissionMode?: ContributionMode; localCommitOperationId?: string },
   ): Promise<void> => {
     if (!pendingGate) return
     await window.electronAPI.respondPipelineGate({
@@ -555,6 +555,7 @@ export function PipelineView({
       action,
       feedback,
       submissionMode: options?.submissionMode,
+      localCommitOperationId: options?.localCommitOperationId,
       createdAt: Date.now(),
     })
   }, [pendingGate, sessionId])
@@ -677,6 +678,10 @@ export function PipelineView({
                   loadingPaths={documentLoadingPaths}
                   readErrors={documentReadErrors}
                   onApprove={() => handleRespond('approve', undefined, { submissionMode: 'local_patch' })}
+                  onLocalCommit={() => handleRespond('approve', undefined, {
+                    submissionMode: 'local_commit',
+                    localCommitOperationId: `${sessionId}:${pendingGate?.gateId ?? 'submission'}:local_commit`,
+                  })}
                   onReject={(feedback) => handleRespond('reject_with_feedback', feedback)}
                   onRerun={() => handleRespond('rerun_node')}
                 />

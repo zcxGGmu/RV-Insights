@@ -24,6 +24,10 @@ import type {
   PipelineStreamEvent,
   PipelineGateKind,
   PipelineTestEvidence,
+  PipelineCommitterStageOutput,
+  PipelineLocalCommitSummary,
+  PipelineChangedFileType,
+  PatchWorkFileKind,
 } from '@rv-insights/shared'
 import { replayPipelineRecords } from '@rv-insights/shared'
 import type { PipelineNodeRunner } from './pipeline-node-runner'
@@ -52,11 +56,13 @@ import { resolvePipelineCodexChannelId } from './pipeline-codex-settings'
 import {
   appendContributionTaskEvent,
   createContributionTask,
+  getContributionTaskEvents,
   getContributionTaskByPipelineSessionId,
   updateContributionTask,
 } from './contribution-task-service'
 import {
   acceptPatchWorkDocuments,
+  assertPatchWorkDocumentsAcceptable,
   initializePatchWork,
   listPatchWorkExplorerReports,
   readPatchWorkManifestFile,
@@ -65,6 +71,7 @@ import {
 } from './pipeline-patch-work-service'
 import { getAgentWorkspace } from './agent-workspace-manager'
 import { getAgentSessionWorkspacePath } from './config-paths'
+import { createLocalPipelineCommit } from './pipeline-git-submission-service'
 
 export interface PipelineServiceCallbacks {
   onEvent?: (payload: PipelineStreamPayload) => void
@@ -88,6 +95,8 @@ interface CreatePipelineServiceOptions {
   gateService?: PipelineHumanGateService
   checkpointer?: PipelineCheckpointer
 }
+
+const COMMITTER_SUBMISSION_DOCUMENT_KINDS: PatchWorkFileKind[] = ['commit_doc', 'pr_doc']
 
 function isTerminalState(status: PipelineStateSnapshot['status']): boolean {
   return status === 'completed'
@@ -452,9 +461,35 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     })
   }
 
-  function assertCommitterSubmissionAllowsDraftOnlyApprove(sessionId: string): void {
+  function mergeStateWithReplayedStageOutputs(
+    sessionId: string,
+    state: PipelineStateSnapshot,
+  ): PipelineStateSnapshot {
+    const replayedState = replayCurrentPipelineState(sessionId)
+    const stageOutputs = {
+      ...(state.stageOutputs ?? {}),
+      ...(replayedState.stageOutputs ?? {}),
+    }
+
+    return Object.keys(stageOutputs).length > 0
+      ? {
+        ...state,
+        stageOutputs,
+      }
+      : state
+  }
+
+  function getLatestCommitterOutput(sessionId: string): PipelineCommitterStageOutput {
     const committerOutput = replayCurrentPipelineState(sessionId).stageOutputs?.committer
     if (committerOutput?.node !== 'committer') {
+      throw new Error('committer 提交材料状态缺失，禁止完成提交操作')
+    }
+    return committerOutput
+  }
+
+  function assertCommitterSubmissionAllowsDraftOnlyApprove(sessionId: string): void {
+    const committerOutput = getLatestCommitterOutput(sessionId)
+    if (committerOutput.node !== 'committer') {
       throw new Error('committer 提交材料状态缺失，禁止完成 Phase 6 submission review')
     }
     if (committerOutput.submissionStatus !== 'draft_only') {
@@ -465,6 +500,216 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     }
     if (committerOutput.localCommit?.attempted || committerOutput.remoteSubmission?.attempted) {
       throw new Error('Phase 6 禁止完成已尝试本地 commit 或远端提交的提交材料')
+    }
+  }
+
+  function asStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return []
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+  }
+
+  function normalizeChangedFileType(value: unknown): PipelineChangedFileType {
+    return value === 'added' || value === 'deleted' || value === 'renamed' || value === 'modified'
+      ? value
+      : 'modified'
+  }
+
+  function toLocalCommitSummary(
+    value: unknown,
+  ): PipelineLocalCommitSummary | undefined {
+    if (!isObject(value) || value.status !== 'created' || typeof value.operationId !== 'string') {
+      return undefined
+    }
+
+    const files = Array.isArray(value.files)
+      ? value.files
+        .filter(isObject)
+        .map((file) => {
+          const path = typeof file.path === 'string' ? file.path : ''
+          if (!path) return null
+          return {
+            path,
+            changeType: normalizeChangedFileType(file.changeType),
+            summary: typeof file.summary === 'string' ? file.summary : path,
+            additions: typeof file.additions === 'number' ? file.additions : undefined,
+            deletions: typeof file.deletions === 'number' ? file.deletions : undefined,
+          }
+        })
+        .filter((file): file is NonNullable<typeof file> => Boolean(file))
+      : undefined
+
+    return {
+      attempted: true,
+      operationId: value.operationId,
+      commitHash: typeof value.commitHash === 'string' ? value.commitHash : undefined,
+      commitMessage: typeof value.commitMessage === 'string' ? value.commitMessage : undefined,
+      status: 'created',
+      error: typeof value.error === 'string' ? value.error : undefined,
+      files,
+      excludedFiles: asStringArray(value.excludedFiles),
+      baseBranch: typeof value.baseBranch === 'string' ? value.baseBranch : undefined,
+      workingBranch: typeof value.workingBranch === 'string' ? value.workingBranch : undefined,
+      headCommit: typeof value.headCommit === 'string' ? value.headCommit : undefined,
+      createdAt: typeof value.createdAt === 'number' ? value.createdAt : undefined,
+    }
+  }
+
+  function appendCommitterLocalCommitArtifact(
+    sessionId: string,
+    output: PipelineCommitterStageOutput,
+    localCommit: PipelineLocalCommitSummary,
+  ): void {
+    const content = JSON.stringify({
+      ...output,
+      submissionStatus: localCommit.status === 'created'
+        ? 'local_commit_created'
+        : output.submissionStatus,
+      localCommit,
+    }, null, 2)
+    appendPipelineRecord(sessionId, {
+      id: `${sessionId}-committer-local-commit-${localCommit.operationId ?? 'unknown'}-${localCommit.createdAt ?? Date.now()}-artifact`,
+      sessionId,
+      type: 'stage_artifact',
+      node: 'committer',
+      artifact: {
+        ...output,
+        submissionStatus: localCommit.status === 'created'
+          ? 'local_commit_created'
+          : output.submissionStatus,
+        localCommit,
+        content,
+      },
+      createdAt: localCommit.createdAt ?? Date.now(),
+    })
+  }
+
+  function getExistingLocalCommitResult(
+    sessionId: string,
+    operationId: string,
+  ): PipelineLocalCommitSummary | undefined {
+    const currentLocalCommit = replayCurrentPipelineState(sessionId).stageOutputs?.committer?.localCommit
+    if (currentLocalCommit?.status === 'created' && currentLocalCommit.operationId === operationId) {
+      return currentLocalCommit
+    }
+
+    const task = getContributionTaskByPipelineSessionId(sessionId)
+    if (!task) return undefined
+
+    for (const event of getContributionTaskEvents(task.id)) {
+      if (event.type !== 'local_commit_created') continue
+      const payload = event.payload
+      if (!isObject(payload) || payload.operationId !== operationId) continue
+      const summary = toLocalCommitSummary(payload.localCommit)
+      if (summary) {
+        return summary
+      }
+    }
+
+    return undefined
+  }
+
+  function assertCommitterSubmissionAllowsLocalCommit(
+    output: PipelineCommitterStageOutput,
+  ): void {
+    if (output.submissionStatus !== 'draft_only') {
+      throw new Error('committer 提交材料不是 draft-only 状态，禁止创建本地 commit')
+    }
+    if (output.blockers.length > 0) {
+      throw new Error('committer 提交材料仍存在 blocker，禁止创建本地 commit')
+    }
+    if (output.remoteSubmission?.attempted) {
+      throw new Error('提交材料包含远端提交尝试记录，禁止创建本地 commit')
+    }
+  }
+
+  function resolveLocalCommitOperationId(
+    pendingGate: PipelineGateRequest,
+    response: PipelineGateResponse,
+  ): string {
+    return response.localCommitOperationId?.trim()
+      || `${response.sessionId}:${pendingGate.gateId}:local_commit`
+  }
+
+  function applyLocalCommitSubmission(
+    pendingGate: PipelineGateRequest,
+    response: PipelineGateResponse,
+    task: NonNullable<ReturnType<typeof getContributionTaskForSession>>,
+  ): PipelineLocalCommitSummary {
+    const operationId = resolveLocalCommitOperationId(pendingGate, response)
+    const committerOutput = getLatestCommitterOutput(response.sessionId)
+    const existingCommit = getExistingLocalCommitResult(response.sessionId, operationId)
+    if (existingCommit?.status === 'created') {
+      appendCommitterLocalCommitArtifact(response.sessionId, committerOutput, existingCommit)
+      updateContributionTask(task.id, {
+        contributionMode: 'local_commit',
+      })
+      return existingCommit
+    }
+
+    assertCommitterSubmissionAllowsLocalCommit(committerOutput)
+
+    try {
+      assertPatchWorkDocumentsAcceptable({
+        repositoryRoot: task.repositoryRoot,
+        kinds: COMMITTER_SUBMISSION_DOCUMENT_KINDS,
+      })
+      const result = createLocalPipelineCommit({
+        repositoryRoot: task.repositoryRoot,
+        commitMessage: committerOutput.commitMessage,
+        operationId,
+        confirmed: true,
+      })
+      const localCommit: PipelineLocalCommitSummary = {
+        attempted: true,
+        operationId: result.operationId,
+        commitHash: result.commitHash,
+        commitMessage: result.commitMessage,
+        status: result.status,
+        files: result.files,
+        excludedFiles: result.excludedFiles,
+        baseBranch: result.baseBranch,
+        workingBranch: result.workingBranch,
+        headCommit: result.headCommit,
+        createdAt: result.createdAt,
+      }
+      appendCommitterLocalCommitArtifact(response.sessionId, committerOutput, localCommit)
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'local_commit_created',
+        payload: {
+          operationId,
+          commitHash: result.commitHash,
+          commitMessage: result.commitMessage,
+          files: result.files.map((file) => file.path),
+          excludedFiles: result.excludedFiles,
+          localCommit,
+        },
+      })
+      updateContributionTask(task.id, {
+        contributionMode: 'local_commit',
+      })
+      return localCommit
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const localCommit: PipelineLocalCommitSummary = {
+        attempted: true,
+        operationId,
+        commitMessage: committerOutput.commitMessage,
+        status: 'failed',
+        error: message,
+        createdAt: Date.now(),
+      }
+      appendCommitterLocalCommitArtifact(response.sessionId, committerOutput, localCommit)
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'local_commit_failed',
+        payload: {
+          operationId,
+          error: message,
+          localCommit,
+        },
+      })
+      throw error
     }
   }
 
@@ -719,15 +964,52 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     if (pendingGate.kind === 'submission_review' && pendingGate.node === 'committer') {
       const task = getContributionTaskForSession(response.sessionId)
       if (!task) return
-      if (response.submissionMode && response.submissionMode !== 'local_patch') {
-        throw new Error('Phase 6 仅允许保存提交材料草稿，不允许本地 commit 或远端 PR')
+      const submissionMode = response.submissionMode ?? 'local_patch'
+      if (submissionMode === 'remote_pr') {
+        throw new Error('Phase 7 不允许远端 push 或 PR，请等待 Phase 8')
+      }
+      if (submissionMode === 'local_commit') {
+        const localCommit = applyLocalCommitSubmission(pendingGate, response, task)
+        const accepted = acceptPatchWorkDocuments({
+          repositoryRoot: task.repositoryRoot,
+          gateId: pendingGate.gateId,
+          kinds: COMMITTER_SUBMISSION_DOCUMENT_KINDS,
+        })
+        updateContributionTask(task.id, {
+          contributionMode: 'local_commit',
+          status: 'completed',
+          currentGateId: undefined,
+        })
+        appendContributionTaskEvent(task.id, {
+          pipelineSessionId: response.sessionId,
+          type: 'patch_work_updated',
+          payload: {
+            acceptedDocuments: accepted.map((file) => ({
+              relativePath: file.relativePath,
+              checksum: file.checksum,
+              revision: file.revision,
+            })),
+            submissionMode: 'local_commit',
+            operationId: resolveLocalCommitOperationId(pendingGate, response),
+            localCommit,
+          },
+        })
+        appendContributionTaskEvent(task.id, {
+          pipelineSessionId: response.sessionId,
+          type: 'task_updated',
+          payload: {
+            status: 'completed',
+            reason: 'local_commit_created',
+          },
+        })
+        return
       }
 
       assertCommitterSubmissionAllowsDraftOnlyApprove(response.sessionId)
       const accepted = acceptPatchWorkDocuments({
         repositoryRoot: task.repositoryRoot,
         gateId: pendingGate.gateId,
-        kinds: ['commit_doc', 'pr_doc'],
+        kinds: COMMITTER_SUBMISSION_DOCUMENT_KINDS,
       })
       updateContributionTask(task.id, {
         status: 'completed',
@@ -815,9 +1097,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
 
       if (!current.interrupted) {
         if (isTerminalState(current.state.status)) {
+          const completeState = mergeStateWithReplayedStageOutputs(meta.id, current.state)
           callbacks?.onComplete?.({
             sessionId: meta.id,
-            state: current.state,
+            state: completeState,
           })
         }
         return
@@ -858,6 +1141,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         feedback: response.feedback,
         selectedReportId: response.selectedReportId,
         submissionMode: response.submissionMode,
+        localCommitOperationId: response.localCommitOperationId,
         createdAt: response.createdAt,
       })
       emitEvent(meta.id, callbacks, {
@@ -1095,6 +1379,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         feedback: response.feedback,
         selectedReportId: response.selectedReportId,
         submissionMode: response.submissionMode,
+        localCommitOperationId: response.localCommitOperationId,
         createdAt: response.createdAt,
       })
       emitEvent(meta.id, callbacks, {
@@ -1172,17 +1457,10 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
 
       try {
         const graph = await Promise.resolve(createGraph(meta))
-        return await graph.getState(sessionId)
+        const graphState = await graph.getState(sessionId)
+        return mergeStateWithReplayedStageOutputs(sessionId, graphState)
       } catch {
-        return {
-          sessionId: meta.id,
-          currentNode: meta.currentNode,
-          status: meta.status,
-          reviewIteration: meta.reviewIteration,
-          lastApprovedNode: meta.lastApprovedNode,
-          pendingGate: meta.pendingGate,
-          updatedAt: meta.updatedAt,
-        }
+        return replayCurrentPipelineState(sessionId)
       }
     },
 

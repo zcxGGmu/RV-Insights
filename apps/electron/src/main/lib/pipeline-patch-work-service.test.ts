@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   acceptPatchWorkDocuments,
+  assertPatchWorkDocumentsAcceptable,
   initializePatchWork,
   listPatchWorkExplorerReports,
   readPatchWorkFile,
@@ -525,6 +526,43 @@ describe('pipeline-patch-work-service', () => {
       acceptedRevision: testPlanRef.revision,
       acceptedByGateId: 'gate-plan',
       checksum: testPlanRef.checksum,
+    })
+  })
+
+  test('只读校验 patch-work 文档不会写入 accepted 状态', () => {
+    const commitRef = writePatchWorkFile({
+      contributionTaskId: 'task-1',
+      pipelineSessionId: 'session-1',
+      repositoryRoot: repoRoot,
+      kind: 'commit_doc',
+      createdByNode: 'committer',
+      content: '# Commit 准备\n',
+    })
+    const prRef = writePatchWorkFile({
+      contributionTaskId: 'task-1',
+      pipelineSessionId: 'session-1',
+      repositoryRoot: repoRoot,
+      kind: 'pr_doc',
+      createdByNode: 'committer',
+      content: '# PR 草稿\n',
+    })
+
+    const acceptable = assertPatchWorkDocumentsAcceptable({
+      repositoryRoot: repoRoot,
+      kinds: ['commit_doc', 'pr_doc'],
+    })
+    const manifest = readPatchWorkManifest(repoRoot)
+
+    expect(acceptable.map((file) => file.relativePath)).toEqual(['commit.md', 'pr.md'])
+    expect(manifest.files.find((file) => file.relativePath === 'commit.md')).toMatchObject({
+      revision: commitRef.revision,
+      checksum: commitRef.checksum,
+      acceptedRevision: undefined,
+    })
+    expect(manifest.files.find((file) => file.relativePath === 'pr.md')).toMatchObject({
+      revision: prRef.revision,
+      checksum: prRef.checksum,
+      acceptedRevision: undefined,
     })
   })
 
