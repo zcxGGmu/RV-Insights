@@ -3,6 +3,7 @@ import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type {
   PipelinePatchSetFile,
+  PipelineRemoteSubmissionSummary,
   PipelineTestEvidence,
 } from '@rv-insights/shared'
 
@@ -72,6 +73,51 @@ export interface PipelineLocalCommitResult {
   createdAt: number
 }
 
+export interface PipelineRemoteCommandOptions {
+  cwd: string
+}
+
+export type PipelineRemoteCommandRunner = (
+  command: string,
+  args: string[],
+  options: PipelineRemoteCommandOptions,
+) => string
+
+export interface ValidateRemoteSubmissionPreconditionsInput {
+  repositoryRoot: string
+  operationId: string
+  commitHash: string
+  prTitle: string
+  prBody: string
+  allowRemoteWrites: boolean
+  remoteName?: string
+  headBranch?: string
+  baseBranch?: string
+  draft?: boolean
+  commandRunner?: PipelineRemoteCommandRunner
+  skipPush?: boolean
+}
+
+export interface PipelineRemoteSubmissionPlan {
+  operationId: string
+  commitHash: string
+  canSubmit: boolean
+  blockers: string[]
+  remoteName: string
+  sanitizedRemoteUrl?: string
+  githubRepo?: string
+  baseBranch: string
+  headBranch: string
+  prTitle: string
+  prBody: string
+  draft: boolean
+  pushedRef?: string
+}
+
+export interface CreateRemotePipelineSubmissionInput extends ValidateRemoteSubmissionPreconditionsInput {
+  confirmed: boolean
+}
+
 interface GitStatusEntry {
   path: string
   changeType: PipelinePatchSetFile['changeType']
@@ -81,6 +127,21 @@ interface GitNumstatEntry {
   path: string
   additions: number
   deletions: number
+}
+
+export class PipelineRemoteSubmissionError extends Error {
+  remoteSubmission?: PipelineRemoteSubmissionSummary
+
+  constructor(message: string, remoteSubmission?: PipelineRemoteSubmissionSummary) {
+    super(redactSecretText(message))
+    this.name = 'PipelineRemoteSubmissionError'
+    this.remoteSubmission = remoteSubmission
+      ? {
+        ...remoteSubmission,
+        error: remoteSubmission.error ? redactSecretText(remoteSubmission.error) : undefined,
+      }
+      : undefined
+  }
 }
 
 function runGit(
@@ -107,6 +168,77 @@ function runGit(
     }
     throw error
   }
+}
+
+function runRemoteCommand(
+  repositoryRoot: string,
+  command: string,
+  args: string[],
+  runner?: PipelineRemoteCommandRunner,
+): string {
+  try {
+    if (runner) {
+      return runner(command, args, { cwd: repositoryRoot })
+    }
+
+    return execFileSync(command, args, {
+      cwd: repositoryRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: command === 'git' && args[0] === 'push' ? 120_000 : 30_000,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GH_PROMPT_DISABLED: '1',
+      },
+    })
+  } catch (error) {
+    throw new Error(redactSecretText(formatCommandError(error)))
+  }
+}
+
+export function sanitizeRemoteUrl(remoteUrl: string): string {
+  const trimmed = remoteUrl.trim()
+  if (!trimmed) return ''
+
+  try {
+    const url = new URL(trimmed)
+    url.username = ''
+    url.password = ''
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return trimmed.replace(/\/\/[^/@]+@/, '//')
+  }
+}
+
+export function redactSecretText(value: string): string {
+  return value
+    .replace(/(https?:\/\/)(?:[^/\s:@]+(?::[^/\s@]*)?@)([^\s]+)/gi, (_match, protocol: string, rest: string) =>
+      `${protocol}${rest}`)
+    .replace(/\bAuthorization:\s*Bearer\s+[^\s]+/gi, 'Authorization: Bearer [REDACTED]')
+    .replace(/\bBearer\s+(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)/gi, 'Bearer [REDACTED]')
+    .replace(/\bgh[pousr]_[A-Za-z0-9_]{10,}\b/g, '[REDACTED]')
+    .replace(/\bgithub_pat_[A-Za-z0-9_]{10,}\b/g, '[REDACTED]')
+    .replace(/\b(GH_TOKEN|GITHUB_TOKEN)(\s*[=:]\s*)[^\s]+/gi, '$1$2[REDACTED]')
+}
+
+function formatCommandError(error: unknown): string {
+  if (typeof error !== 'object' || error === null) {
+    return String(error)
+  }
+
+  const parts: string[] = []
+  if (error instanceof Error) {
+    parts.push(error.message)
+  }
+  if ('stderr' in error && typeof (error as { stderr?: unknown }).stderr === 'string') {
+    parts.push((error as { stderr: string }).stderr)
+  }
+  if ('stdout' in error && typeof (error as { stdout?: unknown }).stdout === 'string') {
+    parts.push((error as { stdout: string }).stdout)
+  }
+
+  return parts.filter(Boolean).join('\n') || String(error)
 }
 
 function ensureGitRepository(repositoryRoot: string): string {
@@ -608,6 +740,381 @@ export function createLocalPipelineCommit(
     baseBranch: plan.baseBranch,
     workingBranch: plan.workingBranch,
     headCommit: plan.headCommit,
+    createdAt: Date.now(),
+  }
+}
+
+function readRemotePushUrl(repositoryRoot: string, remoteName: string): string | undefined {
+  try {
+    return runGit(repositoryRoot, ['remote', 'get-url', '--push', remoteName]).trim()
+  } catch {
+    return undefined
+  }
+}
+
+export function parseGitHubRepoFromRemoteUrl(remoteUrl: string): string | undefined {
+  const trimmed = remoteUrl.trim()
+  if (!trimmed) return undefined
+
+  const normalizePath = (path: string): string | undefined => {
+    const parts = path
+      .replace(/^\/+/, '')
+      .replace(/\.git$/, '')
+      .split('/')
+      .filter(Boolean)
+    const owner = parts[0]
+    const repo = parts[1]
+    if (!owner || !repo) return undefined
+    if (!/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(repo)) return undefined
+    return `${owner}/${repo}`
+  }
+
+  try {
+    const url = new URL(trimmed)
+    if (url.hostname !== 'github.com') return undefined
+    return normalizePath(url.pathname)
+  } catch {
+    const scpLike = trimmed.match(/^[^@]+@github\.com:([^/]+)\/(.+?)(?:\.git)?$/)
+    if (!scpLike) return undefined
+    return normalizePath(`${scpLike[1]}/${scpLike[2]}`)
+  }
+}
+
+function extractPullRequestUrl(output: string): string | undefined {
+  const match = output.match(/https?:\/\/\S+/)
+  return match?.[0]
+}
+
+function extractPullRequestNumber(url: string | undefined): number | undefined {
+  if (!url) return undefined
+  const match = url.match(/\/pull\/(\d+)(?:\b|$)/)
+  return match ? Number(match[1]) : undefined
+}
+
+function isSafeRemoteName(value: string): boolean {
+  return /^[A-Za-z0-9._-]+$/.test(value)
+    && !value.startsWith('-')
+    && !value.includes('..')
+}
+
+function isValidBranchName(repositoryRoot: string, value: string): boolean {
+  if (!value || value.startsWith('-')) return false
+  try {
+    runGit(repositoryRoot, ['check-ref-format', '--branch', value])
+    return true
+  } catch {
+    return false
+  }
+}
+
+function isProtectedHeadBranch(headBranch: string, baseBranch: string): boolean {
+  const normalizedHead = headBranch.toLowerCase()
+  return headBranch === baseBranch || normalizedHead === 'main' || normalizedHead === 'master'
+}
+
+function readPatchWorkFilesAtCommit(repositoryRoot: string, commitHash: string): string[] {
+  return runGit(repositoryRoot, [
+    'ls-tree',
+    '-r',
+    '--name-only',
+    commitHash,
+    '--',
+    'patch-work',
+  ])
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line === 'patch-work' || line.startsWith('patch-work/'))
+    .sort((a, b) => a.localeCompare(b))
+}
+
+function readRemoteTrackingRef(repositoryRoot: string, remoteName: string, baseBranch: string): string | undefined {
+  const ref = `refs/remotes/${remoteName}/${baseBranch}`
+  try {
+    runGit(repositoryRoot, ['rev-parse', '--verify', ref])
+    return ref
+  } catch {
+    return undefined
+  }
+}
+
+function readPatchWorkFilesInPushRange(
+  repositoryRoot: string,
+  remoteName: string,
+  baseBranch: string,
+  commitHash: string,
+): { verified: boolean; files: string[] } {
+  const remoteTrackingRef = readRemoteTrackingRef(repositoryRoot, remoteName, baseBranch)
+  if (!remoteTrackingRef) {
+    return { verified: false, files: [] }
+  }
+
+  const output = runGit(repositoryRoot, [
+    'log',
+    '--format=',
+    '--name-only',
+    `${remoteTrackingRef}..${commitHash}`,
+    '--',
+    'patch-work',
+    'patch-work/**',
+  ])
+  const files = output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line === 'patch-work' || line.startsWith('patch-work/'))
+    .filter((line, index, lines) => lines.indexOf(line) === index)
+    .sort((a, b) => a.localeCompare(b))
+
+  return { verified: true, files }
+}
+
+function remoteBaseBranchExists(
+  repositoryRoot: string,
+  remoteName: string,
+  baseBranch: string,
+  runner?: PipelineRemoteCommandRunner,
+): boolean {
+  try {
+    const output = runRemoteCommand(repositoryRoot, 'git', [
+      'ls-remote',
+      '--exit-code',
+      '--heads',
+      remoteName,
+      `refs/heads/${baseBranch}`,
+    ], runner)
+    return output.trim().length > 0
+  } catch {
+    return false
+  }
+}
+
+function readExistingPullRequestUrl(
+  repositoryRoot: string,
+  plan: PipelineRemoteSubmissionPlan,
+  runner?: PipelineRemoteCommandRunner,
+): string | undefined {
+  if (!plan.githubRepo) return undefined
+
+  try {
+    const output = runRemoteCommand(repositoryRoot, 'gh', [
+      'pr',
+      'view',
+      '--repo',
+      plan.githubRepo,
+      '--head',
+      plan.headBranch,
+      '--json',
+      'url,number',
+      '--jq',
+      '.url',
+    ], runner)
+    return extractPullRequestUrl(output) ?? (output.trim() || undefined)
+  } catch {
+    return undefined
+  }
+}
+
+export function validateRemoteSubmissionPreconditions(
+  input: ValidateRemoteSubmissionPreconditionsInput,
+): PipelineRemoteSubmissionPlan {
+  const repositoryRoot = ensureGitRepository(input.repositoryRoot)
+  const operationId = input.operationId.trim()
+  const commitHash = input.commitHash.trim()
+  const prTitle = input.prTitle.trim()
+  const prBody = input.prBody.trim()
+  const remoteName = input.remoteName?.trim() || 'origin'
+  const remoteNameSafe = isSafeRemoteName(remoteName)
+  const workingBranch = resolveBranchName(repositoryRoot)
+  const headBranch = input.headBranch?.trim() || workingBranch || ''
+  const baseBranch = input.baseBranch?.trim() || 'main'
+  const remoteUrl = remoteNameSafe ? readRemotePushUrl(repositoryRoot, remoteName) : undefined
+  const sanitizedRemoteUrl = remoteUrl ? sanitizeRemoteUrl(remoteUrl) : undefined
+  const githubRepo = remoteUrl ? parseGitHubRepoFromRemoteUrl(remoteUrl) : undefined
+  const currentHead = runGit(repositoryRoot, ['rev-parse', 'HEAD']).trim()
+  const stagedPatchWorkFiles = readStagedPatchWorkFiles(repositoryRoot)
+  const blockers: string[] = []
+
+  if (!input.allowRemoteWrites) {
+    blockers.push('用户未允许远端写能力')
+  }
+  if (!operationId) {
+    blockers.push('缺少远端提交 operation id')
+  }
+  if (!commitHash) {
+    blockers.push('缺少待推送 commit hash')
+  }
+  if (commitHash && currentHead !== commitHash) {
+    blockers.push('当前 HEAD 与待推送 commit hash 不一致')
+  }
+  if (!remoteUrl && remoteNameSafe) {
+    blockers.push(`缺少 Git remote: ${remoteName}`)
+  }
+  if (!remoteNameSafe) {
+    blockers.push('remote 名称包含不安全字符')
+  }
+  if (!headBranch) {
+    blockers.push('当前不在具名分支，禁止远端写')
+  } else if (!isValidBranchName(repositoryRoot, headBranch)) {
+    blockers.push('head branch 包含不安全字符')
+  } else if (baseBranch && isProtectedHeadBranch(headBranch, baseBranch)) {
+    blockers.push('远端 head branch 不能是 base/default 分支')
+  }
+  if (!baseBranch) {
+    blockers.push('缺少 PR base branch')
+  } else if (!isValidBranchName(repositoryRoot, baseBranch)) {
+    blockers.push('base branch 包含不安全字符')
+  }
+  if (remoteUrl && !githubRepo) {
+    blockers.push('远端写首版仅支持 GitHub remote URL')
+  }
+  if (!prTitle) {
+    blockers.push('缺少 PR title')
+  }
+  if (!prBody) {
+    blockers.push('缺少 PR body')
+  }
+  if (stagedPatchWorkFiles.length > 0) {
+    blockers.push(`patch-work/** 已进入 Git index，禁止远端写: ${stagedPatchWorkFiles.join(', ')}`)
+  }
+
+  if (blockers.length === 0) {
+    const patchWorkTreeFiles = readPatchWorkFilesAtCommit(repositoryRoot, commitHash)
+    if (patchWorkTreeFiles.length > 0) {
+      blockers.push(`patch-work/** 已存在于待推送 commit tree，禁止远端写: ${patchWorkTreeFiles.join(', ')}`)
+    }
+  }
+
+  if (blockers.length === 0) {
+    const rangeCheck = readPatchWorkFilesInPushRange(repositoryRoot, remoteName, baseBranch, commitHash)
+    if (!rangeCheck.verified) {
+      blockers.push(`缺少本地 ${remoteName}/${baseBranch} 引用，无法验证 push range 中是否包含 patch-work/**`)
+    } else if (rangeCheck.files.length > 0) {
+      blockers.push(`patch-work/** 曾出现在待推送历史，禁止远端写: ${rangeCheck.files.join(', ')}`)
+    }
+  }
+
+  if (blockers.length === 0 && !remoteBaseBranchExists(repositoryRoot, remoteName, baseBranch, input.commandRunner)) {
+    blockers.push(`目标 remote base branch 不存在或不可访问: ${remoteName}/${baseBranch}`)
+  }
+
+  if (blockers.length === 0) {
+    try {
+      runRemoteCommand(repositoryRoot, 'gh', ['auth', 'status'], input.commandRunner)
+    } catch {
+      blockers.push('GitHub auth 不可用，请先完成 gh 登录或配置 git credential')
+    }
+  }
+
+  return {
+    operationId,
+    commitHash,
+    canSubmit: blockers.length === 0,
+    blockers,
+    remoteName,
+    sanitizedRemoteUrl,
+    githubRepo,
+    baseBranch,
+    headBranch,
+    prTitle,
+    prBody,
+    draft: input.draft ?? true,
+    pushedRef: `refs/heads/${headBranch}`,
+  }
+}
+
+export function createRemotePipelineSubmission(
+  input: CreateRemotePipelineSubmissionInput,
+): PipelineRemoteSubmissionSummary {
+  if (!input.confirmed) {
+    throw new Error('用户未确认远端写，禁止执行 push 或创建 PR')
+  }
+
+  const repositoryRoot = ensureGitRepository(input.repositoryRoot)
+  const plan = validateRemoteSubmissionPreconditions({
+    ...input,
+    repositoryRoot,
+  })
+  if (!plan.canSubmit) {
+    throw new Error(`远端提交前置条件未满足: ${plan.blockers.join('；')}`)
+  }
+
+  const pushedAt = Date.now()
+  if (!input.skipPush) {
+    runRemoteCommand(repositoryRoot, 'git', [
+      'push',
+      plan.remoteName,
+      `${plan.commitHash}:${plan.pushedRef}`,
+    ], input.commandRunner)
+  }
+
+  const prArgs = [
+    'pr',
+    'create',
+    '--repo',
+    plan.githubRepo ?? '',
+    '--title',
+    plan.prTitle,
+    '--body',
+    plan.prBody,
+    '--base',
+    plan.baseBranch,
+    '--head',
+    plan.headBranch,
+  ]
+  if (plan.draft) {
+    prArgs.push('--draft')
+  }
+  const prOutput = (() => {
+    try {
+      return runRemoteCommand(repositoryRoot, 'gh', prArgs, input.commandRunner)
+    } catch (error) {
+      const existingPrUrl = readExistingPullRequestUrl(repositoryRoot, plan, input.commandRunner)
+      if (existingPrUrl) {
+        return existingPrUrl
+      }
+
+      const message = error instanceof Error ? error.message : String(error)
+      const remoteSubmission: PipelineRemoteSubmissionSummary = {
+        attempted: true,
+        operationId: plan.operationId,
+        status: 'pushed',
+        type: 'pull_request',
+        commitHash: plan.commitHash,
+        remoteName: plan.remoteName,
+        sanitizedRemoteUrl: plan.sanitizedRemoteUrl,
+        githubRepo: plan.githubRepo,
+        baseBranch: plan.baseBranch,
+        headBranch: plan.headBranch,
+        pushedRef: plan.pushedRef,
+        prTitle: plan.prTitle,
+        prBody: plan.prBody,
+        draft: plan.draft,
+        error: redactSecretText(message),
+        pushedAt,
+        createdAt: Date.now(),
+      }
+      throw new PipelineRemoteSubmissionError(message, remoteSubmission)
+    }
+  })()
+  const prUrl = extractPullRequestUrl(prOutput)
+
+  return {
+    attempted: true,
+    operationId: plan.operationId,
+    status: 'created',
+    type: 'pull_request',
+    commitHash: plan.commitHash,
+    remoteName: plan.remoteName,
+    sanitizedRemoteUrl: plan.sanitizedRemoteUrl,
+    githubRepo: plan.githubRepo,
+    baseBranch: plan.baseBranch,
+    headBranch: plan.headBranch,
+    pushedRef: plan.pushedRef,
+    prTitle: plan.prTitle,
+    prBody: plan.prBody,
+    prUrl,
+    prNumber: extractPullRequestNumber(prUrl),
+    draft: plan.draft,
+    pushedAt,
     createdAt: Date.now(),
   }
 }

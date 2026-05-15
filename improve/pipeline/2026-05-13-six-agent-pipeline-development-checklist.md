@@ -532,57 +532,59 @@ Pipeline v2 总体完成前必须满足：
 
 **阶段状态**
 
-- [ ] 阶段开始
-- [ ] 阶段完成
+- [x] 阶段开始
+- [x] 阶段完成
 
 **入口条件**
 
-- [ ] Phase 7 已完成。
-- [ ] 需要单独安全评审。
-- [ ] 用户明确允许实现远端写能力。
-- [ ] GitHub auth / token 存储方案已确认。
+- [x] Phase 7 已完成。
+- [x] 需要单独安全评审。
+- [x] 用户明确允许实现远端写能力。
+- [x] GitHub auth / token 存储方案已确认。
 
 **开发任务**
 
-- [ ] 新增远端写 preflight：remote URL、upstream、branch、auth、权限。
-- [ ] remote write confirmation gate 二次确认。
-- [ ] push 前展示 remote、branch、commit hash。
-- [ ] PR 前展示 title、body、base、head、draft 状态。
-- [ ] 支持只打开预填充 PR 页面作为低风险路径。
-- [ ] 可选支持 GitHub API 创建 draft PR。
-- [ ] 远端提交结果写入 Contribution events。
-- [ ] 远端失败保留本地 commit、PR 草稿和错误信息。
-- [ ] 所有 token、Authorization header、remote credentials 日志脱敏。
+- [x] 新增远端写 preflight：remote push URL、base/head branch、auth、权限、local commit hash。
+- [x] remote write confirmation gate 二次确认。
+- [x] push 前展示 remote、branch、commit hash。
+- [x] PR 前展示 title、body、base、head、draft 状态。
+- [ ] 支持只打开预填充 PR 页面作为低风险路径（首版暂不实现，后续可选增强）。
+- [ ] 可选支持 GitHub API 创建 draft PR（首版使用本机 `gh` / git credential，不新增 token 存储）。
+- [x] 远端提交结果写入 Contribution events。
+- [x] 远端失败保留本地 commit、PR 草稿和错误信息。
+- [x] 所有 token、Authorization header、remote credentials 日志脱敏。
+- [x] 远端写拒绝 base/default 分支直推风险，且拒绝 `patch-work/**` 出现在待推送 commit tree 或 push range 历史中。
 
 **建议文件**
 
-- [ ] `apps/electron/src/main/lib/pipeline-git-submission-service.ts`
-- [ ] `apps/electron/src/main/lib/github-service.ts` 或等价服务。
-- [ ] `apps/electron/src/main/ipc/pipeline-handlers.ts`
-- [ ] `apps/electron/src/preload/index.ts`
-- [ ] `apps/electron/src/renderer/components/pipeline/CommitterPanel.tsx`
-- [ ] `packages/shared/src/types/pipeline.ts`
+- [x] `apps/electron/src/main/lib/pipeline-git-submission-service.ts`
+- [ ] `apps/electron/src/main/lib/github-service.ts` 或等价服务（未新增，首版复用 Git submission service + `gh` CLI）。
+- [ ] `apps/electron/src/main/ipc/pipeline-handlers.ts`（未新增通道，复用现有 gate response IPC）。
+- [ ] `apps/electron/src/preload/index.ts`（未新增通道，复用现有 gate response IPC）。
+- [x] `apps/electron/src/renderer/components/pipeline/CommitterPanel.tsx`
+- [x] `packages/shared/src/types/pipeline.ts`
 
 **测试**
 
-- [ ] `bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts`
-- [ ] `bun test apps/electron/src/main/lib/github-service.test.ts`
-- [ ] `bun test apps/electron/src/renderer/components/pipeline/CommitterPanel.test.tsx`
-- [ ] `bun run typecheck`
-- [ ] 使用 mock GitHub API 做 E2E，不直接打真实远端。
+- [x] `bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts`
+- [ ] `bun test apps/electron/src/main/lib/github-service.test.ts`（未新增 github-service）。
+- [x] `bun test apps/electron/src/renderer/components/pipeline/CommitterPanel.test.tsx`
+- [x] `bun test apps/electron/src/main/lib/pipeline-service.test.ts`
+- [x] `bun run typecheck`
+- [x] 使用 mock runner 覆盖 GitHub 写路径，不直接打真实远端。
 
 **完成定义**
 
-- [ ] 用户未二次确认时不会 push 或创建 PR。
-- [ ] 远端写操作有完整审计记录。
-- [ ] 失败可恢复，不丢本地 commit 和 PR 草稿。
-- [ ] 日志和 artifact 不泄露凭据。
+- [x] 用户未二次确认时不会 push 或创建 PR。
+- [x] 远端写操作有完整审计记录。
+- [x] 失败可恢复，不丢本地 commit 和 PR 草稿。
+- [x] 日志和 artifact 不泄露凭据。
 
 **禁止事项**
 
-- [ ] 不默认开启远端写。
-- [ ] 不在没有二次确认时 push。
-- [ ] 不在测试中调用真实 GitHub 写接口。
+- [x] 不默认开启远端写。
+- [x] 不在没有二次确认时 push。
+- [x] 不在测试中调用真实 GitHub 写接口。
 
 ## 跨阶段验证清单
 
@@ -648,12 +650,23 @@ Pipeline v2 总体完成前必须满足：
 是否允许进入下一阶段：是，进入 Phase 3；但不得自动开始 Phase 3，需按阶段规则先写计划并等待用户安排。
 ```
 
+```text
+阶段：Phase 8 远端 PR 集成
+完成日期：2026-05-15
+负责人：Codex
+主要变更：新增独立 remote_write_confirmation 高风险 gate；实现受控 git push + gh draft PR 创建；远端写 preflight 校验 push URL、GitHub repo、base/head branch、local commit hash、gh auth、remote base branch、patch-work tree/range；远端结果写入 Contribution events 和 committer stage output；支持 operation id 幂等、PR 已存在恢复、push 成功但 PR 失败后的 pushed 状态重试；统一脱敏 credentialed URL、Authorization、GitHub token 与 GH_TOKEN/GITHUB_TOKEN；CommitterPanel 展示远端目标、二次确认、成功/失败/可恢复状态。
+验证命令：bun test apps/electron/src/main/lib/pipeline-git-submission-service.test.ts apps/electron/src/main/lib/pipeline-service.test.ts apps/electron/src/renderer/components/pipeline/CommitterPanel.test.tsx；bun test packages/shared/src/utils/pipeline-state.test.ts apps/electron/src/main/lib/contribution-task-service.test.ts apps/electron/src/main/lib/pipeline-graph.test.ts apps/electron/src/main/lib/pipeline-node-runner.test.ts apps/electron/src/main/lib/codex-pipeline-node-runner.test.ts apps/electron/src/main/lib/pipeline-git-submission-service.test.ts apps/electron/src/main/lib/pipeline-service.test.ts apps/electron/src/renderer/components/pipeline/CommitterPanel.test.tsx；bun run typecheck；git diff --check；bun install --frozen-lockfile --dry-run；bun test
+剩余风险：全量 bun test 仍有 1 个既有失败 / 1 个对应 unhandled error，位于 apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts 的 Electron named export 测试环境问题，未指向 Phase 8 改动。首版使用本机 gh / git credential，不新增 token 存储；预填充 PR 页面和 GitHub API 创建路径留作后续可选增强。
+提交状态：已作为本轮 Phase 8 单独提交。
+是否允许进入下一阶段：Phase 0-8 已完成；后续仅可在用户明确要求时执行真实远端写或进入新的改进阶段。
+```
+
 ## 最新开发状态快照
 
 > 更新时间：2026-05-15
-> 最近阶段提交：Phase 7 受控本地 Commit Gate，待单独提交。
-> 最新完成阶段：Phase 7 已完成，Phase 8 尚未开始。
-> 当前分支状态：`base/pipeline-v0` 相对 `origin/base/pipeline-v0` 本轮提交前 ahead 13 commits；Phase 7 单独提交后预计 ahead 14 commits；未执行 push / PR。
+> 最近阶段提交：Phase 8 远端 PR 受控集成（本轮提交）。
+> 最新完成阶段：Phase 8 已完成。
+> 当前分支状态：`base/pipeline-v0` 相对 `origin/base/pipeline-v0` ahead 15 commits；未执行 push / PR。
 
 ### 已完成
 
@@ -701,30 +714,37 @@ Pipeline v2 总体完成前必须满足：
 - [x] Phase 7 local commit 执行前会只读校验 `commit.md` / `pr.md` checksum，提交材料失效时不会先创建真实 commit。
 - [x] Phase 7 已通过 operation id 记录本地 commit 结果，重复 resume 不会重复创建 commit；commit hash 会回填到 Contribution events 和 committer stage output。
 - [x] Phase 7 UI 已接入 `CommitterPanel` 本地 commit 状态，展示分支、候选文件、排除项、测试证据和 commit result，仍通过结构化 patch-work 文档读取提交材料。
-- [x] 当前 `@rv-insights/shared` 版本为 `0.1.32`，`@rv-insights/electron` 版本为 `0.0.57`。
+- [x] Phase 7 已单独提交，commit `d6da8380dc69e179c24d542d4a73cd1be90216cc`（`feat(pipeline): 完成 Phase 7 受控本地提交闭环`）。
+- [x] Phase 8：远端 PR 集成。
+- [x] Phase 8 已实现独立 `remote_write_confirmation` high-risk gate，不复用 Phase 7 `local_commit` gate。
+- [x] Phase 8 已实现受控 `git push` + `gh pr create --draft`，必须在用户二次确认、operation id 未完成、local commit hash 可验证时执行；本会话未执行真实 push / PR。
+- [x] Phase 8 已加固远端安全：实际 push URL 脱敏展示、`gh pr create --repo owner/repo`、拒绝 base/default 分支直推、校验 remote base branch、校验 `patch-work/**` 不在待推送 tree / history、错误统一脱敏。
+- [x] Phase 8 已实现远端结果回填、失败审计、PR 已存在恢复和 push succeeded / PR failed 的 `pushed` 可重试状态。
+- [x] 当前 `@rv-insights/shared` 版本为 `0.1.33`，`@rv-insights/electron` 版本为 `0.0.58`。
 
 ### 未完成
 
-- [ ] Phase 8：远端 PR 集成，尚未开始，且需要单独安全评审和用户明确允许远端写能力。
-- [ ] 全局完成定义尚未完成：远端 PR gate 仍待后续阶段落地。
+- [x] Phase 8 已作为本轮单独提交。
+- [ ] 真实远端 push / PR 未执行；只有用户之后明确要求并通过 Phase 8 gate 才能执行。
+- [ ] 预填充 PR 页面和 GitHub API 创建路径未纳入首版，留作后续可选增强。
 
 ### 当前边界
 
-- 下一步只能在 Phase 8 进入前完成单独安全评审，不得跳过。
-- Phase 7 已完成，保留受控本地 commit 但不开启 push / PR。
-- `patch-work/**` 仍不得默认加入 patch-set 或 commit。
+- Phase 0-8 已完成实现；本轮完成后必须先单独提交 Phase 8。
+- Phase 8 只实现受控远端写能力代码；本会话不执行真实 push / PR。
+- `patch-work/**` 仍不得默认加入 patch-set、commit、push 或 PR。
 - README 和 AGENTS 不修改，除非用户明确允许。
-- 每完成一个阶段并满足完成定义后，必须单独提交一次；不默认 push 或创建 PR，除非用户明确要求。
+- 不默认 push 或创建 PR，除非用户明确要求并通过 Phase 8 高风险 gate。
 
 ### 已知风险
 
-- 全量 `bun test` 已运行，最新结果为 370 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 / Phase 4 / Phase 5 / Phase 6 / Phase 7 或 Phase 3 后续 bugfix；进入 Phase 8 前后仍需继续标注为既有风险，除非另行修复。
+- 全量 `bun test` 已运行，最新结果为 387 pass / 1 fail / 1 error；失败仍是 1 个既有失败 / 1 个对应 unhandled error：`apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题。该失败未指向 Phase 1 / Phase 2 / Phase 3 / Phase 4 / Phase 5 / Phase 6 / Phase 7 / Phase 8 或 Phase 3 后续 bugfix；后续仍需继续标注为既有风险，除非另行修复。
 
 ## 当前执行建议
 
-Phase 7 已完成。下一步只能在单独安全评审和用户明确允许远端写能力后进入 Phase 8：远端 PR 集成。Phase 8 不得复用 Phase 7 的本地 commit gate 作为远端确认，必须单独设计 push / PR 高风险 gate。
+Phase 8 已完成并作为本轮单独提交。后续仍不得执行 push / PR，除非用户之后明确要求真实远端写并通过 Phase 8 高风险 gate。
 
-## 下次启动提示词
+## 后续启动提示词
 
 ```text
 你正在 RV-Insights 仓库继续开发 Pipeline v2 六 Agent 开源贡献工作流。
@@ -734,20 +754,21 @@ Phase 7 已完成。下一步只能在单独安全评审和用户明确允许远
 - tasks/lessons.md
 - tasks/todo.md
 - improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md
-- improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md 中“当前实现进度”和 Phase 8 相关内容
+- improve/pipeline/2026-05-13-six-agent-contribution-pipeline-analysis.md 中“当前实现进度”
 
 当前进度：
 1. Phase 0-6 已完成并分别提交，Phase 6 commit 为 fab7f906f546e619157286ffb6fe40c869f1d3e2。
-2. Phase 7 已完成：受控本地 Commit Gate 已实现，支持 local_commit 人工确认、受控 staging、默认排除 patch-work/**、operation id 幂等、commit hash 回填和 CommitterPanel 状态展示。
-3. 当前 @rv-insights/shared 版本为 0.1.32，@rv-insights/electron 版本为 0.0.57。
-4. Phase 8 尚未开始；后续只能在单独安全评审和用户明确允许远端写能力后进入 Phase 8，不得提前接 push 或 PR。
-5. 当前已知验证状态：Phase 7 聚焦测试 80 pass、shared / ContributionTask 兼容测试 18 pass、bun run typecheck、git diff --check、bun install --frozen-lockfile --dry-run 已通过；全量 bun test 最新结果为 370 pass / 1 fail / 1 error，失败仍为既有 completion-signal.test.ts Electron named export 测试环境问题。
+2. Phase 7 已完成并提交，commit 为 d6da8380dc69e179c24d542d4a73cd1be90216cc；已实现受控本地 Commit Gate，支持 local_commit 人工确认、受控 staging、默认排除 patch-work/**、operation id 幂等、commit hash 回填和 CommitterPanel 状态展示。
+3. Phase 8 已完成并作为本轮单独提交；已实现独立 remote_write_confirmation 高风险 gate、受控 git push + gh draft PR、远端结果回填、operation id 幂等、push 成功/PR 失败可恢复、错误脱敏和 patch-work tree/range 远端防护。
+4. 当前 @rv-insights/shared 版本为 0.1.33，@rv-insights/electron 版本为 0.0.58。
+5. 当前分支 base/pipeline-v0 相对 origin/base/pipeline-v0 ahead 15 commits；未 push，未创建 PR。
+6. 当前已知验证状态：Phase 8 核心聚焦测试 65 pass、周边兼容测试 147 pass、bun run typecheck、git diff --check、bun install --frozen-lockfile --dry-run 已通过；全量 bun test 最新结果为 387 pass / 1 fail / 1 error，失败仍为既有 completion-signal.test.ts Electron named export 测试环境问题。
 
 开发纪律：
-- 开始 Phase 8 前，先检查 git status，保护已有用户变更。
-- 开始 Phase 8 前，在 tasks/todo.md 写 Phase 8 计划，并把 checklist 中 Phase 8 的“阶段开始”标为已开始。
+- 继续前先检查 git status，保护已有用户变更。
 - 每个阶段必须先补测试或 BDD 场景，再实现功能。
-- 不得默认执行 git push 或创建 PR，除非用户明确允许远端写能力并完成 Phase 8 gate。
+- 每完成一个阶段并通过完成定义后，单独提交一次；重新启动 Codex 会话后也要主动延续这个纪律。
+- 不得默认执行 git push 或创建 PR，除非用户明确要求真实远端写并完成 Phase 8 high-risk gate。
 - 不得把 patch-work/** 默认加入 patch-set、commit、push 或 PR。
 - 使用 Bun：bun test、bun run typecheck。
 - 状态管理继续使用 Jotai。
@@ -755,12 +776,8 @@ Phase 7 已完成。下一步只能在单独安全评审和用户明确允许远
 - README 和 AGENTS.md 只有在用户明确允许后再修改。
 - 完成功能代码变更时，递增受影响 package 的 patch 版本。
 
-Phase 8 目标：
-- 先补远端写二次确认、push/PR 幂等、远端结果回填和 UI 状态测试。
-- 远端 push / PR 必须使用独立 high-risk gate，不得复用 Phase 7 local_commit 确认。
-- UI 继续通过结构化 IPC 读取 patch-work 文档，不用 records 反推主业务状态。
-
-Phase 8 禁止事项：
-- 未经用户明确确认，不执行 push 或创建 PR。
+后续禁止事项：
+- 未经用户明确确认和 gate，不执行真实 push 或创建 PR。
 - 不得把 patch-work/** 默认加入 push 或 PR。
+- 不得修改 README / AGENTS.md，除非用户明确允许。
 ```

@@ -83,6 +83,8 @@ export interface PipelineGateResponse {
   selectedReportId?: string
   submissionMode?: ContributionMode
   localCommitOperationId?: string
+  remoteSubmissionOperationId?: string
+  remoteWriteConfirmed?: boolean
   createdAt: number
 }
 
@@ -240,9 +242,12 @@ export type PipelineSubmissionStatus =
   | 'local_commit_created'
   | 'remote_pr_ready'
   | 'remote_pr_created'
+  | 'remote_pr_failed'
   | 'blocked'
 
 export type PipelineLocalCommitStatus = 'not_requested' | 'created' | 'failed'
+export type PipelineRemoteSubmissionStatus = 'not_requested' | 'pushed' | 'created' | 'failed'
+export type PipelineRemoteSubmissionType = 'push' | 'pull_request'
 
 export interface PipelineLocalCommitSummary {
   attempted: boolean
@@ -256,6 +261,28 @@ export interface PipelineLocalCommitSummary {
   baseBranch?: string
   workingBranch?: string
   headCommit?: string
+  createdAt?: number
+}
+
+export interface PipelineRemoteSubmissionSummary {
+  attempted: boolean
+  operationId?: string
+  commitHash?: string
+  status: PipelineRemoteSubmissionStatus
+  type?: PipelineRemoteSubmissionType
+  remoteName?: string
+  sanitizedRemoteUrl?: string
+  githubRepo?: string
+  baseBranch?: string
+  headBranch?: string
+  pushedRef?: string
+  prTitle?: string
+  prBody?: string
+  prUrl?: string
+  prNumber?: number
+  draft?: boolean
+  error?: string
+  pushedAt?: number
   createdAt?: number
 }
 
@@ -273,13 +300,7 @@ export interface PipelineCommitterStageOutput {
   commitRef?: PipelinePatchWorkDocumentRef
   prRef?: PipelinePatchWorkDocumentRef
   localCommit?: PipelineLocalCommitSummary
-  remoteSubmission?: {
-    attempted: boolean
-    type?: 'push' | 'pull_request'
-    url?: string
-    status: 'not_requested' | 'created' | 'failed'
-    error?: string
-  }
+  remoteSubmission?: PipelineRemoteSubmissionSummary
   content: string
 }
 
@@ -369,6 +390,8 @@ export type ContributionTaskEventType =
   | 'document_revision_created'
   | 'local_commit_created'
   | 'local_commit_failed'
+  | 'remote_submission_created'
+  | 'remote_submission_failed'
   | 'task_failed'
 
 /** 贡献任务审计事件，按 taskId 写入 JSONL */
@@ -666,6 +689,8 @@ export interface PipelineGateDecisionRecord {
   selectedReportId?: string
   submissionMode?: ContributionMode
   localCommitOperationId?: string
+  remoteSubmissionOperationId?: string
+  remoteWriteConfirmed?: boolean
   createdAt: number
 }
 

@@ -46,6 +46,12 @@ export interface CommitterPanelViewModel {
   localCommitLabel: string
   localCommitDisabled: boolean
   localCommitResult?: string
+  remoteConfirmLabel: string
+  remoteSubmitLabel: string
+  remoteSubmitDisabled: boolean
+  remoteSubmitWarning?: string
+  remoteSubmitResult?: string
+  remoteTargetSummary: string
   evidenceItems: CommitterEvidenceViewModel[]
   documents: CommitterDocumentViewModel[]
 }
@@ -98,6 +104,7 @@ export function buildCommitterPanelViewModel({
   loadingPaths,
   readErrors,
   submitting,
+  remoteConfirmed,
 }: {
   output: PipelineCommitterStageOutput | null | undefined
   testerOutput: PipelineTesterStageOutput | null | undefined
@@ -105,12 +112,15 @@ export function buildCommitterPanelViewModel({
   loadingPaths: Set<string>
   readErrors: Map<string, string>
   submitting: boolean
+  remoteConfirmed?: boolean
 }): CommitterPanelViewModel {
   const documents = collectCommitterPatchWorkRefs(output)
   const blockers = output?.blockers ?? []
   const missingRequiredDocuments = Boolean(output)
     && ((!output?.commitDocRef && !output?.commitRef) || (!output?.prDocRef && !output?.prRef))
-  const hasForbiddenRemoteAttempt = Boolean(output?.remoteSubmission?.attempted)
+  const remoteCreated = output?.submissionStatus === 'remote_pr_created' || output?.remoteSubmission?.status === 'created'
+  const remoteFailed = output?.submissionStatus === 'remote_pr_failed' || output?.remoteSubmission?.status === 'failed'
+  const hasForbiddenRemoteAttempt = Boolean(output?.remoteSubmission?.attempted) && !remoteCreated && !remoteFailed
   const missingChecksum = documents.some((document) => !document.checksum)
   const hasLoading = documents.some((document) => loadingPaths.has(document.relativePath))
   const hasReadErrors = documents.some((document) => readErrors.has(document.relativePath))
@@ -123,16 +133,26 @@ export function buildCommitterPanelViewModel({
   const localCommitCreated = output?.submissionStatus === 'local_commit_created' || output?.localCommit?.status === 'created'
   const statusTone: CommitterPanelViewModel['statusTone'] = blockers.length > 0
     ? 'warning'
-    : output?.submissionStatus === 'draft_only' || localCommitCreated
+    : output?.submissionStatus === 'draft_only' || localCommitCreated || remoteCreated
       ? 'success'
       : 'neutral'
+  const hasDocumentBlockingIssue = missingRequiredDocuments
+    || missingChecksum
+    || hasLoading
+    || hasReadErrors
+    || missingContent
   const warning = (() => {
     if (!output) return 'Committer 尚未生成提交材料。'
     if (blockers.length > 0) return '存在提交材料 blocker，需要修订后才能完成。'
-    if (output.submissionStatus !== 'draft_only' && output.submissionStatus !== 'local_commit_created') {
-      return 'Phase 7 仍禁止远端提交；本地 commit 只能通过受控确认按钮执行。'
+    if (
+      output.submissionStatus !== 'draft_only'
+      && output.submissionStatus !== 'local_commit_created'
+      && output.submissionStatus !== 'remote_pr_created'
+      && output.submissionStatus !== 'remote_pr_failed'
+    ) {
+      return '当前提交状态不允许直接完成；远端写必须使用独立高风险确认。'
     }
-    if (hasForbiddenRemoteAttempt) return '提交材料包含远端提交尝试记录，Phase 7 禁止继续。'
+    if (hasForbiddenRemoteAttempt) return '提交材料包含未受控远端提交尝试记录，禁止继续。'
     if (missingRequiredDocuments) return '缺少 commit.md 或 pr.md 提交材料，不能继续。'
     if (missingChecksum) return '存在缺少 checksum 的提交材料，不能继续。'
     if (hasLoading) return '仍在读取提交材料，加载完成后才能继续。'
@@ -158,24 +178,52 @@ export function buildCommitterPanelViewModel({
     : output?.localCommit?.status === 'failed'
       ? `提交失败：${output.localCommit.error ?? '未知错误'}`
       : undefined
+  const remoteSubmission = output?.remoteSubmission
+  const remoteCommitHash = remoteSubmission?.commitHash ?? output?.localCommit?.commitHash
+  const remoteHeadBranch = remoteSubmission?.headBranch ?? output?.localCommit?.workingBranch
+  const remoteTargetSummary = remoteCommitHash
+    ? `${remoteSubmission?.remoteName ?? 'origin'} ${remoteHeadBranch ?? branchSummary} (${remoteCommitHash})`
+    : '需要先创建本地 commit'
+  const remoteSubmitResult = remoteSubmission?.status === 'created'
+    ? `已创建 ${remoteSubmission.prUrl ?? '远端 PR'}`
+    : remoteSubmission?.status === 'pushed'
+      ? `已推送远端分支，PR 创建失败：${remoteSubmission.error ?? '可重试创建 PR'}`
+    : remoteSubmission?.status === 'failed'
+      ? `远端提交失败：${remoteSubmission.error ?? '未知错误'}`
+      : undefined
+  const remoteSubmitWarning = !localCommitCreated
+    ? '需要先创建本地 commit，远端写不会直接基于草稿执行。'
+    : !remoteConfirmed
+      ? '需要单独二次确认后才会执行 push / PR。'
+      : undefined
+  const remoteSubmitDisabled = submitting
+    || hasDocumentBlockingIssue
+    || blockers.length > 0
+    || !localCommitCreated
+    || remoteCreated
+    || remoteConfirmed !== true
 
   return {
     title: '审核提交材料',
     subtitle: '提交草稿',
     statusLabel: blockers.length > 0
       ? '提交材料阻塞'
-      : localCommitCreated
-        ? '本地 commit 已创建'
-        : output?.submissionStatus === 'draft_only'
-        ? '草稿待确认'
-        : output
-          ? '非草稿状态已阻止'
-          : '等待提交草稿',
+      : remoteCreated
+        ? '远端 PR 已创建'
+        : remoteFailed
+          ? '远端提交失败'
+          : localCommitCreated
+            ? '本地 commit 已创建'
+            : output?.submissionStatus === 'draft_only'
+              ? '草稿待确认'
+              : output
+                ? '非草稿状态已阻止'
+                : '等待提交草稿',
     statusTone,
     summary: output?.summary ?? '等待 Committer 输出 commit.md 和 pr.md。',
     commitMessage: output?.commitMessage ?? '',
     prTitle: output?.prTitle ?? '',
-    approveDisabled: submitting || Boolean(warning) || localCommitCreated,
+    approveDisabled: submitting || Boolean(warning) || localCommitCreated || remoteCreated,
     approveLabel: submitting ? '正在保存提交材料' : '仅保存提交材料并完成',
     rejectLabel: '要求修订',
     rerunLabel: '重跑提交草稿',
@@ -193,8 +241,18 @@ export function buildCommitterPanelViewModel({
       : submitting
         ? '正在创建本地 commit'
         : '创建本地 commit',
-    localCommitDisabled: submitting || Boolean(warning) || localCommitCreated,
+    localCommitDisabled: submitting || Boolean(warning) || localCommitCreated || remoteCreated,
     localCommitResult,
+    remoteConfirmLabel: '我确认将本地 commit 推送到远端并创建 Draft PR',
+    remoteSubmitLabel: remoteCreated
+      ? '远端 PR 已创建'
+      : submitting
+        ? '正在执行远端提交'
+        : '推送并创建 Draft PR',
+    remoteSubmitDisabled,
+    remoteSubmitWarning,
+    remoteSubmitResult,
+    remoteTargetSummary,
     evidenceItems: evidence.map((item) => ({
       command: item.command,
       statusLabel: statusLabel(item.status),
@@ -226,6 +284,7 @@ export function CommitterPanel({
   readErrors,
   onApprove,
   onLocalCommit,
+  onRemoteSubmit,
   onReject,
   onRerun,
 }: {
@@ -236,11 +295,13 @@ export function CommitterPanel({
   readErrors: Map<string, string>
   onApprove: () => Promise<void>
   onLocalCommit: () => Promise<void>
+  onRemoteSubmit: () => Promise<void>
   onReject: (feedback: string) => Promise<void>
   onRerun: () => Promise<void>
 }): React.ReactElement {
   const [feedback, setFeedback] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
+  const [remoteConfirmed, setRemoteConfirmed] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [feedbackError, setFeedbackError] = React.useState<string | null>(null)
   const viewModel = buildCommitterPanelViewModel({
@@ -250,6 +311,7 @@ export function CommitterPanel({
     loadingPaths,
     readErrors,
     submitting,
+    remoteConfirmed,
   })
 
   const runAction = async (action: () => Promise<void>): Promise<void> => {
@@ -294,6 +356,8 @@ export function CommitterPanel({
         <div>分支：{viewModel.branchSummary}</div>
         <div>Patch-set：{viewModel.patchSetSummary}</div>
         {viewModel.localCommitResult ? <div>本地提交：{viewModel.localCommitResult}</div> : null}
+        <div>远端目标：{viewModel.remoteTargetSummary}</div>
+        {viewModel.remoteSubmitResult ? <div>远端提交：{viewModel.remoteSubmitResult}</div> : null}
       </div>
 
       {viewModel.warning ? (
@@ -417,6 +481,28 @@ export function CommitterPanel({
           className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {viewModel.localCommitLabel}
+        </button>
+        <label className="flex items-start gap-2 rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
+          <input
+            type="checkbox"
+            checked={remoteConfirmed}
+            onChange={(event) => setRemoteConfirmed(event.target.checked)}
+            className="mt-0.5"
+          />
+          <span>{viewModel.remoteConfirmLabel}</span>
+        </label>
+        {viewModel.remoteSubmitWarning ? (
+          <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+            {viewModel.remoteSubmitWarning}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          disabled={viewModel.remoteSubmitDisabled}
+          onClick={() => runAction(onRemoteSubmit)}
+          className="rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {viewModel.remoteSubmitLabel}
         </button>
         <button
           type="button"

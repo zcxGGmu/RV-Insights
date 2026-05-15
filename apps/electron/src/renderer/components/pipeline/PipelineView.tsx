@@ -7,6 +7,7 @@ import type {
   PipelineCommitterStageOutput,
   PipelineDeveloperStageOutput,
   PipelineExplorerReportRef,
+  PipelineGateKind,
   PipelineGateRequest,
   PipelineNodeKind,
   PipelinePatchWorkDocumentRef,
@@ -546,16 +547,25 @@ export function PipelineView({
   const handleRespond = React.useCallback(async (
     action: 'approve' | 'reject_with_feedback' | 'rerun_node',
     feedback?: string,
-    options?: { submissionMode?: ContributionMode; localCommitOperationId?: string },
+    options?: {
+      kind?: PipelineGateKind
+      submissionMode?: ContributionMode
+      localCommitOperationId?: string
+      remoteSubmissionOperationId?: string
+      remoteWriteConfirmed?: boolean
+    },
   ): Promise<void> => {
     if (!pendingGate) return
     await window.electronAPI.respondPipelineGate({
       gateId: pendingGate.gateId,
       sessionId,
+      kind: options?.kind,
       action,
       feedback,
       submissionMode: options?.submissionMode,
       localCommitOperationId: options?.localCommitOperationId,
+      remoteSubmissionOperationId: options?.remoteSubmissionOperationId,
+      remoteWriteConfirmed: options?.remoteWriteConfirmed,
       createdAt: Date.now(),
     })
   }, [pendingGate, sessionId])
@@ -681,6 +691,12 @@ export function PipelineView({
                   onLocalCommit={() => handleRespond('approve', undefined, {
                     submissionMode: 'local_commit',
                     localCommitOperationId: `${sessionId}:${pendingGate?.gateId ?? 'submission'}:local_commit`,
+                  })}
+                  onRemoteSubmit={() => handleRespond('approve', undefined, {
+                    kind: 'remote_write_confirmation',
+                    submissionMode: 'remote_pr',
+                    remoteSubmissionOperationId: `${sessionId}:${pendingGate?.gateId ?? 'submission'}:remote_pr`,
+                    remoteWriteConfirmed: true,
                   })}
                   onReject={(feedback) => handleRespond('reject_with_feedback', feedback)}
                   onRerun={() => handleRespond('rerun_node')}

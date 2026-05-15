@@ -233,6 +233,21 @@ describe('CommitterPanel', () => {
     const viewModel = buildCommitterPanelViewModel({
       output: makeCommitterOutput({
         submissionStatus: 'remote_pr_created',
+        remoteSubmission: {
+          attempted: true,
+          operationId: 'op-remote-created-ui',
+          status: 'created',
+          type: 'pull_request',
+          commitHash: 'abc123def456',
+          remoteName: 'origin',
+          sanitizedRemoteUrl: 'https://github.com/example/repo.git',
+          headBranch: 'feature/pipeline-v2',
+          baseBranch: 'main',
+          prTitle: 'Add draft submission materials',
+          prBody: '## Summary\n- Add draft submission',
+          prUrl: 'https://github.com/example/repo/pull/42',
+          draft: true,
+        },
       }),
       testerOutput: makeTesterOutput(),
       contents: new Map([
@@ -242,9 +257,118 @@ describe('CommitterPanel', () => {
       loadingPaths: new Set(),
       readErrors: new Map(),
       submitting: false,
+      remoteConfirmed: true,
     })
 
+    expect(viewModel.statusLabel).toBe('远端 PR 已创建')
     expect(viewModel.approveDisabled).toBe(true)
-    expect(viewModel.warning).toContain('远端')
+    expect(viewModel.remoteSubmitDisabled).toBe(true)
+    expect(viewModel.remoteSubmitResult).toContain('https://github.com/example/repo/pull/42')
+  })
+
+  test('远端提交必须单独二次确认且依赖已创建的本地 commit', () => {
+    const baseOutput = makeCommitterOutput({
+      submissionStatus: 'local_commit_created',
+      localCommit: {
+        attempted: true,
+        status: 'created',
+        operationId: 'op-local-created-ui',
+        commitHash: 'abc123def456',
+        workingBranch: 'feature/pipeline-v2',
+        baseBranch: 'main',
+      },
+      remoteSubmission: {
+        attempted: false,
+        status: 'not_requested',
+        operationId: 'op-remote-ready-ui',
+        type: 'pull_request',
+        remoteName: 'origin',
+        sanitizedRemoteUrl: 'https://github.com/example/repo.git',
+        baseBranch: 'main',
+        prTitle: 'Add draft submission materials',
+        prBody: '## Summary\n- Add draft submission',
+        draft: true,
+      },
+    })
+    const unconfirmed = buildCommitterPanelViewModel({
+      output: baseOutput,
+      testerOutput: makeTesterOutput(),
+      contents: new Map([
+        ['commit.md', '# Commit 准备'],
+        ['pr.md', '# PR 草稿'],
+      ]),
+      loadingPaths: new Set(),
+      readErrors: new Map(),
+      submitting: false,
+      remoteConfirmed: false,
+    })
+
+    expect(unconfirmed.remoteSubmitDisabled).toBe(true)
+    expect(unconfirmed.remoteSubmitWarning).toContain('二次确认')
+    expect(unconfirmed.remoteTargetSummary).toContain('origin')
+    expect(unconfirmed.remoteTargetSummary).toContain('feature/pipeline-v2')
+    expect(unconfirmed.remoteTargetSummary).toContain('abc123def456')
+
+    const confirmed = buildCommitterPanelViewModel({
+      output: baseOutput,
+      testerOutput: makeTesterOutput(),
+      contents: new Map([
+        ['commit.md', '# Commit 准备'],
+        ['pr.md', '# PR 草稿'],
+      ]),
+      loadingPaths: new Set(),
+      readErrors: new Map(),
+      submitting: false,
+      remoteConfirmed: true,
+    })
+
+    expect(confirmed.remoteSubmitDisabled).toBe(false)
+    expect(confirmed.remoteSubmitLabel).toBe('推送并创建 Draft PR')
+  })
+
+  test('push 已成功但 PR 失败时展示可恢复远端状态', () => {
+    const viewModel = buildCommitterPanelViewModel({
+      output: makeCommitterOutput({
+        submissionStatus: 'remote_pr_failed',
+        localCommit: {
+          attempted: true,
+          status: 'created',
+          operationId: 'op-local-created-ui',
+          commitHash: 'abc123def456',
+          workingBranch: 'feature/pipeline-v2',
+          baseBranch: 'main',
+        },
+        remoteSubmission: {
+          attempted: true,
+          operationId: 'op-remote-pushed-ui',
+          status: 'pushed',
+          type: 'pull_request',
+          commitHash: 'abc123def456',
+          remoteName: 'origin',
+          sanitizedRemoteUrl: 'https://github.com/example/repo.git',
+          headBranch: 'feature/pipeline-v2',
+          baseBranch: 'main',
+          pushedRef: 'refs/heads/feature/pipeline-v2',
+          prTitle: 'Add draft submission materials',
+          prBody: '## Summary\n- Add draft submission',
+          draft: true,
+          error: 'gh pr create failed',
+        },
+      }),
+      testerOutput: makeTesterOutput(),
+      contents: new Map([
+        ['commit.md', '# Commit 准备'],
+        ['pr.md', '# PR 草稿'],
+      ]),
+      loadingPaths: new Set(),
+      readErrors: new Map(),
+      submitting: false,
+      remoteConfirmed: true,
+    })
+
+    expect(viewModel.statusLabel).toBe('远端提交失败')
+    expect(viewModel.remoteSubmitDisabled).toBe(false)
+    expect(viewModel.remoteSubmitResult).toContain('已推送远端分支')
+    expect(viewModel.remoteSubmitResult).toContain('gh pr create failed')
   })
 })

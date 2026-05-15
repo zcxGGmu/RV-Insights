@@ -13,8 +13,13 @@ import { join } from 'node:path'
 import {
   buildPipelinePatchSetDraft,
   createLocalPipelineCommit,
+  createRemotePipelineSubmission,
+  PipelineRemoteSubmissionError,
   readPipelineSubmissionDraftContext,
+  redactSecretText,
+  sanitizeRemoteUrl,
   validateCommitPreconditions,
+  validateRemoteSubmissionPreconditions,
 } from './pipeline-git-submission-service'
 
 function git(repoRoot: string, args: string[]): string {
@@ -32,6 +37,10 @@ function setupGitRepo(repoRoot: string): void {
   writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 1\n', 'utf-8')
   git(repoRoot, ['add', 'src/index.ts'])
   git(repoRoot, ['commit', '-m', 'initial'])
+}
+
+function markRemoteBase(repoRoot: string, remoteName = 'origin', baseBranch = 'main'): void {
+  git(repoRoot, ['update-ref', `refs/remotes/${remoteName}/${baseBranch}`, 'HEAD'])
 }
 
 describe('pipeline-git-submission-service', () => {
@@ -245,6 +254,349 @@ describe('pipeline-git-submission-service', () => {
       'src/local-commit.ts',
     ])
     expect(git(repoRoot, ['status', '--porcelain=v1', '--untracked-files=all'])).toContain('patch-work/commit.md')
+  })
+
+  test('远端写 preflight 会脱敏 remote URL 且未授权时阻止提交', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://token:secret@github.com/example/repo.git'])
+
+    const plan = validateRemoteSubmissionPreconditions({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-preflight',
+      commitHash: git(repoRoot, ['rev-parse', 'HEAD']),
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: false,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+    })
+
+    expect(plan.canSubmit).toBe(false)
+    expect(plan.blockers).toContain('用户未允许远端写能力')
+    expect(plan.sanitizedRemoteUrl).toBe('https://github.com/example/repo.git')
+    expect(sanitizeRemoteUrl('https://user:token@github.com/example/repo.git')).toBe('https://github.com/example/repo.git')
+  })
+
+  test('远端写 preflight 会拒绝不安全的 remote 与 branch 名称', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+
+    const plan = validateRemoteSubmissionPreconditions({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-unsafe-ref',
+      commitHash: git(repoRoot, ['rev-parse', 'HEAD']),
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      remoteName: '--upload-pack=/tmp/evil',
+      headBranch: 'feature/safe:main',
+      baseBranch: 'main',
+      draft: true,
+    })
+
+    expect(plan.canSubmit).toBe(false)
+    expect(plan.blockers).toContain('remote 名称包含不安全字符')
+    expect(plan.blockers).toContain('head branch 包含不安全字符')
+  })
+
+  test('远端写 preflight 拒绝把 base/default 分支作为 head branch', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    markRemoteBase(repoRoot)
+
+    const plan = validateRemoteSubmissionPreconditions({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-default-branch',
+      commitHash: git(repoRoot, ['rev-parse', 'HEAD']),
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      remoteName: 'origin',
+      headBranch: 'main',
+      baseBranch: 'main',
+      draft: true,
+    })
+
+    expect(plan.canSubmit).toBe(false)
+    expect(plan.blockers).toContain('远端 head branch 不能是 base/default 分支')
+  })
+
+  test('远端写 preflight 拒绝待推送 commit tree 中的 patch-work/**', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    markRemoteBase(repoRoot)
+    mkdirSync(join(repoRoot, 'patch-work'), { recursive: true })
+    writeFileSync(join(repoRoot, 'patch-work', 'secret.md'), 'LOCAL_SECRET_TOKEN=should-not-push\n', 'utf-8')
+    git(repoRoot, ['add', 'patch-work/secret.md'])
+    git(repoRoot, ['commit', '-m', 'test: accidentally commit patch work'])
+
+    const plan = validateRemoteSubmissionPreconditions({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-patch-work-tree',
+      commitHash: git(repoRoot, ['rev-parse', 'HEAD']),
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+    })
+
+    expect(plan.canSubmit).toBe(false)
+    expect(plan.blockers.join('\n')).toContain('patch-work/** 已存在于待推送 commit tree')
+  })
+
+  test('远端写 preflight 拒绝 push range 历史中曾包含 patch-work/**', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    markRemoteBase(repoRoot)
+    mkdirSync(join(repoRoot, 'patch-work'), { recursive: true })
+    writeFileSync(join(repoRoot, 'patch-work', 'transient.md'), '不应出现在远端历史\n', 'utf-8')
+    git(repoRoot, ['add', 'patch-work/transient.md'])
+    git(repoRoot, ['commit', '-m', 'test: add transient patch work'])
+    rmSync(join(repoRoot, 'patch-work'), { recursive: true, force: true })
+    git(repoRoot, ['add', '-A'])
+    git(repoRoot, ['commit', '-m', 'test: remove transient patch work'])
+
+    const plan = validateRemoteSubmissionPreconditions({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-patch-work-range',
+      commitHash: git(repoRoot, ['rev-parse', 'HEAD']),
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+    })
+
+    expect(plan.canSubmit).toBe(false)
+    expect(plan.blockers.join('\n')).toContain('patch-work/** 曾出现在待推送历史')
+  })
+
+  test('用户未二次确认 remote_pr 时不会执行 push 或创建 PR', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    const calls: string[] = []
+
+    expect(() => createRemotePipelineSubmission({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-denied',
+      commitHash: git(repoRoot, ['rev-parse', 'HEAD']),
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      confirmed: false,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+      commandRunner: (command, args) => {
+        calls.push([command, ...args].join(' '))
+        return ''
+      },
+    })).toThrow('用户未确认远端写')
+
+    expect(calls).toEqual([])
+  })
+
+  test('用户二次确认后以 mock runner 执行 push 并创建 draft PR', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    markRemoteBase(repoRoot)
+    const commitHash = git(repoRoot, ['rev-parse', 'HEAD'])
+    const calls: string[] = []
+
+    const result = createRemotePipelineSubmission({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-created',
+      commitHash,
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      confirmed: true,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+      commandRunner: (command, args) => {
+        calls.push([command, ...args].join(' '))
+        if (command === 'git' && args[0] === 'ls-remote') return `${commitHash}\trefs/heads/main\n`
+        if (command === 'gh' && args[0] === 'auth') return 'Logged in\n'
+        if (command === 'git' && args[0] === 'push') return ''
+        if (command === 'gh' && args[0] === 'pr') return 'https://github.com/example/repo/pull/42\n'
+        return ''
+      },
+    })
+
+    expect(result.status).toBe('created')
+    expect(result.operationId).toBe('op-remote-created')
+    expect(result.commitHash).toBe(commitHash)
+    expect(result.sanitizedRemoteUrl).toBe('https://github.com/example/repo.git')
+    expect(result.prUrl).toBe('https://github.com/example/repo/pull/42')
+    expect(result.draft).toBe(true)
+    expect(calls).toEqual([
+      'git ls-remote --exit-code --heads origin refs/heads/main',
+      'gh auth status',
+      `git push origin ${commitHash}:refs/heads/feature/remote-submit`,
+      'gh pr create --repo example/repo --title Add remote submission --body ## Summary\n- Test remote submission --base main --head feature/remote-submit --draft',
+    ])
+  })
+
+  test('远端写使用 push URL 脱敏展示并显式传递 gh --repo', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/fetch/repo.git'])
+    git(repoRoot, [
+      'config',
+      'remote.origin.pushurl',
+      'https://token:secret@github.com/push/repo.git',
+    ])
+    markRemoteBase(repoRoot)
+    const commitHash = git(repoRoot, ['rev-parse', 'HEAD'])
+    const calls: string[] = []
+
+    const result = createRemotePipelineSubmission({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-push-url',
+      commitHash,
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      confirmed: true,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+      commandRunner: (command, args) => {
+        calls.push([command, ...args].join(' '))
+        if (command === 'git' && args[0] === 'ls-remote') return `${commitHash}\trefs/heads/main\n`
+        if (command === 'gh' && args[0] === 'auth') return 'Logged in\n'
+        if (command === 'git' && args[0] === 'push') return ''
+        if (command === 'gh' && args[0] === 'pr') return 'https://github.com/push/repo/pull/7\n'
+        return ''
+      },
+    })
+
+    expect(result.sanitizedRemoteUrl).toBe('https://github.com/push/repo.git')
+    expect(result.githubRepo).toBe('push/repo')
+    expect(calls).toContain(
+      'gh pr create --repo push/repo --title Add remote submission --body ## Summary\n- Test remote submission --base main --head feature/remote-submit --draft',
+    )
+  })
+
+  test('远端命令错误进入上层前会脱敏 credential 与 token', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    markRemoteBase(repoRoot)
+    const commitHash = git(repoRoot, ['rev-parse', 'HEAD'])
+    const secretMessage = [
+      'fatal: https://user:secret@github.com/example/repo.git failed',
+      'Authorization: Bearer ghp_abcdefghijklmnopqrstuvwxyz',
+      'GITHUB_TOKEN=github_pat_abcdefghijklmnopqrstuvwxyz',
+    ].join('\n')
+
+    expect(() => createRemotePipelineSubmission({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-secret-error',
+      commitHash,
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      confirmed: true,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+      commandRunner: (command, args) => {
+        if (command === 'git' && args[0] === 'ls-remote') return `${commitHash}\trefs/heads/main\n`
+        if (command === 'gh' && args[0] === 'auth') return 'Logged in\n'
+        if (command === 'git' && args[0] === 'push') throw new Error(secretMessage)
+        return ''
+      },
+    })).toThrow('[REDACTED]')
+
+    const redacted = redactSecretText(secretMessage)
+    expect(redacted).not.toContain('secret')
+    expect(redacted).not.toContain('ghp_abcdefghijklmnopqrstuvwxyz')
+    expect(redacted).not.toContain('github_pat_abcdefghijklmnopqrstuvwxyz')
+    expect(redacted).toContain('https://github.com/example/repo.git')
+  })
+
+  test('PR 已存在时会从 gh pr view 恢复为成功结果', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    markRemoteBase(repoRoot)
+    const commitHash = git(repoRoot, ['rev-parse', 'HEAD'])
+    const calls: string[] = []
+
+    const result = createRemotePipelineSubmission({
+      repositoryRoot: repoRoot,
+      operationId: 'op-remote-pr-exists',
+      commitHash,
+      prTitle: 'Add remote submission',
+      prBody: '## Summary\n- Test remote submission',
+      allowRemoteWrites: true,
+      confirmed: true,
+      remoteName: 'origin',
+      headBranch: 'feature/remote-submit',
+      baseBranch: 'main',
+      draft: true,
+      commandRunner: (command, args) => {
+        calls.push([command, ...args].join(' '))
+        if (command === 'git' && args[0] === 'ls-remote') return `${commitHash}\trefs/heads/main\n`
+        if (command === 'gh' && args[0] === 'auth') return 'Logged in\n'
+        if (command === 'git' && args[0] === 'push') return ''
+        if (command === 'gh' && args[0] === 'pr' && args[1] === 'create') {
+          throw new Error('a pull request for branch feature/remote-submit already exists')
+        }
+        if (command === 'gh' && args[0] === 'pr' && args[1] === 'view') {
+          return 'https://github.com/example/repo/pull/42\n'
+        }
+        return ''
+      },
+    })
+
+    expect(result.status).toBe('created')
+    expect(result.prUrl).toBe('https://github.com/example/repo/pull/42')
+    expect(calls).toContain(
+      'gh pr view --repo example/repo --head feature/remote-submit --json url,number --jq .url',
+    )
+  })
+
+  test('push 成功但 PR 创建失败时返回可持久化的 pushed 状态', () => {
+    git(repoRoot, ['remote', 'add', 'origin', 'https://github.com/example/repo.git'])
+    markRemoteBase(repoRoot)
+    const commitHash = git(repoRoot, ['rev-parse', 'HEAD'])
+
+    try {
+      createRemotePipelineSubmission({
+        repositoryRoot: repoRoot,
+        operationId: 'op-remote-pr-failed',
+        commitHash,
+        prTitle: 'Add remote submission',
+        prBody: '## Summary\n- Test remote submission',
+        allowRemoteWrites: true,
+        confirmed: true,
+        remoteName: 'origin',
+        headBranch: 'feature/remote-submit',
+        baseBranch: 'main',
+        draft: true,
+        commandRunner: (command, args) => {
+          if (command === 'git' && args[0] === 'ls-remote') return `${commitHash}\trefs/heads/main\n`
+          if (command === 'gh' && args[0] === 'auth') return 'Logged in\n'
+          if (command === 'git' && args[0] === 'push') return ''
+          if (command === 'gh' && args[0] === 'pr') {
+            throw new Error('gh pr create failed for https://user:secret@github.com/example/repo.git')
+          }
+          return ''
+        },
+      })
+      throw new Error('应抛出 PipelineRemoteSubmissionError')
+    } catch (error) {
+      expect(error).toBeInstanceOf(PipelineRemoteSubmissionError)
+      const submissionError = error as PipelineRemoteSubmissionError
+      expect(submissionError.remoteSubmission).toMatchObject({
+        operationId: 'op-remote-pr-failed',
+        status: 'pushed',
+        commitHash,
+        pushedRef: 'refs/heads/feature/remote-submit',
+      })
+      expect(submissionError.remoteSubmission?.error).not.toContain('secret')
+    }
   })
 
   test('本地 commit 使用 literal pathspec，文件名不能扩大 stage 范围', () => {

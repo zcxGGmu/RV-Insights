@@ -26,6 +26,7 @@ import type {
   PipelineTestEvidence,
   PipelineCommitterStageOutput,
   PipelineLocalCommitSummary,
+  PipelineRemoteSubmissionSummary,
   PipelineChangedFileType,
   PatchWorkFileKind,
 } from '@rv-insights/shared'
@@ -71,7 +72,12 @@ import {
 } from './pipeline-patch-work-service'
 import { getAgentWorkspace } from './agent-workspace-manager'
 import { getAgentSessionWorkspacePath } from './config-paths'
-import { createLocalPipelineCommit } from './pipeline-git-submission-service'
+import {
+  createLocalPipelineCommit,
+  createRemotePipelineSubmission,
+  PipelineRemoteSubmissionError,
+  redactSecretText,
+} from './pipeline-git-submission-service'
 
 export interface PipelineServiceCallbacks {
   onEvent?: (payload: PipelineStreamPayload) => void
@@ -94,6 +100,7 @@ interface CreatePipelineServiceOptions {
   ) => PipelineGraphController | Promise<PipelineGraphController>
   gateService?: PipelineHumanGateService
   checkpointer?: PipelineCheckpointer
+  createRemoteSubmission?: typeof createRemotePipelineSubmission
 }
 
 const COMMITTER_SUBMISSION_DOCUMENT_KINDS: PatchWorkFileKind[] = ['commit_doc', 'pr_doc']
@@ -183,6 +190,7 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
   const activeControllers = new Map<string, AbortController>()
   const activeRunners = new Map<string, PipelineNodeRunner>()
   const activeCallbacks = new Map<string, PipelineServiceCallbacks | undefined>()
+  const remoteSubmissionRunner = options.createRemoteSubmission ?? createRemotePipelineSubmission
   let reconcileSessionsPromise: Promise<PipelineSessionMeta[]> | null = null
 
   function emitEvent(
@@ -554,6 +562,43 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     }
   }
 
+  function toRemoteSubmissionSummary(
+    value: unknown,
+  ): PipelineRemoteSubmissionSummary | undefined {
+    if (!isObject(value) || typeof value.operationId !== 'string') {
+      return undefined
+    }
+    const status = value.status === 'created'
+      || value.status === 'failed'
+      || value.status === 'pushed'
+      || value.status === 'not_requested'
+      ? value.status
+      : undefined
+    if (!status) return undefined
+
+    return {
+      attempted: value.attempted === true,
+      operationId: value.operationId,
+      commitHash: typeof value.commitHash === 'string' ? value.commitHash : undefined,
+      status,
+      type: value.type === 'push' || value.type === 'pull_request' ? value.type : undefined,
+      remoteName: typeof value.remoteName === 'string' ? value.remoteName : undefined,
+      sanitizedRemoteUrl: typeof value.sanitizedRemoteUrl === 'string' ? value.sanitizedRemoteUrl : undefined,
+      githubRepo: typeof value.githubRepo === 'string' ? value.githubRepo : undefined,
+      baseBranch: typeof value.baseBranch === 'string' ? value.baseBranch : undefined,
+      headBranch: typeof value.headBranch === 'string' ? value.headBranch : undefined,
+      pushedRef: typeof value.pushedRef === 'string' ? value.pushedRef : undefined,
+      prTitle: typeof value.prTitle === 'string' ? value.prTitle : undefined,
+      prBody: typeof value.prBody === 'string' ? value.prBody : undefined,
+      prUrl: typeof value.prUrl === 'string' ? value.prUrl : undefined,
+      prNumber: typeof value.prNumber === 'number' ? value.prNumber : undefined,
+      draft: typeof value.draft === 'boolean' ? value.draft : undefined,
+      error: typeof value.error === 'string' ? value.error : undefined,
+      pushedAt: typeof value.pushedAt === 'number' ? value.pushedAt : undefined,
+      createdAt: typeof value.createdAt === 'number' ? value.createdAt : undefined,
+    }
+  }
+
   function appendCommitterLocalCommitArtifact(
     sessionId: string,
     output: PipelineCommitterStageOutput,
@@ -583,6 +628,36 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     })
   }
 
+  function appendCommitterRemoteSubmissionArtifact(
+    sessionId: string,
+    output: PipelineCommitterStageOutput,
+    remoteSubmission: PipelineRemoteSubmissionSummary,
+  ): void {
+    const submissionStatus = remoteSubmission.status === 'created'
+      ? 'remote_pr_created'
+      : remoteSubmission.status === 'failed' || remoteSubmission.status === 'pushed'
+        ? 'remote_pr_failed'
+        : output.submissionStatus
+    const content = JSON.stringify({
+      ...output,
+      submissionStatus,
+      remoteSubmission,
+    }, null, 2)
+    appendPipelineRecord(sessionId, {
+      id: `${sessionId}-committer-remote-${remoteSubmission.operationId ?? 'unknown'}-${remoteSubmission.createdAt ?? Date.now()}-artifact`,
+      sessionId,
+      type: 'stage_artifact',
+      node: 'committer',
+      artifact: {
+        ...output,
+        submissionStatus,
+        remoteSubmission,
+        content,
+      },
+      createdAt: remoteSubmission.createdAt ?? Date.now(),
+    })
+  }
+
   function getExistingLocalCommitResult(
     sessionId: string,
     operationId: string,
@@ -608,6 +683,32 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     return undefined
   }
 
+  function getExistingRemoteSubmissionResult(
+    sessionId: string,
+    operationId: string,
+  ): PipelineRemoteSubmissionSummary | undefined {
+    const currentRemoteSubmission = replayCurrentPipelineState(sessionId).stageOutputs?.committer?.remoteSubmission
+    if (currentRemoteSubmission?.operationId === operationId) {
+      return currentRemoteSubmission
+    }
+
+    const task = getContributionTaskByPipelineSessionId(sessionId)
+    if (!task) return undefined
+
+    const events = getContributionTaskEvents(task.id).slice().reverse()
+    for (const event of events) {
+      if (event.type !== 'remote_submission_created' && event.type !== 'remote_submission_failed') continue
+      const payload = event.payload
+      if (!isObject(payload) || payload.operationId !== operationId) continue
+      const summary = toRemoteSubmissionSummary(payload.remoteSubmission)
+      if (summary) {
+        return summary
+      }
+    }
+
+    return undefined
+  }
+
   function assertCommitterSubmissionAllowsLocalCommit(
     output: PipelineCommitterStageOutput,
   ): void {
@@ -619,6 +720,37 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     }
     if (output.remoteSubmission?.attempted) {
       throw new Error('提交材料包含远端提交尝试记录，禁止创建本地 commit')
+    }
+  }
+
+  function assertCommitterSubmissionAllowsRemoteSubmit(
+    output: PipelineCommitterStageOutput,
+    task: NonNullable<ReturnType<typeof getContributionTaskForSession>>,
+    response: PipelineGateResponse,
+  ): void {
+    if (response.kind !== 'remote_write_confirmation') {
+      throw new Error('远端写必须使用独立高风险确认 gate')
+    }
+    if (!response.remoteWriteConfirmed) {
+      throw new Error('用户未确认远端写，禁止执行 push 或创建 PR')
+    }
+    if (
+      output.submissionStatus !== 'local_commit_created'
+      && output.submissionStatus !== 'remote_pr_failed'
+    ) {
+      throw new Error('远端提交必须基于已创建的本地 commit')
+    }
+    if (output.localCommit?.status !== 'created') {
+      throw new Error('远端提交必须基于已创建的本地 commit')
+    }
+    if (!output.localCommit.commitHash) {
+      throw new Error('缺少本地 commit hash，禁止远端提交')
+    }
+    if (output.blockers.length > 0) {
+      throw new Error('committer 提交材料仍存在 blocker，禁止远端提交')
+    }
+    if (output.remoteSubmission?.status === 'created') {
+      throw new Error('远端提交已创建，禁止重复执行')
     }
   }
 
@@ -710,6 +842,149 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         },
       })
       throw error
+    }
+  }
+
+  function resolveRemoteSubmissionOperationId(
+    pendingGate: PipelineGateRequest,
+    response: PipelineGateResponse,
+  ): string {
+    return response.remoteSubmissionOperationId?.trim()
+      || `${response.sessionId}:${pendingGate.gateId}:remote_pr`
+  }
+
+  function applyRemoteSubmission(
+    pendingGate: PipelineGateRequest,
+    response: PipelineGateResponse,
+    task: NonNullable<ReturnType<typeof getContributionTaskForSession>>,
+  ): PipelineRemoteSubmissionSummary {
+    const operationId = resolveRemoteSubmissionOperationId(pendingGate, response)
+    const committerOutput = getLatestCommitterOutput(response.sessionId)
+    const existingRemoteSubmission = getExistingRemoteSubmissionResult(response.sessionId, operationId)
+    if (existingRemoteSubmission?.status === 'created') {
+      appendCommitterRemoteSubmissionArtifact(response.sessionId, committerOutput, existingRemoteSubmission)
+      updateContributionTask(task.id, {
+        contributionMode: 'remote_pr',
+        status: 'completed',
+        currentGateId: undefined,
+      })
+      return existingRemoteSubmission
+    }
+    const skipPush = existingRemoteSubmission?.status === 'pushed'
+
+    assertCommitterSubmissionAllowsRemoteSubmit(committerOutput, task, response)
+
+    try {
+      assertPatchWorkDocumentsAcceptable({
+        repositoryRoot: task.repositoryRoot,
+        kinds: COMMITTER_SUBMISSION_DOCUMENT_KINDS,
+      })
+      const localCommit = committerOutput.localCommit
+      if (!localCommit?.commitHash) {
+        throw new Error('缺少本地 commit hash，禁止远端提交')
+      }
+      const allowRemoteWrites = task.allowRemoteWrites || response.remoteWriteConfirmed === true
+      if (!task.allowRemoteWrites && allowRemoteWrites) {
+        updateContributionTask(task.id, {
+          allowRemoteWrites: true,
+        })
+        appendContributionTaskEvent(task.id, {
+          pipelineSessionId: response.sessionId,
+          type: 'task_updated',
+          payload: {
+            allowRemoteWrites: true,
+            reason: 'remote_write_confirmed',
+            operationId,
+          },
+        })
+      }
+      const result = remoteSubmissionRunner({
+        repositoryRoot: task.repositoryRoot,
+        operationId,
+        commitHash: localCommit.commitHash,
+        prTitle: committerOutput.prTitle,
+        prBody: committerOutput.prBody,
+        allowRemoteWrites,
+        confirmed: response.remoteWriteConfirmed === true,
+        remoteName: committerOutput.remoteSubmission?.remoteName ?? 'origin',
+        headBranch: committerOutput.remoteSubmission?.headBranch
+          ?? localCommit.workingBranch
+          ?? task.workingBranch,
+        baseBranch: committerOutput.remoteSubmission?.baseBranch
+          ?? localCommit.baseBranch
+          ?? task.baseBranch
+          ?? 'main',
+        draft: committerOutput.remoteSubmission?.draft ?? true,
+        skipPush,
+      })
+      const remoteSubmission: PipelineRemoteSubmissionSummary = {
+        ...result,
+        attempted: true,
+        operationId,
+        status: result.status,
+      }
+      if (remoteSubmission.status !== 'created') {
+        throw new PipelineRemoteSubmissionError(
+          remoteSubmission.error ?? '远端提交未完成',
+          remoteSubmission,
+        )
+      }
+      appendCommitterRemoteSubmissionArtifact(response.sessionId, committerOutput, remoteSubmission)
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'remote_submission_created',
+        payload: {
+          operationId,
+          commitHash: remoteSubmission.commitHash,
+          prUrl: remoteSubmission.prUrl,
+          remoteSubmission,
+        },
+      })
+      updateContributionTask(task.id, {
+        contributionMode: 'remote_pr',
+        status: 'completed',
+        currentGateId: undefined,
+      })
+      return remoteSubmission
+    } catch (error) {
+      const message = redactSecretText(error instanceof Error ? error.message : String(error))
+      const partialRemoteSubmission = error instanceof PipelineRemoteSubmissionError
+        ? error.remoteSubmission
+        : undefined
+      const remoteSubmission: PipelineRemoteSubmissionSummary = {
+        attempted: true,
+        operationId,
+        commitHash: committerOutput.localCommit?.commitHash,
+        status: partialRemoteSubmission?.status ?? 'failed',
+        type: 'pull_request',
+        remoteName: committerOutput.remoteSubmission?.remoteName ?? 'origin',
+        sanitizedRemoteUrl: partialRemoteSubmission?.sanitizedRemoteUrl
+          ?? committerOutput.remoteSubmission?.sanitizedRemoteUrl,
+        githubRepo: partialRemoteSubmission?.githubRepo ?? committerOutput.remoteSubmission?.githubRepo,
+        baseBranch: committerOutput.remoteSubmission?.baseBranch
+          ?? committerOutput.localCommit?.baseBranch
+          ?? task.baseBranch,
+        headBranch: committerOutput.remoteSubmission?.headBranch
+          ?? committerOutput.localCommit?.workingBranch
+          ?? task.workingBranch,
+        prTitle: committerOutput.prTitle,
+        prBody: committerOutput.prBody,
+        draft: committerOutput.remoteSubmission?.draft ?? true,
+        ...partialRemoteSubmission,
+        error: redactSecretText(partialRemoteSubmission?.error ?? message),
+        createdAt: partialRemoteSubmission?.createdAt ?? Date.now(),
+      }
+      appendCommitterRemoteSubmissionArtifact(response.sessionId, committerOutput, remoteSubmission)
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'remote_submission_failed',
+        payload: {
+          operationId,
+          error: message,
+          remoteSubmission,
+        },
+      })
+      throw new Error(message)
     }
   }
 
@@ -966,7 +1241,40 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
       if (!task) return
       const submissionMode = response.submissionMode ?? 'local_patch'
       if (submissionMode === 'remote_pr') {
-        throw new Error('Phase 7 不允许远端 push 或 PR，请等待 Phase 8')
+        const remoteSubmission = applyRemoteSubmission(pendingGate, response, task)
+        const accepted = acceptPatchWorkDocuments({
+          repositoryRoot: task.repositoryRoot,
+          gateId: pendingGate.gateId,
+          kinds: COMMITTER_SUBMISSION_DOCUMENT_KINDS,
+        })
+        updateContributionTask(task.id, {
+          contributionMode: 'remote_pr',
+          status: 'completed',
+          currentGateId: undefined,
+        })
+        appendContributionTaskEvent(task.id, {
+          pipelineSessionId: response.sessionId,
+          type: 'patch_work_updated',
+          payload: {
+            acceptedDocuments: accepted.map((file) => ({
+              relativePath: file.relativePath,
+              checksum: file.checksum,
+              revision: file.revision,
+            })),
+            submissionMode: 'remote_pr',
+            operationId: resolveRemoteSubmissionOperationId(pendingGate, response),
+            remoteSubmission,
+          },
+        })
+        appendContributionTaskEvent(task.id, {
+          pipelineSessionId: response.sessionId,
+          type: 'task_updated',
+          payload: {
+            status: 'completed',
+            reason: 'remote_submission_created',
+          },
+        })
+        return
       }
       if (submissionMode === 'local_commit') {
         const localCommit = applyLocalCommitSubmission(pendingGate, response, task)
@@ -1142,6 +1450,8 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         selectedReportId: response.selectedReportId,
         submissionMode: response.submissionMode,
         localCommitOperationId: response.localCommitOperationId,
+        remoteSubmissionOperationId: response.remoteSubmissionOperationId,
+        remoteWriteConfirmed: response.remoteWriteConfirmed,
         createdAt: response.createdAt,
       })
       emitEvent(meta.id, callbacks, {
@@ -1380,6 +1690,8 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
         selectedReportId: response.selectedReportId,
         submissionMode: response.submissionMode,
         localCommitOperationId: response.localCommitOperationId,
+        remoteSubmissionOperationId: response.remoteSubmissionOperationId,
+        remoteWriteConfirmed: response.remoteWriteConfirmed,
         createdAt: response.createdAt,
       })
       emitEvent(meta.id, callbacks, {
