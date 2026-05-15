@@ -58,7 +58,10 @@ import {
   readPatchWorkManifestFile,
   writePatchWorkFile,
 } from './pipeline-patch-work-service'
-import { buildPipelinePatchSetDraft } from './pipeline-git-submission-service'
+import {
+  buildPipelinePatchSetDraft,
+  readPipelineSubmissionDraftContext,
+} from './pipeline-git-submission-service'
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6'
 const DEFAULT_ANTHROPIC_URL = 'https://api.anthropic.com'
@@ -400,6 +403,16 @@ function buildV2SystemPromptAppendix(
     ].join('\n')
   }
 
+  if (node === 'committer') {
+    return [
+      'Pipeline v2 约束：',
+      '- 必须读取已接受的 patch-work/result.md、patch-set/changes.patch、patch-set/changed-files.json、patch-set/diff-summary.md、patch-set/test-evidence.json、CONTRIBUTING 和 Git 状态。',
+      '- 只生成 commit.md 和 pr.md 草稿，不要执行 git add、git commit、git push 或创建 PR。',
+      '- 应用会把提交材料写入 patch-work/commit.md 和 patch-work/pr.md。',
+      '- 最终 JSON 可包含 commitMarkdown 和 prMarkdown；如果没有充分阻塞，也必须保持 draft-only，不得尝试真实本地提交或远端写。',
+    ].join('\n')
+  }
+
   return undefined
 }
 
@@ -546,6 +559,63 @@ function buildV2PatchWorkPromptSections(
         }),
       ),
       '请基于已接受文档和测试执行结果输出结构化测试结论。应用会在节点完成后基于 Git 状态生成 patch-set 草稿并排除 patch-work/**；不要执行 git 命令、git commit、git push 或创建 PR。',
+    ]
+  }
+
+  if (node === 'committer') {
+    const task = getContributionTaskByPipelineSessionId(context.sessionId)
+    if (!task) {
+      throw new Error(`未找到 Pipeline 贡献任务，无法读取提交草稿上下文: ${context.sessionId}`)
+    }
+    const submissionContext = readPipelineSubmissionDraftContext({
+      repositoryRoot: task.repositoryRoot,
+    })
+    const resultDoc = readAcceptedPatchWorkDocumentForPrompt({
+      context,
+      kind: 'test_result',
+      label: 'result.md',
+    })
+    const patchDoc = readAcceptedPatchWorkDocumentForPrompt({
+      context,
+      kind: 'patch',
+      label: 'patch-set/changes.patch',
+    })
+    const changedFilesDoc = readAcceptedPatchWorkDocumentForPrompt({
+      context,
+      kind: 'changed_files',
+      label: 'patch-set/changed-files.json',
+    })
+    const diffSummaryDoc = readAcceptedPatchWorkDocumentForPrompt({
+      context,
+      kind: 'diff_summary',
+      label: 'patch-set/diff-summary.md',
+    })
+    const evidenceDoc = readAcceptedPatchWorkDocumentForPrompt({
+      context,
+      kind: 'test_evidence',
+      label: 'patch-set/test-evidence.json',
+    })
+
+    return [
+      buildAcceptedDocumentPromptSection('测试报告', resultDoc),
+      buildAcceptedDocumentPromptSection('patch-set/changes.patch', patchDoc),
+      buildAcceptedDocumentPromptSection('patch-set/changed-files.json', changedFilesDoc),
+      buildAcceptedDocumentPromptSection('patch-set/diff-summary.md', diffSummaryDoc),
+      buildAcceptedDocumentPromptSection('patch-set/test-evidence.json', evidenceDoc),
+      submissionContext.contributingGuidelines
+        ? `CONTRIBUTING（${submissionContext.contributingGuidelinesPath}）：\n${submissionContext.contributingGuidelines}`
+        : '未找到 CONTRIBUTING 说明，需在提交草稿中提示缺失。',
+      [
+        'Git 状态：',
+        `- Working branch: ${submissionContext.workingBranch ?? 'unknown'}`,
+        `- HEAD: ${submissionContext.headCommit ?? 'unknown'}`,
+        submissionContext.statusPorcelain ? submissionContext.statusPorcelain : '- 工作区干净。',
+        '',
+        submissionContext.diffSummaryMarkdown,
+        '',
+        '- 不要执行 git add、git commit、git push 或创建 PR。',
+      ].join('\n'),
+      '请根据以上输入生成 commit.md 与 pr.md 草稿，明确风险和 blocker，但不要尝试真实提交。',
     ]
   }
 
@@ -777,7 +847,7 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
       return {
         type: 'object',
         additionalProperties: false,
-        required: ['summary', 'commitMessage', 'prTitle', 'prBody', 'submissionStatus', 'risks'],
+        required: ['summary', 'commitMessage', 'prTitle', 'prBody', 'submissionStatus', 'blockers', 'risks'],
         properties: {
           summary: { type: 'string' },
           commitMessage: { type: 'string' },
@@ -787,14 +857,13 @@ export function pipelineNodeJsonSchema(node: PipelineNodeKind): Record<string, u
             type: 'string',
             enum: [
               'draft_only',
-              'local_commit_ready',
-              'local_commit_created',
-              'remote_pr_ready',
-              'remote_pr_created',
               'blocked',
             ],
           },
+          blockers: stringArraySchema(),
           risks: stringArraySchema(),
+          commitMarkdown: { type: 'string' },
+          prMarkdown: { type: 'string' },
         },
       }
   }
@@ -939,6 +1008,18 @@ function readRequiredStringArray(
     issues.push(`字段包含非字符串项: ${field}`)
   }
   return items
+}
+
+function readOptionalStringArray(
+  parsed: Record<string, unknown>,
+  field: string,
+): string[] | undefined {
+  const value = parsed[field]
+  if (!Array.isArray(value)) return undefined
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 function readRequiredBoolean(
@@ -1138,19 +1219,15 @@ function readSubmissionStatus(
   parsed: Record<string, unknown>,
   field: string,
   issues: string[],
-): 'draft_only' | 'local_commit_ready' | 'local_commit_created' | 'remote_pr_ready' | 'remote_pr_created' | 'blocked' {
+): 'draft_only' | 'blocked' {
   const value = parsed[field]
   if (
     value === 'draft_only'
-    || value === 'local_commit_ready'
-    || value === 'local_commit_created'
-    || value === 'remote_pr_ready'
-    || value === 'remote_pr_created'
     || value === 'blocked'
   ) {
     return value
   }
-  issues.push(`缺少或非法字段: ${field}`)
+  issues.push(`缺少或非法字段: ${field}（Phase 6 仅允许 draft_only 或 blocked）`)
   return 'blocked'
 }
 
@@ -1785,6 +1862,113 @@ function enrichTesterPatchWorkArtifacts(
   }
 }
 
+function buildFallbackCommitMarkdown(output: Extract<PipelineStageOutput, { node: 'committer' }>): string {
+  return [
+    '# Commit 准备',
+    '',
+    '## 建议 Commit Message',
+    output.commitMessage,
+    '',
+    '## 变更摘要',
+    output.summary,
+    '',
+    '## 测试证据',
+    '- 见 result.md 和 patch-set/test-evidence.json。',
+    '',
+    '## 风险提示',
+    ...(output.risks.length > 0 ? output.risks.map((risk) => `- ${risk}`) : ['- 无。']),
+    '',
+    '## 是否需要 sign-off',
+    '待维护者确认。',
+    '',
+    '## 是否建议拆分多个 commit',
+    '当前仅生成草稿，不执行真实提交。',
+    '',
+  ].join('\n')
+}
+
+function buildFallbackPrMarkdown(output: Extract<PipelineStageOutput, { node: 'committer' }>): string {
+  return [
+    '# PR 草稿',
+    '',
+    '## Title',
+    output.prTitle,
+    '',
+    '## Summary',
+    output.prBody,
+    '',
+    '## Linked Issue',
+    '- 无。',
+    '',
+    '## Changes',
+    output.summary,
+    '',
+    '## Tests',
+    '- 见 result.md 和 patch-set/test-evidence.json。',
+    '',
+    '## Risk',
+    ...(output.risks.length > 0 ? output.risks.map((risk) => `- ${risk}`) : ['- 无。']),
+    '',
+    '## Notes for Maintainers',
+    '当前仅保存提交材料，不执行真实本地提交或远端写操作。',
+    '',
+  ].join('\n')
+}
+
+function enrichCommitterPatchWorkArtifacts(
+  context: PipelineNodeExecutionContext,
+  result: PipelineNodeExecutionResult,
+): PipelineNodeExecutionResult {
+  if (result.stageOutput?.node !== 'committer') return result
+  const task = getContributionTaskByPipelineSessionId(context.sessionId)
+  if (!task) return result
+
+  const parsed = parseStructuredOutput('committer', result.output)
+  const commitMarkdown = readOptionalString(parsed, 'commitMarkdown')
+    ?? buildFallbackCommitMarkdown(result.stageOutput)
+  const prMarkdown = readOptionalString(parsed, 'prMarkdown')
+    ?? buildFallbackPrMarkdown(result.stageOutput)
+  const commitRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'commit_doc',
+    createdByNode: 'committer',
+    content: commitMarkdown,
+  })
+  const prRef = writePatchWorkFile({
+    contributionTaskId: task.id,
+    pipelineSessionId: context.sessionId,
+    repositoryRoot: task.repositoryRoot,
+    kind: 'pr_doc',
+    createdByNode: 'committer',
+    content: prMarkdown,
+  })
+  const commitDocRef = toPatchWorkDocumentRef(commitRef)
+  const prDocRef = toPatchWorkDocumentRef(prRef)
+
+  return {
+    ...result,
+    approved: result.stageOutput.submissionStatus === 'draft_only',
+    issues: result.stageOutput.blockers,
+    stageOutput: {
+      ...result.stageOutput,
+      commitDocRef,
+      prDocRef,
+      commitRef: commitDocRef,
+      prRef: prDocRef,
+      localCommit: {
+        attempted: false,
+        status: 'not_requested',
+      },
+      remoteSubmission: {
+        attempted: false,
+        status: 'not_requested',
+      },
+    },
+  }
+}
+
 export function enrichPipelineV2PatchWorkArtifacts(
   node: PipelineNodeKind,
   context: PipelineNodeExecutionContext,
@@ -1796,6 +1980,7 @@ export function enrichPipelineV2PatchWorkArtifacts(
   if (node === 'developer') return enrichDeveloperPatchWorkArtifacts(context, result)
   if (node === 'reviewer') return enrichReviewerPatchWorkArtifacts(context, result)
   if (node === 'tester') return enrichTesterPatchWorkArtifacts(context, result)
+  if (node === 'committer') return enrichCommitterPatchWorkArtifacts(context, result)
   return result
 }
 
@@ -1911,6 +2096,7 @@ function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOu
       return output
     }
     case 'committer': {
+      const blockers = readRequiredStringArray(parsed, 'blockers', issues)
       const output = {
         node,
         summary,
@@ -1918,6 +2104,7 @@ function buildStageOutput(node: PipelineNodeKind, text: string): PipelineStageOu
         prTitle: readRequiredString(parsed, 'prTitle', issues),
         prBody: readRequiredString(parsed, 'prBody', issues),
         submissionStatus: readSubmissionStatus(parsed, 'submissionStatus', issues),
+        blockers,
         risks: readRequiredStringArray(parsed, 'risks', issues),
         content: text,
       }
@@ -1946,6 +2133,16 @@ export function buildNodeExecutionResult(node: PipelineNodeKind, text: string): 
       output: text,
       summary: stageOutput.summary,
       approved,
+      issues: stageOutput.blockers,
+      stageOutput,
+    }
+  }
+
+  if (stageOutput.node === 'committer') {
+    return {
+      output: text,
+      summary: stageOutput.summary,
+      approved: stageOutput.submissionStatus === 'draft_only',
       issues: stageOutput.blockers,
       stageOutput,
     }

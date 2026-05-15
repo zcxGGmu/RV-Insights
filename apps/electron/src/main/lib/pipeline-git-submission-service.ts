@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type {
   PipelinePatchSetFile,
@@ -20,6 +20,19 @@ export interface PipelinePatchSetDraft {
   deletions: number
   excludesPatchWork: boolean
   baseBranch?: string
+  workingBranch?: string
+  headCommit?: string
+}
+
+export interface PipelineSubmissionDraftContext {
+  changedFiles: PipelinePatchSetFile[]
+  statusPorcelain: string
+  diffSummaryMarkdown: string
+  additions: number
+  deletions: number
+  excludesPatchWork: boolean
+  contributingGuidelines?: string
+  contributingGuidelinesPath?: string
   workingBranch?: string
   headCommit?: string
 }
@@ -245,6 +258,44 @@ function resolveBranchName(repositoryRoot: string): string | undefined {
   return branch || undefined
 }
 
+function readStatusPorcelain(repositoryRoot: string): string {
+  return runGit(repositoryRoot, [
+    'status',
+    '--porcelain=v1',
+    '--untracked-files=all',
+    '--',
+    '.',
+    ':(exclude)patch-work',
+    ':(exclude)patch-work/**',
+  ]).trimEnd()
+}
+
+function readContributingGuidelines(repositoryRoot: string): {
+  content?: string
+  relativePath?: string
+} {
+  const realRepositoryRoot = realpathSync(repositoryRoot)
+  for (const relativePath of [
+    'CONTRIBUTING.md',
+    'CONTRIBUTING',
+    '.github/CONTRIBUTING.md',
+    'docs/CONTRIBUTING.md',
+  ]) {
+    const candidatePath = resolve(repositoryRoot, relativePath)
+    if (!existsSync(candidatePath)) continue
+    const stat = lstatSync(candidatePath)
+    if (stat.isSymbolicLink() || !stat.isFile()) continue
+    const realCandidatePath = realpathSync(candidatePath)
+    if (!isInsideOrEqual(realRepositoryRoot, realCandidatePath)) continue
+    return {
+      content: readFileSync(candidatePath, 'utf-8'),
+      relativePath,
+    }
+  }
+
+  return {}
+}
+
 function buildDiffSummaryMarkdown(input: {
   changedFiles: PipelinePatchSetFile[]
   additions: number
@@ -284,6 +335,41 @@ function buildDiffSummaryMarkdown(input: {
   ].join('\n')
 }
 
+function buildSubmissionDiffSummaryMarkdown(input: {
+  changedFiles: PipelinePatchSetFile[]
+  additions: number
+  deletions: number
+  workingBranch?: string
+  headCommit?: string
+  contributingGuidelinesPath?: string
+}): string {
+  return [
+    '# 提交候选摘要',
+    '',
+    '## 分支',
+    `- Working branch: ${input.workingBranch ?? 'unknown'}`,
+    `- HEAD: ${input.headCommit ?? 'unknown'}`,
+    '',
+    '## 贡献规范',
+    `- ${input.contributingGuidelinesPath ?? '未发现 CONTRIBUTING 文件。'}`,
+    '',
+    '## 统计',
+    `- 文件数：${input.changedFiles.length}`,
+    `- 新增：${input.additions}`,
+    `- 删除：${input.deletions}`,
+    '',
+    '## 文件',
+    ...(input.changedFiles.length
+      ? input.changedFiles.map((file) =>
+        `- \`${file.path}\` (${file.changeType}, +${file.additions ?? 0} / -${file.deletions ?? 0})`)
+      : ['- 无源码变更。']),
+    '',
+    '## 排除项',
+    '- patch-work/** 已从提交候选中排除。',
+    '',
+  ].join('\n')
+}
+
 export function buildPipelinePatchSetDraft(
   input: BuildPipelinePatchSetDraftInput,
 ): PipelinePatchSetDraft {
@@ -312,6 +398,41 @@ export function buildPipelinePatchSetDraft(
     additions,
     deletions,
     excludesPatchWork,
+    workingBranch,
+    headCommit,
+  }
+}
+
+export function readPipelineSubmissionDraftContext(input: {
+  repositoryRoot: string
+}): PipelineSubmissionDraftContext {
+  const repositoryRoot = ensureGitRepository(input.repositoryRoot)
+  const changedFiles = buildChangedFiles(repositoryRoot)
+  const additions = changedFiles.reduce((sum, file) => sum + (file.additions ?? 0), 0)
+  const deletions = changedFiles.reduce((sum, file) => sum + (file.deletions ?? 0), 0)
+  const workingBranch = resolveBranchName(repositoryRoot)
+  const headCommit = runGit(repositoryRoot, ['rev-parse', 'HEAD']).trim()
+  const statusPorcelain = readStatusPorcelain(repositoryRoot)
+  const contributing = readContributingGuidelines(repositoryRoot)
+  const excludesPatchWork = changedFiles.every((file) =>
+    file.path !== 'patch-work' && !file.path.startsWith('patch-work/'))
+
+  return {
+    changedFiles,
+    statusPorcelain,
+    diffSummaryMarkdown: buildSubmissionDiffSummaryMarkdown({
+      changedFiles,
+      additions,
+      deletions,
+      workingBranch,
+      headCommit,
+      contributingGuidelinesPath: contributing.relativePath,
+    }),
+    additions,
+    deletions,
+    excludesPatchWork,
+    contributingGuidelines: contributing.content,
+    contributingGuidelinesPath: contributing.relativePath,
     workingBranch,
     headCommit,
   }

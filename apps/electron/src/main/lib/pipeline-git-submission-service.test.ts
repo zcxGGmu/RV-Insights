@@ -5,11 +5,15 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildPipelinePatchSetDraft } from './pipeline-git-submission-service'
+import {
+  buildPipelinePatchSetDraft,
+  readPipelineSubmissionDraftContext,
+} from './pipeline-git-submission-service'
 
 function git(repoRoot: string, args: string[]): string {
   return execFileSync('git', ['-C', repoRoot, ...args], {
@@ -119,5 +123,56 @@ describe('pipeline-git-submission-service', () => {
 
     expect(draft.patch).not.toContain('SECRET')
     expect(readFileSync(join(repoRoot, 'patch-work', 'patch-set', 'changes.patch'), 'utf-8')).toContain('SECRET')
+  })
+
+  test('读取 committer draft-only 上下文时包含 Git 状态和 CONTRIBUTING 且不执行提交', () => {
+    writeFileSync(join(repoRoot, 'CONTRIBUTING.md'), [
+      '# Contributing',
+      '',
+      '- Commit message 使用 Conventional Commits。',
+      '- PR 需要列出测试证据。',
+      '',
+    ].join('\n'), 'utf-8')
+    git(repoRoot, ['add', 'CONTRIBUTING.md'])
+    git(repoRoot, ['commit', '-m', 'docs: add contributing'])
+    writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 2\n', 'utf-8')
+    mkdirSync(join(repoRoot, 'patch-work'), { recursive: true })
+    writeFileSync(join(repoRoot, 'patch-work', 'commit.md'), '# 不应进入提交候选\n', 'utf-8')
+    const commitCountBefore = git(repoRoot, ['rev-list', '--count', 'HEAD'])
+
+    const context = readPipelineSubmissionDraftContext({
+      repositoryRoot: repoRoot,
+    })
+
+    expect(context.workingBranch).toBeDefined()
+    expect(context.headCommit).toBe(git(repoRoot, ['rev-parse', 'HEAD']))
+    expect(context.changedFiles.map((file) => file.path)).toEqual(['src/index.ts'])
+    expect(context.statusPorcelain).toContain('src/index.ts')
+    expect(context.statusPorcelain).not.toContain('patch-work/commit.md')
+    expect(context.contributingGuidelines).toContain('Conventional Commits')
+    expect(context.contributingGuidelinesPath).toBe('CONTRIBUTING.md')
+    expect(context.diffSummaryMarkdown).toContain('patch-work/** 已从提交候选中排除')
+    expect(git(repoRoot, ['rev-list', '--count', 'HEAD'])).toBe(commitCountBefore)
+  })
+
+  test('读取 CONTRIBUTING 时拒绝指向仓库外的 symlink', () => {
+    const outsideDir = mkdtempSync(join(tmpdir(), 'rv-contributing-secret-'))
+    try {
+      const outsideSecret = join(outsideDir, 'CONTRIBUTING.md')
+      writeFileSync(outsideSecret, '# Secret\n\nLOCAL_SECRET_TOKEN=should-not-leak\n', 'utf-8')
+      symlinkSync(outsideSecret, join(repoRoot, 'CONTRIBUTING.md'))
+      mkdirSync(join(repoRoot, 'docs'), { recursive: true })
+      writeFileSync(join(repoRoot, 'docs', 'CONTRIBUTING.md'), '# Safe Contributing\n\n使用 Conventional Commits。\n', 'utf-8')
+
+      const context = readPipelineSubmissionDraftContext({
+        repositoryRoot: repoRoot,
+      })
+
+      expect(context.contributingGuidelines).toContain('Conventional Commits')
+      expect(context.contributingGuidelines).not.toContain('LOCAL_SECRET_TOKEN')
+      expect(context.contributingGuidelinesPath).toBe('docs/CONTRIBUTING.md')
+    } finally {
+      rmSync(outsideDir, { recursive: true, force: true })
+    }
   })
 })

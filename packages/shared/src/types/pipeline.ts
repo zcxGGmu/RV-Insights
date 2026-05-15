@@ -248,7 +248,10 @@ export interface PipelineCommitterStageOutput {
   prTitle: string
   prBody: string
   submissionStatus: PipelineSubmissionStatus
+  blockers: string[]
   risks: string[]
+  commitDocRef?: PipelinePatchWorkDocumentRef
+  prDocRef?: PipelinePatchWorkDocumentRef
   commitRef?: PipelinePatchWorkDocumentRef
   prRef?: PipelinePatchWorkDocumentRef
   localCommit?: {

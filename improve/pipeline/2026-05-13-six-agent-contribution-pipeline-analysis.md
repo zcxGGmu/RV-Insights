@@ -19,23 +19,24 @@
   - `364cf964`（`fix(pipeline): 增加停止运行的可见反馈`）：stop IPC 返回结构化状态，前端显示停止中 / 已停止反馈。
   - `ffd1f309`（`fix(pipeline): 增加节点静默运行反馈`）：节点已启动但暂未产生 `text_delta` 时显示运行进度，避免 UI 看起来卡在等待输出。
 - Phase 4 已完成并提交：commit `d10387cae3557ca57e3679f55c5ab48cd7e75766`（`feat(pipeline): 完成 Phase 4 开发审核与审查循环`）。developer 读取 accepted `plan.md` / `test-plan.md`，写 `dev.md` 并进入 developer 文档审核；reviewer read-only 读取 accepted `dev.md`、输出结构化 issues 与 `review.md`，不通过未达上限自动回 developer，达到 3 轮进入人工接管 gate。
-- Phase 5 已完成并提交：提交信息为 `feat(pipeline): 完成 Phase 5 测试报告与 patch-set`，最终 hash 以 `git log -1` 为准。tester 已读取 accepted `test-plan.md` / `dev.md` 和最新 `review.md`，以 Codex workspace-write 执行测试与必要修复；输出 `result.md`、测试证据和 patch-set 草稿，patch-set 默认排除 `patch-work/**`，且不执行真实 commit / push / PR。
+- Phase 5 已完成并提交：commit `aa08baf257fab43db6c9c30a106466f3b1629da1`（`feat(pipeline): 完成 Phase 5 Tester 结果与 patch-set 草稿闭环`）。tester 已读取 accepted `test-plan.md` / `dev.md` 和最新 `review.md`，以 Codex workspace-write 执行测试与必要修复；输出 `result.md`、测试证据和 patch-set 草稿，patch-set 默认排除 `patch-work/**`，且不执行真实 commit / push / PR。
 - Phase 5 已补安全闭环：Codex runner 在 v2 workspace-write 节点运行环境前置 Git / GitHub CLI 命令防护，并禁用默认 `GIT_DIR` 以阻断绝对路径 Git 调用；运行前后校验 Git HEAD、全部 refs、index、local config 和已有补丁未被整体丢弃，避免真实 commit / push / tag / reset / PR 污染；tester 结果必须保守处理 `passed`、缺失 / 失败 / skipped evidence 和 unsafe patch-set；backend approve 会服务端复验 patch-set 不包含 `patch-work/**` 且正常通过路径的测试证据全部 passed。
-- Phase 6-8 均未开始：下一步只能进入 Phase 6 Committer Draft-Only，不得跳阶段，不得提前接真实 commit、push 或 PR。
-- 当前版本状态：`@rv-insights/shared` 为 `0.1.30`，`@rv-insights/electron` 为 `0.0.55`。
-- 当前已知验证状态：Phase 5 聚焦测试 124 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 348 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3/4/5 或后续 bugfix 改动。
+- Phase 6 已完成并随本阶段提交落地：Committer Draft-Only 已读取 accepted `result.md`、`patch-set/*`、CONTRIBUTING 和 Git 状态，只生成并登记 `commit.md` / `pr.md`；`CommitterPanel` 通过结构化 patch-work IPC 展示提交材料、测试证据、blocker 和风险；`submission_review` 在 Phase 6 仅允许保存提交材料，不执行真实 commit / push / PR；CONTRIBUTING 读取会拒绝仓库外 symlink，committer schema/parser 仅接受 `draft_only` / `blocked`。
+- Phase 7-8 均未开始：下一步只能在用户明确允许本地 commit 能力后进入 Phase 7 受控本地 commit gate，不得跳阶段，不得提前接 push 或 PR。
+- 当前版本状态：`@rv-insights/shared` 为 `0.1.31`，`@rv-insights/electron` 为 `0.0.56`。
+- 当前已知验证状态：Phase 6 聚焦测试 150 pass、runner 复核测试 54 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 362 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3/4/5/6 或后续 bugfix 改动。
 
 ## 结论
 
-当前 RV-Insights 已经有一个可运行的 Pipeline 底座，并在 Phase 2 增加了 v2 六节点骨架；Phase 3 已接入 explorer 任务选择、planner 文档审核和 patch-work 结构化读取，Phase 4 已接入 Developer 文档审核与 Reviewer issue loop，Phase 5 已接入 Tester 测试报告、测试证据和 patch-set 草稿：
+当前 RV-Insights 已经有一个可运行的 Pipeline 底座，并在 Phase 2 增加了 v2 六节点骨架；Phase 3 已接入 explorer 任务选择、planner 文档审核和 patch-work 结构化读取，Phase 4 已接入 Developer 文档审核与 Reviewer issue loop，Phase 5 已接入 Tester 测试报告、测试证据和 patch-set 草稿，Phase 6 已接入 Committer Draft-Only：
 
 - LangGraph v2 编排：`explorer -> planner -> developer -> developer document gate -> reviewer -> tester -> committer`
 - 人工 gate、checkpoint、stream event、JSONL 记录和阶段 artifact 已具备
 - v1 中 `explorer / planner / tester` 保持 Claude Agent SDK 兼容链路，`developer / reviewer` 已可走 Codex SDK 或 `codex exec` CLI fallback
 - v2 strategy 已表驱动化：`explorer / planner` 使用 Claude，`developer / reviewer / tester / committer` 使用 Codex
-- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI，Phase 4 新增 Developer 文档审核和 Reviewer issue board，Phase 5 新增 Tester result board
+- UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI，Phase 4 新增 Developer 文档审核和 Reviewer issue board，Phase 5 新增 Tester result board，Phase 6 新增 Committer panel
 
-但它还不是用户描述的完整“六 Agent AI 开源贡献工作流”。核心差距已经收敛到 committer draft-only、本地 commit gate 和远端 PR gate 这些后续阶段对象。
+但它还不是用户描述的完整“六 Agent AI 开源贡献工作流”。核心差距已经收敛到本地 commit gate 和远端 PR gate 这些后续阶段对象。
 
 优先级最高的事情是先明确产品语义：
 

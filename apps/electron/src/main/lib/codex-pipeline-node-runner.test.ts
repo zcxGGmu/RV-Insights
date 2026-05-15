@@ -773,6 +773,118 @@ describe('codex-pipeline-node-runner', () => {
     }
   })
 
+  test('Codex CLI runner 在 v2 committer 中只生成 commit.md / pr.md 草稿且不创建提交', async () => {
+    const previousConfigDir = process.env.RV_INSIGHTS_CONFIG_DIR
+    const tempConfigDir = mkdtempSync(join(tmpdir(), 'rv-codex-v2-committer-config-'))
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-codex-v2-committer-repo-'))
+    process.env.RV_INSIGHTS_CONFIG_DIR = tempConfigDir
+    try {
+      initializeGitRepo(repoRoot)
+      writeFileSync(join(repoRoot, 'CONTRIBUTING.md'), '# Contributing\n\n请使用 Conventional Commits。\n', 'utf-8')
+      writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 2\n', 'utf-8')
+      const initialHead = git(repoRoot, ['rev-parse', 'HEAD'])
+      createContributionTask({
+        id: 'task-codex-committer',
+        pipelineSessionId: 'session-codex-committer',
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'committing',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-committer',
+        pipelineSessionId: 'session-codex-committer',
+        repositoryRoot: repoRoot,
+        kind: 'test_result',
+        createdByNode: 'tester',
+        content: '# 测试报告\n\n## 测试结论\n通过。\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-committer',
+        pipelineSessionId: 'session-codex-committer',
+        repositoryRoot: repoRoot,
+        kind: 'patch',
+        createdByNode: 'tester',
+        content: 'diff --git a/src/index.ts b/src/index.ts\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-committer',
+        pipelineSessionId: 'session-codex-committer',
+        repositoryRoot: repoRoot,
+        kind: 'changed_files',
+        createdByNode: 'tester',
+        content: '[{"path":"src/index.ts","changeType":"modified","summary":"更新实现"}]\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-committer',
+        pipelineSessionId: 'session-codex-committer',
+        repositoryRoot: repoRoot,
+        kind: 'diff_summary',
+        createdByNode: 'tester',
+        content: '# Diff 摘要\n\n- src/index.ts\n',
+      })
+      writePatchWorkFile({
+        contributionTaskId: 'task-codex-committer',
+        pipelineSessionId: 'session-codex-committer',
+        repositoryRoot: repoRoot,
+        kind: 'test_evidence',
+        createdByNode: 'tester',
+        content: '[{"command":"bun test","status":"passed","summary":"通过"}]\n',
+      })
+      acceptPatchWorkDocuments({
+        repositoryRoot: repoRoot,
+        gateId: 'gate-tester',
+        kinds: ['test_result', 'patch', 'changed_files', 'diff_summary', 'test_evidence'],
+      })
+      const executor = new FakeCodexCliExecutor(JSON.stringify({
+        summary: '提交材料已生成',
+        commitMessage: 'feat(pipeline): add draft submission',
+        prTitle: 'Add draft submission materials',
+        prBody: '## Summary\n- Add draft submission\n\n## Tests\n- bun test',
+        submissionStatus: 'draft_only',
+        blockers: [],
+        risks: ['未执行真实 commit'],
+      }))
+      const runner = new CodexCliPipelineNodeRunner({ executor })
+
+      const result = await runner.runNode('committer', {
+        sessionId: 'session-codex-committer',
+        userInput: '准备提交材料',
+        currentNode: 'committer',
+        version: 2,
+        reviewIteration: 0,
+      })
+
+      expect(executor.calls[0]?.sandboxMode).toBe('read-only')
+      expect(executor.calls[0]?.prompt).toContain('测试报告（result.md）')
+      expect(executor.calls[0]?.prompt).toContain('CONTRIBUTING')
+      expect(executor.calls[0]?.prompt).toContain('不要执行 git add、git commit、git push 或创建 PR')
+      expect(result.stageOutput).toMatchObject({
+        node: 'committer',
+        submissionStatus: 'draft_only',
+        commitDocRef: {
+          relativePath: 'commit.md',
+        },
+        prDocRef: {
+          relativePath: 'pr.md',
+        },
+      })
+      expect(readFileSync(join(repoRoot, 'patch-work', 'commit.md'), 'utf-8')).toContain('feat(pipeline): add draft submission')
+      expect(readFileSync(join(repoRoot, 'patch-work', 'pr.md'), 'utf-8')).toContain('Add draft submission materials')
+      expect(git(repoRoot, ['rev-parse', 'HEAD'])).toBe(initialHead)
+      expect(git(repoRoot, ['diff', '--cached', '--name-only'])).toBe('')
+    } finally {
+      if (previousConfigDir === undefined) {
+        delete process.env.RV_INSIGHTS_CONFIG_DIR
+      } else {
+        process.env.RV_INSIGHTS_CONFIG_DIR = previousConfigDir
+      }
+      rmSync(tempConfigDir, { recursive: true, force: true })
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   test('Codex CLI runner 在 executor 返回后若 signal 已中止则不发送 node_complete', async () => {
     const controller = new AbortController()
     const events: PipelineStreamEvent[] = []

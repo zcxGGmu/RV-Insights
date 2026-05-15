@@ -148,6 +148,7 @@ describe('pipeline-state', () => {
         prTitle: 'Add Pipeline v2 skeleton',
         prBody: 'This PR adds the v2 pipeline skeleton.',
         submissionStatus: 'draft_only',
+        blockers: [],
         risks: ['未执行真实提交'],
         content: '{"summary":"提交材料已生成"}',
       },

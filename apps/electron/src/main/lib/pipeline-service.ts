@@ -25,6 +25,7 @@ import type {
   PipelineGateKind,
   PipelineTestEvidence,
 } from '@rv-insights/shared'
+import { replayPipelineRecords } from '@rv-insights/shared'
 import type { PipelineNodeRunner } from './pipeline-node-runner'
 import { PipelineCheckpointer } from './pipeline-checkpointer'
 import {
@@ -439,6 +440,34 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
     }
   }
 
+  function replayCurrentPipelineState(sessionId: string): PipelineStateSnapshot {
+    const meta = getPipelineSessionMeta(sessionId)
+    if (!meta) {
+      throw new Error(`未找到 Pipeline 会话: ${sessionId}`)
+    }
+
+    return replayPipelineRecords(sessionId, getPipelineRecords(sessionId), {
+      version: meta.version,
+      now: meta.updatedAt,
+    })
+  }
+
+  function assertCommitterSubmissionAllowsDraftOnlyApprove(sessionId: string): void {
+    const committerOutput = replayCurrentPipelineState(sessionId).stageOutputs?.committer
+    if (committerOutput?.node !== 'committer') {
+      throw new Error('committer 提交材料状态缺失，禁止完成 Phase 6 submission review')
+    }
+    if (committerOutput.submissionStatus !== 'draft_only') {
+      throw new Error('committer 提交材料不是 draft-only 状态，禁止完成 Phase 6 submission review')
+    }
+    if (committerOutput.blockers.length > 0) {
+      throw new Error('committer 提交材料仍存在 blocker，禁止完成 Phase 6 submission review')
+    }
+    if (committerOutput.localCommit?.attempted || committerOutput.remoteSubmission?.attempted) {
+      throw new Error('Phase 6 禁止完成已尝试本地 commit 或远端提交的提交材料')
+    }
+  }
+
   function ensureV2ContributionTask(
     meta: PipelineSessionMeta,
     workspaceId: string | undefined,
@@ -683,6 +712,45 @@ export function createPipelineService(options: CreatePipelineServiceOptions = {}
           reason: pendingGate.kind === 'test_blocked'
             ? 'test_blocked_risk_accepted'
             : 'tester_result_accepted',
+        },
+      })
+    }
+
+    if (pendingGate.kind === 'submission_review' && pendingGate.node === 'committer') {
+      const task = getContributionTaskForSession(response.sessionId)
+      if (!task) return
+      if (response.submissionMode && response.submissionMode !== 'local_patch') {
+        throw new Error('Phase 6 仅允许保存提交材料草稿，不允许本地 commit 或远端 PR')
+      }
+
+      assertCommitterSubmissionAllowsDraftOnlyApprove(response.sessionId)
+      const accepted = acceptPatchWorkDocuments({
+        repositoryRoot: task.repositoryRoot,
+        gateId: pendingGate.gateId,
+        kinds: ['commit_doc', 'pr_doc'],
+      })
+      updateContributionTask(task.id, {
+        status: 'completed',
+        currentGateId: undefined,
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'patch_work_updated',
+        payload: {
+          acceptedDocuments: accepted.map((file) => ({
+            relativePath: file.relativePath,
+            checksum: file.checksum,
+            revision: file.revision,
+          })),
+          submissionMode: 'local_patch',
+        },
+      })
+      appendContributionTaskEvent(task.id, {
+        pipelineSessionId: response.sessionId,
+        type: 'task_updated',
+        payload: {
+          status: 'completed',
+          reason: 'submission_draft_saved',
         },
       })
     }

@@ -3,6 +3,8 @@ import { useAtomValue, useSetAtom } from 'jotai'
 import { agentChannelIdAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
 import type {
+  ContributionMode,
+  PipelineCommitterStageOutput,
   PipelineDeveloperStageOutput,
   PipelineExplorerReportRef,
   PipelineGateRequest,
@@ -53,6 +55,10 @@ import {
   TesterResultBoard,
   collectTesterPatchWorkRefs,
 } from './TesterResultBoard'
+import {
+  CommitterPanel,
+  collectCommitterPatchWorkRefs,
+} from './CommitterPanel'
 
 export function PipelineView({
   sessionId,
@@ -139,6 +145,9 @@ export function PipelineView({
   const testerStageOutput = state?.stageOutputs?.tester?.node === 'tester'
     ? state.stageOutputs.tester as PipelineTesterStageOutput
     : null
+  const committerStageOutput = state?.stageOutputs?.committer?.node === 'committer'
+    ? state.stageOutputs.committer as PipelineCommitterStageOutput
+    : null
   const showExplorerTaskBoard = pendingGate?.kind === 'task_selection' && pendingGate.node === 'explorer'
   const showPlannerDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'planner'
   const showDeveloperDocumentBoard = pendingGate?.kind === 'document_review' && pendingGate.node === 'developer'
@@ -147,6 +156,7 @@ export function PipelineView({
     (pendingGate?.kind === 'document_review' || pendingGate?.kind === 'test_blocked')
     && pendingGate.node === 'tester'
   )
+  const showCommitterPanel = pendingGate?.kind === 'submission_review' && pendingGate.node === 'committer'
   const reviewDocuments = React.useMemo<PipelinePatchWorkDocumentRef[]>(() => {
     if (showPlannerDocumentBoard) return collectPlannerDocumentRefs(plannerStageOutput)
     if (showDeveloperDocumentBoard) return collectDeveloperDocumentRefs(developerStageOutput)
@@ -157,13 +167,18 @@ export function PipelineView({
           documents.findIndex((item) => item.relativePath === document.relativePath) === index)
     }
     if (showTesterResultBoard) return collectTesterPatchWorkRefs(testerStageOutput)
+    if (showCommitterPanel) return collectCommitterPatchWorkRefs(committerStageOutput)
     return []
-  }, [developerStageOutput, plannerStageOutput, reviewerStageOutput, showDeveloperDocumentBoard, showPlannerDocumentBoard, showReviewerIssueBoard, showTesterResultBoard, testerStageOutput])
+  }, [committerStageOutput, developerStageOutput, plannerStageOutput, reviewerStageOutput, showCommitterPanel, showDeveloperDocumentBoard, showPlannerDocumentBoard, showReviewerIssueBoard, showTesterResultBoard, testerStageOutput])
   const reviewDocumentKey = React.useMemo(
     () => reviewDocuments.map((document) => `${document.relativePath}:${document.checksum ?? ''}`).join('|'),
     [reviewDocuments],
   )
-  const showPatchWorkDocumentRead = showPlannerDocumentBoard || showDeveloperDocumentBoard || showReviewerIssueBoard || showTesterResultBoard
+  const showPatchWorkDocumentRead = showPlannerDocumentBoard
+    || showDeveloperDocumentBoard
+    || showReviewerIssueBoard
+    || showTesterResultBoard
+    || showCommitterPanel
   const reviewerReviewContent = React.useMemo(() => {
     const reviewDoc = reviewerStageOutput?.reviewDocRef ?? reviewerStageOutput?.reviewDoc
     return reviewDoc ? documentContents.get(reviewDoc.relativePath) : undefined
@@ -531,6 +546,7 @@ export function PipelineView({
   const handleRespond = React.useCallback(async (
     action: 'approve' | 'reject_with_feedback' | 'rerun_node',
     feedback?: string,
+    options?: { submissionMode?: ContributionMode },
   ): Promise<void> => {
     if (!pendingGate) return
     await window.electronAPI.respondPipelineGate({
@@ -538,6 +554,7 @@ export function PipelineView({
       sessionId,
       action,
       feedback,
+      submissionMode: options?.submissionMode,
       createdAt: Date.now(),
     })
   }, [pendingGate, sessionId])
@@ -652,6 +669,18 @@ export function PipelineView({
                   reviewContent={reviewerReviewContent}
                 />
               ) : null}
+              {showCommitterPanel ? (
+                <CommitterPanel
+                  output={committerStageOutput}
+                  testerOutput={testerStageOutput}
+                  contents={documentContents}
+                  loadingPaths={documentLoadingPaths}
+                  readErrors={documentReadErrors}
+                  onApprove={() => handleRespond('approve', undefined, { submissionMode: 'local_patch' })}
+                  onReject={(feedback) => handleRespond('reject_with_feedback', feedback)}
+                  onRerun={() => handleRespond('rerun_node')}
+                />
+              ) : null}
               {showTesterResultBoard ? (
                 <TesterResultBoard
                   output={testerStageOutput}
@@ -681,7 +710,7 @@ export function PipelineView({
                   onReject={(feedback) => handleRespond('reject_with_feedback', feedback)}
                   onRerun={() => handleRespond('rerun_node')}
                 />
-              ) : pendingGate ? (
+              ) : pendingGate && !showCommitterPanel ? (
                 <PipelineGateCard
                   request={pendingGate as PipelineGateRequest}
                   version={session?.version ?? state?.version}

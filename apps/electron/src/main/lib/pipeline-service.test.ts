@@ -676,6 +676,291 @@ describe('pipeline-service', () => {
     }
   })
 
+  test('committer submission_review approve 只接受提交草稿并拒绝本地 commit 模式', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-committer-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-committer-submission',
+      sessionId: 'session-committer-submission',
+      node: 'committer',
+      kind: 'submission_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => ({
+          state: {
+            sessionId: 'session-committer-submission',
+            version: 2,
+            currentNode: 'committer',
+            status: 'completed',
+            reviewIteration: 0,
+            lastApprovedNode: 'committer',
+            pendingGate: null,
+            updatedAt: Date.now(),
+          },
+        }),
+        getState: async () => ({
+          sessionId: 'session-committer-submission',
+          version: 2,
+          currentNode: 'committer',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('committer 草稿审核测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'committer',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-committer-submission',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'committing',
+      })
+      const commitRef = writePatchWorkFile({
+        contributionTaskId: 'task-committer-submission',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'commit_doc',
+        createdByNode: 'committer',
+        content: '# Commit 准备\n',
+      })
+      const prRef = writePatchWorkFile({
+        contributionTaskId: 'task-committer-submission',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'pr_doc',
+        createdByNode: 'committer',
+        content: '# PR 草稿\n',
+      })
+      appendPipelineNodeCompleteRecords(session.id, {
+        type: 'node_complete',
+        node: 'committer',
+        output: '{}',
+        summary: '提交材料已生成',
+        approved: true,
+        issues: [],
+        artifact: {
+          node: 'committer',
+          summary: '提交材料已生成',
+          commitMessage: 'feat(pipeline): add draft submission',
+          prTitle: 'Add draft submission materials',
+          prBody: '## Summary\n- Add draft submission',
+          submissionStatus: 'draft_only',
+          blockers: [],
+          risks: ['未执行真实 commit'],
+          commitDocRef: commitRef,
+          prDocRef: prRef,
+          localCommit: {
+            attempted: false,
+            status: 'not_requested',
+          },
+          remoteSubmission: {
+            attempted: false,
+            status: 'not_requested',
+          },
+          content: '{}',
+        },
+        createdAt: Date.now(),
+      })
+
+      await expect(service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'submission_review',
+        action: 'approve',
+        submissionMode: 'local_commit',
+        createdAt: Date.now(),
+      })).rejects.toThrow('Phase 6 仅允许保存提交材料草稿')
+
+      await service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'submission_review',
+        action: 'approve',
+        submissionMode: 'local_patch',
+        createdAt: Date.now(),
+      })
+
+      const manifest = readPatchWorkManifest(repoRoot)
+      expect(manifest.files.find((file) => file.relativePath === commitRef.relativePath)).toMatchObject({
+        acceptedRevision: commitRef.revision,
+        acceptedByGateId: gateRequest.gateId,
+      })
+      expect(manifest.files.find((file) => file.relativePath === prRef.relativePath)).toMatchObject({
+        acceptedRevision: prRef.revision,
+        acceptedByGateId: gateRequest.gateId,
+      })
+      expect(getContributionTask('task-committer-submission')).toMatchObject({
+        status: 'completed',
+      })
+      expect(getPipelineRecords(session.id).find((record) => record.type === 'gate_decision')).toMatchObject({
+        type: 'gate_decision',
+        kind: 'submission_review',
+        submissionMode: 'local_patch',
+      })
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('committer submission_review approve 会在后端拒绝非 draft-only 产物状态', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-committer-blocked-repo-'))
+    const gateRequest: PipelineGateRequest = {
+      gateId: 'gate-committer-blocked',
+      sessionId: 'session-committer-blocked',
+      node: 'committer',
+      kind: 'submission_review',
+      iteration: 0,
+      createdAt: Date.now(),
+    }
+    const service = createPipelineService({
+      createGraph: () => ({
+        invoke: async () => {
+          throw new Error('invoke 不应被调用')
+        },
+        resume: async () => {
+          throw new Error('blocked committer 不应恢复 graph')
+        },
+        getState: async () => ({
+          sessionId: 'session-committer-blocked',
+          version: 2,
+          currentNode: 'committer',
+          status: 'waiting_human',
+          reviewIteration: 0,
+          pendingGate: gateRequest,
+          updatedAt: Date.now(),
+        }),
+      }),
+    })
+
+    try {
+      const session = service.createSession('committer 阻塞审核测试', 'channel-1', 'workspace-1')
+      updatePipelineSessionMeta(session.id, {
+        version: 2,
+        currentNode: 'committer',
+        status: 'waiting_human',
+        pendingGate: {
+          ...gateRequest,
+          sessionId: session.id,
+        },
+      })
+      createContributionTask({
+        id: 'task-committer-blocked',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        patchWorkDir: join(repoRoot, 'patch-work'),
+        contributionMode: 'local_patch',
+        allowRemoteWrites: false,
+        status: 'committing',
+      })
+      const commitRef = writePatchWorkFile({
+        contributionTaskId: 'task-committer-blocked',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'commit_doc',
+        createdByNode: 'committer',
+        content: '# Commit 准备\n',
+      })
+      const prRef = writePatchWorkFile({
+        contributionTaskId: 'task-committer-blocked',
+        pipelineSessionId: session.id,
+        repositoryRoot: repoRoot,
+        kind: 'pr_doc',
+        createdByNode: 'committer',
+        content: '# PR 草稿\n',
+      })
+      appendPipelineNodeCompleteRecords(session.id, {
+        type: 'node_complete',
+        node: 'committer',
+        output: '{}',
+        summary: '提交材料被阻塞',
+        approved: false,
+        issues: ['缺少提交规范'],
+        artifact: {
+          node: 'committer',
+          summary: '提交材料被阻塞',
+          commitMessage: 'feat(pipeline): add draft submission',
+          prTitle: 'Add draft submission materials',
+          prBody: '## Summary\n- Add draft submission',
+          submissionStatus: 'blocked',
+          blockers: ['缺少提交规范'],
+          risks: [],
+          commitDocRef: commitRef,
+          prDocRef: prRef,
+          content: '{}',
+        },
+        createdAt: Date.now(),
+      })
+
+      await expect(service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'submission_review',
+        action: 'approve',
+        submissionMode: 'local_patch',
+        createdAt: Date.now(),
+      })).rejects.toThrow('committer 提交材料不是 draft-only 状态')
+
+      appendPipelineNodeCompleteRecords(session.id, {
+        type: 'node_complete',
+        node: 'committer',
+        output: '{}',
+        summary: '模型声称已创建本地提交',
+        approved: false,
+        issues: [],
+        artifact: {
+          node: 'committer',
+          summary: '模型声称已创建本地提交',
+          commitMessage: 'feat(pipeline): add draft submission',
+          prTitle: 'Add draft submission materials',
+          prBody: '## Summary\n- Add draft submission',
+          submissionStatus: 'local_commit_created',
+          blockers: [],
+          risks: [],
+          commitDocRef: commitRef,
+          prDocRef: prRef,
+          localCommit: {
+            attempted: true,
+            status: 'created',
+            commitHash: 'abc123',
+          },
+          content: '{}',
+        },
+        createdAt: Date.now() + 1,
+      })
+
+      await expect(service.respondGate({
+        gateId: gateRequest.gateId,
+        sessionId: session.id,
+        kind: 'submission_review',
+        action: 'approve',
+        submissionMode: 'local_patch',
+        createdAt: Date.now(),
+      })).rejects.toThrow('committer 提交材料不是 draft-only 状态')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   test('tester document_review approve 会在后端拒绝包含 patch-work 的 patch-set', async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'rv-pipeline-service-unsafe-patch-set-repo-'))
     const gateRequest: PipelineGateRequest = {

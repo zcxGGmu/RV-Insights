@@ -27,6 +27,7 @@ const { createContributionTask } = await import('./contribution-task-service')
 const {
   acceptPatchWorkDocuments,
   readPatchWorkManifest,
+  readPatchWorkManifestFile,
   writePatchWorkFile,
 } = await import('./pipeline-patch-work-service')
 
@@ -314,6 +315,7 @@ describe('pipeline-node-runner', () => {
       prTitle: 'Add Pipeline v2 skeleton',
       prBody: 'This PR adds the v2 skeleton.',
       submissionStatus: 'draft_only',
+      blockers: [],
       risks: ['未执行真实 commit'],
     }))
 
@@ -325,6 +327,168 @@ describe('pipeline-node-runner', () => {
       prTitle: 'Add Pipeline v2 skeleton',
       submissionStatus: 'draft_only',
       risks: ['未执行真实 commit'],
+    })
+  })
+
+  test('committer 缺失 blockers 时不会被当作可审批草稿', () => {
+    expect(() => buildNodeExecutionResult('committer', JSON.stringify({
+      summary: '提交材料已生成',
+      commitMessage: 'feat: add pipeline v2 skeleton',
+      prTitle: 'Add Pipeline v2 skeleton',
+      prBody: 'This PR adds the v2 skeleton.',
+      submissionStatus: 'draft_only',
+      risks: ['未执行真实 commit'],
+    }))).toThrow(PipelineStructuredOutputError)
+  })
+
+  test('Phase 6 committer 拒绝本地 commit 或远端 PR 语义', () => {
+    expect(() => buildNodeExecutionResult('committer', JSON.stringify({
+      summary: '模型声称已创建本地提交',
+      commitMessage: 'feat: add pipeline v2 skeleton',
+      prTitle: 'Add Pipeline v2 skeleton',
+      prBody: 'This PR adds the v2 skeleton.',
+      submissionStatus: 'local_commit_created',
+      blockers: [],
+      risks: [],
+    }))).toThrow(PipelineStructuredOutputError)
+  })
+
+  test('v2 committer prompt 读取 result、patch-set、CONTRIBUTING 和 Git 状态', () => {
+    initializeGitRepo(repoRoot)
+    writeFileSync(join(repoRoot, 'CONTRIBUTING.md'), '# Contributing\n\n请使用 Conventional Commits。\n', 'utf-8')
+    writeFileSync(join(repoRoot, 'src', 'index.ts'), 'export const value = 2\n', 'utf-8')
+    createContributionTask({
+      id: 'task-runner-committer-prompt',
+      pipelineSessionId: 'session-runner-committer-prompt',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'committing',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-committer-prompt',
+      pipelineSessionId: 'session-runner-committer-prompt',
+      repositoryRoot: repoRoot,
+      kind: 'test_result',
+      createdByNode: 'tester',
+      content: '# 测试报告\n\n## 测试结论\n通过。\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-committer-prompt',
+      pipelineSessionId: 'session-runner-committer-prompt',
+      repositoryRoot: repoRoot,
+      kind: 'patch',
+      createdByNode: 'tester',
+      content: 'diff --git a/src/index.ts b/src/index.ts\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-committer-prompt',
+      pipelineSessionId: 'session-runner-committer-prompt',
+      repositoryRoot: repoRoot,
+      kind: 'changed_files',
+      createdByNode: 'tester',
+      content: '[{"path":"src/index.ts","changeType":"modified","summary":"更新实现"}]\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-committer-prompt',
+      pipelineSessionId: 'session-runner-committer-prompt',
+      repositoryRoot: repoRoot,
+      kind: 'diff_summary',
+      createdByNode: 'tester',
+      content: '# Diff 摘要\n\n- src/index.ts\n',
+    })
+    writePatchWorkFile({
+      contributionTaskId: 'task-runner-committer-prompt',
+      pipelineSessionId: 'session-runner-committer-prompt',
+      repositoryRoot: repoRoot,
+      kind: 'test_evidence',
+      createdByNode: 'tester',
+      content: '[{"command":"bun test","status":"passed","summary":"通过"}]\n',
+    })
+    acceptPatchWorkDocuments({
+      repositoryRoot: repoRoot,
+      gateId: 'gate-tester',
+      kinds: ['test_result', 'patch', 'changed_files', 'diff_summary', 'test_evidence'],
+    })
+
+    const prompts = buildPipelineNodePrompts('committer', {
+      sessionId: 'session-runner-committer-prompt',
+      userInput: '准备提交材料',
+      currentNode: 'committer',
+      version: 2,
+      reviewIteration: 0,
+    })
+
+    expect(prompts.systemPrompt).toContain('只生成 commit.md 和 pr.md 草稿')
+    expect(prompts.userPrompt).toContain('测试报告（result.md）')
+    expect(prompts.userPrompt).toContain('patch-set/changes.patch')
+    expect(prompts.userPrompt).toContain('Conventional Commits')
+    expect(prompts.userPrompt).toContain('Git 状态')
+    expect(prompts.userPrompt).toContain('不要执行 git add、git commit、git push 或创建 PR')
+  })
+
+  test('v2 committer 会写入 commit.md / pr.md 并回填文档引用', () => {
+    initializeGitRepo(repoRoot)
+    createContributionTask({
+      id: 'task-runner-committer',
+      pipelineSessionId: 'session-runner-committer',
+      repositoryRoot: repoRoot,
+      patchWorkDir: join(repoRoot, 'patch-work'),
+      contributionMode: 'local_patch',
+      allowRemoteWrites: false,
+      status: 'committing',
+    })
+
+    const result = buildNodeExecutionResult('committer', JSON.stringify({
+      summary: '提交材料已生成',
+      commitMessage: 'feat(pipeline): add draft submission',
+      prTitle: 'Add draft submission materials',
+      prBody: '## Summary\n- Add commit draft\n\n## Tests\n- bun test',
+      submissionStatus: 'draft_only',
+      blockers: [],
+      risks: ['未执行真实 commit'],
+      commitMarkdown: '# Commit 准备\n\n## 建议 Commit Message\nfeat(pipeline): add draft submission\n',
+      prMarkdown: '# PR 草稿\n\n## Title\nAdd draft submission materials\n',
+    }))
+    const enriched = enrichPipelineV2PatchWorkArtifacts('committer', {
+      sessionId: 'session-runner-committer',
+      userInput: '准备提交材料',
+      currentNode: 'committer',
+      version: 2,
+      reviewIteration: 0,
+    }, result)
+
+    expect(enriched.stageOutput).toMatchObject({
+      node: 'committer',
+      submissionStatus: 'draft_only',
+      blockers: [],
+      commitDocRef: {
+        relativePath: 'commit.md',
+      },
+      prDocRef: {
+        relativePath: 'pr.md',
+      },
+      localCommit: {
+        attempted: false,
+        status: 'not_requested',
+      },
+      remoteSubmission: {
+        attempted: false,
+        status: 'not_requested',
+      },
+    })
+    expect(readPatchWorkManifestFile({
+      repositoryRoot: repoRoot,
+      relativePath: 'commit.md',
+    })).toContain('建议 Commit Message')
+    expect(readPatchWorkManifestFile({
+      repositoryRoot: repoRoot,
+      relativePath: 'pr.md',
+    })).toContain('PR 草稿')
+    expect(readPatchWorkManifest(repoRoot).files.find((file) => file.relativePath === 'commit.md')).toMatchObject({
+      kind: 'commit_doc',
+      createdByNode: 'committer',
     })
   })
 
