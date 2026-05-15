@@ -6,7 +6,7 @@
 
 ## 当前实现进度
 
-> 更新时间：2026-05-15
+> 更新时间：2026-05-16
 > 权威执行清单：`improve/pipeline/2026-05-13-six-agent-pipeline-development-checklist.md`
 
 - Phase 0 已完成：规格冻结、BDD 场景、fixture repo 设计、v1/v2 共存策略已记录。
@@ -23,10 +23,11 @@
 - Phase 5 已补安全闭环：Codex runner 在 v2 workspace-write 节点运行环境前置 Git / GitHub CLI 命令防护，并禁用默认 `GIT_DIR` 以阻断绝对路径 Git 调用；运行前后校验 Git HEAD、全部 refs、index、local config 和已有补丁未被整体丢弃，避免真实 commit / push / tag / reset / PR 污染；tester 结果必须保守处理 `passed`、缺失 / 失败 / skipped evidence 和 unsafe patch-set；backend approve 会服务端复验 patch-set 不包含 `patch-work/**` 且正常通过路径的测试证据全部 passed。
 - Phase 6 已完成并提交：commit `fab7f906f546e619157286ffb6fe40c869f1d3e2`（`feat(pipeline): 完成 Phase 6 提交材料草稿闭环`）。Committer Draft-Only 已读取 accepted `result.md`、`patch-set/*`、CONTRIBUTING 和 Git 状态，只生成并登记 `commit.md` / `pr.md`；`CommitterPanel` 通过结构化 patch-work IPC 展示提交材料、测试证据、blocker 和风险；`submission_review` 在 Phase 6 仅允许保存提交材料，不执行真实 commit / push / PR；CONTRIBUTING 读取会拒绝仓库外 symlink，committer schema/parser 仅接受 `draft_only` / `blocked`。
 - Phase 7 已完成并提交：commit `d6da8380dc69e179c24d542d4a73cd1be90216cc`（`feat(pipeline): 完成 Phase 7 受控本地提交闭环`）。受控本地 Commit Gate 已实现。Git service 新增 `validateCommitPreconditions` 与受控 staging policy，用户明确选择 `local_commit` 后才执行 `git add` / `git commit`；staging 默认排除 `patch-work/**`，使用 literal pathspec 防止特殊文件名扩大 stage 范围，且若 `patch-work/**` 已进入 Git index 会阻止提交；提交前会只读校验 `commit.md` / `pr.md` checksum；commit hash、operation id、文件列表和排除项会写入 Contribution events 并回填 committer stage output；`CommitterPanel` 已展示本地 commit 候选、排除项、测试结论和提交结果。
-- Phase 8 已完成并作为本轮单独提交：独立 `remote_write_confirmation` 高风险 gate、受控 `git push` + `gh draft PR`、远端结果回填、operation id 幂等、push 成功 / PR 失败可恢复、错误脱敏和 `patch-work` 远端防护均已落地。
+- Phase 8 已完成并作为本轮单独提交：commit `906834a0`（`feat(pipeline): 完成 Phase 8 远端 PR 受控集成`）。独立 `remote_write_confirmation` 高风险 gate、受控 `git push` + `gh draft PR`、远端结果回填、operation id 幂等、push 成功 / PR 失败可恢复、错误脱敏和 `patch-work` 远端防护均已落地。
 - 当前版本状态：`@rv-insights/shared` 为 `0.1.33`，`@rv-insights/electron` 为 `0.0.58`。
-- 当前分支状态：`base/pipeline-v0` 相对 `origin/base/pipeline-v0` ahead 15 commits；未执行 push / PR。
+- 当前分支状态：`base/pipeline-v0` 相对 `origin/base/pipeline-v0` ahead 16 commits；未执行 push / PR。
 - 当前已知验证状态：Phase 8 核心聚焦测试 65 pass、周边兼容测试 147 pass、`bun run typecheck`、`git diff --check`、`bun install --frozen-lockfile --dry-run` 已通过；全量 `bun test` 最新结果为 387 pass / 1 fail / 1 error，失败仍位于 `apps/electron/src/main/lib/agent-orchestrator/completion-signal.test.ts` 的 Electron named export 测试环境问题，未指向 Phase 1/2/3/4/5/6/7/8 或后续 bugfix 改动。
+- 当前未完成 / 可选增强：尚未执行真实远端 push / PR；低风险预填 PR 页面、GitHub API 创建 PR 路径、远端 preflight 细粒度 UI、已有 PR 同步 / 更新流程尚未实现；README / AGENTS.md 尚未同步最新 Pipeline v2 状态，需用户明确允许后再修改。
 
 ## 结论
 
@@ -38,12 +39,13 @@
 - v2 strategy 已表驱动化：`explorer / planner` 使用 Claude，`developer / reviewer / tester / committer` 使用 Codex
 - UI 已有阶段轨道、阶段产物列表、运行日志、review 多轮对比和 gate 卡片；Phase 3 新增任务选择和 Planner 文档审核业务 UI，Phase 4 新增 Developer 文档审核和 Reviewer issue board，Phase 5 新增 Tester result board，Phase 6 新增 Committer panel
 
-但它仍保留后续可选增强点：低风险预填 PR 页面和 GitHub API 写路径未纳入首版。当前主闭环已经覆盖到远端 PR gate；如果再继续，只应在用户明确要求真实远端写或新增更高级的 GitHub 集成时推进。
+但它仍保留后续可选增强点：低风险预填 PR 页面、GitHub API 写路径、远端 preflight 细粒度 UI 和已有 PR 同步 / 更新流程未纳入首版。当前主闭环已经覆盖到远端 PR gate；如果再继续，只应在用户明确要求真实远端写或新增更高级的 GitHub 集成时推进。
 
 优先级最高的事情是先明确产品语义：
 
-1. 如果目标是继续拓展远端集成，就需要围绕 `committer` 补齐低风险预填页面、GitHub API 写路径、以及更完整的远端恢复 UX，但这不属于当前 Phase 8 首版的必需项。
-2. 如果不希望自动提交到社区，则应把第六步命名为 `contribution_outcome` 或 `submission_package`，作为 tester 后的交付汇总层，而不是称为第六个 Agent。
+1. 如果目标是稳定现有实现，下一步优先修复全量 `bun test` 中既有的 `completion-signal.test.ts` Electron named export 测试环境问题。
+2. 如果目标是继续拓展远端集成，就需要围绕 `committer` 补齐低风险预填页面、GitHub API 写路径、远端 preflight UX 和已有 PR 同步 / 更新流程，但这些都不属于当前 Phase 8 首版的必需项。
+3. 如果不希望自动提交到社区，则应把第六步命名为 `contribution_outcome` 或 `submission_package`，作为 tester 后的交付汇总层，而不是称为第六个 Agent。
 
 按用户描述，本文按“六 Agent 一等节点”方案分析。
 
