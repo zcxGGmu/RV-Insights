@@ -63,7 +63,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ### 2.1 当前开发状态快照
 
-更新时间：2026-05-16 03:12 后
+更新时间：2026-05-16 UI-0 完成后
 
 当前文档基线提交：
 
@@ -79,10 +79,11 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - [x] 完成视觉规范、Design Token 契约、量化默认值、页面 wireframe、组件默认值、before / after 审计模板、截图基线命名、MVP 优先级和实现拆单建议。
 - [x] 完成 UI-0 到 UI-7 的阶段化开发跟踪清单。
 - [x] 已按阶段提交文档成果，commit 为 `7bef500c984803525e9c7fac67d2c959271d2a1c`。
+- [x] 完成 UI-0 before 审计记录：`improve/ui/2026-05-16-client-ui-before-audit.md`。
+- [x] 建立 `improve/ui/screenshots/` 截图基线，覆盖 Pipeline / Agent / Settings 的 light 与 dark 状态。
 
 未完成：
 
-- [ ] UI-0 基线审计与截图准备尚未开始。
 - [ ] UI-1 Token 与 primitive 收敛尚未开始。
 - [ ] UI-2 AppShell / Sidebar / Tab 尚未开始。
 - [ ] UI-3 Pipeline 工作台尚未开始。
@@ -93,15 +94,15 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 当前注意事项：
 
-- 当前工作区存在未提交临时文件：`improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`。该文件不是正式文档，未纳入 commit；下次启动前应先确认是否由编辑器残留，再决定删除或继续忽略。
+- 当前工作区存在未提交临时文件：`improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`。本轮确认它对应仍在运行的 vim 进程，不是可以随手删除的残留；不要纳入提交。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
-- 下一阶段应从 UI-0 开始，不应直接进入 UI-1；先建立 before 审计和截图，才能安全评估后续视觉改动。
+- 下一阶段可以从 UI-1 Token 与 primitive 收敛开始；不得跳过 UI-1 直接改页面结构。
 
 ### 2.2 阶段进度表
 
 | 阶段 | 名称 | 状态 | 主要范围 | 完成证据 |
 | --- | --- | --- | --- | --- |
-| UI-0 | 基线审计与截图准备 | [ ] | before 审计、截图目录、验收矩阵 | 审计表 + baseline 截图 |
+| UI-0 | 基线审计与截图准备 | [x] | before 审计、截图目录、验收矩阵 | `2026-05-16-client-ui-before-audit.md` + 6 张 baseline 截图 |
 | UI-1 | Token 与 primitive 收敛 | [ ] | CSS token、Button、Card、Badge、Dialog、Tooltip | typecheck + primitive 截图 |
 | UI-2 | AppShell / Sidebar / Tab | [ ] | 三栏骨架、导航密度、多标签状态、右侧面板 | light / dark / 特殊主题截图 |
 | UI-3 | Pipeline 工作台 | [ ] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | Pipeline 状态截图 + 键盘路径 |
@@ -124,26 +125,26 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ### 3.3 任务清单
 
-- [ ] 检查 `git status --short`，确认开始前已有改动来源。
-- [ ] 阅读 `improve/ui/2026-05-16-client-ui-visual-spec.md` 第 2、4、9 章。
-- [ ] 确认截图目录约定：`improve/ui/screenshots/`。
-- [ ] 创建或准备 before 审计表，使用视觉规范 `9.10 Before / After 审计模板`。
-- [ ] 记录 Pipeline 当前状态：empty、running、gate、failed、stopped。
-- [ ] 记录 Agent 当前状态：empty、streaming、tool running、permission、PlanMode。
-- [ ] 记录 AppShell 当前状态：multi-tab、background running、blocked。
-- [ ] 记录 Settings 当前状态：channel form、validation error、danger dialog、update。
-- [ ] 记录 Welcome / Onboarding 当前状态：first run、config missing。
-- [ ] 记录 File Browser 当前状态：selected、hover、rename、delete confirm、empty folder。
-- [ ] 记录 Chat 回退当前状态：message list、composer、tool activity。
-- [ ] 按 P0 / P1 / P2 标注每个问题的影响等级。
-- [ ] 明确 UI-1 到 UI-6 的实际优先级是否需要调整。
+- [x] 检查 `git status --short`，确认开始前已有改动来源。
+- [x] 阅读 `improve/ui/2026-05-16-client-ui-visual-spec.md` 第 2、4、9 章。
+- [x] 确认截图目录约定：`improve/ui/screenshots/`。
+- [x] 创建或准备 before 审计表，使用视觉规范 `9.10 Before / After 审计模板`。
+- [x] 记录 Pipeline 当前状态：empty、running、gate、failed、stopped。
+- [x] 记录 Agent 当前状态：empty、streaming、tool running、permission、PlanMode。
+- [x] 记录 AppShell 当前状态：multi-tab、background running、blocked。
+- [x] 记录 Settings 当前状态：channel form、validation error、danger dialog、update。
+- [x] 记录 Welcome / Onboarding 当前状态：first run、config missing。
+- [x] 记录 File Browser 当前状态：selected、hover、rename、delete confirm、empty folder。
+- [x] 记录 Chat 回退当前状态：message list、composer、tool activity。
+- [x] 按 P0 / P1 / P2 标注每个问题的影响等级。
+- [x] 明确 UI-1 到 UI-6 的实际优先级是否需要调整。
 
 ### 3.4 验收标准
 
-- [ ] 每个主区域至少有一条 before 审计记录。
-- [ ] Pipeline、Agent、Settings 至少各有 light 和 dark 截图。
-- [ ] 所有 P0 / P1 问题都有涉及组件和验收方式。
-- [ ] 没有改动运行时代码。
+- [x] 每个主区域至少有一条 before 审计记录。
+- [x] Pipeline、Agent、Settings 至少各有 light 和 dark 截图。
+- [x] 所有 P0 / P1 问题都有涉及组件和验收方式。
+- [x] 没有改动运行时代码。
 
 ### 3.5 验证
 
@@ -153,13 +154,13 @@ git diff --check
 
 ### 3.6 阶段 Review
 
-- 状态：
-- 完成日期：
-- 主要发现：
-- P0 / P1 数量：
-- 截图路径：
-- 未覆盖状态：
-- 下一阶段调整：
+- 状态：已完成，本阶段产物纳入 UI-0 单独提交。
+- 完成日期：2026-05-16。
+- 主要发现：Shell / MainArea / Sidebar surface 层级偏重；icon-only 按钮存在无可访问名称问题；Pipeline gate / review 状态色散落在页面组件；Agent 缺模型 blocked 态主动作分散；Settings 模型配置主次层级较乱；TutorialBanner 会遮挡核心工作区。
+- P0 / P1 数量：P0 3 个，P1 6 个。
+- 截图路径：`improve/ui/screenshots/ui0-before-pipeline-light-idle-desktop.png`、`ui0-before-pipeline-dark-idle-desktop.png`、`ui0-before-agent-light-empty-desktop.png`、`ui0-before-agent-dark-empty-desktop.png`、`ui0-before-settings-light-channel-form-desktop.png`、`ui0-before-settings-dark-channel-form-desktop.png`。
+- 未覆盖状态：Pipeline running / gate / failed / stopped，Agent streaming / tool running / permission / PlanMode，Settings validation error / danger dialog / update，File Browser selected / hover / rename / delete confirm，Chat 回退 message list / composer / tool activity。
+- 下一阶段调整：UI-1 仍优先做 token / primitive；UI-2 提前纳入 icon-only a11y 和 Tab / Sidebar indicator；UI-3 / UI-4 进入阶段时必须补真实状态截图 fixture。
 
 ## 4. 阶段 UI-1：Token 与 Primitive 收敛
 
