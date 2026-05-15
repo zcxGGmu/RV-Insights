@@ -61,6 +61,44 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ## 2. 进度总览
 
+### 2.1 当前开发状态快照
+
+更新时间：2026-05-16 03:12 后
+
+当前文档基线提交：
+
+- Commit：`7bef500c984803525e9c7fac67d2c959271d2a1c`
+- 提交标题：`docs(ui): 新增客户端 UI 视觉规范与迭代清单`
+- 分支：`base/pipeline-v0-ui-enhancement`
+- 范围：纯文档基线，未改运行时代码、README、AGENTS、public API、IPC 或 shared type。
+
+已完成：
+
+- [x] 新增并完善 `improve/ui/2026-05-16-client-ui-visual-spec.md`。
+- [x] 新增 `improve/ui/2026-05-16-client-ui-implementation-checklist.md`。
+- [x] 完成视觉规范、Design Token 契约、量化默认值、页面 wireframe、组件默认值、before / after 审计模板、截图基线命名、MVP 优先级和实现拆单建议。
+- [x] 完成 UI-0 到 UI-7 的阶段化开发跟踪清单。
+- [x] 已按阶段提交文档成果，commit 为 `7bef500c984803525e9c7fac67d2c959271d2a1c`。
+
+未完成：
+
+- [ ] UI-0 基线审计与截图准备尚未开始。
+- [ ] UI-1 Token 与 primitive 收敛尚未开始。
+- [ ] UI-2 AppShell / Sidebar / Tab 尚未开始。
+- [ ] UI-3 Pipeline 工作台尚未开始。
+- [ ] UI-4 Agent 阅读与交互尚未开始。
+- [ ] UI-5 Settings 管理界面尚未开始。
+- [ ] UI-6 Welcome / Chat 回退 / File Browser 尚未开始。
+- [ ] UI-7 全局验收与收尾尚未开始。
+
+当前注意事项：
+
+- 当前工作区存在未提交临时文件：`improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`。该文件不是正式文档，未纳入 commit；下次启动前应先确认是否由编辑器残留，再决定删除或继续忽略。
+- `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
+- 下一阶段应从 UI-0 开始，不应直接进入 UI-1；先建立 before 审计和截图，才能安全评估后续视觉改动。
+
+### 2.2 阶段进度表
+
 | 阶段 | 名称 | 状态 | 主要范围 | 完成证据 |
 | --- | --- | --- | --- | --- |
 | UI-0 | 基线审计与截图准备 | [ ] | before 审计、截图目录、验收矩阵 | 审计表 + baseline 截图 |
@@ -784,6 +822,43 @@ bun test
 1. 阅读 `tasks/lessons.md`。
 2. 阅读本清单和 `2026-05-16-client-ui-visual-spec.md`。
 3. 执行 `git status --short`。
-4. 从 UI-0 开始建立 before 审计和截图。
-5. UI-0 完成后再进入 UI-1，不跳过 token / primitive 收敛。
-6. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
+4. 如果看到 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，先确认它是否为编辑器残留；不要把它纳入提交。
+5. 确认当前文档基线 commit `7bef500c984803525e9c7fac67d2c959271d2a1c` 已存在。
+6. 从 UI-0 开始建立 before 审计和截图。
+7. UI-0 完成后再进入 UI-1，不跳过 token / primitive 收敛。
+8. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
+
+### 14.1 下次启动提示词
+
+```text
+你正在 RV-Insights 仓库继续推进全客户端 UI 优化。
+
+请先阅读并遵守：
+- AGENTS.md
+- tasks/lessons.md
+- tasks/todo.md
+- improve/ui/2026-05-16-client-ui-visual-spec.md
+- improve/ui/2026-05-16-client-ui-implementation-checklist.md
+
+当前进度：
+1. UI 文档基线已完成并提交，commit 为 7bef500c984803525e9c7fac67d2c959271d2a1c，提交标题为 docs(ui): 新增客户端 UI 视觉规范与迭代清单。
+2. 已完成内容包括视觉规范、Design Token 契约、量化默认值、页面 wireframe、组件默认值、before / after 审计模板、截图基线命名、MVP 优先级、实现拆单建议，以及 UI-0 到 UI-7 的迭代开发跟踪清单。
+3. 真实 UI 实现尚未开始：UI-0、UI-1、UI-2、UI-3、UI-4、UI-5、UI-6、UI-7 当前都未完成。
+4. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp；它不是正式文档，不要纳入提交，先确认是否为编辑器残留。
+
+请从 UI-0「基线审计与截图准备」开始：
+1. 先执行 git status --short，保护已有用户变更。
+2. 阅读 implementation checklist 的 UI-0 阶段，建立 before 审计记录和截图基线。
+3. 不要跳过 UI-0 直接进入 UI-1；后续 token / primitive 收敛必须基于 before 审计。
+4. 本轮仍遵守 Jotai、Radix/shadcn 风格组件、Lucide 图标、现有主题 token、本地 JSON/JSONL 存储的约束。
+5. 不新增 public API / IPC / shared type，除非单独评审；不修改 README / AGENTS，除非用户明确允许。
+6. 每完成一个阶段并通过该阶段验证后，立即更新 checklist 和 tasks/todo.md 的 Review，并单独提交该阶段成果；重启 Codex 会话后也要主动延续这个纪律。
+7. 不执行 push / PR，除非用户明确要求。
+
+UI-0 的完成定义：
+- 每个主区域至少有一条 before 审计记录。
+- Pipeline、Agent、Settings 至少各有 light 和 dark 截图。
+- 所有 P0 / P1 问题都有涉及组件和验收方式。
+- 没有改动运行时代码。
+- 通过 git diff --check。
+```
