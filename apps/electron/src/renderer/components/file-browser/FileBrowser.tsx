@@ -12,6 +12,7 @@
 
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
+import { toast } from 'sonner'
 import {
   ChevronRight,
   Trash2,
@@ -42,8 +43,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { workspaceFilesVersionAtom, fileBrowserAutoRevealAtom, recentlyModifiedPathsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atoms'
+import { getParentPath, getPathDisplay } from '@/components/ui6-view-model'
 import type { FileEntry } from '@rv-insights/shared'
 import { FileTypeIcon } from './FileTypeIcon'
 
@@ -129,6 +132,8 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
   // 删除确认状态
   const [deleteTarget, setDeleteTarget] = React.useState<FileEntry | null>(null)
   const [deleteCount, setDeleteCount] = React.useState(1)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = React.useState(false)
   // 重命名状态
   const [renamingPath, setRenamingPath] = React.useState<string | null>(null)
   // 移动中状态
@@ -158,7 +163,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
   }, [loadRoot, filesVersion])
 
   /** 选中项 */
-  const handleSelect = React.useCallback((entry: FileEntry, event: React.MouseEvent) => {
+  const handleSelect = React.useCallback((entry: FileEntry, event: Pick<React.MouseEvent | React.KeyboardEvent, 'metaKey' | 'ctrlKey'>) => {
     const isMulti = event.metaKey || event.ctrlKey
     if (isMulti) {
       setSelectedPaths((prev) => {
@@ -201,7 +206,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
   /** 执行重命名 */
   const handleRename = React.useCallback(async (filePath: string, newName: string): Promise<string | null> => {
     // 同名检查
-    const parentDir = filePath.substring(0, filePath.lastIndexOf('/'))
+    const parentDir = getParentPath(filePath)
     try {
       const siblings = await window.electronAPI.listDirectory(parentDir)
       const conflict = siblings.some((s) => s.name === newName && s.path !== filePath)
@@ -225,6 +230,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
 
   /** 触发删除（支持多选） */
   const handleRequestDelete = React.useCallback((entry: FileEntry) => {
+    setDeleteError(null)
     setDeleteTarget(entry)
     setDeleteCount(selectedCount > 1 ? selectedCount : 1)
   }, [selectedCount])
@@ -232,6 +238,8 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
   /** 执行删除 */
   const handleDelete = React.useCallback(async () => {
     if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
     try {
       if (selectedPaths.size > 1) {
         // 批量删除
@@ -243,10 +251,13 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
       }
       setSelectedPaths(new Set())
       await loadRoot()
+      setDeleteTarget(null)
     } catch (err) {
       console.error('[FileBrowser] 删除失败:', err)
+      setDeleteError(err instanceof Error ? err.message : '删除失败')
+    } finally {
+      setIsDeleting(false)
     }
-    setDeleteTarget(null)
   }, [deleteTarget, selectedPaths, loadRoot])
 
   /** 移动文件 */
@@ -267,6 +278,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
       await loadRoot()
     } catch (err) {
       console.error('[FileBrowser] 移动失败:', err)
+      toast.error(err instanceof Error ? err.message : '移动失败')
     } finally {
       setMoving(false)
     }
@@ -274,45 +286,51 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
 
   // 显示根路径最后两段作为面包屑
   const breadcrumb = React.useMemo(() => {
-    const parts = rootPath.split('/').filter(Boolean)
-    return parts.length > 2 ? `.../${parts.slice(-2).join('/')}` : rootPath
+    return getPathDisplay(rootPath, 2)
   }, [rootPath])
 
   const fileTree = (
     <div className="py-1" onClick={handleBackgroundClick}>
       {error && (
-        <div className="px-3 py-2 text-xs text-destructive">{error}</div>
+        <div className="mx-2 rounded-card bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">{error}</div>
+      )}
+      {!error && loading && (
+        <div className="px-3 py-3 text-xs text-muted-foreground" role="status">正在加载文件...</div>
       )}
       {!error && entries.length === 0 && !loading && !hideEmpty && (
-        <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-          目录为空
+        <div className="mx-2 rounded-card border border-dashed border-border-subtle bg-surface-muted/60 px-3 py-4 text-center text-xs text-muted-foreground">
+          此文件夹为空
         </div>
       )}
-      {entries.map((entry) => (
-        <FileTreeItem
-          key={entry.path}
-          entry={entry}
-          depth={0}
-          selectedPaths={selectedPaths}
-          selectedCount={selectedCount}
-          renamingPath={renamingPath}
-          moving={moving}
-          refreshVersion={filesVersion}
-          revealAncestors={revealAncestors}
-          revealTarget={revealTarget}
-          revealTs={revealTs}
-          recentlyModifiedSet={recentlyModifiedSet}
-          onSelect={handleSelect}
-          onShowInFolder={handleShowInFolder}
-          onStartRename={handleStartRename}
-          onCancelRename={handleCancelRename}
-          onRename={handleRename}
-          onDelete={handleRequestDelete}
-          onMove={handleMove}
-          onRefresh={loadRoot}
-          onAddToChat={onAddToChat}
-        />
-      ))}
+      {entries.length > 0 && (
+        <div role="tree" aria-label="文件树">
+          {entries.map((entry) => (
+            <FileTreeItem
+              key={entry.path}
+              entry={entry}
+              depth={0}
+              selectedPaths={selectedPaths}
+              selectedCount={selectedCount}
+              renamingPath={renamingPath}
+              moving={moving}
+              refreshVersion={filesVersion}
+              revealAncestors={revealAncestors}
+              revealTarget={revealTarget}
+              revealTs={revealTs}
+              recentlyModifiedSet={recentlyModifiedSet}
+              onSelect={handleSelect}
+              onShowInFolder={handleShowInFolder}
+              onStartRename={handleStartRename}
+              onCancelRename={handleCancelRename}
+              onRename={handleRename}
+              onDelete={handleRequestDelete}
+              onMove={handleMove}
+              onRefresh={loadRoot}
+              onAddToChat={onAddToChat}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 
@@ -321,7 +339,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
       {/* 顶部工具栏（可由外部接管） */}
       {!hideToolbar && (
         <div className="flex items-center gap-1 px-3 pr-10 h-[48px] border-b flex-shrink-0">
-          <span className="text-xs text-muted-foreground truncate flex-1" title={rootPath}>
+          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={rootPath}>
             {breadcrumb}
           </span>
           <Button
@@ -331,6 +349,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
             className="h-7 w-7 flex-shrink-0"
             onClick={() => window.electronAPI.openFile(rootPath).catch(console.error)}
             title="在 Finder 中打开"
+            aria-label="在 Finder 中打开"
           >
             <ExternalLink className="size-3.5" />
           </Button>
@@ -341,6 +360,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
             className="h-7 w-7 flex-shrink-0"
             onClick={loadRoot}
             disabled={loading}
+            aria-label="刷新文件树"
           >
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
           </Button>
@@ -355,11 +375,11 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
       )}
 
       {/* 删除确认对话框 */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !isDeleting) { setDeleteTarget(null); setDeleteError(null) } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="space-y-3">
               {deleteCount > 1 ? (
                 <>确定要删除选中的 <strong>{deleteCount}</strong> 个项目吗？</>
               ) : (
@@ -368,12 +388,29 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
                   {deleteTarget?.isDirectory && '（包含所有子文件）'}
                 </>
               )}
-              此操作不可撤销。
+              <span className="block">此操作不可撤销。请先确认完整路径：</span>
+              <span className="block max-h-24 overflow-auto whitespace-pre-wrap rounded-control bg-surface-muted px-2 py-1.5 font-mono text-[11px] text-text-primary">
+                {deleteCount > 1
+                  ? Array.from(selectedPaths).map((path) => path).join('\n')
+                  : deleteTarget?.path}
+              </span>
             </AlertDialogDescription>
+            {deleteError && (
+              <div className="rounded-control bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
+                {deleteError}
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDelete()
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               删除
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -402,7 +439,7 @@ interface FileTreeItemProps {
   revealTs: number
   /** 最近修改的路径集合（命中则在行左侧显示竖条标记） */
   recentlyModifiedSet: Set<string>
-  onSelect: (entry: FileEntry, event: React.MouseEvent) => void
+  onSelect: (entry: FileEntry, event: Pick<React.MouseEvent | React.KeyboardEvent, 'metaKey' | 'ctrlKey'>) => void
   onShowInFolder: (entry: FileEntry) => void
   onStartRename: (entry: FileEntry) => void
   onCancelRename: () => void
@@ -531,6 +568,21 @@ function FileTreeItem({
     }
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (isRenaming) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect(entry, e)
+      if (entry.isDirectory) void toggleDir()
+    } else if (e.key === 'ArrowRight' && entry.isDirectory && !expanded) {
+      e.preventDefault()
+      void toggleDir()
+    } else if (e.key === 'ArrowLeft' && entry.isDirectory && expanded) {
+      e.preventDefault()
+      setExpanded(false)
+    }
+  }
+
   /** 双击预览文件 */
   const handleDoubleClick = (): void => {
     if (!entry.isDirectory) {
@@ -603,8 +655,7 @@ function FileTreeItem({
   /** 重命名失焦 */
   const handleBlur = (): void => {
     if (renameError) {
-      onCancelRename()
-      setRenameError(null)
+      return
     } else {
       void saveRename()
     }
@@ -612,26 +663,40 @@ function FileTreeItem({
 
   const paddingLeft = 8 + depth * 16
   const showMenu = isSelected && selectedCount > 0 && !isRenaming
+  const itemId = React.useId()
 
   return (
     <>
       <div
         ref={rowRef}
+        role="treeitem"
+        aria-selected={isSelected}
+        aria-expanded={entry.isDirectory ? expanded : undefined}
+        aria-level={depth + 1}
+        tabIndex={isRenaming ? -1 : 0}
         className={cn(
-          'relative flex items-center gap-1 py-1 pr-2 text-sm cursor-pointer group mx-2 rounded-lg transition-colors',
-          isSelected ? 'bg-accent' : 'hover:bg-accent/50',
+          'group relative mx-2 flex min-h-8 cursor-pointer items-center gap-1 rounded-lg py-1 pr-2 text-sm transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+          isSelected ? 'bg-primary/10 text-foreground shadow-sm before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-primary' : 'hover:bg-surface-muted',
           flash && 'file-browser-row-flash',
         )}
         style={{ paddingLeft }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
+        onKeyDown={handleKeyDown}
+        title={entry.path}
       >
         {recentlyModifiedSet.has(entry.path) && (
-          <span
-            aria-label="最近被 Agent 修改"
-            className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary/80"
-            style={{ left: paddingLeft - 6 }}
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                aria-label="最近被 Agent 修改"
+                className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary/80"
+                style={{ left: paddingLeft - 6 }}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="right">最近被 Agent 修改</TooltipContent>
+          </Tooltip>
         )}
         {/* 展开/收起图标 */}
         {entry.isDirectory ? (
@@ -653,23 +718,27 @@ function FileTreeItem({
           <div className="flex-1 min-w-0">
             <input
               ref={renameInputRef}
+              id={itemId}
               value={editName}
               onChange={(e) => { setEditName(e.target.value); setRenameError(null) }}
               onKeyDown={handleRenameKeyDown}
               onBlur={handleBlur}
               onClick={(e) => e.stopPropagation()}
               className={cn(
-                'w-full bg-transparent text-xs border-b outline-none py-0.5',
+                'w-full bg-transparent text-xs border-b py-0.5 outline-none focus-visible:ring-0',
                 renameError ? 'border-destructive' : 'border-primary/50',
               )}
+              aria-label={`重命名 ${entry.name}`}
+              aria-invalid={renameError ? true : undefined}
+              aria-describedby={renameError ? `${itemId}-error` : undefined}
               maxLength={255}
             />
             {renameError && (
-              <div className="text-[10px] text-destructive mt-0.5">{renameError}</div>
+              <div id={`${itemId}-error`} className="text-[10px] text-destructive mt-0.5">{renameError}</div>
             )}
           </div>
         ) : (
-          <span className="truncate text-xs flex-1">{entry.name}</span>
+          <span className="min-w-0 flex-1 truncate text-xs">{entry.name}</span>
         )}
 
         {/* 右侧操作按钮占位（始终占位，避免行高跳动） */}
@@ -685,9 +754,10 @@ function FileTreeItem({
           {onAddToChat && !entry.isDirectory && !isRenaming && !showMenu && (
             <button
               type="button"
-              className="h-6 w-6 rounded flex items-center justify-center hover:bg-accent/70 text-muted-foreground hover:text-foreground invisible group-hover:visible focus-visible:visible"
+              className="flex h-6 w-6 items-center justify-center rounded-control text-muted-foreground opacity-0 transition-opacity hover:bg-surface-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus group-hover:opacity-100 group-focus-within:opacity-100"
               title="添加到聊天"
               aria-label="添加到聊天"
+              tabIndex={0}
               onClick={() => onAddToChat(entry)}
             >
               <MessageSquarePlus className="size-3.5" />
@@ -699,7 +769,8 @@ function FileTreeItem({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="h-6 w-6 rounded flex items-center justify-center hover:bg-accent/70"
+                className="flex h-6 w-6 items-center justify-center rounded-control text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label={`${selectedCount > 1 ? `选中的 ${selectedCount} 个项目` : entry.name} 的更多操作`}
               >
                 <MoreHorizontal className="size-3.5" />
               </button>
@@ -755,39 +826,44 @@ function FileTreeItem({
       </div>
 
       {/* 子项 */}
-      {expanded && children.length === 0 && childrenLoaded && (
-        <div
-          className="text-[11px] text-muted-foreground/50 py-1"
-          style={{ paddingLeft: paddingLeft + 24 }}
-        >
-          空文件夹
+      {expanded && childrenLoaded && (
+        <div role="group">
+          {children.length === 0 ? (
+            <div
+              role="treeitem"
+              aria-level={depth + 2}
+              className="py-1 text-[11px] text-muted-foreground/60"
+              style={{ paddingLeft: paddingLeft + 24 }}
+            >
+              此文件夹为空
+            </div>
+          ) : children.map((child) => (
+            <FileTreeItem
+              key={child.path}
+              entry={child}
+              depth={depth + 1}
+              selectedPaths={selectedPaths}
+              selectedCount={selectedCount}
+              renamingPath={renamingPath}
+              moving={moving}
+              refreshVersion={refreshVersion}
+              revealAncestors={revealAncestors}
+              revealTarget={revealTarget}
+              revealTs={revealTs}
+              recentlyModifiedSet={recentlyModifiedSet}
+              onSelect={onSelect}
+              onShowInFolder={onShowInFolder}
+              onStartRename={onStartRename}
+              onCancelRename={onCancelRename}
+              onRename={onRename}
+              onDelete={onDelete}
+              onMove={onMove}
+              onRefresh={handleRefreshAfterDelete}
+              onAddToChat={onAddToChat}
+            />
+          ))}
         </div>
       )}
-      {expanded && children.map((child) => (
-        <FileTreeItem
-          key={child.path}
-          entry={child}
-          depth={depth + 1}
-          selectedPaths={selectedPaths}
-          selectedCount={selectedCount}
-          renamingPath={renamingPath}
-          moving={moving}
-          refreshVersion={refreshVersion}
-          revealAncestors={revealAncestors}
-          revealTarget={revealTarget}
-          revealTs={revealTs}
-          recentlyModifiedSet={recentlyModifiedSet}
-          onSelect={onSelect}
-          onShowInFolder={onShowInFolder}
-          onStartRename={onStartRename}
-          onCancelRename={onCancelRename}
-          onRename={onRename}
-          onDelete={onDelete}
-          onMove={onMove}
-          onRefresh={handleRefreshAfterDelete}
-          onAddToChat={onAddToChat}
-        />
-      ))}
     </>
   )
 }

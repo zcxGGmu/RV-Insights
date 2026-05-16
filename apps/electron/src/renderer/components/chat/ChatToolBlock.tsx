@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { getToolIcon } from '@/components/agent/tool-utils'
 import { getToolPhrase } from '@/components/agent/tool-phrase'
 import { ToolResultRenderer } from '@/components/agent/tool-result-renderers'
+import { getChatToolTone } from '@/components/ui6-view-model'
 
 export interface ChatToolBlockProps {
   toolName: string
@@ -41,6 +42,7 @@ export function ChatToolBlock({
   const phrase = getToolPhrase(toolName, input)
   const ToolIcon = getToolIcon(toolName)
   const displayLabel = isCompleted ? phrase.label : phrase.loadingLabel
+  const tone = getChatToolTone(isCompleted, isError)
 
   const delay = animate && index < 10 ? `${index * 30}ms` : '0ms'
 
@@ -53,18 +55,30 @@ export function ChatToolBlock({
     >
       <button
         type="button"
-        className="flex items-center gap-2 py-0.5 text-left hover:opacity-70 transition-opacity group"
+        className={cn(
+          'group flex w-full min-w-0 items-center gap-2 rounded-control px-2 py-1 text-left transition-colors',
+          'hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        )}
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
       >
         {!isCompleted ? (
-          <Loader2 className="size-3.5 animate-spin text-primary/50 shrink-0" />
+          <Loader2 className="size-3.5 animate-spin text-primary/70 shrink-0" />
         ) : isError ? (
           <XCircle className="size-3.5 text-destructive/70 shrink-0" />
         ) : null}
 
-        <ToolIcon className={cn('size-3.5 shrink-0 text-muted-foreground')} />
+        <ToolIcon
+          className={cn(
+            'size-3.5 shrink-0',
+            tone === 'running' && 'text-primary/70',
+            tone === 'success' && 'text-emerald-600 dark:text-emerald-400',
+            tone === 'danger' && 'text-destructive',
+          )}
+          aria-hidden="true"
+        />
 
-        <span className={cn('truncate text-[14px] text-muted-foreground')}>
+        <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
           {displayLabel}
         </span>
 

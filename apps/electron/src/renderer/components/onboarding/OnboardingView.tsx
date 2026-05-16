@@ -10,7 +10,7 @@
 
 import { useMemo, useState } from 'react'
 import { useAtomValue } from 'jotai'
-import { GraduationCap, ChevronRight, ChevronLeft } from 'lucide-react'
+import { AlertTriangle, Bot, ChevronLeft, ChevronRight, GitBranch, GraduationCap, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -61,34 +61,61 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
   }
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-8">
+    <div className="flex h-screen flex-col items-center justify-center overflow-y-auto bg-background p-6">
       {step === 'welcome' && (
-        <>
-          <div className="mb-12 text-center">
-            <h1 className="text-4xl font-bold mb-4">欢迎使用 RV-Insights</h1>
-            <p className="text-lg text-muted-foreground">
-              下一代桌面 AI 软件，让通用 Agent 触手可及
+        <div className="flex w-full max-w-3xl flex-col items-center gap-6 py-8">
+          {isWindows && !shellOk && (
+            <div className="flex w-full items-start gap-3 rounded-card border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300" role="status">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-medium">需要先检查命令环境</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Windows 上需要 Git Bash 或 WSL。下一步会给出检测结果和修复入口。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="text-center">
+            <h1 className="text-3xl font-semibold tracking-tight">欢迎使用 RV-Insights</h1>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              完成基础环境和模型渠道配置后，直接从 Pipeline 或 Agent 开始工作。
             </p>
           </div>
 
-          <div className="w-full max-w-2xl mb-8">
+          <div className="grid w-full gap-3 md:grid-cols-3">
+            {[
+              { icon: Settings, title: '配置渠道', desc: '添加至少一个可用模型渠道。' },
+              { icon: GitBranch, title: '开始 Pipeline', desc: '用结构化工作流推进贡献任务。' },
+              { icon: Bot, title: '打开 Agent', desc: '在工作区内读取文件并执行任务。' },
+            ].map((item) => (
+              <div key={item.title} className="rounded-card border border-border-subtle bg-surface-card p-4 shadow-sm">
+                <item.icon className="mb-3 size-5 text-primary" aria-hidden="true" />
+                <h2 className="text-sm font-semibold text-foreground">{item.title}</h2>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="w-full">
             <button
+              type="button"
               onClick={() => setShowTutorial(true)}
-              className="w-full rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/15 p-4 flex items-center gap-4 hover:from-primary/10 hover:via-primary/15 hover:to-primary/10 transition-colors text-left"
+              className="flex w-full items-center gap-4 rounded-card border border-border-subtle bg-surface-card p-4 text-left shadow-sm transition-colors hover:bg-surface-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-control bg-primary/10">
                 <GraduationCap size={20} className="text-primary" />
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-foreground">查看使用教程</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  了解 RV-Insights 的全部功能和使用技巧
+                  需要时再了解完整功能；不看教程也可以直接开始。
                 </p>
               </div>
             </button>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <Button onClick={handleNextFromWelcome}>
               {isWindows ? (
                 <>
@@ -100,7 +127,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
               )}
             </Button>
           </div>
-        </>
+        </div>
       )}
 
       {step === 'environment' && isWindows && (
@@ -112,7 +139,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
             </p>
           </div>
 
-          <div className="rounded-xl border bg-card p-5 mb-6">
+          <div className="rounded-card border border-border-subtle bg-surface-card p-5 mb-6 shadow-sm">
             <EnvironmentCheckPanel autoDetectOnMount />
           </div>
 
@@ -139,7 +166,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
       )}
 
       <Sheet open={showTutorial} onOpenChange={setShowTutorial}>
-        <SheetContent side="right" className="w-[560px] sm:max-w-[560px] p-0">
+        <SheetContent side="right" className="w-[min(560px,100vw)] sm:max-w-[560px] p-0">
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
             <SheetTitle className="flex items-center gap-2">
               <GraduationCap size={18} className="text-primary" />

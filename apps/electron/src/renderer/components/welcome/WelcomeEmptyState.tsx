@@ -8,13 +8,15 @@
  */
 
 import * as React from 'react'
-import { useAtomValue, useAtom } from 'jotai'
-import { Lightbulb, MessageSquare, Bot, GitBranch } from 'lucide-react'
+import { useAtomValue, useAtom, useSetAtom } from 'jotai'
+import { ArrowRight, Bot, GitBranch, Lightbulb, MessageSquare, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
 import { themeStyleAtom } from '@/atoms/theme'
+import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
+import { getWelcomeActions } from '@/components/ui6-view-model'
 
 /** 根据小时返回时段问候 */
 function getGreeting(hour: number): string {
@@ -35,6 +37,8 @@ export function WelcomeEmptyState(): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const [mode, setMode] = useAtom(appModeAtom)
   const themeStyle = useAtomValue(themeStyleAtom)
+  const setSettingsOpen = useSetAtom(settingsOpenAtom)
+  const setSettingsTab = useSetAtom(settingsTabAtom)
 
   // 稳定的随机 Tip（组件挂载时选一条）
   const [tip] = React.useState<Tip>(() => getRandomTip(getPlatform()))
@@ -45,6 +49,7 @@ export function WelcomeEmptyState(): React.ReactElement {
 
   // 森息晨光主题下选中按钮使用主色
   const selectedColor = themeStyle === 'forest-light' ? '#3f8361' : undefined
+  const actions = React.useMemo(() => getWelcomeActions(), [])
 
   /** 切换模式：仅切换模式，不创建新会话 */
   const handleModeSwitch = React.useCallback((targetMode: AppMode): void => {
@@ -52,21 +57,68 @@ export function WelcomeEmptyState(): React.ReactElement {
     setMode(targetMode)
   }, [mode, setMode])
 
+  const handleAction = React.useCallback((actionId: string, targetMode?: AppMode): void => {
+    if (actionId === 'settings') {
+      setSettingsTab('agent')
+      setSettingsOpen(true)
+      return
+    }
+    if (targetMode) handleModeSwitch(targetMode)
+  }, [handleModeSwitch, setSettingsOpen, setSettingsTab])
+
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-4 animate-in fade-in duration-500">
+    <div className="flex h-full flex-col items-center justify-center gap-5 px-5 py-8 animate-in fade-in duration-500">
       {/* 问候语 */}
-      <h1 className="text-[26px] font-semibold tracking-tight text-foreground">
-        {displayName}，{greeting}
-      </h1>
+      <div className="max-w-[680px] text-center">
+        <h1 className="text-[26px] font-semibold tracking-tight text-foreground">
+          {displayName}，{greeting}
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          配好模型渠道和工作区后，可以直接开始贡献 Pipeline 或 Agent 会话。
+          Chat 是隐藏回退入口，保留用于查看和延续旧对话。
+        </p>
+      </div>
 
       {/* Tips */}
-      <div className="flex items-center gap-2.5 rounded-full bg-muted/50 px-4 py-2 text-[13px] text-muted-foreground">
+      <div className="flex max-w-[680px] items-center gap-2.5 rounded-full bg-surface-muted px-4 py-2 text-[13px] text-muted-foreground shadow-sm">
         <Lightbulb size={14} className="flex-shrink-0 text-amber-500/80" />
-        <span>{tip.text}</span>
+        <span className="min-w-0 truncate">{tip.text}</span>
+      </div>
+
+      <div className="grid w-full max-w-[760px] gap-3 md:grid-cols-3">
+        {actions.map((action) => {
+          const Icon = action.id === 'pipeline' ? GitBranch : action.id === 'agent' ? Bot : Settings
+          const isCurrent = action.mode === mode
+          return (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => handleAction(action.id, action.mode)}
+              className={cn(
+                'group flex min-w-0 flex-col rounded-card border border-border-subtle bg-surface-card p-4 text-left shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-fast',
+                'hover:-translate-y-0.5 hover:border-primary/30 hover:bg-surface-card-hover hover:shadow-md',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                isCurrent && 'border-primary/35 bg-primary/5',
+              )}
+              aria-current={isCurrent ? 'page' : undefined}
+            >
+              <span className="mb-3 flex size-8 items-center justify-center rounded-control bg-surface-muted text-primary">
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
+              <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+                <span className="truncate">{action.label}</span>
+                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </span>
+              <span className="mt-1 text-xs leading-5 text-muted-foreground">
+                {action.description}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* 模式切换 Tab */}
-      <div className="relative flex rounded-xl bg-muted/60 p-1">
+      <div className="relative flex rounded-xl bg-muted/60 p-1" aria-label="主入口模式">
         {/* 滑动背景指示器 */}
         <div
           className={cn(
@@ -80,14 +132,16 @@ export function WelcomeEmptyState(): React.ReactElement {
           return (
             <button
               key={m}
+              type="button"
               onClick={() => handleModeSwitch(m)}
               style={isSelected && selectedColor ? { color: selectedColor } : undefined}
               className={cn(
-                'relative z-[1] flex items-center gap-1.5 rounded-lg px-5 py-1.5 text-[13px] font-medium transition-colors duration-200',
+                'relative z-[1] flex items-center gap-1.5 rounded-lg px-5 py-1.5 text-[13px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 isSelected
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
               )}
+              aria-pressed={isSelected}
             >
               {config.icon}
               {config.label}

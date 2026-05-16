@@ -237,9 +237,9 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
         {/* 卡片式输入容器 — 对标 Cherry Studio: border-radius 17px, 0.5px border */}
         <div
           className={cn(
-            'rounded-[17px] border-[0.5px] border-border bg-background/70 backdrop-blur-sm transition-all duration-200',
-            'focus-within:border-foreground/20',
-            isDragOver && 'border-[2px] border-dashed border-[#2ecc71] bg-[#2ecc71]/[0.03]'
+            'rounded-card border border-border-subtle bg-surface-card/90 shadow-sm backdrop-blur-sm transition-[background-color,border-color,box-shadow] duration-fast',
+            'focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-focus/25',
+            isDragOver && 'border-2 border-dashed border-primary bg-primary/5'
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -272,9 +272,9 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
           />
 
           {/* Footer 工具栏 — Cherry Studio: padding 5px 8px, height 40px, gap 16px */}
-          <div className="flex items-center justify-between px-2 py-1 h-[48px] gap-4">
+          <div className="flex min-h-[48px] items-center justify-between gap-3 px-2 py-1">
             {/* 左侧工具按钮 */}
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {/* 附件按钮 */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -282,7 +282,8 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-[36px] rounded-full text-foreground/60 hover:text-foreground"
+                    aria-label="添加附件"
+                    className="size-9 shrink-0 rounded-control text-muted-foreground hover:text-foreground"
                     onClick={handleOpenFileDialog}
                   >
                     <Paperclip className="size-5" />
@@ -302,8 +303,9 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
                     type="button"
                     variant="ghost"
                     size="icon"
+                    aria-label={thinkingEnabled ? '关闭思考模式' : '开启思考模式'}
                     className={cn(
-                      'size-[36px] rounded-full',
+                      'size-9 shrink-0 rounded-control',
                       thinkingEnabled ? 'text-green-500' : 'text-foreground/60 hover:text-foreground'
                     )}
                     onClick={() => setThinkingEnabled(!thinkingEnabled)}
@@ -336,7 +338,8 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-[36px] rounded-full text-destructive hover:!text-[hsl(0,75%,55%)] hover:!bg-[var(--stop-hover-bg)]"
+                      aria-label="停止生成"
+                      className="size-9 rounded-control text-destructive hover:!text-[hsl(0,75%,55%)] hover:!bg-[var(--stop-hover-bg)]"
                       onClick={onStop}
                     >
                       <Square className="size-[16px]" fill="currentColor" strokeWidth={0} />
@@ -351,8 +354,9 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
                   type="button"
                   variant="ghost"
                   size="icon"
+                  aria-label="发送消息"
                   className={cn(
-                    'size-[36px] rounded-full',
+                    'size-9 rounded-control',
                     canSend
                       ? 'text-primary hover:bg-primary/10'
                       : 'text-foreground/30 cursor-not-allowed'

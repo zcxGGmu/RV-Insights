@@ -20,3 +20,12 @@
 - `settings-dark-validation-error-desktop.png`：Settings 深色主题，展示字段错误和连接测试反馈。
 - `settings-slate-danger-dialog-desktop.png`：Settings slate 特殊主题，展示危险删除确认。
 - `settings-slate-update-desktop.png`：Settings slate 特殊主题，展示 About / Update 状态。
+
+## Long Tail UI-6
+
+- `welcome-light-first-run-desktop.png`：Welcome 浅色主题，展示空态直接动作。
+- `welcome-dark-config-missing-desktop.png`：Welcome 深色主题，展示配置路径与隐藏 Chat 回退定位。
+- `chat-slate-message-list-desktop.png`：Chat 回退 slate 主题，展示消息列表和 composer 对齐。
+- `chat-slate-tool-activity-desktop.png`：Chat 回退 slate 主题，展示工具活动状态色。
+- `file-browser-forest-selected-desktop.png`：File Browser forest 主题，展示 selected / hover / focus 和路径 chip。
+- `file-browser-forest-delete-confirm-desktop.png`：File Browser forest 主题，展示删除确认和完整路径。

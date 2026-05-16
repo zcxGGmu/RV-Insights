@@ -1,5 +1,41 @@
 # Pipeline 完善分析任务
 
+## 2026-05-16 UI-6 Welcome / Chat 回退 / File Browser 计划
+
+- [x] 检查 `git status --short`，确认只保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 UI visual spec swap 文件。
+- [x] 复习 `AGENTS.md`、`tasks/lessons.md`、UI checklist 的 UI-6 阶段、视觉规范 `5.5` / `5.6` / `5.7` / `5.8`。
+- [x] 做 UI-6 before 审计，记录 Welcome / Onboarding、Chat 回退、File Browser 当前结构、状态表达、focus 和溢出风险。
+- [x] 优化 Welcome / Onboarding：首次启动与空态聚焦环境 / 模型配置后进入 Pipeline / Agent，动作不超过三个，环境问题优先。
+- [x] 优化 Chat 回退：ChatInput 对齐 Agent Composer 密度和语义，ChatMessage / tool activity 状态色与折叠语言收敛，隐藏回退定位不视觉割裂。
+- [x] 优化 File Browser：文件树 row hover / selected / focus、treeitem 语义、路径 chip、rename / delete confirm、empty folder、recently modified indicator。
+- [x] 补 UI-6 聚焦测试或可验证模型，覆盖 Welcome 动作、Chat tool activity tone、File Browser tree / danger copy / path display。
+- [x] 递增受影响 package patch 版本并同步锁文件。
+- [x] 运行 `bun run --filter='@rv-insights/electron' typecheck`、相关聚焦测试或手动路径验证、`git diff --check`。
+- [x] 采集 light / dark / 特殊主题截图，更新 UI checklist 与本地 Review，单独提交 UI-6。
+
+## 2026-05-16 UI-6 Before 审计
+
+- Welcome / Onboarding：`WelcomeView` 当前没有真正空态，只在无 tab 时自动复用或创建 draft，并短暂显示 spinner；`WelcomeEmptyState` 仍是问候 + tip + Agent/Pipeline segmented control，缺“新建 Pipeline / 新建 Agent / 打开设置”直接动作，也没有隐藏 Chat 回退定位说明。`OnboardingView` 是全屏渐变 hero + 教程卡片，Windows 环境检查在第二步才出现，环境问题不够早；按钮可聚焦但教程卡和主动作层级偏营销化。
+- Chat 回退 message list：已使用 `ai-elements/message` primitive，但空态复用旧 Welcome 问候，未说明 Chat 是隐藏回退；user / assistant 消息 action hover 依赖较重，错误块和 stopped 文案仍使用局部 raw tone，长 tool result / 错误文本有 break-all 但整体 tool block 层级与 Agent ToolActivity 不一致。
+- Chat 回退 composer：`ChatInput` 仍保留 Cherry Studio 风格 `rounded-[17px]`、`border-[0.5px]`、raw green drag over 和 36px 圆形按钮，和 UI-4 Agent Composer 的 token / focus / disabled 语言不完全一致；附件、思考、停止、发送有 tooltip 但 icon button 缺明确 `aria-label`，左侧工具在窄宽可能挤压。
+- Chat tool activity：`ChatToolActivityIndicator` 仅把 start/result 合并后交给 `ChatToolBlock`，状态色与 Agent `getToolActivityTone` 未共享；运行 / 成功 / 错误主要由 block 内部决定，折叠和 summary 密度与 Agent 工具活动不一致。
+- File Browser selected / hover：文件行是 `div` + click，行高由 `py-1` 自然撑开，hover `accent/50`、selected `accent`，缺左侧 accent bar；row 本身不可 tab focus，键盘只能进入行内按钮 / 菜单，tree / treeitem 语义缺失。
+- File Browser rename：原位 input 有 Enter / Escape / blur 保存，错误就近显示；但重命名前没有展示完整路径或确认，长路径只在浏览器 title / truncate 中出现，focus ring 只靠 border，保存失败会撑高行。
+- File Browser delete confirm：已用 AlertDialog，但说明只展示名称或数量，没有完整路径列表，删除失败只 `console.error` 且弹窗关闭；危险按钮缺 loading / 防重复点击，批量删除误操作风险较高。
+- File Browser empty folder / overflow：根目录空态是居中文案“目录为空”，子目录为空是行内“空文件夹”，文案和规范不一致；长文件名 truncate 但无 tooltip，root path breadcrumb 是尾部两段，缺 monospace path chip 和完整路径 hover。recently modified indicator 有 `aria-label` 但不是 tooltip，且只用小点表达。
+
+## 2026-05-16 UI-6 Welcome / Chat 回退 / File Browser Review
+
+- UI-6 已完成：WelcomeEmptyState 改为 3 个直接动作（进入 Pipeline / 进入 Agent / 打开设置），补充 Chat 隐藏回退定位；Onboarding 去除大面积渐变 hero，前置 Windows 环境问题说明，教程入口降为次级动作。
+- Chat 回退已收敛：ChatInput 容器改用 `rounded-card`、`border-border-subtle`、`bg-surface-card`、focus ring 和横向工具栏溢出策略；发送 / 停止 / 附件 / thinking icon button 补 `aria-label`；ChatToolBlock 使用 UI-6 tone 映射对齐 Agent 工具状态色。
+- File Browser 已收敛：根路径 chip 使用 monospace 和中间省略；文件树加入 `tree` / `treeitem` / `group` 语义，row 可 focus，支持 Enter / Space 选择或展开、ArrowRight / ArrowLeft 展开折叠；selected 增加 primary soft 背景和左侧 accent；最近修改标记补 tooltip。
+- File Browser 危险操作已优化：删除确认展示完整路径或多选路径列表，删除失败留在弹窗内 inline 展示，删除中禁用关闭路径；rename 父路径计算兼容 POSIX / Windows separator，rename error 不再在 blur 时立即消失。
+- 代码审查后已修复：ARIA tree 容器不再包含 alert/status/empty 普通节点，展开子项包在 `role="group"`；Welcome “新建”文案改为“进入”，避免和实际 setMode 行为不一致；添加到聊天按钮从 `invisible` 改为 opacity 控制，键盘 focus 可达。
+- `@rv-insights/electron` 版本 `0.0.62 -> 0.0.63`，`bun.lock` workspace metadata 已同步。
+- 验证通过：UI-6 聚焦测试 4 pass、`bun run --filter='@rv-insights/electron' typecheck`、`bun install --frozen-lockfile --dry-run`、`git diff --check`。
+- 截图已采集：`welcome-light-first-run-desktop.png`、`welcome-dark-config-missing-desktop.png`、`chat-slate-message-list-desktop.png`、`chat-slate-tool-activity-desktop.png`、`file-browser-forest-selected-desktop.png`、`file-browser-forest-delete-confirm-desktop.png`。
+- 本阶段不修改 README / AGENTS，不新增 public API / IPC / shared type，不改变文件读写安全边界；`.DS_Store` 和 UI spec swap 文件继续保护不纳入提交。
+
 ## 2026-05-16 UI-5 后进度文档同步计划
 
 - [x] 检查 `git status --short`，确认当前只剩 `.DS_Store` 和 UI visual spec swap 文件需要保护。

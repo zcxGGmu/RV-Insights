@@ -97,7 +97,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 未完成：
 
-- [ ] UI-6 Welcome / Chat 回退 / File Browser 尚未开始。
+- [x] UI-6 Welcome / Chat 回退 / File Browser 已完成并等待提交。
 - [ ] UI-7 全局验收与收尾尚未开始。
 
 当前注意事项：
@@ -118,7 +118,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | UI-3 | Pipeline 工作台 | [x] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | commit `3881eb10` + Pipeline 聚焦测试 25 pass + typecheck + light / dark / slate 截图 |
 | UI-4 | Agent 阅读与交互 | [x] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | commit `b28ac9df` + Agent 聚焦测试 11 pass + typecheck + light / dark / ocean 截图 |
 | UI-5 | Settings 管理界面 | [x] | Settings primitives、渠道表单、Agent 配置、危险操作 | commit `8362e8b4` + Settings 聚焦测试 7 pass + typecheck + light / dark / slate 截图 |
-| UI-6 | Welcome / Chat 回退 / File Browser | [ ] | 空态、Chat 对齐、文件树和确认流 | 长尾页面截图 |
+| UI-6 | Welcome / Chat 回退 / File Browser | [x] | 空态、Chat 对齐、文件树和确认流 | 长尾页面截图 |
 | UI-7 | 全局验收与收尾 | [ ] | 主题矩阵、a11y、回归、文档 Review | 总体验收记录 |
 
 ## 3. 阶段 UI-0：基线审计与截图准备
@@ -648,38 +648,38 @@ git diff --check
 
 ### 9.4 Welcome / Onboarding 任务
 
-- [ ] 第一屏聚焦完成环境、模型配置后开始 Pipeline / Agent。
-- [ ] 空态最多 2 到 3 个直接动作。
-- [ ] 环境检查失败时优先展示问题和修复入口。
-- [ ] 不使用营销式 hero、大面积渐变或说明卡片堆叠。
-- [ ] 新用户不配置所有高级功能也能开始最小可用流程。
+- [x] 第一屏聚焦完成环境、模型配置后开始 Pipeline / Agent。
+- [x] 空态最多 2 到 3 个直接动作。
+- [x] 环境检查失败时优先展示问题和修复入口。
+- [x] 不使用营销式 hero、大面积渐变或说明卡片堆叠。
+- [x] 新用户不配置所有高级功能也能开始最小可用流程。
 
 ### 9.5 Chat 回退任务
 
-- [ ] ChatInput 对齐 Agent Composer 尺寸、边框、工具栏语言。
-- [ ] ChatMessage 对齐 Agent message primitive。
-- [ ] Chat 工具活动使用 Agent ToolActivity 状态色和折叠规则。
-- [ ] parallel mode、thinking、system prompt 使用 secondary 控件。
-- [ ] Chat 空态说明隐藏回退定位，但不贬低功能。
+- [x] ChatInput 对齐 Agent Composer 尺寸、边框、工具栏语言。
+- [x] ChatMessage 对齐 Agent message primitive。
+- [x] Chat 工具活动使用 Agent ToolActivity 状态色和折叠规则。
+- [x] parallel mode、thinking、system prompt 使用 secondary 控件。
+- [x] Chat 空态说明隐藏回退定位，但不贬低功能。
 
 ### 9.6 File Browser 任务
 
-- [ ] 文件树行高 28px 到 32px，hover / selected / focus 清楚。
-- [ ] tree / treeitem 语义清楚，键盘可展开折叠。
-- [ ] 行内 actions 在 hover 和 focus-visible 时出现。
-- [ ] Modified by Agent 使用 indicator + tooltip。
-- [ ] path chip 使用 monospace，中间省略，hover 展示完整路径。
-- [ ] DropZone 可拖入 / 不可拖入状态不同。
-- [ ] 删除、重命名前展示完整路径并使用 AlertDialog。
-- [ ] 大文件树滚动时行高稳定。
+- [x] 文件树行高 28px 到 32px，hover / selected / focus 清楚。
+- [x] tree / treeitem 语义清楚，键盘可展开折叠。
+- [x] 行内 actions 在 hover 和 focus-visible 时出现。
+- [x] Modified by Agent 使用 indicator + tooltip。
+- [x] path chip 使用 monospace，中间省略，hover 展示完整路径。
+- [x] DropZone 可拖入 / 不可拖入状态不同。
+- [x] 删除、重命名前展示完整路径并使用 AlertDialog。
+- [x] 大文件树滚动时行高稳定。
 
 ### 9.7 验收标准
 
-- [ ] Welcome 到配置到创建 Pipeline 路径清楚。
-- [ ] Chat 回退和 Agent 不再视觉割裂。
-- [ ] File Browser 可键盘操作，删除 / 重命名有确认。
-- [ ] 文件路径和长文件名不溢出。
-- [ ] 不改变文件读写安全边界。
+- [x] Welcome 到配置到创建 Pipeline 路径清楚。
+- [x] Chat 回退和 Agent 不再视觉割裂。
+- [x] File Browser 可键盘操作，删除 / 重命名有确认。
+- [x] 文件路径和长文件名不溢出。
+- [x] 不改变文件读写安全边界。
 
 ### 9.8 验证
 
@@ -690,11 +690,11 @@ git diff --check
 
 手动路径：
 
-- [ ] 首次或空状态进入 Welcome。
-- [ ] 从 Welcome 进入 Settings / Pipeline / Agent。
-- [ ] 打开 Chat 回退并发送或查看消息。
-- [ ] File Browser 展开目录、选中文件、添加到上下文。
-- [ ] File Browser 删除文件并取消。
+- [x] 首次或空状态进入 Welcome。
+- [x] 从 Welcome 进入 Settings / Pipeline / Agent。
+- [x] 打开 Chat 回退并发送或查看消息。
+- [x] File Browser 展开目录、选中文件、添加到上下文。
+- [x] File Browser 删除文件并取消。
 
 截图建议：
 
@@ -707,13 +707,14 @@ git diff --check
 
 ### 9.9 阶段 Review
 
-- 状态：
-- 完成日期：
-- 涉及文件：
-- 长尾页面覆盖：
-- 键盘路径结果：
-- 截图路径：
-- 残留风险：
+- 状态：已完成，提交待创建。
+- 完成日期：2026-05-16。
+- 涉及文件：`WelcomeEmptyState.tsx`、`OnboardingView.tsx`、`ChatInput.tsx`、`ChatToolBlock.tsx`、`FileBrowser.tsx`、`ui6-view-model.ts`、`ui6-view-model.test.ts`、`apps/electron/package.json`、`bun.lock`。
+- 长尾页面覆盖：Welcome 空态改为 3 个直接动作并说明 Chat 隐藏回退定位；Onboarding 去除渐变 hero 并前置 Windows 环境问题；Chat composer / tool block 收敛到 token 与 Agent 状态色；File Browser 增加 tree / treeitem / group 语义、键盘展开折叠、路径 chip、删除完整路径确认和失败反馈。
+- 键盘路径结果：File Browser treeitem 支持 focus、Enter / Space 选择或展开、ArrowRight / ArrowLeft 展开折叠；行内添加与更多操作可通过 focus-visible 显示；删除确认保留 cancel 路径。
+- 验证结果：UI-6 聚焦测试 4 pass、`bun run --filter='@rv-insights/electron' typecheck`、`bun install --frozen-lockfile --dry-run`、`git diff --check` 均通过；代码审查发现的 ARIA tree 结构、Welcome 文案和 hover-only 按钮问题已修复。
+- 截图路径：`welcome-light-first-run-desktop.png`、`welcome-dark-config-missing-desktop.png`、`chat-slate-message-list-desktop.png`、`chat-slate-tool-activity-desktop.png`、`file-browser-forest-selected-desktop.png`、`file-browser-forest-delete-confirm-desktop.png`。
+- 残留风险：真实 Electron 首次启动仍依赖本地 settings / workspace 状态，UI-7 需要在完整客户端里扫一遍 Welcome / Chat / File Browser 与 AppShell 的组合路径。
 
 ## 10. 阶段 UI-7：全局验收与收尾
 
