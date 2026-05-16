@@ -6,6 +6,8 @@ import {
   AlertCircle,
   ArrowLeft,
   Clock3,
+  Command,
+  FolderKanban,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
@@ -13,7 +15,7 @@ import {
   Pin,
   PinOff,
   Plus,
-  Search,
+  Radar,
   Settings,
   Zap,
   Plug,
@@ -88,6 +90,22 @@ const SUMMARY_SIGNAL_BORDER_CLASS: Record<PipelineSidebarSessionTone, string> = 
   success: 'border-status-success-border',
 }
 
+const SESSION_CARD_TONE_CLASS: Record<PipelineSidebarSessionTone, string> = {
+  neutral: 'border-border-subtle/45 bg-surface-card/45 hover:border-border-subtle hover:bg-surface-card/70',
+  running: 'border-status-running-border bg-status-running-bg shadow-[0_0_22px_hsl(var(--status-running)/0.10)] hover:shadow-[0_0_28px_hsl(var(--status-running)/0.16)]',
+  waiting: 'border-status-waiting-border bg-status-waiting-bg shadow-[0_0_20px_hsl(var(--status-waiting)/0.09)]',
+  failed: 'border-status-danger-border bg-status-danger-bg shadow-[0_0_20px_hsl(var(--status-danger)/0.09)]',
+  success: 'border-status-success-border bg-status-success-bg shadow-[0_0_18px_hsl(var(--status-success)/0.08)]',
+}
+
+const SESSION_ORB_CLASS: Record<PipelineSidebarSessionTone, string> = {
+  neutral: 'border-border-subtle bg-surface-muted text-text-tertiary',
+  running: 'border-status-running-border bg-status-running-bg text-status-running-fg shadow-[0_0_18px_hsl(var(--status-running)/0.22)]',
+  waiting: 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg shadow-[0_0_16px_hsl(var(--status-waiting)/0.18)]',
+  failed: 'border-status-danger-border bg-status-danger-bg text-status-danger-fg shadow-[0_0_16px_hsl(var(--status-danger)/0.18)]',
+  success: 'border-status-success-border bg-status-success-bg text-status-success-fg shadow-[0_0_16px_hsl(var(--status-success)/0.16)]',
+}
+
 const CONTRIBUTION_PIPELINE_VERSION = 2
 
 function indicatorToAccent(indicator: SessionIndicatorStatus): SessionLeftAccent | undefined {
@@ -145,6 +163,7 @@ function PipelineSessionItem({
       : summary.tone === 'failed'
         ? AlertCircle
         : null
+  const StatusIcon = SignalIcon ?? Command
 
   const startEdit = (): void => {
     setEditTitle(session.title)
@@ -199,23 +218,39 @@ function PipelineSessionItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'relative w-full min-h-10 flex items-center gap-2 overflow-hidden px-3 py-[7px] rounded-control transition-[background-color,color,box-shadow,transform] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        'group relative w-full min-h-[68px] flex items-stretch gap-2 overflow-hidden rounded-card border px-2.5 py-2 text-left titlebar-no-drag transition-[background-color,border-color,box-shadow,transform] duration-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
-          ? 'pipeline-session-selected border border-status-running-border bg-status-running-bg shadow-[0_0_22px_hsl(var(--status-running)/0.16)]'
-          : 'border border-transparent hover:bg-surface-muted',
+          ? 'pipeline-session-selected border-status-running-border bg-status-running-bg shadow-[inset_0_0_0_1px_hsl(var(--status-running)/0.16),0_0_28px_hsl(var(--status-running)/0.16)]'
+          : SESSION_CARD_TONE_CLASS[summary.tone],
+        !active ? 'hover:-translate-y-0.5' : '',
       )}
     >
       {active ? (
-        <span className="pipeline-scanline pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" />
+        <>
+          <span className="pipeline-scanline pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" />
+          <span className="pointer-events-none absolute inset-y-2 left-0 w-1 rounded-r-full bg-status-running shadow-[0_0_18px_hsl(var(--status-running)/0.70)]" aria-hidden="true" />
+        </>
       ) : null}
       {leftAccent ? (
         <span
           className={cn(
-            'absolute left-1 top-1.5 bottom-1.5 w-[2px] rounded-full pointer-events-none',
+            'absolute left-0.5 top-2 bottom-2 w-[2px] rounded-full pointer-events-none',
             SESSION_LEFT_ACCENT_CLASS[leftAccent],
           )}
         />
       ) : null}
+
+      <div className="relative flex w-8 flex-shrink-0 items-start justify-center pt-1">
+        <span
+          className={cn(
+            'flex size-7 items-center justify-center rounded-full border transition-transform duration-normal group-hover:scale-105',
+            SESSION_ORB_CLASS[summary.tone],
+          )}
+          aria-hidden="true"
+        >
+          <StatusIcon size={14} className={summary.tone === 'running' ? 'animate-spin' : ''} />
+        </span>
+      </div>
 
       <div className="flex-1 min-w-0">
         {editing ? (
@@ -226,14 +261,14 @@ function PipelineSessionItem({
             onKeyDown={handleKeyDown}
             onBlur={() => void saveTitle()}
             onClick={(event) => event.stopPropagation()}
-            className="w-full bg-transparent text-[13px] leading-5 text-foreground border-b border-primary/50 outline-none px-0 py-0"
+            className="mt-1 w-full bg-transparent text-[13px] leading-5 text-foreground border-b border-primary/50 outline-none px-0 py-0"
             maxLength={100}
           />
         ) : (
           <>
             <div
               className={cn(
-                'truncate text-[13px] leading-5 flex items-center gap-1.5',
+                'truncate text-[13px] leading-5 flex items-center gap-1.5 font-semibold',
                 active ? 'text-foreground' : 'text-foreground/80',
               )}
             >
@@ -243,8 +278,11 @@ function PipelineSessionItem({
               ) : null}
               <span className="truncate">{session.title}</span>
             </div>
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-foreground/45">
-              <span className="truncate">{summary.detailLabel}</span>
+            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-foreground/50">
+              <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-surface-muted/60 px-1.5 py-0.5">
+                <Command size={10} className="flex-shrink-0 text-foreground/35" aria-hidden="true" />
+                <span className="truncate">{summary.detailLabel}</span>
+              </span>
               {summary.signalLabel ? (
                 <span
                   className={cn(
@@ -261,6 +299,11 @@ function PipelineSessionItem({
               ) : (
                 <span className="truncate">{summary.statusLabel}</span>
               )}
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1" aria-hidden="true">
+              <span className={cn('h-1 rounded-full', active ? 'bg-status-running' : 'bg-foreground/12')} />
+              <span className={cn('h-1 rounded-full', summary.tone === 'success' ? 'bg-status-success' : 'bg-foreground/10')} />
+              <span className={cn('h-1 rounded-full', summary.tone === 'failed' ? 'bg-status-danger' : 'bg-foreground/10')} />
             </div>
           </>
         )}
@@ -481,17 +524,19 @@ export function PipelineSidebar(): React.ReactElement {
   if (sidebarCollapsed) {
     return (
       <div
-        className="h-full flex flex-col items-center bg-surface-panel rounded-panel border border-border-subtle/45 shadow-panel transition-[width] duration-normal"
+        className="relative h-full flex flex-col items-center overflow-hidden rounded-panel border border-status-running-border bg-surface-panel shadow-[inset_0_1px_0_hsl(var(--foreground)/0.08),0_24px_56px_-36px_hsl(var(--status-running)/0.42)] transition-[width] duration-normal"
         style={{ width: 48, flexShrink: 0 }}
       >
+        <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-status-running/70" aria-hidden="true" />
+        <span className="pointer-events-none absolute -left-12 top-20 size-24 rounded-full bg-status-running/10 blur-2xl" aria-hidden="true" />
         <div className="pt-[50px]" />
 
-        <div className="pt-2">
+        <div className="relative z-10 pt-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-2 rounded-control text-text-secondary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="flex size-9 items-center justify-center rounded-card border border-border-subtle/60 bg-surface-card/70 text-text-secondary shadow-card transition-[background-color,border-color,color,transform] titlebar-no-drag hover:-translate-y-0.5 hover:border-status-running-border hover:bg-status-running-bg hover:text-status-running-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="展开侧边栏"
               >
                 <PanelLeftOpen size={18} />
@@ -501,12 +546,12 @@ export function PipelineSidebar(): React.ReactElement {
           </Tooltip>
         </div>
 
-        <div className="pt-2">
+        <div className="relative z-10 pt-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={() => void handleCreate()}
-                className="pipeline-new-button rounded-control border border-status-running-border bg-status-running-bg p-2 text-status-running-fg shadow-[0_0_18px_hsl(var(--status-running)/0.16)] transition-[background-color,box-shadow] titlebar-no-drag hover:bg-status-running-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="pipeline-new-button flex size-9 items-center justify-center rounded-card border border-status-running-border bg-status-running-bg text-status-running-fg shadow-[0_0_22px_hsl(var(--status-running)/0.24)] transition-[background-color,box-shadow,transform] titlebar-no-drag hover:-translate-y-0.5 hover:bg-status-running-bg hover:shadow-[0_0_30px_hsl(var(--status-running)/0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="新建贡献 Pipeline v2"
               >
                 <Plus size={16} />
@@ -518,12 +563,12 @@ export function PipelineSidebar(): React.ReactElement {
 
         <div className="flex-1" />
 
-        <div className="pb-3">
+        <div className="relative z-10 pb-3">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="relative p-1 rounded-control transition-colors titlebar-no-drag hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="relative rounded-card border border-border-subtle/55 bg-surface-card/70 p-1 shadow-card transition-[background-color,border-color,transform] titlebar-no-drag hover:-translate-y-0.5 hover:border-border-subtle hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="打开设置"
               >
                 <UserAvatar avatar={userProfile.avatar} size={28} />
@@ -543,19 +588,23 @@ export function PipelineSidebar(): React.ReactElement {
 
   return (
     <div
-      className="h-full flex flex-col bg-surface-panel rounded-panel border border-border-subtle/45 shadow-panel transition-[width] duration-normal"
+      className="relative h-full flex flex-col overflow-hidden rounded-panel border border-border-subtle/55 bg-surface-panel shadow-[inset_0_1px_0_hsl(var(--foreground)/0.08),0_28px_70px_-42px_hsl(var(--status-running)/0.40)] transition-[width] duration-normal"
       style={{ width: 280, minWidth: 180, flexShrink: 1 }}
     >
-      <div className="pt-[30px]">
+      <span className="pointer-events-none absolute inset-x-4 top-0 h-px bg-status-running/70" aria-hidden="true" />
+      <span className="pointer-events-none absolute -left-16 top-24 size-40 rounded-full bg-status-running/10 blur-3xl" aria-hidden="true" />
+      <span className="pointer-events-none absolute -right-20 bottom-12 size-36 rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
+
+      <div className="relative z-10 pt-[30px]">
         <div className="flex items-start gap-1.5 px-3">
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1 rounded-card border border-border-subtle/45 bg-surface-card/55 px-1 pb-1 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)]">
             <ModeSwitcher />
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="mt-2 size-9 flex-shrink-0 flex items-center justify-center rounded-control bg-surface-muted text-text-tertiary hover:bg-surface-muted/80 hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="mt-2 size-9 flex-shrink-0 flex items-center justify-center rounded-card border border-border-subtle/45 bg-surface-card/65 text-text-tertiary shadow-card transition-[background-color,border-color,color,transform] titlebar-no-drag hover:-translate-y-0.5 hover:bg-surface-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="收起侧边栏"
               >
                 <PanelLeftClose size={14} />
@@ -566,19 +615,26 @@ export function PipelineSidebar(): React.ReactElement {
         </div>
       </div>
 
-      <div className="px-3 pt-2">
-        <WorkspaceSelector />
+      <div className="relative z-10 px-3 pt-2">
+        <div className="rounded-card border border-border-subtle/45 bg-surface-card/45 p-2 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.05)]">
+          <div className="mb-1.5 flex items-center gap-1.5 px-1 text-[10px] font-semibold text-foreground/45">
+            <FolderKanban size={12} className="text-status-running-fg" aria-hidden="true" />
+            <span>工作区控制台</span>
+          </div>
+          <WorkspaceSelector />
+        </div>
       </div>
 
-      <div className="px-3 pt-2 flex items-center gap-1.5">
+      <div className="relative z-10 px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={() => void handleCreate()}
-          className="pipeline-new-button flex min-h-11 flex-1 items-center gap-2 rounded-control border border-status-running-border bg-status-running-bg px-3 py-2 text-[13px] font-semibold text-status-running-fg shadow-[0_0_20px_hsl(var(--status-running)/0.14)] transition-[background-color,border-color,box-shadow,transform] duration-normal titlebar-no-drag hover:-translate-y-0.5 hover:bg-status-running-bg hover:shadow-[0_0_26px_hsl(var(--status-running)/0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="pipeline-new-button relative flex min-h-11 flex-1 items-center gap-2 overflow-hidden rounded-full border border-status-running-border bg-status-running-bg px-3 py-2 text-[13px] font-semibold text-status-running-fg shadow-[0_0_24px_hsl(var(--status-running)/0.20)] transition-[background-color,border-color,box-shadow,transform] duration-normal titlebar-no-drag hover:-translate-y-0.5 hover:bg-status-running-bg hover:shadow-[0_0_34px_hsl(var(--status-running)/0.30)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           aria-label="新建贡献 Pipeline v2"
         >
+          <span className="pipeline-scanline pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" />
           <Plus size={14} />
           <span>新建贡献 Pipeline</span>
-          <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+          <span className="ml-auto rounded-full border border-status-running-border bg-surface-card/70 px-1.5 py-0.5 text-[10px] font-medium text-status-running-fg">
             v2
           </span>
         </button>
@@ -586,10 +642,10 @@ export function PipelineSidebar(): React.ReactElement {
           <TooltipTrigger asChild>
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex-shrink-0 size-9 flex items-center justify-center rounded-control text-text-tertiary bg-primary/5 hover:bg-primary/10 hover:text-text-primary transition-colors duration-fast titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="flex-shrink-0 size-11 flex items-center justify-center rounded-full text-text-tertiary bg-surface-card/70 hover:bg-primary/10 hover:text-status-running-fg transition-[background-color,border-color,color,transform] duration-fast titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:-translate-y-0.5 hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label="搜索 Pipeline 会话"
             >
-              <Search size={14} />
+              <Radar size={16} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">搜索 (⌘F)</TooltipContent>
@@ -597,20 +653,24 @@ export function PipelineSidebar(): React.ReactElement {
       </div>
 
       {viewMode === 'archived' ? (
-        <div className="px-6 pt-3 pb-1">
-          <div className="text-[12px] font-medium text-foreground/40">
+        <div className="relative z-10 px-6 pt-3 pb-1">
+          <div className="text-[12px] font-semibold text-foreground/45">
             已归档 Pipeline
           </div>
         </div>
       ) : null}
 
-      <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-none min-h-0">
+      <div className="relative z-10 flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-none min-h-0">
         {sessionSections.map((section) => (
-          <div key={section.id} className="mb-1">
-            <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-              {section.label}
+          <div key={section.id} className="mb-2">
+            <div className="flex items-center gap-2 px-1.5 pt-2 pb-1.5 text-[11px] font-semibold text-foreground/45 select-none">
+              <span>{section.label}</span>
+              <span className="h-px flex-1 bg-border-subtle/45" aria-hidden="true" />
+              <span className="rounded-full border border-border-subtle/45 bg-surface-card/65 px-1.5 py-0.5 text-[10px] tabular-nums text-foreground/45">
+                {section.sessions.length}
+              </span>
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1.5">
               {section.sessions.map((session) => (
                 <PipelineSessionItem
                   key={`${section.id}-${session.id}`}
@@ -632,18 +692,19 @@ export function PipelineSidebar(): React.ReactElement {
         ))}
 
         {!hasVisibleSessions ? (
-          <div className="px-2 py-3 text-[11px] text-foreground/30 text-center select-none">
-            {viewMode === 'archived' ? '暂无已归档 Pipeline' : '暂无 Pipeline 会话'}
+          <div className="mt-3 rounded-card border border-dashed border-[hsl(var(--dashed-border))] bg-surface-card/35 px-3 py-5 text-center text-[11px] text-foreground/40 select-none">
+            <Command size={18} className="mx-auto mb-2 text-foreground/30" aria-hidden="true" />
+            <div>{viewMode === 'archived' ? '暂无已归档 Pipeline' : '暂无 Pipeline 会话'}</div>
           </div>
         ) : null}
       </div>
 
-      <div className="px-3 pb-1">
+      <div className="relative z-10 px-3 pb-1">
         {viewMode === 'active' ? (
           archivedSessionCount > 0 ? (
             <button
               onClick={() => setViewMode('archived')}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="w-full flex items-center gap-2 rounded-card border border-border-subtle/35 bg-surface-card/35 px-3 py-2 text-[12px] text-text-tertiary transition-[background-color,border-color,color] titlebar-no-drag hover:border-border-subtle hover:bg-surface-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <Archive size={13} className="text-foreground/30" />
               <span>已归档 ({archivedSessionCount})</span>
@@ -652,7 +713,7 @@ export function PipelineSidebar(): React.ReactElement {
         ) : (
           <button
             onClick={() => setViewMode('active')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-secondary bg-surface-muted hover:bg-surface-muted/80 hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            className="w-full flex items-center gap-2 rounded-card border border-border-subtle/45 bg-surface-muted px-3 py-2 text-[12px] text-text-secondary transition-colors titlebar-no-drag hover:bg-surface-muted/80 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <ArrowLeft size={13} className="text-foreground/50" />
             <span>返回活跃 Pipeline</span>
@@ -661,7 +722,7 @@ export function PipelineSidebar(): React.ReactElement {
       </div>
 
       {capabilities ? (
-        <div className="px-3 pb-1">
+        <div className="relative z-10 px-3 pb-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -669,20 +730,19 @@ export function PipelineSidebar(): React.ReactElement {
                   setSettingsTab('agent')
                   setSettingsOpen(true)
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-control text-[12px] text-text-secondary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="w-full flex items-center gap-2 rounded-card border border-border-subtle/40 bg-surface-card/45 px-2.5 py-2 text-[12px] text-text-secondary shadow-[inset_0_1px_0_hsl(var(--foreground)/0.04)] transition-[background-color,border-color,color] titlebar-no-drag hover:border-status-running-border hover:bg-surface-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="配置 MCP 与 Skills"
               >
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <span className="flex items-center gap-1">
-                    <Plug size={13} className="text-foreground/40" />
+                <div className="grid min-w-0 flex-1 grid-cols-2 gap-1.5">
+                  <span className="flex min-w-0 items-center justify-center gap-1 rounded-full border border-border-subtle/45 bg-surface-muted/60 px-2 py-1">
+                    <Plug size={13} className="text-status-running-fg" />
                     <span className="tabular-nums">{capabilities.mcpServers.filter((server) => server.enabled).length}</span>
-                    <span className="text-foreground/30">MCP</span>
+                    <span className="text-foreground/45">MCP</span>
                   </span>
-                  <span className="text-foreground/20">·</span>
-                  <span className="flex items-center gap-1">
-                    <Zap size={13} className="text-foreground/40" />
+                  <span className="flex min-w-0 items-center justify-center gap-1 rounded-full border border-border-subtle/45 bg-surface-muted/60 px-2 py-1">
+                    <Zap size={13} className="text-status-waiting-fg" />
                     <span className="tabular-nums">{capabilities.skills.length}</span>
-                    <span className="text-foreground/30">Skills</span>
+                    <span className="text-foreground/45">Skills</span>
                   </span>
                 </div>
               </button>
@@ -692,13 +752,16 @@ export function PipelineSidebar(): React.ReactElement {
         </div>
       ) : null}
 
-      <div className="px-3 pb-3">
+      <div className="relative z-10 px-3 pb-3">
         <button
           onClick={() => setSettingsOpen(true)}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-control transition-colors titlebar-no-drag text-text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="w-full flex items-center gap-3 rounded-card border border-border-subtle/45 bg-surface-card/55 px-3 py-2 text-text-primary shadow-[inset_0_1px_0_hsl(var(--foreground)/0.05),0_10px_24px_-22px_hsl(var(--foreground)/0.40)] transition-[background-color,border-color,transform] titlebar-no-drag hover:-translate-y-0.5 hover:border-border-subtle hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <UserAvatar avatar={userProfile.avatar} size={28} />
-          <span className="flex-1 text-sm truncate text-left">{userProfile.userName}</span>
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate text-sm font-semibold">{userProfile.userName}</span>
+            <span className="block truncate text-[10px] text-foreground/40">Pipeline Dock</span>
+          </span>
           <div className="relative flex-shrink-0 text-foreground/40">
             <Settings size={16} />
             {(hasUpdate || hasEnvironmentIssues) ? (

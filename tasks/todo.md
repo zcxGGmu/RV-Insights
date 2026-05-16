@@ -1,5 +1,25 @@
 # Pipeline 完善分析任务
 
+## 2026-05-16 Pipeline Sidebar Command Deck UI 计划
+
+- [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。
+- [x] 只改造 `PipelineSidebar` 的视觉层级，保留现有 IPC、状态、排序、归档、工作区与会话操作逻辑。
+- [x] 将展开态侧边栏升级为深色玻璃指挥舱：顶部模式区、工作区控制台、新建 / 搜索操作区、会话任务卡片、底部能力区与账户 dock。
+- [x] 将折叠态侧边栏同步升级，保持展开 / 新建 / 用户入口风格一致。
+- [x] 增强会话分组标题、状态徽标、选中态、hover 操作和空状态，确保状态不只靠颜色表达。
+- [x] 运行 Pipeline 侧边栏模型测试、Electron typecheck 与 `git diff --check`。
+- [x] 在本节追加 Review，说明改动、验证和残余风险。
+
+## 2026-05-16 Pipeline Sidebar Command Deck UI Review
+
+- 已完成 Pipeline 专属侧边栏改造：展开态现在是深色玻璃指挥舱面板，顶部模式区、工作区控制台、新建 / 搜索入口、会话任务卡片、分组标题、能力区和账户 dock 都有明显可见变化。
+- 会话列表项保留原选择、重命名、置顶、归档行为；视觉上新增状态 orb、节点 / 轮次 chip、状态徽标、左侧状态轨、当前会话能量边和微型刻度，状态不只靠颜色表达。
+- 折叠态同步改造为同一视觉语言，展开、新建和用户设置入口保持原功能与 tooltip / aria-label。
+- 未修改 IPC、atoms、会话排序、归档逻辑、工作区逻辑、持久化结构、README 或 AGENTS；未新增依赖。
+- 验证通过：`bun test apps/electron/src/renderer/components/pipeline/pipeline-session-sidebar-model.test.ts` 11 pass；`bun run --filter='@rv-insights/electron' typecheck`；`bun run --filter='@rv-insights/electron' build:renderer`；`git diff --check`。
+- `build:renderer` 仍有既有 chunk size warning，本次构建成功，未作为本次侧边栏 UI 改造阻塞项。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。
+
 ## 2026-05-16 Pipeline Stage Rail Creative UI Refresh 计划
 
 - [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。
