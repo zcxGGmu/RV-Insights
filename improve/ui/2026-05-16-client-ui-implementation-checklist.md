@@ -63,7 +63,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ### 2.1 当前开发状态快照
 
-更新时间：2026-05-16 UI-3 完成并补充状态同步后
+更新时间：2026-05-16 UI-5 完成并补充状态同步后
 
 当前文档与阶段提交：
 
@@ -78,6 +78,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - UI-3 提交：`3881eb10`（`style(pipeline): 优化 Pipeline 工作台状态层级`）。
 - UI-4 提交：`b28ac9df`（`style(agent): 优化 Agent 消息工具与交互状态`）。
 - 截图索引提交：`1d78bf66`（`docs(ui): 补充 UI 截图索引说明`）。
+- UI-5 提交：`8362e8b4`（`style(settings): 统一设置界面表单与危险操作`）。
 
 已完成：
 
@@ -92,10 +93,10 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - [x] 完成 UI-2 AppShell / Sidebar / Tab 收敛：三栏 shell surface、Sidebar item、Tab indicator、RightSidePanel 与键盘 focus 已统一，commit 为 `c3636336`。
 - [x] 完成 UI-3 Pipeline 工作台收敛：Header、StageRail、Records / Live output、Gate / Review 操作区、Composer、Failure 卡片已统一状态层级，commit 为 `3881eb10`。
 - [x] 完成 UI-4 Agent 阅读与交互：Agent header meta、banner zone、ToolActivity 状态、Composer 稳定性、消息阅读宽度已收敛。
+- [x] 完成 UI-5 Settings 管理界面：Settings dialog/nav/primitives、渠道配置、Agent 工作区 / MCP / Skills、危险操作和错误反馈已收敛，commit 为 `8362e8b4`。
 
 未完成：
 
-- [x] UI-5 Settings 管理界面已完成并待提交：Settings dialog/nav/primitives、Channels、Agent MCP / Skills、危险操作与错误反馈已收敛。
 - [ ] UI-6 Welcome / Chat 回退 / File Browser 尚未开始。
 - [ ] UI-7 全局验收与收尾尚未开始。
 
@@ -105,7 +106,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - 当前工作区可能存在 `.DS_Store` 修改；它不是 UI 阶段成果，不要纳入 UI 提交，除非用户明确要求处理系统文件。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
 - UI-1 只是 UI 基础层，不等同于用户可见的主界面优化；不要向用户暗示“全客户端 UI 已经有明显变化”。
-- UI-4 已完成 Agent 阅读与交互并已单独提交；下一阶段从 UI-5 Settings 管理界面开始。
+- UI-5 已完成 Settings 管理界面并已单独提交；下一阶段从 UI-6 Welcome / Chat 回退 / File Browser 开始。
 
 ### 2.2 阶段进度表
 
@@ -116,7 +117,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | UI-2 | AppShell / Sidebar / Tab | [x] | 三栏骨架、导航密度、多标签状态、右侧面板 | typecheck + focused tests + light / dark / forest 截图 |
 | UI-3 | Pipeline 工作台 | [x] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | commit `3881eb10` + Pipeline 聚焦测试 25 pass + typecheck + light / dark / slate 截图 |
 | UI-4 | Agent 阅读与交互 | [x] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | commit `b28ac9df` + Agent 聚焦测试 11 pass + typecheck + light / dark / ocean 截图 |
-| UI-5 | Settings 管理界面 | [x] | Settings primitives、渠道表单、Agent 配置、危险操作 | 表单错误 + danger dialog 截图 |
+| UI-5 | Settings 管理界面 | [x] | Settings primitives、渠道表单、Agent 配置、危险操作 | commit `8362e8b4` + Settings 聚焦测试 7 pass + typecheck + light / dark / slate 截图 |
 | UI-6 | Welcome / Chat 回退 / File Browser | [ ] | 空态、Chat 对齐、文件树和确认流 | 长尾页面截图 |
 | UI-7 | 全局验收与收尾 | [ ] | 主题矩阵、a11y、回归、文档 Review | 总体验收记录 |
 
@@ -762,9 +763,9 @@ bun test
 | 页面 | Light | Dark | 特殊主题 | 状态 |
 | --- | --- | --- | --- | --- |
 | Pipeline | [x] | [x] | [x] | running、gate；failed / stopped 由组件状态与聚焦测试覆盖 |
-| Agent | [ ] | [ ] | [ ] | empty、streaming、tool running、permission、PlanMode |
-| AppShell | [ ] | [ ] | [ ] | multi-tab、background running、blocked |
-| Settings | [ ] | [ ] | [ ] | channel form、validation error、danger dialog、update |
+| Agent | [x] | [x] | [x] | empty、permission、PlanMode；streaming / tool running 由组件状态与聚焦测试覆盖 |
+| AppShell | [x] | [x] | [x] | multi-tab、background running、blocked |
+| Settings | [x] | [x] | [x] | channel form、validation error、danger dialog、update |
 | Welcome | [ ] | [ ] | [ ] | first run、config missing |
 | File Browser | [ ] | [ ] | [ ] | selected、hover、rename、delete confirm、empty folder |
 | Chat 回退 | [ ] | [ ] | [ ] | message list、composer、tool activity |
@@ -840,9 +841,9 @@ bun test
 3. 执行 `git status --short`。
 4. 如果看到 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，先确认它是否为编辑器残留；不要把它纳入提交。
 5. 如果看到 `.DS_Store` 修改，默认视为系统文件噪音；不要纳入 UI 阶段提交。
-6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`，UI-3 `3881eb10`，UI-4 `b28ac9df`。
-7. 从 UI-5 Settings 管理界面开始；不要回头重复 UI-2 / UI-3 / UI-4。
-8. UI-5 的主范围是 Settings primitives、渠道表单、Agent 配置、危险操作和表单错误状态。
+6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`，UI-3 `3881eb10`，UI-4 `b28ac9df`，UI-5 `8362e8b4`。
+7. 从 UI-6 Welcome / Chat 回退 / File Browser 开始；不要回头重复 UI-2 / UI-3 / UI-4 / UI-5。
+8. UI-6 的主范围是长尾页面：Welcome / Onboarding 空态、旧 Chat 隐藏回退视觉对齐、File Browser 文件树 / rename / delete confirm / empty folder。
 9. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
 
 ### 14.1 下次启动提示词
@@ -863,20 +864,23 @@ bun test
 3. UI-1「Token 与 primitive 收敛」已完成并提交，commit 为 20a90d3679147dd27c035d9c957546823924ac4b，提交标题为 feat(ui): 完成 UI-1 token 与 primitive 收敛。
 4. UI-2「AppShell / Sidebar / Tab」已完成并提交，commit 为 c3636336，提交标题为 style(ui): 统一 AppShell 导航与标签状态。
 5. UI-3「Pipeline 工作台」已完成并提交，commit 为 3881eb10，提交标题为 style(pipeline): 优化 Pipeline 工作台状态层级。
-6. UI-4「Agent 阅读与交互」已完成并通过验证，commit 为 b28ac9df，提交标题为 style(agent): 优化 Agent 消息工具与交互状态。
-7. 已完成：UI-0、UI-1、UI-2、UI-3、UI-4。未完成：UI-5、UI-6、UI-7。
-8. UI-4 已完成 Agent header meta、banner zone、ToolActivity 状态、Permission / AskUser / ExitPlanMode / PlanMode 横幅、Composer 稳定性和消息阅读宽度收敛。
-9. UI 截图索引已补充并提交，commit 为 1d78bf66，路径为 improve/ui/screenshots/README.md。
-10. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
+6. UI-4「Agent 阅读与交互」已完成并提交，commit 为 b28ac9df，提交标题为 style(agent): 优化 Agent 消息工具与交互状态。
+7. UI 截图索引已补充并提交，commit 为 1d78bf66，路径为 improve/ui/screenshots/README.md。
+8. UI-5「Settings 管理界面」已完成并提交，commit 为 8362e8b4，提交标题为 style(settings): 统一设置界面表单与危险操作。
+9. 已完成：UI-0、UI-1、UI-2、UI-3、UI-4、UI-5。未完成：UI-6、UI-7。
+10. UI-5 已完成 SettingsDialog / SettingsPanel 导航、Settings primitives、ChannelSettings / ChannelForm、AgentSettings、McpServerForm、About / Update、危险操作和错误反馈层级收敛。
+11. UI-5 验证通过：Settings 聚焦测试 7 pass、bun run --filter='@rv-insights/electron' typecheck、git diff --check、bun install --frozen-lockfile --dry-run。
+12. UI-5 截图已采集：improve/ui/screenshots/settings-light-channel-form-desktop.png、settings-dark-validation-error-desktop.png、settings-slate-danger-dialog-desktop.png、settings-slate-update-desktop.png。
+13. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
 
-请从 UI-5「Settings 管理界面」开始：
+请从 UI-6「Welcome / Chat 回退 / File Browser」开始：
 1. 先执行 git status --short，保护已有用户变更。
-2. 阅读 implementation checklist 的 UI-5 阶段和视觉规范 `5.4 Settings`、`5.8 页面级 Wireframe` 中 Settings 部分。
-3. 先做 UI-5 before 审计，记录 Settings primitives、ChannelSettings、ChannelForm、AgentSettings、McpServerForm、About / Update 和危险操作当前结构、状态表达、focus 和溢出风险。
-4. 不要回头重复 UI-2 / UI-3 / UI-4；AppShell、Sidebar、Tab、Pipeline 主面板和 Agent 工作区已完成。
+2. 阅读 implementation checklist 的 UI-6 阶段和视觉规范中 Welcome / Onboarding、Chat 回退、File Browser 相关部分，以及 `5.8 页面级 Wireframe` 对应长尾页面说明。
+3. 先做 UI-6 before 审计，记录 Welcome / Onboarding 空态、Chat 回退 message list / composer / tool activity、File Browser selected / hover / rename / delete confirm / empty folder 的当前结构、状态表达、focus 和溢出风险。
+4. 不要回头重复 UI-2 / UI-3 / UI-4 / UI-5；AppShell、Sidebar、Tab、Pipeline 主面板、Agent 工作区和 Settings 管理界面已完成。
 5. 本轮仍遵守 Jotai、Radix/shadcn 风格组件、Lucide 图标、现有主题 token、本地 JSON/JSONL 存储的约束。
 6. 不新增 public API / IPC / shared type，除非单独评审；不修改 README / AGENTS，除非用户明确允许。
-7. UI-5 完成定义：Settings 导航、渠道配置、Agent 工作区 / MCP / Skills、危险操作和错误反馈层级清楚；light / dark / 至少一个特殊主题下无明显溢出。
-8. 验证：至少运行 bun run --filter='@rv-insights/electron' typecheck、Settings 相关聚焦测试、git diff --check，并采集 UI-5 light / dark / 特殊主题截图。
+7. UI-6 完成定义：Welcome / Onboarding 空态、Chat 回退、File Browser 文件树与危险确认在 light / dark / 至少一个特殊主题下层级清楚、focus 可见、无明显文本或路径溢出。
+8. 验证：至少运行 bun run --filter='@rv-insights/electron' typecheck、相关聚焦测试或手动路径验证、git diff --check，并采集 UI-6 light / dark / 特殊主题截图。
 9. 每完成一个阶段并通过该阶段验证后，立即更新 checklist 和 tasks/todo.md 的 Review，并单独提交该阶段成果；不执行 push / PR，除非用户明确要求。
 ```
