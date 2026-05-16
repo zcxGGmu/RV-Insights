@@ -13,3 +13,10 @@
 - `agent-ui4-light-empty-desktop.png`：Agent 浅色主题，展示 Header meta、空状态和 Composer。
 - `agent-ui4-dark-permission-desktop.png`：Agent 深色主题，展示 Permission banner 和 Composer 锁定状态。
 - `agent-ui4-ocean-planmode-desktop.png`：Agent 特殊主题，展示 PlanMode / ExitPlanMode banner。
+
+## Settings UI-5
+
+- `settings-light-channel-form-desktop.png`：Settings 浅色主题，展示 Channels 列表与渠道表单层级。
+- `settings-dark-validation-error-desktop.png`：Settings 深色主题，展示字段错误和连接测试反馈。
+- `settings-slate-danger-dialog-desktop.png`：Settings slate 特殊主题，展示危险删除确认。
+- `settings-slate-update-desktop.png`：Settings slate 特殊主题，展示 About / Update 状态。

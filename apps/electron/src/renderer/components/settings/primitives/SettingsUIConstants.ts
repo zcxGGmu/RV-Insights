@@ -21,7 +21,7 @@ export const SECTION_DESCRIPTION_CLASS = 'text-sm text-text-secondary mt-1'
 export const CARD_CLASS = 'overflow-hidden settings-card'
 
 /** 卡片内行样式 */
-export const ROW_CLASS = 'flex min-h-14 items-center justify-between px-4 py-3'
+export const ROW_CLASS = 'flex min-h-14 flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between'
 
 /** 卡片内分隔线样式 */
 export const DIVIDER_CLASS = 'border-border-subtle/60'

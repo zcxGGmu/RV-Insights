@@ -95,7 +95,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 未完成：
 
-- [ ] UI-5 Settings 管理界面尚未开始。
+- [x] UI-5 Settings 管理界面已完成并待提交：Settings dialog/nav/primitives、Channels、Agent MCP / Skills、危险操作与错误反馈已收敛。
 - [ ] UI-6 Welcome / Chat 回退 / File Browser 尚未开始。
 - [ ] UI-7 全局验收与收尾尚未开始。
 
@@ -116,7 +116,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | UI-2 | AppShell / Sidebar / Tab | [x] | 三栏骨架、导航密度、多标签状态、右侧面板 | typecheck + focused tests + light / dark / forest 截图 |
 | UI-3 | Pipeline 工作台 | [x] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | commit `3881eb10` + Pipeline 聚焦测试 25 pass + typecheck + light / dark / slate 截图 |
 | UI-4 | Agent 阅读与交互 | [x] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | commit `b28ac9df` + Agent 聚焦测试 11 pass + typecheck + light / dark / ocean 截图 |
-| UI-5 | Settings 管理界面 | [ ] | Settings primitives、渠道表单、Agent 配置、危险操作 | 表单错误 + danger dialog 截图 |
+| UI-5 | Settings 管理界面 | [x] | Settings primitives、渠道表单、Agent 配置、危险操作 | 表单错误 + danger dialog 截图 |
 | UI-6 | Welcome / Chat 回退 / File Browser | [ ] | 空态、Chat 对齐、文件树和确认流 | 长尾页面截图 |
 | UI-7 | 全局验收与收尾 | [ ] | 主题矩阵、a11y、回归、文档 Review | 总体验收记录 |
 
@@ -552,45 +552,45 @@ git diff --check
 
 ### 8.4 Dialog / Navigation 任务
 
-- [ ] SettingsDialog 宽度、最大高度、scroll 容器稳定。
-- [ ] 左侧导航固定宽度，当前 tab 高亮明确。
-- [ ] tab 有问题状态时使用小状态点 + tooltip。
-- [ ] Dialog title 只显示当前 tab，不堆过多说明。
-- [ ] Esc / close / unsaved guard 行为清楚。
+- [x] SettingsDialog 宽度、最大高度、scroll 容器稳定。
+- [x] 左侧导航固定宽度，当前 tab 高亮明确。
+- [x] tab 有问题状态时使用小状态点 + tooltip。
+- [x] Dialog title 只显示当前 tab，不堆过多说明。
+- [x] Esc / close / unsaved guard 行为清楚。
 
 ### 8.5 Primitive 任务
 
-- [ ] SettingsSection 作为一级信息分组。
-- [ ] SettingsCard 不再嵌套装饰卡片。
-- [ ] SettingsRow 左侧 label + description，右侧 control；窄宽时可换行。
-- [ ] Secret / API Key / Base URL / MCP command 有 label 和 helper text。
-- [ ] 字段错误显示在字段附近。
-- [ ] 保存中、测试中、成功、失败 inline feedback 一致。
+- [x] SettingsSection 作为一级信息分组。
+- [x] SettingsCard 不再嵌套装饰卡片。
+- [x] SettingsRow 左侧 label + description，右侧 control；窄宽时可换行。
+- [x] Secret / API Key / Base URL / MCP command 有 label 和 helper text。
+- [x] 字段错误显示在字段附近。
+- [x] 保存中、测试中、成功、失败 inline feedback 一致。
 
 ### 8.6 Tab 任务
 
-- [ ] General：用户档案、头像、基础设置层级清楚。
-- [ ] Appearance：主题预览、系统跟随、密度选项即时可见。
-- [ ] Channels：Provider、模型、API Key、Base URL、连接测试反馈就近展示。
-- [ ] Agent：默认渠道、工作区、MCP、Skills 强调本地路径和来源。
-- [ ] Feishu / Integrations：授权状态、同步目标、重新认证入口清楚。
-- [ ] About / Update：版本、更新状态、下载进度、重启安装一致。
+- [x] General：用户档案、头像、基础设置层级清楚。
+- [x] Appearance：主题预览、系统跟随、密度选项即时可见。
+- [x] Channels：Provider、模型、API Key、Base URL、连接测试反馈就近展示。
+- [x] Agent：默认渠道、工作区、MCP、Skills 强调本地路径和来源。
+- [x] Feishu / Integrations：授权状态、同步目标、重新认证入口清楚。
+- [x] About / Update：版本、更新状态、下载进度、重启安装一致。
 
 ### 8.7 危险操作任务
 
-- [ ] 删除渠道、重置配置、清空数据等进入 AlertDialog。
-- [ ] AlertDialog 文案说明影响范围。
-- [ ] cancel 作为默认安全焦点。
-- [ ] destructive 操作 loading 时不能重复点击。
-- [ ] API Key / token 不在截图、日志或 UI 默认层明文展示。
+- [x] 删除渠道、重置配置、清空数据等进入 AlertDialog。
+- [x] AlertDialog 文案说明影响范围。
+- [x] cancel 作为默认安全焦点。
+- [x] destructive 操作 loading 时不能重复点击。
+- [x] API Key / token 不在截图、日志或 UI 默认层明文展示。
 
 ### 8.8 验收标准
 
-- [ ] Settings 长内容滚动自然，导航仍清楚。
-- [ ] 表单错误就近展示，用户输入不丢失。
-- [ ] 危险操作有明确二次确认。
-- [ ] light / dark / slate 下表单可读。
-- [ ] 不改变配置存储结构。
+- [x] Settings 长内容滚动自然，导航仍清楚。
+- [x] 表单错误就近展示，用户输入不丢失。
+- [x] 危险操作有明确二次确认。
+- [x] light / dark / slate 下表单可读。
+- [x] 不改变配置存储结构。
 
 ### 8.9 验证
 
@@ -601,11 +601,11 @@ git diff --check
 
 手动路径：
 
-- [ ] 切换 Settings tab。
-- [ ] 编辑渠道表单并触发连接测试失败。
-- [ ] 保存外观设置。
-- [ ] 打开危险删除确认并取消。
-- [ ] 窄窗口检查 SettingsRow 换行。
+- [x] 切换 Settings tab。
+- [x] 编辑渠道表单并触发连接测试失败。
+- [x] 保存外观设置。
+- [x] 打开危险删除确认并取消。
+- [x] 窄窗口检查 SettingsRow 换行。
 
 截图建议：
 
@@ -616,12 +616,13 @@ git diff --check
 
 ### 8.10 阶段 Review
 
-- 状态：
-- 完成日期：
-- 涉及文件：
-- 表单覆盖：
-- 危险操作覆盖：
-- 验证结果：
+- 状态：已完成，待单独提交。
+- 完成日期：2026-05-16。
+- 涉及文件：`SettingsDialog.tsx`、`SettingsPanel.tsx`、`ChannelSettings.tsx`、`ChannelForm.tsx`、`AgentSettings.tsx`、`McpServerForm.tsx`、Settings primitives、`settings-ui-model.ts`。
+- 表单覆盖：SettingsInput / Select / Toggle 补 label / helper / error 语义；新增 SettingsTextarea；ChannelForm API Key、Base URL、模型列表和 MCP command/env/header 反馈就近展示。
+- 危险操作覆盖：渠道删除、MCP 删除、Skill 删除统一 AlertDialog，说明影响范围，loading 防重复点击，失败留在 dialog 内 inline 展示。
+- 验证结果：Settings 聚焦测试 7 pass；`bun run --filter='@rv-insights/electron' typecheck` 通过；`git diff --check` 通过；已采集 light / dark / slate 截图。
+- 截图路径：`settings-light-channel-form-desktop.png`、`settings-dark-validation-error-desktop.png`、`settings-slate-danger-dialog-desktop.png`、`settings-slate-update-desktop.png`。
 - 截图路径：
 - 残留风险：
 

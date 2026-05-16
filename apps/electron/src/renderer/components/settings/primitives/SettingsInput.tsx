@@ -45,15 +45,24 @@ export function SettingsInput({
   error,
   type = 'text',
 }: SettingsInputProps): React.ReactElement {
+  const id = React.useId()
+  const descriptionId = description ? `${id}-description` : undefined
+  const errorId = error ? `${id}-error` : undefined
+  const describedBy = [descriptionId, errorId].filter(Boolean).join(' ') || undefined
+
   return (
     <div className="px-4 py-3 space-y-2">
       <div>
-        <div className={LABEL_CLASS}>{label}</div>
+        <label className={LABEL_CLASS} htmlFor={id}>
+          {label}
+          {required && <span className="ml-1 text-status-danger-fg">*</span>}
+        </label>
         {description && (
-          <div className={cn(DESCRIPTION_CLASS, 'mt-0.5')}>{description}</div>
+          <div id={descriptionId} className={cn(DESCRIPTION_CLASS, 'mt-0.5 break-words')}>{description}</div>
         )}
       </div>
       <Input
+        id={id}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -62,10 +71,11 @@ export function SettingsInput({
         required={required}
         disabled={disabled}
         aria-invalid={Boolean(error)}
+        aria-describedby={describedBy}
         className={cn(error && 'border-status-danger-border focus-visible:ring-status-danger')}
       />
       {error && (
-        <p className="text-xs text-status-danger-fg">{error}</p>
+        <p id={errorId} className="text-xs text-status-danger-fg">{error}</p>
       )}
     </div>
   )

@@ -14,6 +14,16 @@ import { Plus, Plug, Pencil, Trash2, Sparkles, FolderOpen, MessageSquare, Shield
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -38,6 +48,7 @@ import { chatToolsAtom } from '@/atoms/chat-tool-atoms'
 import type { McpServerEntry, SkillMeta, OtherWorkspaceSkillsGroup, WorkspaceMcpConfig, ThinkingConfig, AgentEffort } from '@rv-insights/shared'
 import { SettingsSection, SettingsCard, SettingsRow, SettingsSegmentedControl, SettingsInput } from './primitives'
 import { McpServerForm } from './McpServerForm'
+import { getSettingsDeleteDialogCopy } from './settings-ui-model'
 
 /** 组件视图模式 */
 type ViewMode = 'list' | 'create' | 'edit'
@@ -46,6 +57,12 @@ type ViewMode = 'list' | 'create' | 'edit'
 interface EditingServer {
   name: string
   entry: McpServerEntry
+}
+
+interface DeleteTarget {
+  kind: 'mcp' | 'skill'
+  id: string
+  name: string
 }
 
 export function AgentSettings(): React.ReactElement {
@@ -67,6 +84,9 @@ export function AgentSettings(): React.ReactElement {
   // 视图模式
   const [viewMode, setViewMode] = React.useState<ViewMode>('list')
   const [editingServer, setEditingServer] = React.useState<EditingServer | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
 
   // MCP 配置
   const [mcpConfig, setMcpConfig] = React.useState<WorkspaceMcpConfig>({ servers: {} })
@@ -241,13 +261,15 @@ ${skillList}
   }
 
   /** 删除 MCP 服务器 */
-  const handleDelete = async (serverName: string): Promise<void> => {
+  const requestDeleteMcp = (serverName: string): void => {
     // 内置 MCP 不可删除
     const entry = mcpConfig.servers[serverName]
     if (entry?.isBuiltin) return
+    setDeleteError(null)
+    setDeleteTarget({ kind: 'mcp', id: serverName, name: serverName })
+  }
 
-    if (!confirm(`确定删除 MCP 服务器「${serverName}」？此操作不可恢复。`)) return
-
+  const deleteMcpServer = async (serverName: string): Promise<void> => {
     try {
       const newServers = { ...mcpConfig.servers }
       delete newServers[serverName]
@@ -257,6 +279,7 @@ ${skillList}
       bumpCapabilitiesVersion((v) => v + 1)
     } catch (error) {
       console.error('[Agent 设置] 删除 MCP 服务器失败:', error)
+      throw error
     }
   }
 
@@ -281,15 +304,37 @@ ${skillList}
   }
 
   /** 删除 Skill */
-  const handleDeleteSkill = async (skillSlug: string, skillName: string): Promise<void> => {
-    if (!confirm(`确定删除 Skill「${skillName}」？此操作不可恢复。`)) return
+  const requestDeleteSkill = (skillSlug: string, skillName: string): void => {
+    setDeleteError(null)
+    setDeleteTarget({ kind: 'skill', id: skillSlug, name: skillName })
+  }
 
+  const deleteSkill = async (skillSlug: string): Promise<void> => {
     try {
       await window.electronAPI.deleteWorkspaceSkill(workspaceSlug, skillSlug)
       setSkills((prev) => prev.filter((s) => s.slug !== skillSlug))
       bumpCapabilitiesVersion((v) => v + 1)
     } catch (error) {
       console.error('[Agent 设置] 删除 Skill 失败:', error)
+      throw error
+    }
+  }
+
+  const handleDeleteConfirm = async (): Promise<void> => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      if (deleteTarget.kind === 'mcp') {
+        await deleteMcpServer(deleteTarget.id)
+      } else {
+        await deleteSkill(deleteTarget.id)
+      }
+      setDeleteTarget(null)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : '删除失败，请稍后重试')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -372,6 +417,7 @@ ${skillList}
   const serverEntries = Object.entries(mcpConfig.servers ?? {}).filter(
     ([name]) => name !== 'memos-cloud', // 记忆功能已迁移到独立配置，隐藏旧 MCP 条目
   )
+  const deleteCopy = deleteTarget ? getSettingsDeleteDialogCopy(deleteTarget) : null
 
   // 列表视图
   return (
@@ -412,7 +458,7 @@ ${skillList}
                   setEditingServer({ name, entry })
                   setViewMode('edit')
                 }}
-                onDelete={() => handleDelete(name)}
+                onDelete={() => requestDeleteMcp(name)}
                 onToggle={() => handleToggle(name)}
               />
             ))}
@@ -467,7 +513,7 @@ ${skillList}
           <SkillGroupedList
             skills={skills}
             skillsDir={skillsDir}
-            onDelete={handleDeleteSkill}
+            onDelete={requestDeleteSkill}
             onToggle={handleToggleSkill}
             onUpdate={handleUpdateSkill}
           />
@@ -491,6 +537,37 @@ ${skillList}
         importingSkill={importingSkill}
         onImport={handleImportSkill}
       />
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteCopy?.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteCopy?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <div className="rounded-md border border-status-danger-border bg-status-danger-bg px-3 py-2 text-sm text-status-danger-fg">
+              {deleteError}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeleteTarget(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteConfirm()
+              }}
+            >
+              {deleting ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -522,7 +599,7 @@ function McpServerRow({ name, entry, onEdit, onDelete, onToggle }: McpServerRowP
       description={entry.type === 'stdio' ? entry.command : entry.url}
       className="group"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
         {isBuiltin && (
           <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">
             <ShieldCheck size={12} />
@@ -534,7 +611,8 @@ function McpServerRow({ name, entry, onEdit, onDelete, onToggle }: McpServerRowP
         </span>
         <button
           onClick={onEdit}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`编辑 MCP 服务器 ${name}`}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
           title="编辑"
         >
           <Pencil size={14} />
@@ -542,7 +620,8 @@ function McpServerRow({ name, entry, onEdit, onDelete, onToggle }: McpServerRowP
         {!isBuiltin && (
           <button
             onClick={onDelete}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+            aria-label={`删除 MCP 服务器 ${name}`}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             title="删除"
           >
             <Trash2 size={14} />
@@ -551,6 +630,7 @@ function McpServerRow({ name, entry, onEdit, onDelete, onToggle }: McpServerRowP
         <Switch
           checked={entry.enabled}
           onCheckedChange={onToggle}
+          aria-label={`${entry.enabled ? '禁用' : '启用'} MCP 服务器 ${name}`}
         />
       </div>
     </SettingsRow>
@@ -773,6 +853,7 @@ function SkillItemRow({ skill, displayName, expanded, onToggleExpand, onDelete, 
               <TooltipTrigger asChild>
                 <button
                   onClick={onUpdate}
+                  aria-label={`同步更新 Skill ${skill.name}`}
                   className="p-1.5 rounded-md text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 transition-colors"
                 >
                   <RefreshCw size={14} />
@@ -783,10 +864,11 @@ function SkillItemRow({ skill, displayName, expanded, onToggleExpand, onDelete, 
           )}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                onClick={onOpenFolder}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100"
-              >
+                <button
+                  onClick={onOpenFolder}
+                  aria-label={`打开 Skill 文件夹 ${skill.name}`}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                >
                 <FolderOpen size={14} />
               </button>
             </TooltipTrigger>
@@ -794,10 +876,11 @@ function SkillItemRow({ skill, displayName, expanded, onToggleExpand, onDelete, 
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                onClick={onDelete}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-              >
+                <button
+                  onClick={onDelete}
+                  aria-label={`删除 Skill ${skill.name}`}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                >
                 <Trash2 size={14} />
               </button>
             </TooltipTrigger>
@@ -806,6 +889,7 @@ function SkillItemRow({ skill, displayName, expanded, onToggleExpand, onDelete, 
           <Switch
             checked={skill.enabled}
             onCheckedChange={onToggleEnabled}
+            aria-label={`${skill.enabled ? '禁用' : '启用'} Skill ${skill.name}`}
           />
         </div>
       </div>

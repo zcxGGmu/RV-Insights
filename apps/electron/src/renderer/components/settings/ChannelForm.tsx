@@ -152,6 +152,7 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
   const [fetchingModels, setFetchingModels] = React.useState(false)
   const [fetchResult, setFetchResult] = React.useState<FetchModelsResult | null>(null)
   const [showExitDialog, setShowExitDialog] = React.useState(false)
+  const [createAttempted, setCreateAttempted] = React.useState(false)
 
   const setChannelFormDirty = useSetAtom(channelFormDirtyAtom)
 
@@ -351,6 +352,7 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
 
   /** 创建渠道（仅新建模式） */
   const handleCreate = async (): Promise<void> => {
+    setCreateAttempted(true)
     if (models.length === 0) {
       toast.warning('尚未配置模型，建议先从供应商获取或手动添加', { id: 'no-models-warn' })
       return
@@ -362,6 +364,9 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
   /** 检测表单是否有未保存内容 */
   const isDirty = !isEdit && (name.trim() !== '' || apiKey.trim() !== '' || models.length > 0)
   const hasNoModels = !isEdit && models.length === 0
+  const nameError = createAttempted && !name.trim() ? '请输入配置名称。' : undefined
+  const apiKeyError = createAttempted && !isEdit && !apiKey.trim() ? '请输入 API Key。' : undefined
+  const modelError = createAttempted && hasNoModels ? '至少添加或获取一个模型后再创建配置。' : undefined
 
   /** 返回按钮：创建模式下有未保存内容时拦截 */
   const handleBack = (): void => {
@@ -456,6 +461,7 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
             onChange={setName}
             placeholder="例如: My Anthropic"
             required
+            error={nameError}
           />
           <SettingsSelect
             label="供应商类型"
@@ -477,7 +483,7 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
               <div className="space-y-0.5">
                 <div className="text-sm font-medium text-foreground">API Key</div>
                 {isEdit && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground break-words">
                     出于安全原因，已保存的 API Key 不会回显；留空表示不修改。
                   </div>
                 )}
@@ -510,16 +516,17 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
+                aria-label={showApiKey ? '隐藏 API Key' : '显示 API Key'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
               >
                 {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {apiKeyError && <p className="text-xs text-status-danger-fg">{apiKeyError}</p>}
             {testResult && (
               <div className={cn(
                 'flex items-center gap-1.5 text-xs',
-                testResult.success ? 'text-emerald-600' : 'text-destructive'
+                testResult.success ? 'text-status-success-fg' : 'text-status-danger-fg'
               )}>
                 {testResult.success ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
                 <span>{testResult.message}</span>
@@ -596,10 +603,16 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
         }
       >
         {/* 拉取结果提示 */}
+        {modelError && (
+          <div className="flex items-center gap-1.5 text-xs text-status-danger-fg px-1">
+            <XCircle size={12} />
+            <span>{modelError}</span>
+          </div>
+        )}
         {fetchResult && (
           <div className={cn(
             'flex items-center gap-1.5 text-xs px-1',
-            fetchResult.success ? 'text-emerald-600' : 'text-destructive'
+            fetchResult.success ? 'text-status-success-fg' : 'text-status-danger-fg'
           )}>
             {fetchResult.success ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
             <span>{fetchResult.message}</span>
@@ -636,20 +649,26 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
               {availableModels.map((model) => (
                 <div
                   key={model.id}
-                  className="flex items-center gap-2 px-4 py-2.5 group cursor-pointer hover:bg-muted/30 transition-colors"
-                  onClick={() => handleToggleModel(model.id)}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left group hover:bg-muted/30 transition-colors"
                 >
-                  <Plus size={14} className="text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm text-foreground flex-1">
-                    {model.name}
-                    {model.name !== model.id && (
-                      <span className="text-muted-foreground ml-1">({model.id})</span>
-                    )}
-                  </span>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                    onClick={() => handleToggleModel(model.id)}
+                  >
+                    <Plus size={14} className="text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm text-foreground min-w-0 flex-1 truncate">
+                      {model.name}
+                      {model.name !== model.id && (
+                        <span className="text-muted-foreground ml-1">({model.id})</span>
+                      )}
+                    </span>
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleRemoveModel(model.id) }}
-                    className="p-0.5 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                    aria-label={`删除模型 ${model.name}`}
+                    className="p-0.5 text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                     title="删除"
                   >
                     <X size={14} />
@@ -705,6 +724,7 @@ export function ChannelForm({ channel, onSaved, onCancel }: ChannelFormProps): R
               type="button"
               onClick={handleAddModel}
               disabled={!newModelId.trim()}
+              aria-label="添加模型"
               className="h-8 w-8 flex-shrink-0"
             >
               <Plus size={18} />

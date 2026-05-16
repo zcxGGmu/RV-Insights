@@ -21,6 +21,8 @@ import {
   GraduationCap,
   X,
   Keyboard,
+  AlertCircle,
+  Download,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { settingsTabAtom, channelFormDirtyAtom, settingsCloseRequestedAtom } from "@/atoms/settings-tab";
@@ -49,20 +51,22 @@ import { ToolSettings } from "./ToolSettings";
 import { BotHubSettings } from "./BotHubSettings";
 import { TutorialViewer } from "../tutorial/TutorialViewer";
 import { ShortcutSettings } from "./ShortcutSettings";
+import { resolveSettingsNavStatus } from "./settings-ui-model";
 
 /** 设置 Tab 定义 */
 interface TabItem {
   id: SettingsTab;
   label: string;
   icon: React.ReactNode;
+  description: string;
 }
 
 /** 基础 Tabs（所有模式都有） */
 const BASE_TABS: TabItem[] = [
-  { id: "general", label: "通用设置", icon: <Settings size={16} /> },
-  { id: "channels", label: "模型配置", icon: <Radio size={16} /> },
-  { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} /> },
-  { id: "proxy", label: "代理设置", icon: <Globe size={16} /> },
+  { id: "general", label: "通用设置", icon: <Settings size={16} />, description: "用户档案与基础行为" },
+  { id: "channels", label: "模型配置", icon: <Radio size={16} />, description: "Provider、模型与凭证" },
+  { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} />, description: "系统提示词与模板" },
+  { id: "proxy", label: "代理设置", icon: <Globe size={16} />, description: "网络代理与连接" },
 ];
 
 /** Agent 模式专属 Tab */
@@ -70,32 +74,37 @@ const AGENT_TAB: TabItem = {
   id: "agent",
   label: "Agent 配置",
   icon: <Plug size={16} />,
+  description: "工作区、MCP 与 Skills",
 };
 const TOOLS_TAB: TabItem = {
   id: "tools",
   label: "Chat 工具",
   icon: <Wrench size={16} />,
+  description: "本地工具与调用能力",
 };
 const BOTS_TAB: TabItem = {
   id: "bots",
   label: "远程连接",
   icon: <Bot size={16} />,
+  description: "外部 Bot 与集成",
 };
 const TUTORIAL_TAB: TabItem = {
   id: "tutorial",
   label: "使用教程",
   icon: <GraduationCap size={16} />,
+  description: "内置引导内容",
 };
 const SHORTCUTS_TAB: TabItem = {
   id: "shortcuts",
   label: "快捷键管理",
   icon: <Keyboard size={16} />,
+  description: "键盘快捷方式",
 };
 
 /** 尾部 Tabs */
 const TAIL_TABS: TabItem[] = [
-  { id: "appearance", label: "外观设置", icon: <Palette size={16} /> },
-  { id: "about", label: "关于/更新", icon: <Info size={16} /> },
+  { id: "appearance", label: "外观设置", icon: <Palette size={16} />, description: "主题与显示偏好" },
+  { id: "about", label: "关于/更新", icon: <Info size={16} />, description: "版本、更新和环境检测" },
 ];
 
 /** 根据标签页 id 渲染对应内容 */
@@ -218,13 +227,16 @@ export function SettingsPanel({
     <div className="flex flex-col h-full">
       {/* 顶部 Header 栏 */}
       <div className="h-12 flex items-center justify-between px-5 border-b border-border/50 flex-shrink-0">
-        <h2 className="text-sm font-medium text-foreground">
-          {activeTabLabel}
-        </h2>
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-medium text-foreground">
+            {activeTabLabel}
+          </h2>
+        </div>
         {onClose && (
           <button
             onClick={handleClose}
-            className="rounded-md p-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="关闭设置"
+            className="rounded-md p-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
           >
             <X size={16} />
           </button>
@@ -234,32 +246,53 @@ export function SettingsPanel({
       {/* 下方主体：左导航 + 右内容 */}
       <div className="flex flex-1 min-h-0">
         {/* 左侧 Tab 导航 */}
-        <div className="w-[160px] border-r border-border/50 pt-3 px-2 flex-shrink-0">
-          <nav className="flex flex-col gap-0.5">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                  activeTab === tab.id
-                    ? "bg-muted text-foreground font-medium"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                )}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {tab.id === "about" && (hasUpdate || hasEnvironmentIssues) && (
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                )}
-              </button>
-            ))}
+        <div className="w-[176px] border-r border-border/50 pt-3 px-2 flex-shrink-0">
+          <nav className="flex flex-col gap-1" aria-label="设置分类">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id
+              const status = resolveSettingsNavStatus({
+                tabId: tab.id,
+                hasUpdate,
+                hasEnvironmentIssues,
+              })
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "group flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isActive
+                      ? "bg-muted text-foreground font-medium shadow-sm"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                  )}
+                >
+                  <span className="shrink-0">{tab.icon}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{tab.label}</span>
+                    <span className="block truncate text-[11px] font-normal text-muted-foreground/80">
+                      {tab.description}
+                    </span>
+                  </span>
+                  {status.kind === "issue" && (
+                    <span role="img" aria-label={status.label} title={status.label} className="shrink-0 text-status-danger-fg">
+                      <AlertCircle size={13} />
+                    </span>
+                  )}
+                  {status.kind === "update" && (
+                    <span role="img" aria-label={status.label} title={status.label} className="shrink-0 text-status-running-fg">
+                      <Download size={13} />
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </nav>
         </div>
 
         {/* 右侧内容区域 */}
         <ScrollArea className="flex-1">
-          <div className="px-6 py-4">{renderTabContent(activeTab)}</div>
+          <div className="min-w-0 px-6 py-4">{renderTabContent(activeTab)}</div>
         </ScrollArea>
       </div>
 
@@ -274,7 +307,7 @@ export function SettingsPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={cancelPendingAction}>留在当前页</AlertDialogCancel>
-            <AlertDialogAction onClick={executePendingAction}>放弃并离开</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={executePendingAction}>放弃并离开</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

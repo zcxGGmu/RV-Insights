@@ -30,18 +30,23 @@ export function SettingsToggle({
   onCheckedChange,
   disabled,
 }: SettingsToggleProps): React.ReactElement {
+  const id = React.useId()
+  const descriptionId = description ? `${id}-description` : undefined
+
   return (
     <div className={ROW_CLASS}>
-      <div className="flex-1 min-w-0 mr-4">
-        <div className={LABEL_CLASS}>{label}</div>
+      <div className="flex-1 min-w-0 sm:mr-4">
+        <label className={LABEL_CLASS} htmlFor={id}>{label}</label>
         {description && (
-          <div className={cn(DESCRIPTION_CLASS, 'mt-0.5')}>{description}</div>
+          <div id={descriptionId} className={cn(DESCRIPTION_CLASS, 'mt-0.5 break-words')}>{description}</div>
         )}
       </div>
       <Switch
+        id={id}
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}
+        aria-describedby={descriptionId}
       />
     </div>
   )

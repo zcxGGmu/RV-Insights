@@ -16,6 +16,8 @@ interface SettingsRowProps {
   icon?: React.ReactNode
   /** 行描述（可选） */
   description?: string
+  /** 行内状态或错误提示（可选） */
+  feedback?: React.ReactNode
   /** 右侧控件 */
   children?: React.ReactNode
   /** 额外 className */
@@ -26,19 +28,23 @@ export function SettingsRow({
   label,
   icon,
   description,
+  feedback,
   children,
   className,
 }: SettingsRowProps): React.ReactElement {
   return (
     <div className={cn(ROW_CLASS, className)}>
-      {icon && <div className="flex-shrink-0 mr-3">{icon}</div>}
-      <div className="flex-1 min-w-0 mr-4">
-        <div className={LABEL_CLASS}>{label}</div>
-        {description && (
-          <div className={cn(DESCRIPTION_CLASS, 'mt-0.5')}>{description}</div>
-        )}
+      <div className="flex min-w-0 flex-1 items-start self-stretch sm:self-auto">
+        {icon && <div className="mr-3 flex-shrink-0 pt-0.5">{icon}</div>}
+        <div className="min-w-0 flex-1 sm:mr-4">
+          <div className={LABEL_CLASS}>{label}</div>
+          {description && (
+            <div className={cn(DESCRIPTION_CLASS, 'mt-0.5 break-words')}>{description}</div>
+          )}
+          {feedback && <div className="mt-2">{feedback}</div>}
+        </div>
       </div>
-      {children && <div className="flex-shrink-0">{children}</div>}
+      {children && <div className="flex w-full flex-shrink-0 justify-start sm:w-auto sm:justify-end">{children}</div>}
     </div>
   )
 }

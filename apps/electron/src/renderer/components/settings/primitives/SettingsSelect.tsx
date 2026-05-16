@@ -48,16 +48,19 @@ export function SettingsSelect({
   placeholder,
   disabled,
 }: SettingsSelectProps): React.ReactElement {
+  const id = React.useId()
+  const descriptionId = description ? `${id}-description` : undefined
+
   return (
     <div className="px-4 py-3 space-y-2">
       <div>
-        <div className={LABEL_CLASS}>{label}</div>
+        <div id={id} className={LABEL_CLASS}>{label}</div>
         {description && (
-          <div className={cn(DESCRIPTION_CLASS, 'mt-0.5')}>{description}</div>
+          <div id={descriptionId} className={cn(DESCRIPTION_CLASS, 'mt-0.5 break-words')}>{description}</div>
         )}
       </div>
       <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" aria-labelledby={id} aria-describedby={descriptionId}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

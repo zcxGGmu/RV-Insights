@@ -16,6 +16,7 @@ import {
   SettingsInput,
   SettingsSelect,
   SettingsToggle,
+  SettingsTextarea,
 } from './primitives'
 
 /** 编辑中的服务器 */
@@ -98,6 +99,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
   const [testResult, setTestResult] = React.useState<{ success: boolean; message: string } | null>(
     server?.entry.lastTestResult ?? null
   )
+  const [submitted, setSubmitted] = React.useState(false)
 
   // 监听配置改变，清空测试结果（避免使用过期的测试结果）
   React.useEffect(() => {
@@ -187,6 +189,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
   /** 提交表单 */
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
+    setSubmitted(true)
 
     const serverName = name.trim()
     if (!serverName) return
@@ -236,12 +239,16 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
   const canTest = (): boolean => {
     return canSubmit()
   }
+  const nameError = submitted && !name.trim() ? '请输入服务器名称。' : undefined
+  const commandError = submitted && transportType === 'stdio' && !command.trim() ? '请输入启动命令。' : undefined
+  const urlError = submitted && transportType !== 'stdio' && !url.trim() ? '请输入服务器 URL。' : undefined
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* 标题栏 + 操作按钮 */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="h-8 w-8" type="button" onClick={onCancel}>
+          <span className="sr-only">返回 MCP 服务器列表</span>
           <ArrowLeft size={18} />
         </Button>
         <h3 className="text-lg font-medium text-foreground flex-1">
@@ -281,6 +288,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
             placeholder="例如: github-mcp"
             required
             disabled={isEdit}
+            error={nameError}
           />
           <SettingsSelect
             label="传输类型"
@@ -301,6 +309,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
                 placeholder="例如: npx"
                 required
                 disabled={isBuiltin}
+                error={commandError}
               />
               <SettingsInput
                 label="参数"
@@ -311,19 +320,14 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
                 disabled={isBuiltin}
               />
               {/* 环境变量多行输入 */}
-              <div className="px-4 py-3 space-y-2">
-                <div>
-                  <div className="text-sm font-medium text-foreground">环境变量</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">每行一个，格式: KEY=VALUE</div>
-                </div>
-                <textarea
-                  value={envText}
-                  onChange={(e) => setEnvText(e.target.value)}
-                  placeholder="GITHUB_TOKEN=ghp_xxx&#10;DEBUG=true"
-                  rows={3}
-                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y font-mono"
-                />
-              </div>
+              <SettingsTextarea
+                label="环境变量"
+                description="每行一个，格式: KEY=VALUE。包含 token 时默认不会在列表页展示。"
+                value={envText}
+                onChange={setEnvText}
+                placeholder="GITHUB_TOKEN=ghp_xxx&#10;DEBUG=true"
+                rows={3}
+              />
               <SettingsInput
                 label="启动超时（秒）"
                 description="MCP 服务器启动的最大等待时间，默认 30 秒"
@@ -344,21 +348,16 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
                 onChange={setUrl}
                 placeholder="例如: http://localhost:3000/mcp"
                 required
+                error={urlError}
               />
-              {/* 请求头多行输入 */}
-              <div className="px-4 py-3 space-y-2">
-                <div>
-                  <div className="text-sm font-medium text-foreground">请求头</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">每行一个，格式: Key: Value</div>
-                </div>
-                <textarea
-                  value={headersText}
-                  onChange={(e) => setHeadersText(e.target.value)}
-                  placeholder="Authorization: Bearer xxx&#10;X-Custom-Header: value"
-                  rows={3}
-                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y font-mono"
-                />
-              </div>
+              <SettingsTextarea
+                label="请求头"
+                description="每行一个，格式: Key: Value。Authorization 等敏感值仅保存在本地配置。"
+                value={headersText}
+                onChange={setHeadersText}
+                placeholder="Authorization: Bearer xxx&#10;X-Custom-Header: value"
+                rows={3}
+              />
             </>
           )}
 
@@ -389,8 +388,8 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onCancel }: McpS
                 className={cn(
                   'flex items-start gap-2 px-3 py-2 rounded-md text-sm',
                   testResult.success
-                    ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                    : 'bg-red-500/10 text-red-700 dark:text-red-400'
+                    ? 'bg-status-success-bg text-status-success-fg'
+                    : 'bg-status-danger-bg text-status-danger-fg'
                 )}
               >
                 {testResult.success ? (

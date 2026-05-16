@@ -54,6 +54,8 @@ export function ChannelSettings(): React.ReactElement {
   const [pipelineCodexChannelId, setPipelineCodexChannelId] = useAtom(pipelineCodexChannelIdAtom)
   const setGlobalChannels = useSetAtom(channelsAtom)
   const [deleteTarget, setDeleteTarget] = React.useState<Channel | null>(null)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
   const [encryptionAvailable, setEncryptionAvailable] = React.useState(true)
 
   React.useEffect(() => {
@@ -99,6 +101,7 @@ export function ChannelSettings(): React.ReactElement {
 
   /** 删除渠道（通过弹窗确认） */
   const handleDeleteRequest = (channel: Channel): void => {
+    setDeleteError(null)
     setDeleteTarget(channel)
   }
 
@@ -106,6 +109,8 @@ export function ChannelSettings(): React.ReactElement {
   const handleDeleteConfirm = async (): Promise<void> => {
     if (!deleteTarget) return
     const target = deleteTarget
+    setDeleting(true)
+    setDeleteError(null)
     try {
       await window.electronAPI.deleteChannel(target.id)
 
@@ -133,6 +138,9 @@ export function ChannelSettings(): React.ReactElement {
       setDeleteTarget(null)
     } catch (error) {
       console.error('[渠道设置] 删除渠道失败:', error)
+      setDeleteError(error instanceof Error ? error.message : '删除渠道失败，请稍后重试')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -347,12 +355,26 @@ export function ChannelSettings(): React.ReactElement {
           <AlertDialogHeader>
             <AlertDialogTitle>确定删除渠道？</AlertDialogTitle>
             <AlertDialogDescription>
-              确定删除渠道「{deleteTarget?.name}」？此操作不可恢复。
+              将删除「{deleteTarget?.name}」及其 API Key 配置。不会删除本地会话记录，但依赖该渠道的 Agent / Pipeline 默认选择会被清空。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="rounded-md border border-status-danger-border bg-status-danger-bg px-3 py-2 text-sm text-status-danger-fg">
+              {deleteError}
+            </div>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>确认删除</AlertDialogAction>
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeleteTarget(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteConfirm()
+              }}
+            >
+              {deleting ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -383,8 +405,8 @@ function ChannelRow({ channel, encryptionAvailable, onEdit, onDelete, onToggle }
   return (
     <SettingsRow
       label={
-        <div className="flex items-center gap-2">
-          <span>{channel.name}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{channel.name}</span>
           {!encryptionAvailable && (
             <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">
               未加密
@@ -396,18 +418,20 @@ function ChannelRow({ channel, encryptionAvailable, onEdit, onDelete, onToggle }
       description={description}
       className="group"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
         {/* 操作按钮 */}
         <button
           onClick={onEdit}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`编辑渠道 ${channel.name}`}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
           title="编辑"
         >
           <Pencil size={14} />
         </button>
         <button
           onClick={onDelete}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`删除渠道 ${channel.name}`}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
           title="删除"
         >
           <Trash2 size={14} />
@@ -417,6 +441,7 @@ function ChannelRow({ channel, encryptionAvailable, onEdit, onDelete, onToggle }
         <Switch
           checked={channel.enabled}
           onCheckedChange={onToggle}
+          aria-label={`${channel.enabled ? '禁用' : '启用'}渠道 ${channel.name}`}
         />
       </div>
     </SettingsRow>
@@ -449,6 +474,7 @@ function AgentProviderRow({ channel, enabled, onToggle }: AgentProviderRowProps)
       <Switch
         checked={enabled}
         onCheckedChange={onToggle}
+        aria-label={`${enabled ? '禁用' : '启用'} Agent 供应商 ${channel.name}`}
       />
     </SettingsRow>
   )
