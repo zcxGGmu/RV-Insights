@@ -706,6 +706,93 @@
     inset 0 0 0 1px hsl(var(--status-running) / 0.08);
 }
 
+.pipeline-stage-route-shell {
+  overflow: hidden;
+}
+
+.pipeline-stage-route-shell::after {
+  content: '';
+  position: absolute;
+  inset: auto 12px 12px 12px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, hsl(var(--status-running) / 0.32), transparent);
+  opacity: 0.55;
+}
+
+.pipeline-stage-route-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.pipeline-stage-route-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 16%, hsl(var(--status-running) / 0.14), transparent 28%),
+    linear-gradient(135deg, hsl(var(--surface-card) / 0.86), hsl(var(--surface-muted) / 0.28));
+  opacity: 0.7;
+  z-index: -2;
+}
+
+.pipeline-stage-route-card::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid hsl(var(--background) / 0.18);
+  opacity: 0.7;
+  z-index: -1;
+}
+
+.pipeline-stage-route-active::before {
+  background:
+    radial-gradient(circle at 18% 16%, hsl(var(--status-running) / 0.30), transparent 34%),
+    linear-gradient(135deg, hsl(var(--status-running) / 0.20), hsl(var(--surface-card) / 0.72));
+}
+
+.pipeline-stage-route-active::after {
+  background: linear-gradient(115deg, transparent 8%, hsl(var(--status-running) / 0.18) 38%, transparent 62%);
+  background-size: 220% 100%;
+  border-color: hsl(var(--status-running) / 0.22);
+  animation: pipeline-stage-route-scan 3.8s ease-in-out infinite;
+}
+
+.pipeline-stage-route-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.13) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.10) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 82%);
+  opacity: 0.34;
+  z-index: -1;
+}
+
+.pipeline-stage-route-line {
+  box-shadow: 0 0 14px currentColor;
+  opacity: 0.84;
+}
+
+.pipeline-stage-route-meter {
+  position: relative;
+  overflow: hidden;
+}
+
+.pipeline-stage-route-meter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, hsl(var(--background) / 0.48), transparent);
+  animation: pipeline-stage-route-meter 1.8s linear infinite;
+}
+
 .pipeline-energy-line {
   position: relative;
   overflow: hidden;
@@ -811,6 +898,30 @@
   }
 }
 
+@keyframes pipeline-stage-route-scan {
+  0%,
+  38% {
+    background-position: 160% 0;
+    opacity: 0.24;
+  }
+  50% {
+    opacity: 0.72;
+  }
+  100% {
+    background-position: -60% 0;
+    opacity: 0.24;
+  }
+}
+
+@keyframes pipeline-stage-route-meter {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
 @keyframes pipeline-record-breathe {
   0%,
   100% {
@@ -835,6 +946,8 @@
   .pipeline-scan-panel::after,
   .pipeline-energy-line::after,
   .pipeline-status-pulse::after,
+  .pipeline-stage-route-active::after,
+  .pipeline-stage-route-meter::after,
   .pipeline-record-highlight {
     animation: none !important;
   }

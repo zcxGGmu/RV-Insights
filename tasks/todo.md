@@ -1,5 +1,25 @@
 # Pipeline 完善分析任务
 
+## 2026-05-16 Pipeline Stage Rail Creative UI Refresh 计划
+
+- [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。
+- [x] 将 `PipelineStageRail` 从朴素卡片网格改为“贡献航线 / Mission Route”视觉，保留现有状态模型和阶段定位行为。
+- [x] 为每个阶段增加序号、节点图标、状态徽章、微型进度刻度、hover / focus 反馈，并强化当前运行阶段的 glow / scan / pulse。
+- [x] 增加 scoped `pipeline-stage-route-*` CSS utilities，并确保 reduced-motion 下循环动画降级。
+- [x] 递增 `@rv-insights/electron` patch 版本并同步 `bun.lock` workspace metadata。
+- [x] 运行 Pipeline 聚焦测试、typecheck 和 `git diff --check`。
+- [x] 在本节追加 Review，说明改动、验证和残余风险。
+
+## 2026-05-16 Pipeline Stage Rail Creative UI Refresh Review
+
+- 已完成红框区域改造：`PipelineStageRail` 现在使用 Mission Route / 贡献航线布局，阶段卡片包含节点图标、两位序号、状态 icon、状态徽章和微型进度刻度；当前阶段具备 glow、扫描高光和脉冲节点。
+- 状态来源保持不变：继续使用 `buildPipelineStageViewModels` 的 `done / active / waiting / failed / stopped / todo`，点击阶段定位记录的行为未改变。
+- 新增 CSS 均为 scoped `pipeline-stage-route-*` utility，动画使用 opacity / transform / background-position，并已加入 `prefers-reduced-motion: reduce` 降级。
+- `@rv-insights/electron` 版本 `0.0.65 -> 0.0.66`，`bun.lock` workspace metadata 已同步。
+- 验证通过：`bun test apps/electron/src/renderer/components/pipeline apps/electron/src/renderer/atoms/pipeline-atoms.test.ts` 84 pass；`bun run --filter='@rv-insights/electron' typecheck`；`bun run --filter='@rv-insights/electron' build:renderer`；`git diff --check`。
+- 未修改 README / AGENTS，不新增依赖，不新增 public API / IPC / shared type，不改 Pipeline 状态机、主进程服务或持久化格式。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。
+
 ## 2026-05-16 Pipeline Header 大标题移除计划
 
 - [x] 移除 PipelineHeader 中展示会话标题的大号 H1，保留顶部 RV Pipeline 与当前节点、状态摘要。
