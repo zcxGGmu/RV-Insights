@@ -34,6 +34,7 @@ export type PipelineStageVisualStatus =
   | 'active'
   | 'waiting'
   | 'failed'
+  | 'stopped'
   | 'todo'
 
 export interface PipelineStageViewModel {
@@ -41,6 +42,8 @@ export interface PipelineStageViewModel {
   label: string
   index: number
   status: PipelineStageVisualStatus
+  statusLabel: string
+  ariaLabel: string
 }
 
 export interface PipelineGateViewModel {
@@ -101,6 +104,15 @@ const STATUS_DISPLAY: Record<PipelineSessionStatus, PipelineStatusDisplay> = {
   completed: { label: '已完成', tone: 'success' },
   terminated: { label: '已停止', tone: 'neutral' },
   recovery_failed: { label: '恢复失败', tone: 'failed' },
+}
+
+const STAGE_STATUS_LABELS: Record<PipelineStageVisualStatus, string> = {
+  done: '已完成',
+  active: '运行中',
+  waiting: '待审核',
+  failed: '失败',
+  stopped: '已停止',
+  todo: '待处理',
 }
 
 function resolvePipelineVersion(version: PipelineVersion | undefined): PipelineVersion {
@@ -184,6 +196,8 @@ export function buildPipelineStageViewModels(
 
     if (state?.status === 'completed' && currentIndex >= index) {
       status = 'done'
+    } else if (state?.status === 'terminated') {
+      status = currentIndex === index ? 'stopped' : status
     } else if (state?.status === 'node_failed' || state?.status === 'recovery_failed') {
       status = currentIndex === index ? 'failed' : status
     } else if (state?.status === 'waiting_human') {
@@ -197,6 +211,8 @@ export function buildPipelineStageViewModels(
       label: getPipelineNodeLabel(node),
       index,
       status,
+      statusLabel: STAGE_STATUS_LABELS[status],
+      ariaLabel: `${getPipelineNodeLabel(node)}节点：${STAGE_STATUS_LABELS[status]}`,
     }
   })
 }

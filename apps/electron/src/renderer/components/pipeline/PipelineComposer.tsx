@@ -1,5 +1,7 @@
 import * as React from 'react'
 import type { PipelineSessionStatus } from '@rv-insights/shared'
+import { Play, Square } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 type PipelineComposerNoticeTone = 'neutral' | 'danger'
 
@@ -66,14 +68,14 @@ function PipelineComposerNoticeLine({
   notice: PipelineComposerNotice
 }): React.ReactElement {
   const toneClass = notice.tone === 'danger'
-    ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200'
-    : 'bg-muted text-muted-foreground'
+    ? 'border-status-danger-border bg-status-danger-bg text-status-danger-fg'
+    : 'border-status-neutral-border bg-status-neutral-bg text-status-neutral-fg'
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`mt-3 rounded-lg px-3 py-2 text-sm leading-5 ${toneClass}`}
+      className={`mt-3 rounded-card border px-3 py-2 text-sm leading-5 ${toneClass}`}
     >
       {notice.message}
     </div>
@@ -131,34 +133,45 @@ export function PipelineComposer({
 
   if (disabled) {
     return (
-      <div className="rounded-2xl border bg-card px-4 py-3 shadow-sm">
+      <section className="rounded-panel border border-border-subtle bg-surface-card px-4 py-3 shadow-card">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xs font-medium text-muted-foreground">当前任务</div>
-            <div className="mt-1 max-h-16 overflow-hidden text-sm leading-6 text-foreground">
+            <div className="text-xs font-semibold tracking-[0.16em] text-text-tertiary">当前任务</div>
+            <div className="mt-1 max-h-20 overflow-hidden break-words text-sm leading-6 text-text-primary [overflow-wrap:anywhere]">
               {viewModel.currentTaskLabel}
             </div>
             {viewModel.notice ? (
               <PipelineComposerNoticeLine notice={viewModel.notice} />
             ) : null}
           </div>
-          <button
+          <Button
+            type="button"
             disabled={viewModel.stopButtonDisabled}
             onClick={() => void handleStop()}
-            className="flex-shrink-0 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+            variant="outline"
+            className="flex-shrink-0"
           >
+            <Square size={15} />
             {viewModel.stopButtonLabel}
-          </button>
+          </Button>
         </div>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div className="rounded-2xl border bg-card px-4 py-4 shadow-sm">
-      <label htmlFor="pipeline-task-input" className="text-sm font-medium text-foreground">
-        Pipeline 任务
-      </label>
+    <section className="rounded-panel border border-border-subtle bg-surface-card px-4 py-4 shadow-card">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold tracking-[0.16em] text-text-tertiary">操作区</div>
+          <label htmlFor="pipeline-task-input" className="mt-1 block text-sm font-semibold text-text-primary">
+            Pipeline 任务
+          </label>
+        </div>
+        <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-text-secondary">
+          等待输入
+        </span>
+      </div>
       {viewModel.notice ? (
         <PipelineComposerNoticeLine notice={viewModel.notice} />
       ) : null}
@@ -167,17 +180,20 @@ export function PipelineComposer({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="输入要交给 RV Pipeline 的任务"
-        className="mt-2 min-h-28 w-full resize-y rounded-xl border bg-background px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary"
+        className="mt-3 min-h-32 w-full resize-y rounded-card border border-border-subtle bg-background px-3 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-primary focus:ring-2 focus:ring-focus"
       />
       <div className="mt-3 flex gap-2">
-        <button
+        <Button
+          type="button"
           disabled={disabled || submitting}
           onClick={() => void handleSubmit()}
-          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+          loading={submitting}
+          loadingLabel="正在启动 Pipeline"
         >
+          <Play size={15} />
           启动 Pipeline
-        </button>
+        </Button>
       </div>
-    </div>
+    </section>
   )
 }

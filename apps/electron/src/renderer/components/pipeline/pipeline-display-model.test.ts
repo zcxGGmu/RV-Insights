@@ -152,6 +152,23 @@ describe('pipeline display model', () => {
     ])
   })
 
+  test('StageRail 使用用户可读状态文案，不把 raw status 暴露给交互标签', () => {
+    const stages = buildPipelineStageViewModels(makeState({
+      currentNode: 'developer',
+      lastApprovedNode: 'planner',
+      status: 'terminated',
+    }))
+
+    expect(stages.map((stage) => [stage.node, stage.statusLabel])).toEqual([
+      ['explorer', '已完成'],
+      ['planner', '已完成'],
+      ['developer', '已停止'],
+      ['reviewer', '待处理'],
+      ['tester', '待处理'],
+    ])
+    expect(stages[2]?.ariaLabel).toBe('开发节点：已停止')
+  })
+
   test('Gate view model 按节点给出清晰的动作语义', () => {
     expect(buildPipelineGateViewModel({
       gateId: 'gate-1',

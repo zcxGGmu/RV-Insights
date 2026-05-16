@@ -4,11 +4,11 @@ import { cn } from '@/lib/utils'
 import { buildPipelineHeaderViewModel, type PipelineDisplayTone } from './pipeline-display-model'
 
 const STATUS_TONE_CLASS: Record<PipelineDisplayTone, string> = {
-  neutral: 'bg-muted text-muted-foreground',
-  running: 'bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
-  waiting: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
-  failed: 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
-  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+  neutral: 'border-status-neutral-border bg-status-neutral-bg text-status-neutral-fg',
+  running: 'border-status-running-border bg-status-running-bg text-status-running-fg',
+  waiting: 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg',
+  failed: 'border-status-danger-border bg-status-danger-bg text-status-danger-fg',
+  success: 'border-status-success-border bg-status-success-bg text-status-success-fg',
 }
 
 export function PipelineHeader({
@@ -21,37 +21,46 @@ export function PipelineHeader({
   const viewModel = buildPipelineHeaderViewModel({ session, state })
 
   return (
-    <div className="flex items-start justify-between gap-4 rounded-2xl border bg-card px-5 py-4 text-card-foreground shadow-sm">
-      <div className="min-w-0">
-        <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          {viewModel.eyebrow}
+    <section className="overflow-hidden rounded-panel border border-border-subtle bg-surface-card text-text-primary shadow-card">
+      <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
+              {viewModel.eyebrow}
+            </span>
+            <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-text-secondary">
+              当前节点：{viewModel.nodeLabel}
+            </span>
+          </div>
+          <h1 className="mt-2 break-words text-2xl font-semibold tracking-normal text-text-primary [overflow-wrap:anywhere]">
+            {viewModel.title}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+            <span>{viewModel.summary}</span>
+            {viewModel.metaItems.map((item) => (
+              <span
+                key={item}
+                className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-text-secondary"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
-        <h1 className="mt-1 truncate text-2xl font-semibold tracking-normal text-foreground">
-          {viewModel.title}
-        </h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>{viewModel.summary}</span>
-          {viewModel.metaItems.map((item) => (
-            <React.Fragment key={item}>
-              <span className="text-muted-foreground/40">/</span>
-              <span>{item}</span>
-            </React.Fragment>
-          ))}
+        <div className="flex shrink-0 flex-col gap-2 lg:items-end">
+          <div
+            className={cn(
+              'inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-semibold',
+              STATUS_TONE_CLASS[viewModel.statusTone],
+            )}
+          >
+            {viewModel.statusLabel}
+          </div>
+          <div className="text-xs leading-5 text-text-tertiary">
+            进度和人工审核状态会同步到下方阶段轨。
+          </div>
         </div>
       </div>
-      <div className="flex flex-shrink-0 flex-col items-end gap-2">
-        <div
-          className={cn(
-            'rounded-full px-3 py-1.5 text-sm font-medium',
-            STATUS_TONE_CLASS[viewModel.statusTone],
-          )}
-        >
-          {viewModel.statusLabel}
-        </div>
-        <div className="text-xs text-muted-foreground">
-          当前节点：{viewModel.nodeLabel}
-        </div>
-      </div>
-    </div>
+    </section>
   )
 }

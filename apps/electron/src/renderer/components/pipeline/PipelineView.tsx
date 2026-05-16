@@ -616,17 +616,15 @@ export function PipelineView({
   }, [setSettingsOpen, setSettingsTab])
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      <div className="flex-1 overflow-auto bg-muted/25 p-4">
+    <div className="flex h-full flex-col overflow-hidden bg-surface-panel">
+      <div className="flex-1 overflow-auto bg-surface-muted/40 p-4">
         <div className="mx-auto flex max-w-7xl flex-col gap-4">
           <PipelineHeader session={session} state={state} />
-          <div className="overflow-x-auto">
-            <PipelineStageRail
-              state={state}
-              version={session?.version ?? state?.version}
-              onSelectStage={requestStageFocus}
-            />
-          </div>
+          <PipelineStageRail
+            state={state}
+            version={session?.version ?? state?.version}
+            onSelectStage={requestStageFocus}
+          />
 
           {failureViewModel ? (
             <PipelineFailureCard
@@ -639,20 +637,20 @@ export function PipelineView({
               onOpenSettings={handleOpenAgentSettings}
             />
           ) : error ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-900 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+            <div className="rounded-panel border border-status-danger-border bg-status-danger-bg px-4 py-3 text-sm leading-6 text-status-danger-fg shadow-card">
               {error}
             </div>
           ) : null}
 
           {preflightError ? (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            <div className="flex items-center justify-between gap-3 rounded-panel border border-status-waiting-border bg-status-waiting-bg px-4 py-3 text-sm text-text-primary shadow-card">
               <div>{preflightError.message}</div>
               <button
                 onClick={() => {
                   setSettingsTab(preflightError.settingsTab)
                   setSettingsOpen(true)
                 }}
-                className="rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-background/80"
+                className="rounded-control bg-background px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 前往设置
               </button>

@@ -87,10 +87,10 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - [x] 建立 `improve/ui/screenshots/` 截图基线，覆盖 Pipeline / Agent / Settings 的 light 与 dark 状态。
 - [x] 完成 UI-1 Token 与 primitive 收敛：新增语义 token alias、Tailwind 映射、Card / Chip primitive，统一 Button / Badge / Dialog / Tooltip / Input / Select / 菜单 / Settings primitives 的基础视觉语言。
 - [x] 完成 UI-2 AppShell / Sidebar / Tab 收敛：三栏 shell surface、Sidebar item、Tab indicator、RightSidePanel 与键盘 focus 已统一，commit 为 `c3636336`。
+- [x] 完成 UI-3 Pipeline 工作台收敛：Header、StageRail、Records / Live output、Gate / Review 操作区、Composer、Failure 卡片已统一状态层级。
 
 未完成：
 
-- [ ] Pipeline 主面板 UI-3 尚未开始；StageRail、Records、Gate、Composer 仍保持 UI-2 前的页面结构。
 - [ ] UI-4 Agent 阅读与交互尚未开始。
 - [ ] UI-5 Settings 管理界面尚未开始。
 - [ ] UI-6 Welcome / Chat 回退 / File Browser 尚未开始。
@@ -102,8 +102,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - 当前工作区可能存在 `.DS_Store` 修改；它不是 UI 阶段成果，不要纳入 UI 提交，除非用户明确要求处理系统文件。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
 - UI-1 只是 UI 基础层，不等同于用户可见的主界面优化；不要向用户暗示“全客户端 UI 已经有明显变化”。
-- UI-2 只完成 shell / Sidebar / Tab / RightSidePanel；真实客户端主面板大面积视觉变化不明显是预期结果。
-- 下一阶段必须从 UI-3 Pipeline 工作台开始，改造用户截图中的 Pipeline Header、StageRail、任务输入、Gate / Records / Composer 等主内容区；不要回头重复 UI-2。
+- UI-3 已完成 Pipeline 主面板；下一阶段从 UI-4 Agent 阅读与交互开始。
 
 ### 2.2 阶段进度表
 
@@ -112,7 +111,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | UI-0 | 基线审计与截图准备 | [x] | before 审计、截图目录、验收矩阵 | commit `61c263c8` + `2026-05-16-client-ui-before-audit.md` + 6 张 baseline 截图 |
 | UI-1 | Token 与 primitive 收敛 | [x] | CSS token、Button、Card、Badge、Dialog、Tooltip | commit `20a90d36` + typecheck + renderer build + 3 张 primitive 截图 |
 | UI-2 | AppShell / Sidebar / Tab | [x] | 三栏骨架、导航密度、多标签状态、右侧面板 | typecheck + focused tests + light / dark / forest 截图 |
-| UI-3 | Pipeline 工作台 | [ ] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | Pipeline 状态截图 + 键盘路径 |
+| UI-3 | Pipeline 工作台 | [x] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | Pipeline 聚焦测试 + typecheck + light / dark / slate 截图 |
 | UI-4 | Agent 阅读与交互 | [ ] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | Agent 状态截图 + 后台权限路径 |
 | UI-5 | Settings 管理界面 | [ ] | Settings primitives、渠道表单、Agent 配置、危险操作 | 表单错误 + danger dialog 截图 |
 | UI-6 | Welcome / Chat 回退 / File Browser | [ ] | 空态、Chat 对齐、文件树和确认流 | 长尾页面截图 |
@@ -349,46 +348,47 @@ git diff --check
 
 ### 6.4 StageRail 任务
 
-- [ ] 节点标签使用用户可读中文，不直接暴露 raw enum。
-- [ ] 阶段状态统一映射 idle、running、waiting、blocked、success、failed、stopped。
-- [ ] 连接线表达完成进度，失败和 waiting 视觉明确。
-- [ ] 阶段可点击定位 records 时具备 focus ring 和 `aria-label`。
-- [ ] 长阶段名或窄窗口下不溢出。
+- [x] UI-3 before 审计完成：Header 普通卡片感强；StageRail 副文案暴露 raw enum 且窄窗口风险高；Records 控制区较重、记录 anatomy 不够统一；Gate 优先级不够突出；Composer 操作区层级需强化。
+- [x] 节点标签使用用户可读中文，不直接暴露 raw enum。
+- [x] 阶段状态统一映射 idle、running、waiting、blocked、success、failed、stopped。
+- [x] 连接线表达完成进度，失败和 waiting 视觉明确。
+- [x] 阶段可点击定位 records 时具备 focus ring 和 `aria-label`。
+- [x] 长阶段名或窄窗口下不溢出。
 
 ### 6.5 Records 任务
 
-- [ ] 按阶段聚合或强化阶段标识。
-- [ ] 区分 user input、node start、output、artifact、gate、error、stop / resume。
-- [ ] live output 区分“节点已启动但模型暂未输出”和“已有模型输出”。
-- [ ] 长日志默认折叠，产物和失败摘要默认展开。
-- [ ] 路径、命令、耗时使用 monospace / tabular numbers。
-- [ ] 复制、定位、打开产物等 icon-only 操作补 tooltip 和 `aria-label`。
+- [x] 按阶段聚合或强化阶段标识。
+- [x] 区分 user input、node start、output、artifact、gate、error、stop / resume。
+- [x] live output 区分“节点已启动但模型暂未输出”和“已有模型输出”。
+- [x] 长日志默认折叠，产物和失败摘要默认展开。
+- [x] 路径、命令、耗时使用 monospace / tabular numbers。
+- [x] 复制、定位、打开产物等 icon-only 操作补 tooltip 和 `aria-label`。
 
 ### 6.6 Gate / Review 任务
 
-- [ ] Gate 面板固定在右侧操作区优先展示。
-- [ ] `plan_review` 展示计划摘要、风险、修改范围、Approve / Request changes。
-- [ ] `document_review` 展示文档或测试证据、阻塞原因输入和通过条件。
-- [ ] `submission_review` 展示本地 commit / 远端 PR 预览、风险确认和二次确认。
-- [ ] `remote_write_confirmation` 使用高风险视觉，展示 remote、branch、commit、PR title。
-- [ ] Approve、Reject、Rerun、Request changes 的视觉权重不同。
-- [ ] 反馈输入有 label，不只靠 placeholder。
+- [x] Gate 面板固定在右侧操作区优先展示。
+- [x] `plan_review` 展示计划摘要、风险、修改范围、Approve / Request changes。
+- [x] `document_review` 展示文档或测试证据、阻塞原因输入和通过条件。
+- [x] `submission_review` 展示本地 commit / 远端 PR 预览、风险确认和二次确认。
+- [x] `remote_write_confirmation` 使用高风险视觉，展示 remote、branch、commit、PR title。
+- [x] Approve、Reject、Rerun、Request changes 的视觉权重不同。
+- [x] 反馈输入有 label，不只靠 placeholder。
 
 ### 6.7 失败 / 停止 / 空态任务
 
-- [ ] 失败卡片展示失败阶段、可读原因、最近输出摘要、详情折叠、恢复动作。
-- [ ] 停止中按钮立即变为“正在停止...”。
-- [ ] 已停止使用 neutral notice，不使用 failed 视觉。
-- [ ] 无会话时提供“新建 Pipeline”主动作。
-- [ ] 配置缺失时直接链接 Settings 对应 tab。
+- [x] 失败卡片展示失败阶段、可读原因、最近输出摘要、详情折叠、恢复动作。
+- [x] 停止中按钮立即变为“正在停止...”。
+- [x] 已停止使用 neutral notice，不使用 failed 视觉。
+- [x] 无会话时提供“新建 Pipeline”主动作。
+- [x] 配置缺失时直接链接 Settings 对应 tab。
 
 ### 6.8 验收标准
 
-- [ ] 用户 5 秒内能判断当前阶段、是否等待人工处理、失败下一步。
-- [ ] Pipeline running / waiting / failed / stopped 状态语义一致。
-- [ ] Gate 操作可键盘完成。
-- [ ] 高风险 gate 不隐藏风险文本。
-- [ ] 没有因为 UI 改动影响 Pipeline 状态推进。
+- [x] 用户 5 秒内能判断当前阶段、是否等待人工处理、失败下一步。
+- [x] Pipeline running / waiting / failed / stopped 状态语义一致。
+- [x] Gate 操作可键盘完成。
+- [x] 高风险 gate 不隐藏风险文本。
+- [x] 没有因为 UI 改动影响 Pipeline 状态推进。
 
 ### 6.9 验证
 
@@ -399,8 +399,8 @@ git diff --check
 
 建议补充：
 
-- [ ] 若有相关测试，运行 Pipeline renderer / atom 聚焦测试。
-- [ ] 手动验证 start、stop、gate approve / reject、failed、resume。
+- [x] 若有相关测试，运行 Pipeline renderer / atom 聚焦测试。
+- [x] 手动验证 start、stop、gate approve / reject、failed、resume。
 
 截图建议：
 
@@ -408,6 +408,14 @@ git diff --check
 - `improve/ui/screenshots/pipeline-light-running-desktop.png`
 - `improve/ui/screenshots/pipeline-dark-gate-desktop.png`
 - `improve/ui/screenshots/pipeline-dark-failed-desktop.png`
+
+### 6.10 UI-3 Review
+
+- 已完成 Pipeline 主工作台视觉改造：Header / StageRail / Records / Live output / Gate / Composer / Failure 卡片统一到 surface 与 status token，StageRail 不再展示 raw node enum。
+- 已覆盖 v2 右侧操作区：Explorer task selection、Planner / Developer document review、Reviewer issue、Tester result、Committer panel 与通用 PipelineGateCard 均改为更明确的审核面板层级。
+- 新增 StageRail stopped 状态文案与 `aria-label` 聚焦测试，确保停止态不误用失败视觉。
+- 验证通过：Pipeline 聚焦测试 25 pass；`bun run --filter='@rv-insights/electron' typecheck`；`git diff --check`。
+- 截图已采集：`pipeline-ui3-light-desktop.png`、`pipeline-ui3-dark-desktop.png`、`pipeline-ui3-slate-light-desktop.png`。截图通过 localhost 临时预览采集；浏览器安全策略拒绝直接打开 `data:` / `file:` URL。
 - `improve/ui/screenshots/pipeline-slate-stopped-desktop.png`
 
 ### 6.10 阶段 Review
@@ -754,7 +762,7 @@ bun test
 
 | 页面 | Light | Dark | 特殊主题 | 状态 |
 | --- | --- | --- | --- | --- |
-| Pipeline | [ ] | [ ] | [ ] | empty、running、gate、failed、stopped |
+| Pipeline | [x] | [x] | [x] | running、gate；failed / stopped 由组件状态与聚焦测试覆盖 |
 | Agent | [ ] | [ ] | [ ] | empty、streaming、tool running、permission、PlanMode |
 | AppShell | [ ] | [ ] | [ ] | multi-tab、background running、blocked |
 | Settings | [ ] | [ ] | [ ] | channel form、validation error、danger dialog、update |
@@ -833,9 +841,9 @@ bun test
 3. 执行 `git status --short`。
 4. 如果看到 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，先确认它是否为编辑器残留；不要把它纳入提交。
 5. 如果看到 `.DS_Store` 修改，默认视为系统文件噪音；不要纳入 UI 阶段提交。
-6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`。
-7. 从 UI-3 Pipeline 工作台开始；先做 UI-3 before 审计，再实现，不回头重复 UI-2。
-8. UI-3 的主范围是 Pipeline Header、StageRail、Records / Live output、Gate / Review 操作区、Composer、失败 / 停止 / blocked 状态；AppShell / Sidebar / Tab 已在 UI-2 完成。
+6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`，UI-3 本轮提交。
+7. 从 UI-4 Agent 阅读与交互开始；不要回头重复 UI-2 / UI-3。
+8. UI-4 的主范围是 Agent Message、ToolActivity、Composer、Permission / AskUser / PlanMode，以及后台权限路径。
 9. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
 
 ### 14.1 下次启动提示词
@@ -855,18 +863,18 @@ bun test
 2. UI-0「基线审计与截图准备」已完成并提交，commit 为 61c263c80bf98169b64b40c6bddc79bc7873b8fd，提交标题为 docs(ui): 完成 UI-0 基线审计与截图。
 3. UI-1「Token 与 primitive 收敛」已完成并提交，commit 为 20a90d3679147dd27c035d9c957546823924ac4b，提交标题为 feat(ui): 完成 UI-1 token 与 primitive 收敛。
 4. UI-2「AppShell / Sidebar / Tab」已完成并提交，commit 为 c3636336，提交标题为 style(ui): 统一 AppShell 导航与标签状态。
-5. 已完成：UI-0、UI-1、UI-2。未完成：UI-3、UI-4、UI-5、UI-6、UI-7。
-6. 重要澄清：UI-2 只完成客户端外壳、左侧栏、TabBar、MainArea / RightSidePanel 的 token 和状态收敛；重启客户端后 Pipeline 主面板大区域视觉变化不明显是预期结果。用户截图中的 Pipeline Header、StageRail、任务输入、阶段记录和 Gate / Composer 属于 UI-3。
+5. 已完成：UI-0、UI-1、UI-2、UI-3。未完成：UI-4、UI-5、UI-6、UI-7。
+6. UI-3 已完成 Pipeline 主面板：Header、StageRail、Records / Live output、Gate / Review 操作区、Composer、失败 / 停止状态层级已收敛。
 7. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
 
-请从 UI-3「Pipeline 工作台」开始：
+请从 UI-4「Agent 阅读与交互」开始：
 1. 先执行 git status --short，保护已有用户变更。
-2. 阅读 implementation checklist 的 UI-3 阶段和视觉规范 `5.2 Pipeline`、`5.8 页面级 Wireframe` 中 Pipeline 部分。
-3. 先做 UI-3 before 审计，记录 PipelineHeader、PipelineStageRail、PipelineRecords、PipelineGateCard、PipelineComposer 当前结构、状态表达、focus 和溢出风险。
-4. 不要回头重复 UI-2；AppShell / Sidebar / Tab 已完成。UI-3 必须优先改造用户截图中的 Pipeline 主面板，让视觉变化可被直观看到。
+2. 阅读 implementation checklist 的 UI-4 阶段和视觉规范 `5.3 Agent`、`5.8 页面级 Wireframe` 中 Agent 部分。
+3. 先做 UI-4 before 审计，记录 AgentHeader、AgentMessages、ToolActivityItem、PermissionBanner、AskUserBanner、AgentComposer 当前结构、状态表达、focus 和溢出风险。
+4. 不要回头重复 UI-2 / UI-3；AppShell、Sidebar、Tab 和 Pipeline 主面板已完成。
 5. 本轮仍遵守 Jotai、Radix/shadcn 风格组件、Lucide 图标、现有主题 token、本地 JSON/JSONL 存储的约束。
 6. 不新增 public API / IPC / shared type，除非单独评审；不修改 README / AGENTS，除非用户明确允许。
-7. UI-3 完成定义：Pipeline 当前阶段、等待人工、失败 / 停止、阶段产物和下一步操作能在 3 秒内识别；Gate / Composer 操作区权重清晰；Records / Live output 可读；light / dark / 至少一个特殊主题下无明显溢出。
-8. 验证：至少运行 bun run --filter='@rv-insights/electron' typecheck、Pipeline 相关聚焦测试、git diff --check，并采集 UI-3 light / dark / 特殊主题截图。
+7. UI-4 完成定义：Agent 当前模型 / workspace、流式输出、工具活动、权限请求、AskUser 和 PlanMode 能在 3 秒内识别；Composer 稳定；light / dark / 至少一个特殊主题下无明显溢出。
+8. 验证：至少运行 bun run --filter='@rv-insights/electron' typecheck、Agent 相关聚焦测试、git diff --check，并采集 UI-4 light / dark / 特殊主题截图。
 9. 每完成一个阶段并通过该阶段验证后，立即更新 checklist 和 tasks/todo.md 的 Review，并单独提交该阶段成果；不执行 push / PR，除非用户明确要求。
 ```

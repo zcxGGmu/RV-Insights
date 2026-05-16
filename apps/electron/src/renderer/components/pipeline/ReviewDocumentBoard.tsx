@@ -197,44 +197,44 @@ export function ReviewDocumentBoard({
   }
 
   return (
-    <section className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-4 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+    <section className="rounded-panel border border-status-running-border bg-status-running-bg px-4 py-4 text-text-primary shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-medium text-sky-700 dark:text-sky-200">{viewModel.subtitle}</div>
-          <h2 className="mt-1 text-base font-semibold">{viewModel.title}</h2>
+          <div className="text-xs font-semibold tracking-[0.16em] text-status-running-fg">{viewModel.subtitle}</div>
+          <h2 className="mt-1 text-base font-semibold text-text-primary">{viewModel.title}</h2>
         </div>
-        <div className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-200">
+        <div className="rounded-full border border-status-running-border bg-background/80 px-3 py-1 text-xs font-semibold text-status-running-fg">
           {viewModel.countLabel}
         </div>
       </div>
 
       {viewModel.warning ? (
-        <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="mt-3 rounded-card border border-status-waiting-border bg-status-waiting-bg px-3 py-2 text-xs text-status-waiting-fg">
           {viewModel.warning}
         </div>
       ) : null}
 
       {viewModel.empty ? (
-        <div className="mt-4 rounded-xl bg-background/80 px-3 py-3 text-sm text-muted-foreground">
+        <div className="mt-4 rounded-card bg-background/80 px-3 py-3 text-sm text-text-secondary">
           Planner 尚未生成可审核文档。
         </div>
       ) : (
         <div className="mt-4 space-y-3">
           {viewModel.documents.map((document) => (
-            <article key={document.relativePath} className="rounded-xl bg-background px-3 py-3 text-foreground shadow-sm">
+            <article key={document.relativePath} className="rounded-card bg-background px-3 py-3 text-text-primary shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{document.displayName}</div>
-                  <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+                  <div className="mt-1 truncate font-mono text-[11px] text-text-tertiary">
                     {document.relativePath}
                   </div>
                 </div>
-                <div className="flex flex-shrink-0 flex-col items-end gap-1 text-[11px] text-muted-foreground">
+                <div className="flex flex-shrink-0 flex-col items-end gap-1 text-[11px] text-text-tertiary">
                   <span>{document.revisionLabel}</span>
                   <span>{document.checksumLabel}</span>
                 </div>
               </div>
-              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/70 px-3 py-3 text-xs leading-5 text-foreground">
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-card bg-surface-muted/70 px-3 py-3 text-xs leading-5 text-text-primary">
                 {document.loading
                   ? '正在读取文档...'
                   : document.error
@@ -246,7 +246,7 @@ export function ReviewDocumentBoard({
         </div>
       )}
 
-      <label className="mt-4 block text-xs font-medium text-sky-700 dark:text-sky-200" htmlFor="pipeline-document-review-feedback">
+      <label className="mt-4 block text-xs font-semibold text-status-running-fg" htmlFor="pipeline-document-review-feedback">
         修订反馈
       </label>
       <textarea
@@ -258,7 +258,7 @@ export function ReviewDocumentBoard({
           if (error) setError(null)
         }}
         placeholder={viewModel.feedbackPlaceholder}
-        className="mt-2 min-h-24 w-full rounded-xl border border-sky-200 bg-background px-3 py-3 text-sm text-foreground outline-none transition-colors focus:border-primary dark:border-sky-500/30"
+        className="mt-2 min-h-24 w-full rounded-card border border-status-running-border bg-background px-3 py-3 text-sm text-text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-focus"
       />
       {feedbackError ? (
         <div className="mt-2 text-xs text-rose-600 dark:text-rose-300">{feedbackError}</div>
@@ -272,7 +272,7 @@ export function ReviewDocumentBoard({
           type="button"
           disabled={viewModel.approveDisabled}
           onClick={() => void runAction(onApprove)}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-control bg-status-success px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-status-success/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.approveLabel}
         </button>
@@ -280,7 +280,7 @@ export function ReviewDocumentBoard({
           type="button"
           disabled={submitting}
           onClick={() => void handleReject()}
-          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+          className="rounded-control bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.rejectLabel}
         </button>
@@ -288,7 +288,7 @@ export function ReviewDocumentBoard({
           type="button"
           disabled={submitting}
           onClick={() => void runAction(onRerun)}
-          className="rounded-lg border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted/60 disabled:opacity-50"
+          className="rounded-control border border-border-subtle bg-background px-4 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-surface-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.rerunLabel}
         </button>

@@ -271,9 +271,9 @@ export function buildCommitterPanelViewModel({
 }
 
 function toneClass(tone: CommitterPanelViewModel['statusTone']): string {
-  if (tone === 'success') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200'
-  if (tone === 'warning') return 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'
-  return 'bg-muted text-muted-foreground'
+  if (tone === 'success') return 'border-status-success-border bg-status-success-bg text-status-success-fg'
+  if (tone === 'warning') return 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg'
+  return 'border-status-neutral-border bg-status-neutral-bg text-status-neutral-fg'
 }
 
 export function CommitterPanel({
@@ -338,19 +338,19 @@ export function CommitterPanel({
   }
 
   return (
-    <section className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-4 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+    <section className="rounded-panel border border-status-running-border bg-status-running-bg px-4 py-4 text-text-primary shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-medium text-sky-700 dark:text-sky-200">{viewModel.subtitle}</div>
-          <h2 className="mt-1 text-base font-semibold">{viewModel.title}</h2>
+          <div className="text-xs font-semibold tracking-[0.16em] text-status-running-fg">{viewModel.subtitle}</div>
+          <h2 className="mt-1 text-base font-semibold text-text-primary">{viewModel.title}</h2>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${toneClass(viewModel.statusTone)}`}>
+        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${toneClass(viewModel.statusTone)}`}>
           {viewModel.statusLabel}
         </span>
       </div>
 
-      <p className="mt-3 text-sm leading-6">{viewModel.summary}</p>
-      <div className="mt-3 space-y-2 rounded-lg bg-background/80 px-3 py-2 text-xs text-muted-foreground">
+      <p className="mt-3 text-sm leading-6 text-text-primary">{viewModel.summary}</p>
+      <div className="mt-3 space-y-2 rounded-card bg-background/80 px-3 py-2 text-xs text-text-secondary">
         <div>Commit：{viewModel.commitMessage || '待生成'}</div>
         <div>PR：{viewModel.prTitle || '待生成'}</div>
         <div>分支：{viewModel.branchSummary}</div>
@@ -361,13 +361,13 @@ export function CommitterPanel({
       </div>
 
       {viewModel.warning ? (
-        <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="mt-3 rounded-card border border-status-waiting-border bg-status-waiting-bg px-3 py-2 text-xs text-status-waiting-fg">
           {viewModel.warning}
         </div>
       ) : null}
 
       {viewModel.blockers.length > 0 ? (
-        <div className="mt-3 rounded-lg bg-background/80 px-3 py-2 text-xs">
+        <div className="mt-3 rounded-card bg-background/80 px-3 py-2 text-xs text-text-primary">
           <div className="font-medium">阻塞项</div>
           <ul className="mt-2 space-y-1">
             {viewModel.blockers.map((blocker) => (
@@ -378,7 +378,7 @@ export function CommitterPanel({
       ) : null}
 
       {viewModel.risks.length > 0 ? (
-        <div className="mt-3 rounded-lg bg-background/80 px-3 py-2 text-xs">
+        <div className="mt-3 rounded-card bg-background/80 px-3 py-2 text-xs text-text-primary">
           <div className="font-medium">风险提示</div>
           <ul className="mt-2 space-y-1">
             {viewModel.risks.map((risk) => (
@@ -389,7 +389,7 @@ export function CommitterPanel({
       ) : null}
 
       {viewModel.evidenceItems.length > 0 ? (
-        <div className="mt-3 rounded-lg bg-background/80 px-3 py-2 text-xs">
+        <div className="mt-3 rounded-card bg-background/80 px-3 py-2 text-xs text-text-primary">
           <div className="font-medium">测试证据</div>
           <ul className="mt-2 space-y-1">
             {viewModel.evidenceItems.map((item) => (
@@ -405,10 +405,10 @@ export function CommitterPanel({
         </div>
       ) : null}
 
-      <div className="mt-3 grid gap-3 rounded-lg bg-background/80 px-3 py-2 text-xs">
+      <div className="mt-3 grid gap-3 rounded-card bg-background/80 px-3 py-2 text-xs text-text-primary">
         <div>
           <div className="font-medium">本地 commit 候选文件</div>
-          <ul className="mt-2 space-y-1 text-muted-foreground">
+          <ul className="mt-2 space-y-1 text-text-secondary">
             {viewModel.commitCandidateItems.length > 0
               ? viewModel.commitCandidateItems.map((item) => <li key={item}>- {item}</li>)
               : <li>- 无候选文件</li>}
@@ -416,7 +416,7 @@ export function CommitterPanel({
         </div>
         <div>
           <div className="font-medium">默认排除</div>
-          <ul className="mt-2 space-y-1 text-muted-foreground">
+          <ul className="mt-2 space-y-1 text-text-secondary">
             {viewModel.excludedItems.map((item) => <li key={item}>- {item}</li>)}
           </ul>
         </div>
@@ -424,20 +424,20 @@ export function CommitterPanel({
 
       <div className="mt-4 space-y-3">
         {viewModel.documents.map((document) => (
-          <article key={document.relativePath} className="rounded-xl bg-background px-3 py-3 text-foreground shadow-sm">
+          <article key={document.relativePath} className="rounded-card bg-background px-3 py-3 text-text-primary shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium">{document.displayName}</div>
-                <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+                <div className="mt-1 truncate font-mono text-[11px] text-text-tertiary">
                   {document.relativePath}
                 </div>
               </div>
-              <div className="flex flex-shrink-0 flex-col items-end gap-1 text-[11px] text-muted-foreground">
+              <div className="flex flex-shrink-0 flex-col items-end gap-1 text-[11px] text-text-tertiary">
                 <span>{document.revisionLabel}</span>
                 <span>{document.checksumLabel}</span>
               </div>
             </div>
-            <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/70 px-3 py-3 text-xs leading-5 text-foreground">
+            <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-card bg-surface-muted/70 px-3 py-3 text-xs leading-5 text-text-primary">
               {document.loading
                 ? '正在读取提交材料...'
                 : document.error
@@ -448,7 +448,7 @@ export function CommitterPanel({
         ))}
       </div>
 
-      <label className="mt-4 block text-xs font-medium text-sky-700 dark:text-sky-200" htmlFor="pipeline-committer-feedback">
+      <label className="mt-4 block text-xs font-semibold text-status-running-fg" htmlFor="pipeline-committer-feedback">
         修订反馈
       </label>
       <textarea
@@ -460,7 +460,7 @@ export function CommitterPanel({
         }}
         placeholder={viewModel.feedbackPlaceholder}
         rows={3}
-        className="mt-2 w-full resize-none rounded-xl border-0 bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none ring-1 ring-border transition focus:ring-2 focus:ring-sky-500"
+        className="mt-2 w-full resize-none rounded-card border border-border-subtle bg-background px-3 py-2 text-sm text-text-primary shadow-sm outline-none transition focus:ring-2 focus:ring-focus"
       />
       {feedbackError ? <div className="mt-2 text-xs text-rose-600 dark:text-rose-300">{feedbackError}</div> : null}
       {error ? <div className="mt-2 text-xs text-rose-600 dark:text-rose-300">{error}</div> : null}
@@ -470,7 +470,7 @@ export function CommitterPanel({
           type="button"
           disabled={viewModel.approveDisabled}
           onClick={() => runAction(onApprove)}
-          className="rounded-xl bg-sky-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-control bg-status-running px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-status-running/90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.approveLabel}
         </button>
@@ -478,11 +478,11 @@ export function CommitterPanel({
           type="button"
           disabled={viewModel.localCommitDisabled}
           onClick={() => runAction(onLocalCommit)}
-          className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-control bg-status-success px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-status-success/90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.localCommitLabel}
         </button>
-        <label className="flex items-start gap-2 rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
+        <label className="flex items-start gap-2 rounded-card bg-background px-3 py-2 text-xs text-text-secondary shadow-sm">
           <input
             type="checkbox"
             checked={remoteConfirmed}
@@ -492,7 +492,7 @@ export function CommitterPanel({
           <span>{viewModel.remoteConfirmLabel}</span>
         </label>
         {viewModel.remoteSubmitWarning ? (
-          <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          <div className="rounded-card border border-status-waiting-border bg-status-waiting-bg px-3 py-2 text-xs text-status-waiting-fg">
             {viewModel.remoteSubmitWarning}
           </div>
         ) : null}
@@ -500,7 +500,7 @@ export function CommitterPanel({
           type="button"
           disabled={viewModel.remoteSubmitDisabled}
           onClick={() => runAction(onRemoteSubmit)}
-          className="rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-control bg-status-danger px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-status-danger/90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.remoteSubmitLabel}
         </button>
@@ -508,7 +508,7 @@ export function CommitterPanel({
           type="button"
           disabled={submitting}
           onClick={handleReject}
-          className="rounded-xl bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-control bg-background px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.rejectLabel}
         </button>
@@ -516,7 +516,7 @@ export function CommitterPanel({
           type="button"
           disabled={submitting}
           onClick={() => runAction(onRerun)}
-          className="rounded-xl bg-background px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-control bg-background px-3 py-2 text-sm font-medium text-text-secondary shadow-sm transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.rerunLabel}
         </button>

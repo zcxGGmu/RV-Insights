@@ -70,25 +70,25 @@ export function PipelineFailureCard({
   }, [onOpenArtifactsDir])
 
   return (
-    <section className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-950 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+    <section className="rounded-panel border border-status-danger-border bg-status-danger-bg px-4 py-3 text-text-primary shadow-card">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-semibold">
+          <div className="flex items-center gap-2 text-sm font-semibold text-status-danger-fg">
             <AlertTriangle size={16} />
             {viewModel.title}
           </div>
-          <div className="mt-2 text-xs font-medium text-rose-700 dark:text-rose-200">
+          <div className="mt-2 text-xs font-semibold text-status-danger-fg">
             {viewModel.detailLabel}
           </div>
-          <div className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap rounded-xl bg-background/80 px-3 py-2 text-sm leading-6 text-foreground">
+          <div className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap rounded-card bg-background/80 px-3 py-2 text-sm leading-6 text-text-primary">
             {viewModel.message}
           </div>
           {viewModel.partialOutput ? (
             <>
-              <div className="mt-3 text-xs font-medium text-rose-700 dark:text-rose-200">
+              <div className="mt-3 text-xs font-semibold text-status-danger-fg">
                 {viewModel.partialOutputLabel}
               </div>
-              <div className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap rounded-xl bg-background/80 px-3 py-2 text-sm leading-6 text-foreground">
+              <div className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap rounded-card bg-background/80 px-3 py-2 text-sm leading-6 text-text-primary">
                 {viewModel.partialOutput}
               </div>
             </>
@@ -98,21 +98,21 @@ export function PipelineFailureCard({
           <button
             disabled={!canLocateError}
             onClick={onLocateError}
-            className="inline-flex items-center gap-2 rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-background/80 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-control bg-background px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-background/80 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <LocateFixed size={15} />
             {viewModel.locateErrorLabel}
           </button>
           <button
             onClick={() => void handleCopyError()}
-            className="inline-flex items-center gap-2 rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-background/80"
+            className="inline-flex items-center gap-2 rounded-control bg-background px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <Copy size={15} />
             {copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败' : viewModel.copyErrorLabel}
           </button>
           <button
             onClick={() => void handleOpenArtifactsDir()}
-            className="inline-flex items-center gap-2 rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-background/80"
+            className="inline-flex items-center gap-2 rounded-control bg-background px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <FolderOpen size={15} />
             {artifactStatus === 'failed' ? '打开失败' : viewModel.artifactsLabel}
@@ -120,14 +120,14 @@ export function PipelineFailureCard({
           <button
             disabled={!canRestart}
             onClick={onRestart}
-            className="inline-flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-control bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <RefreshCw size={15} />
             {viewModel.restartLabel}
           </button>
           <button
             onClick={onOpenSettings}
-            className="inline-flex items-center gap-2 rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-background/80"
+            className="inline-flex items-center gap-2 rounded-control bg-background px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <Settings2 size={15} />
             {viewModel.settingsLabel}

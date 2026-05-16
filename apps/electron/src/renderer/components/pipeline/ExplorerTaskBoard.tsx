@@ -100,19 +100,19 @@ export function ExplorerTaskBoard({
   }
 
   return (
-    <section className="rounded-2xl border border-primary/20 bg-background px-4 py-4 shadow-sm">
+    <section className="rounded-panel border border-status-waiting-border bg-status-waiting-bg px-4 py-4 text-text-primary shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-medium text-primary">任务选择</div>
-          <h2 className="mt-1 text-base font-semibold text-foreground">选择 Explorer 报告</h2>
+          <div className="text-xs font-semibold tracking-[0.16em] text-status-waiting-fg">任务选择</div>
+          <h2 className="mt-1 text-base font-semibold text-text-primary">选择 Explorer 报告</h2>
         </div>
-        <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+        <div className="rounded-full border border-status-waiting-border bg-background/80 px-3 py-1 text-xs font-semibold text-status-waiting-fg">
           {reports.length} 份报告
         </div>
       </div>
 
       {viewModel.empty ? (
-        <div className="mt-4 rounded-xl bg-muted/60 px-3 py-3 text-sm text-muted-foreground">
+        <div className="mt-4 rounded-card bg-background/75 px-3 py-3 text-sm text-text-secondary">
           Explorer 尚未生成可选择的报告。
         </div>
       ) : (
@@ -126,10 +126,10 @@ export function ExplorerTaskBoard({
                 setError(null)
               }}
               className={[
-                'w-full rounded-xl px-3 py-3 text-left text-sm transition-colors',
+                'w-full rounded-card px-3 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 item.selected
                   ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-muted/60 text-foreground hover:bg-muted',
+                  : 'bg-background/75 text-text-primary hover:bg-background',
               ].join(' ')}
             >
               <div className="flex items-start justify-between gap-3">
@@ -138,7 +138,7 @@ export function ExplorerTaskBoard({
                   {item.summary ? (
                     <div className={[
                       'mt-1 line-clamp-2 text-xs leading-5',
-                      item.selected ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                      item.selected ? 'text-primary-foreground/80' : 'text-text-secondary',
                     ].join(' ')}
                     >
                       {item.summary}
@@ -152,7 +152,7 @@ export function ExplorerTaskBoard({
               </div>
               <div className={[
                 'mt-2 truncate font-mono text-[11px]',
-                item.selected ? 'text-primary-foreground/70' : 'text-muted-foreground',
+                item.selected ? 'text-primary-foreground/70' : 'text-text-tertiary',
               ].join(' ')}
               >
                 {item.relativePath}
@@ -163,7 +163,7 @@ export function ExplorerTaskBoard({
       )}
 
       {error ? (
-        <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+        <div className="mt-3 rounded-card border border-status-danger-border bg-status-danger-bg px-3 py-2 text-xs text-status-danger-fg">
           {error}
         </div>
       ) : null}
@@ -173,7 +173,7 @@ export function ExplorerTaskBoard({
           type="button"
           disabled={viewModel.confirmDisabled}
           onClick={() => void handleSubmit()}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="rounded-control bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {viewModel.confirmLabel}
         </button>
@@ -182,7 +182,7 @@ export function ExplorerTaskBoard({
             type="button"
             disabled={submitting}
             onClick={() => void onRerun()}
-            className="rounded-lg border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted/60 disabled:opacity-50"
+            className="rounded-control border border-border-subtle bg-background px-4 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-surface-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             重跑探索
           </button>

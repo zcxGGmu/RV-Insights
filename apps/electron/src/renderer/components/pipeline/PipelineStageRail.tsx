@@ -6,24 +6,27 @@ import {
   Circle,
   Loader2,
   PauseCircle,
+  Square,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buildPipelineStageViewModels, type PipelineStageVisualStatus } from './pipeline-display-model'
 
 const STEP_TONE_CLASS: Record<PipelineStageVisualStatus, string> = {
-  done: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300',
-  active: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/15 dark:text-sky-300',
-  waiting: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300',
-  failed: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300',
-  todo: 'border-border bg-background text-muted-foreground',
+  done: 'border-status-success-border bg-status-success-bg text-status-success-fg',
+  active: 'border-status-running-border bg-status-running-bg text-status-running-fg',
+  waiting: 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg',
+  failed: 'border-status-danger-border bg-status-danger-bg text-status-danger-fg',
+  stopped: 'border-status-neutral-border bg-status-neutral-bg text-status-neutral-fg',
+  todo: 'border-border-subtle bg-surface-card text-text-tertiary',
 }
 
 const CONNECTOR_CLASS: Record<PipelineStageVisualStatus, string> = {
-  done: 'bg-emerald-200 dark:bg-emerald-500/35',
-  active: 'bg-sky-200 dark:bg-sky-500/35',
-  waiting: 'bg-amber-200 dark:bg-amber-500/35',
-  failed: 'bg-rose-200 dark:bg-rose-500/35',
-  todo: 'bg-border',
+  done: 'bg-status-success',
+  active: 'bg-status-running',
+  waiting: 'bg-status-waiting',
+  failed: 'bg-status-danger',
+  stopped: 'bg-status-neutral',
+  todo: 'bg-border-subtle',
 }
 
 function StageIcon({ status }: { status: PipelineStageVisualStatus }): React.ReactElement {
@@ -36,6 +39,8 @@ function StageIcon({ status }: { status: PipelineStageVisualStatus }): React.Rea
       return <PauseCircle size={14} />
     case 'failed':
       return <AlertCircle size={14} />
+    case 'stopped':
+      return <Square size={12} />
     case 'todo':
     default:
       return <Circle size={10} />
@@ -54,14 +59,25 @@ export function PipelineStageRail({
   const stages = buildPipelineStageViewModels(state, { version })
 
   return (
-    <div className="rounded-2xl border bg-card px-4 py-4 shadow-sm">
-      <div className="flex min-w-[620px] items-center">
+    <section className="rounded-panel border border-border-subtle bg-surface-card px-4 py-4 shadow-card">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
+            阶段轨
+          </div>
+          <h2 className="mt-1 text-sm font-semibold text-text-primary">贡献工作流进度</h2>
+        </div>
+        <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-text-secondary">
+          {stages.length} 个阶段
+        </span>
+      </div>
+      <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {stages.map((stage, index) => (
-          <React.Fragment key={stage.node}>
+          <div key={stage.node} className="relative min-w-0">
             {index > 0 ? (
               <div
                 className={cn(
-                  'mx-2 h-px flex-1 transition-colors',
+                  'absolute -left-2 top-5 hidden h-px w-2 transition-colors sm:block',
                   CONNECTOR_CLASS[stages[index - 1]?.status ?? 'todo'],
                 )}
               />
@@ -69,27 +85,33 @@ export function PipelineStageRail({
             <button
               type="button"
               onClick={() => onSelectStage?.(stage.node)}
-              className="flex min-w-[96px] flex-col items-center gap-2 rounded-xl px-1 py-1 text-center outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label={`定位${stage.ariaLabel}记录`}
+              className="group flex h-full min-h-[86px] w-full min-w-0 flex-col items-start gap-2 rounded-card border border-border-subtle bg-surface-panel/40 px-3 py-3 text-left outline-none transition-[background-color,border-color,box-shadow] duration-fast hover:border-primary/30 hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-focus"
             >
               <span
                 className={cn(
                   'flex size-9 items-center justify-center rounded-full border transition-colors',
                   STEP_TONE_CLASS[stage.status],
                 )}
-                aria-label={`${stage.label}：${stage.status}`}
+                aria-hidden="true"
               >
                 <StageIcon status={stage.status} />
               </span>
-              <span className="text-center">
-                <span className="block text-[13px] font-medium text-foreground">{stage.label}</span>
-                <span className="mt-0.5 block text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  {stage.node}
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-semibold text-text-primary">{stage.label}</span>
+                <span
+                  className={cn(
+                    'mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                    STEP_TONE_CLASS[stage.status],
+                  )}
+                >
+                  {stage.statusLabel}
                 </span>
               </span>
             </button>
-          </React.Fragment>
+          </div>
         ))}
       </div>
-    </div>
+    </section>
   )
 }

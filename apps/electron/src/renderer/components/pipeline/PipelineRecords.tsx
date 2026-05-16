@@ -74,16 +74,16 @@ function createEmptySearchResult(
 }
 
 const TONE_CLASS_MAP = {
-  neutral: 'border-border bg-card text-card-foreground',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
-  warning: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
-  danger: 'border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200',
-  accent: 'border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+  neutral: 'border-border-subtle bg-surface-card text-text-primary',
+  success: 'border-status-success-border bg-status-success-bg text-text-primary',
+  warning: 'border-status-waiting-border bg-status-waiting-bg text-text-primary',
+  danger: 'border-status-danger-border bg-status-danger-bg text-text-primary',
+  accent: 'border-status-running-border bg-status-running-bg text-text-primary',
 } as const
 
 const REVIEW_TONE_CLASS_MAP = {
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
-  warning: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+  success: 'border-status-success-border bg-status-success-bg text-text-primary',
+  warning: 'border-status-waiting-border bg-status-waiting-bg text-text-primary',
 } as const
 
 const STAGE_FILTERS: Array<{ value: PipelineRecordStageFilter; label: string }> = [
@@ -278,46 +278,51 @@ const RecordCard = React.memo(function RecordCard({
     <article
       id={`pipeline-record-${record.id}`}
       ref={registerElement}
-      className={`rounded-xl border px-4 py-3 shadow-sm transition-shadow ${toneClass} ${
+      className={`rounded-card border px-4 py-3 shadow-card transition-shadow ${toneClass} ${
         highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-xs font-medium opacity-70">
-          {viewModel.badge}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="rounded-full bg-background/75 px-2.5 py-1 text-[11px] font-semibold text-text-primary shadow-sm">
+            {viewModel.badge}
+          </span>
+          <span className="text-xs font-medium text-text-tertiary">
+            {record.type}
+          </span>
         </div>
-        <div className="text-[11px] opacity-50">
+        <div className="font-mono text-[11px] tabular-nums text-text-tertiary">
           {formatRecordTime(record.createdAt)}
         </div>
       </div>
 
-      <div className="mt-2 text-sm font-semibold">
+      <div className="mt-2 break-words text-sm font-semibold text-text-primary [overflow-wrap:anywhere]">
         {viewModel.title}
       </div>
 
       {viewModel.summary ? (
-        <div className="mt-1 whitespace-pre-wrap text-sm leading-6 opacity-90">
+        <div className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-text-secondary [overflow-wrap:anywhere]">
           {viewModel.summary}
         </div>
       ) : null}
 
       {viewModel.bullets?.length ? (
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm opacity-90">
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-text-secondary">
           {viewModel.bullets.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item} className="break-words [overflow-wrap:anywhere]">{item}</li>
           ))}
         </ul>
       ) : null}
 
       {artifactFiles.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-background/80 px-2.5 py-1 text-[11px] font-medium opacity-80">
+          <span className="rounded-full bg-background/80 px-2.5 py-1 text-[11px] font-medium text-text-secondary">
             已落盘
           </span>
           {artifactFiles.map((file) => (
             <span
               key={file.relativePath}
-              className="rounded-full bg-background/80 px-2.5 py-1 text-[11px] opacity-70"
+              className="rounded-full bg-background/80 px-2.5 py-1 font-mono text-[11px] tabular-nums text-text-tertiary"
             >
               {file.displayName}
             </span>
@@ -347,7 +352,7 @@ const RecordCard = React.memo(function RecordCard({
             {expanded ? '收起全文' : '展开全文'}
           </Button>
           {expanded ? (
-            <MessageResponse className="mt-3 rounded-xl bg-background/80 px-4 py-3 text-sm leading-6">
+            <MessageResponse className="mt-3 rounded-card bg-background/80 px-4 py-3 text-sm leading-6">
               {lazyDetailsLoading
                 ? '正在读取完整产物正文...'
                 : lazyDetailsFailed
@@ -376,9 +381,11 @@ function RecordGroupSection({
 }): React.ReactElement {
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground">{group.title}</h3>
-        <span className="text-xs tabular-nums text-muted-foreground">{group.records.length}</span>
+      <div className="flex items-center justify-between gap-3 rounded-card bg-surface-muted/60 px-3 py-2">
+        <h3 className="text-sm font-semibold text-text-primary">{group.title}</h3>
+        <span className="rounded-full bg-surface-card px-2 py-0.5 text-xs tabular-nums text-text-secondary">
+          {group.records.length}
+        </span>
       </div>
       <div className="space-y-2">
         {group.records.map((record) => (
@@ -408,25 +415,25 @@ function LiveOutputPanel({
   return (
     <section
       aria-live="polite"
-      className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sky-950 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100"
+      className="rounded-panel border border-status-running-border bg-status-running-bg px-4 py-3 text-text-primary shadow-card"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs font-medium tracking-[0.18em] opacity-70">实时输出</div>
-          <h3 className="mt-1 text-sm font-semibold">{viewModel.title}</h3>
+          <div className="text-xs font-semibold tracking-[0.18em] text-status-running-fg">实时输出</div>
+          <h3 className="mt-1 text-sm font-semibold text-text-primary">{viewModel.title}</h3>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-background/70 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-200">
+        <div className="flex items-center gap-2 rounded-full border border-status-running-border bg-background/70 px-3 py-1 text-xs font-medium text-status-running-fg">
           <Loader2 size={13} className="animate-spin" />
           运行中
         </div>
       </div>
-      <div className="mt-3 rounded-xl bg-background/80 px-3 py-3">
+      <div className="mt-3 rounded-card bg-background/80 px-3 py-3">
         {viewModel.hasOutput ? (
           <MessageResponse className="text-sm">
             {viewModel.body}
           </MessageResponse>
         ) : (
-          <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+          <div className="whitespace-pre-wrap text-sm leading-6 text-text-secondary">
             {viewModel.body}
           </div>
         )}
@@ -446,7 +453,7 @@ function ReviewRoundRow({
   const Icon = round.approved ? CircleCheck : CircleAlert
 
   return (
-    <div className={`rounded-xl border px-3 py-3 ${toneClass}`}>
+    <div className={`rounded-card border px-3 py-3 ${toneClass}`}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -473,7 +480,7 @@ function ReviewRoundRow({
             </ul>
           ) : null}
           {round.feedback ? (
-            <div className="mt-2 break-words rounded-lg bg-background/70 px-3 py-2 text-xs leading-5 [overflow-wrap:anywhere]">
+            <div className="mt-2 break-words rounded-card bg-background/70 px-3 py-2 text-xs leading-5 [overflow-wrap:anywhere]">
               人工反馈：{round.feedback}
             </div>
           ) : null}
@@ -509,26 +516,26 @@ function PipelineReviewComparisonPanel({
   const latestToneClass = REVIEW_TONE_CLASS_MAP[comparison.summary.latestTone]
 
   return (
-    <section className="rounded-2xl border bg-card px-4 py-4 shadow-sm">
+    <section className="rounded-panel border border-border-subtle bg-surface-card px-4 py-4 shadow-card">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-text-tertiary">
             <GitCompareArrows size={14} />
             REVIEW 对比
           </div>
-          <h3 className="mt-1 text-base font-semibold text-foreground">多轮审查结论</h3>
+          <h3 className="mt-1 text-base font-semibold text-text-primary">多轮审查结论</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className={`rounded-full border px-2.5 py-1 font-medium ${latestToneClass}`}>
             {comparison.summary.latestStatusLabel}
           </span>
-          <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+          <span className="rounded-full bg-surface-muted px-2.5 py-1 text-text-secondary">
             共 {comparison.summary.totalRounds} 轮
           </span>
-          <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-medium text-emerald-700 dark:text-emerald-200">
+          <span className="rounded-full bg-status-success-bg px-2.5 py-1 font-medium text-status-success-fg">
             通过 {comparison.summary.approvedRounds}
           </span>
-          <span className="rounded-full bg-amber-500/10 px-2.5 py-1 font-medium text-amber-700 dark:text-amber-200">
+          <span className="rounded-full bg-status-waiting-bg px-2.5 py-1 font-medium text-status-waiting-fg">
             修改 {comparison.summary.rejectedRounds}
           </span>
         </div>
@@ -555,7 +562,7 @@ function EmptyRecordState({
 }): React.ReactElement {
   const defaultText = tab === 'artifacts' ? '暂无阶段产物' : '暂无运行日志'
   return (
-    <div className="rounded-xl border border-dashed bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+    <div className="rounded-card border border-dashed border-border-subtle bg-surface-card px-4 py-8 text-center text-sm text-text-secondary">
       {hasQuery ? '没有匹配记录' : defaultText}
     </div>
   )
@@ -838,15 +845,15 @@ export function PipelineRecords({
         <LiveOutputPanel node={liveNode} output={liveOutput ?? ''} />
       ) : null}
 
-      <div className="flex flex-col gap-3 rounded-2xl border bg-card px-4 py-3 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-panel border border-border-subtle bg-surface-card px-4 py-3 shadow-card">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-xs font-medium tracking-[0.18em] text-muted-foreground">阶段记录</div>
-            <h2 className="mt-1 text-lg font-semibold text-foreground">阶段产物</h2>
+            <div className="text-xs font-semibold tracking-[0.18em] text-text-tertiary">阶段记录</div>
+            <h2 className="mt-1 text-lg font-semibold text-text-primary">产物与运行日志</h2>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
             <span className="tabular-nums">{records.length} 条记录</span>
-            <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/40 sm:block" />
+            <span className="hidden h-1 w-1 rounded-full bg-text-tertiary/40 sm:block" />
             <span className="tabular-nums">当前显示 {currentVisibleCount}/{currentTotalCount}</span>
             {searchResult.total > 0 ? (
               <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
@@ -860,7 +867,7 @@ export function PipelineRecords({
           <div className="relative">
             <Search
               size={15}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
             />
             <Input
               type="search"
@@ -964,20 +971,20 @@ export function PipelineRecords({
           <button
             type="button"
             onClick={() => jumpToMatch(activeMatchIndex)}
-            className="rounded-xl bg-muted px-3 py-2 text-left text-xs leading-5 text-muted-foreground transition-colors hover:bg-muted/80"
+            className="rounded-card bg-surface-muted px-3 py-2 text-left text-xs leading-5 text-text-secondary transition-colors hover:bg-surface-muted/80"
           >
-            <span className="font-medium text-foreground">
+            <span className="font-medium text-text-primary">
               {searchPageOffset + activeMatchIndex + 1}/{searchResult.total} · {activeMatch.title}
             </span>
             <span className="ml-2">{activeMatch.snippet}</span>
             {searchResult.total > searchMatches.length ? (
-              <span className="ml-2 text-muted-foreground">
+              <span className="ml-2 text-text-tertiary">
                 当前页 {searchResultStart}-{searchResultEnd}
               </span>
             ) : null}
           </button>
         ) : normalizedQuery ? (
-          <div className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+          <div className="rounded-card bg-surface-muted px-3 py-2 text-xs text-text-secondary">
             未找到匹配内容
           </div>
         ) : null}
