@@ -1378,7 +1378,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         />
 
         {/* 输入区域 */}
-        <div className="px-3 pb-3 md:px-5 md:pb-5" data-input-mode="agent">
+        <div className="agent-composer-zone px-3 pb-3 md:px-5 md:pb-5" data-input-mode="agent">
           <div
             className={cn(
               'agent-command-deck rounded-panel border border-border-subtle/70 transition-all duration-200',
@@ -1494,7 +1494,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             </div>
 
             {/* Footer 工具栏 */}
-            <div className="relative z-10 flex min-h-[52px] flex-wrap items-center justify-between gap-2 border-t border-border-subtle/45 bg-background/20 px-2.5 py-1.5">
+            <div className="agent-command-footer relative z-10 flex min-h-[56px] flex-wrap items-center justify-between gap-2 border-t border-border-subtle/45 px-2.5 py-1.5">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                 <ModelSelector
                   filterChannelIds={agentChannelIds}

@@ -1,3 +1,26 @@
+# Agent Cockpit UI 优化任务
+
+## 2026-05-17 Agent Cockpit UI 创意升级计划
+
+- [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。
+- [x] 将 Agent 模式左右侧边栏与中间工作台统一升级为更有层次的 “Agent Cockpit” 视觉语言。
+- [x] 优化左侧栏的信息分区、会话列表状态、折叠态入口与底部账户区。
+- [x] 优化 Agent Header、消息区、输入区与工具活动展示，让中间区域更像任务控制台。
+- [x] 优化右侧文件面板与 File Browser 的资源舱样式、文件树行、空态、拖拽区与危险操作确认。
+- [x] 集中收敛 Agent 专用 CSS token / utility，保持主题兼容且不引入新依赖。
+- [x] 运行 typecheck、聚焦测试或必要的手动验证，确认视觉改动不影响交互与布局。
+- [x] 在本节追加 Review，记录改动、验证和残余风险。
+
+## 2026-05-17 Agent Cockpit UI 创意升级 Review
+
+- 已完成 Agent 模式三栏可见改造：左侧栏增加 Workspace Matrix、控制台式模式区、新建 / 搜索高亮入口、会话行 active / hover 能量边；中间 Mission Strip、消息卡、工具轨、Composer Deck 增加光感、网格、状态色和更清晰层级；右侧文件面板与 File Browser 改为资源舱 / vault 风格。
+- 新增样式集中在 `agent-*` scoped CSS class，继续使用现有主题 token、Lucide 图标、Radix/shadcn 基础组件；未新增依赖，未修改 IPC、Jotai atom、Agent 执行逻辑、文件读写逻辑、README 或 AGENTS。
+- 文件树行现在有更明显的 selected / hover / recently modified 表达，空态和拖拽区使用同一资源舱视觉；主要交互仍保留原 aria-label、tooltip、键盘路径和删除确认。
+- `@rv-insights/electron` 版本 `0.0.67 -> 0.0.68`，`bun.lock` workspace metadata 已同步。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`；`bun test apps/electron/src/renderer/components/ui6-view-model.test.ts apps/electron/src/renderer/components/app-shell/sidebar-section-model.test.ts apps/electron/src/renderer/components/agent/agent-ui-model.test.ts` 14 pass；`bun run --filter='@rv-insights/electron' build:renderer`；`git diff --check`。
+- `build:renderer` 仍有既有 chunk size warning，本次构建成功，未作为 Agent Cockpit 视觉改造阻塞项。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。
+
 # Pipeline 完善分析任务
 
 ## 2026-05-16 Pipeline Sidebar Command Deck UI 计划

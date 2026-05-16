@@ -809,7 +809,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   if (sidebarCollapsed) {
     return (
       <div
-        className="agent-resource-panel h-full flex flex-col items-center rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
+        className="agent-resource-panel agent-cockpit-sidebar h-full flex flex-col items-center rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
         style={{ width: 48, flexShrink: 0 }}
       >
         {/* 顶部留空，避开 macOS 红绿灯 */}
@@ -821,7 +821,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-2 rounded-control text-text-secondary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="agent-icon-launcher p-2 rounded-control text-text-secondary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="展开侧边栏"
               >
                 <PanelLeftOpen size={18} />
@@ -837,7 +837,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-                className="p-2 rounded-control text-text-primary bg-primary/5 hover:bg-primary/10 transition-colors titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="agent-icon-launcher agent-icon-launcher--primary p-2 rounded-control text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label={mode === 'agent' ? '新建 Agent 会话' : '新建对话'}
               >
                 <Plus size={16} />
@@ -858,7 +858,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="relative p-1 rounded-control transition-colors titlebar-no-drag hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="agent-user-dock-button relative p-1 rounded-control transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="打开设置"
               >
                 <UserAvatar avatar={userProfile.avatar} size={28} />
@@ -884,21 +884,21 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   // ===== 展开状态：完整侧边栏 =====
   return (
     <div
-      className="agent-resource-panel h-full flex flex-col rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
+      className="agent-resource-panel agent-cockpit-sidebar h-full flex flex-col rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
       style={{ width: width ?? 280, minWidth: 180, flexShrink: 1 }}
     >
       {/* 顶部留空，避开 macOS 红绿灯 */}
       <div className="pt-[30px]">
         {/* 模式切换器 + 折叠按钮 */}
         <div className="flex items-start gap-1.5 px-3">
-          <div className="flex-1 min-w-0">
+          <div className="agent-sidebar-mode-deck flex-1 min-w-0 rounded-card p-1">
             <ModeSwitcher />
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="mt-2 size-9 flex-shrink-0 flex items-center justify-center rounded-control bg-surface-muted text-text-tertiary hover:bg-surface-muted/80 hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="agent-icon-launcher mt-2 size-9 flex-shrink-0 flex items-center justify-center rounded-control text-text-tertiary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="收起侧边栏"
               >
                 <PanelLeftClose size={14} />
@@ -912,6 +912,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       {/* Agent 模式：工作区选择器 */}
       {mode === 'agent' && (
         <div className="px-3 pt-2">
+          <div className="agent-sidebar-section-label mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-normal text-text-tertiary">Workspace Matrix</div>
           <WorkspaceSelector />
         </div>
       )}
@@ -920,7 +921,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-          className="agent-resource-well flex-1 flex items-center gap-2 px-3 py-2 rounded-control text-[13px] font-medium text-text-primary hover:border-status-running-border transition-colors duration-fast titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="agent-resource-well agent-primary-action flex-1 flex items-center gap-2 px-3 py-2.5 rounded-control text-[13px] font-semibold text-text-primary transition-colors duration-fast titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           aria-label={mode === 'agent' ? '新建 Agent 会话' : '新建对话'}
         >
           <Plus size={14} />
@@ -930,7 +931,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           <TooltipTrigger asChild>
             <button
               onClick={() => setSearchDialogOpen(true)}
-              className="agent-resource-well flex-shrink-0 size-9 flex items-center justify-center rounded-control text-text-tertiary hover:border-status-running-border hover:text-text-primary transition-colors duration-fast titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="agent-resource-well agent-icon-launcher flex-shrink-0 size-10 flex items-center justify-center rounded-control text-text-tertiary transition-colors duration-fast titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={mode === 'agent' ? '搜索 Agent 会话' : '搜索对话'}
             >
               <Search size={14} />
@@ -1438,10 +1439,10 @@ function ConversationItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'relative w-full min-h-10 flex items-center gap-2 px-3 py-[7px] rounded-control transition-[background-color,color,box-shadow] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        'agent-session-row relative w-full min-h-11 flex items-center gap-2 px-3 py-2 rounded-control transition-[background-color,color,box-shadow,transform,border-color] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
-          ? 'session-item-selected bg-primary/10 shadow-card'
-          : 'hover:bg-surface-muted'
+          ? 'session-item-selected agent-session-row--active shadow-card'
+          : 'agent-session-row--idle'
       )}
     >
       {/* 流式状态左侧竖线条（与 Agent 保持一致） */}
@@ -1674,10 +1675,10 @@ function AgentSessionItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'relative w-full min-h-10 flex items-center gap-2 px-3 py-[7px] rounded-control transition-[background-color,color,box-shadow] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        'agent-session-row relative w-full min-h-11 flex items-center gap-2 px-3 py-2 rounded-control transition-[background-color,color,box-shadow,transform,border-color] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
-          ? 'session-item-selected bg-primary/10 shadow-card'
-          : 'hover:bg-surface-muted'
+          ? 'session-item-selected agent-session-row--active shadow-card'
+          : 'agent-session-row--idle'
       )}
     >
       {leftAccent && (

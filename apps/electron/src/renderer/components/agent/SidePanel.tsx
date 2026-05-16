@@ -254,7 +254,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
   return (
     <div
       className={cn(
-        'agent-resource-panel relative h-full flex-shrink-0 overflow-hidden titlebar-drag-region rounded-panel border border-border-subtle/55',
+        'agent-resource-panel agent-file-cockpit relative h-full flex-shrink-0 overflow-hidden titlebar-drag-region rounded-panel border border-border-subtle/55',
         shouldAnimate && 'transition-[width] duration-normal ease-out',
         isOpen ? 'w-[320px]' : 'w-0',
       )}
@@ -273,7 +273,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                   {/* ===== 会话文件区（仅当 sessionPath 存在时显示） ===== */}
                   {sessionPath && (
                     <>
-                      <div className="mx-2 mt-2 flex h-[36px] flex-shrink-0 items-center gap-1 rounded-card border border-border-subtle/45 bg-background/25 pl-3 pr-2">
+                      <div className="agent-file-section-header mx-2 mt-2 flex h-10 flex-shrink-0 items-center gap-1 rounded-card border border-border-subtle/45 pl-3 pr-2">
                         <FolderOpen className="size-3.5 text-status-running-fg" />
                         <span className="text-[11px] font-semibold text-text-secondary">会话文件</span>
                         <Tooltip>
@@ -338,7 +338,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                         </Tooltip>
                       </div>
                       {/* 会话文件内容区（独立滚动） */}
-                      <div className="agent-resource-section mx-2 mt-2 flex-1 min-h-0 overflow-y-auto rounded-card">
+                      <div className="agent-resource-section agent-file-vault mx-2 mt-2 flex-1 min-h-0 overflow-y-auto rounded-card">
                         {/* 附加目录列表（可展开目录树） */}
                         {attachedDirs.length > 0 && (
                           <AttachedDirsSection
@@ -356,7 +356,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                           <FileBrowser rootPath={sessionPath} hideToolbar embedded hideEmpty={attachedDirs.length > 0} onAddToChat={handleAddToChat} />
                         </>
                         {/* 会话文件拖拽上传区域 */}
-                          <div className="agent-resource-well mx-2 mb-2 rounded-card">
+                          <div className="agent-resource-well agent-drop-vault mx-2 mb-2 rounded-card">
                           <FileDropZone
                             workspaceSlug={workspaceSlug}
                             sessionId={sessionId}
@@ -396,7 +396,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
 
                   {/* ===== 工作区文件区 ===== */}
                   <div className="flex-1 min-h-0 flex flex-col mx-2 mb-2">
-                    <div className="flex items-center gap-1 px-2 h-[36px] flex-shrink-0 rounded-card border border-border-subtle/45 bg-background/25">
+                    <div className="agent-file-section-header flex items-center gap-1 px-2 h-10 flex-shrink-0 rounded-card border border-border-subtle/45">
                       <FolderHeart className="size-3.5 text-status-success-fg" />
                       <span className="text-[11px] font-semibold text-text-secondary">工作区文件</span>
                       <Tooltip>
@@ -428,7 +428,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                       )}
                     </div>
                     {/* 工作区文件内容区（独立滚动） */}
-                    <div className="agent-resource-section mt-2 flex-1 min-h-0 overflow-y-auto rounded-card pb-1">
+                    <div className="agent-resource-section agent-file-vault mt-2 flex-1 min-h-0 overflow-y-auto rounded-card pb-1">
                       {/* 工作区级附加目录 */}
                       {wsAttachedDirs.length > 0 && (
                         <AttachedDirsSection
@@ -448,7 +448,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                         </>
                       )}
                       {/* 工作区文件拖拽上传区域 */}
-                      <div className="agent-resource-well mx-2 mb-2 rounded-card">
+                      <div className="agent-resource-well agent-drop-vault mx-2 mb-2 rounded-card">
                       <FileDropZone
                         workspaceSlug={workspaceSlug}
                         target="workspace"

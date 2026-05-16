@@ -121,7 +121,7 @@ export function AgentHeader({
   }
 
   return (
-    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[76px] items-center gap-3 rounded-panel border border-border-subtle/65 px-4 py-3 titlebar-drag-region">
+    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[92px] items-center gap-3 rounded-panel border border-border-subtle/65 px-4 py-3 titlebar-drag-region md:mx-5 md:px-5">
       {editing ? (
         <div className="relative z-10 flex items-center gap-1.5 flex-1 min-w-0 titlebar-no-drag">
           <label htmlFor={`agent-title-${session.id}`} className="sr-only">编辑 Agent 会话标题</label>
@@ -166,7 +166,7 @@ export function AgentHeader({
         </div>
       ) : (
         <>
-          <div className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-card border border-border-subtle bg-background/40 agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
+          <div className="relative z-10 flex size-12 shrink-0 items-center justify-center rounded-card border border-border-subtle bg-background/40 agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
             {streaming ? (
               <Radio className="size-5 text-status-running-fg" />
             ) : planMode ? (
@@ -178,8 +178,8 @@ export function AgentHeader({
           <div className="relative z-10 flex flex-1 min-w-0 flex-col gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="min-w-0">
-                <div className="text-[10px] font-medium uppercase text-text-tertiary">Agent Mission</div>
-                <h1 className="truncate text-[15px] font-semibold leading-5 text-text-primary">
+                <div className="agent-kicker text-[10px] font-semibold uppercase tracking-normal text-text-tertiary">Agent Mission</div>
+                <h1 className="truncate text-[17px] font-semibold leading-6 text-text-primary">
                   {session.title}
                 </h1>
               </div>

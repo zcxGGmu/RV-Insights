@@ -290,7 +290,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
   }, [rootPath])
 
   const fileTree = (
-    <div className="py-1" onClick={handleBackgroundClick}>
+    <div className="agent-file-tree py-1" onClick={handleBackgroundClick}>
       {error && (
         <div className="mx-2 rounded-card bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">{error}</div>
       )}
@@ -298,7 +298,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
         <div className="px-3 py-3 text-xs text-muted-foreground" role="status">正在加载文件...</div>
       )}
       {!error && entries.length === 0 && !loading && !hideEmpty && (
-        <div className="mx-2 rounded-card border border-dashed border-border-subtle bg-surface-muted/60 px-3 py-4 text-center text-xs text-muted-foreground">
+        <div className="agent-file-empty mx-2 rounded-card border border-dashed border-border-subtle px-3 py-5 text-center text-xs text-muted-foreground">
           此文件夹为空
         </div>
       )}
@@ -686,11 +686,12 @@ function FileTreeItem({
         aria-level={depth + 1}
         tabIndex={isRenaming ? -1 : 0}
         className={cn(
-          'group relative mx-2 flex min-h-8 cursor-pointer items-center gap-1 rounded-lg py-1 pr-2 text-sm transition-colors',
+          'agent-file-row group relative mx-2 flex min-h-9 cursor-pointer items-center gap-1 rounded-lg py-1.5 pr-2 text-sm transition-[background-color,color,box-shadow,transform] duration-fast',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-          isSelected ? 'bg-primary/10 text-foreground shadow-sm before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-primary' : 'hover:bg-surface-muted',
+          isSelected ? 'agent-file-row--selected text-foreground shadow-sm before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-primary' : 'agent-file-row--idle',
           flash && 'file-browser-row-flash',
         )}
+        data-selected={isSelected ? 'true' : undefined}
         style={{ paddingLeft }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
@@ -702,7 +703,7 @@ function FileTreeItem({
             <TooltipTrigger asChild>
               <span
                 aria-label="最近被 Agent 修改"
-                className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary/80"
+              className="agent-file-modified-dot absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full"
                 style={{ left: paddingLeft - 6 }}
               />
             </TooltipTrigger>
@@ -712,8 +713,8 @@ function FileTreeItem({
         {/* 展开/收起图标 */}
         {entry.isDirectory ? (
           <ChevronRight
-            className={cn(
-              'size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+              className={cn(
+                'size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
               expanded && 'rotate-90',
             )}
           />
@@ -749,7 +750,7 @@ function FileTreeItem({
             )}
           </div>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-xs">{entry.name}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-medium">{entry.name}</span>
         )}
 
         {/* 右侧操作按钮占位（始终占位，避免行高跳动） */}
