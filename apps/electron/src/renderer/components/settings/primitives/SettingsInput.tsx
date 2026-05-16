@@ -61,10 +61,11 @@ export function SettingsInput({
         placeholder={placeholder}
         required={required}
         disabled={disabled}
-        className={cn(error && 'border-destructive focus-visible:ring-destructive')}
+        aria-invalid={Boolean(error)}
+        className={cn(error && 'border-status-danger-border focus-visible:ring-status-danger')}
       />
       {error && (
-        <p className="text-xs text-destructive">{error}</p>
+        <p className="text-xs text-status-danger-fg">{error}</p>
       )}
     </div>
   )

@@ -301,6 +301,87 @@
 }
 
 @layer base {
+  :root {
+    --surface-app: var(--background);
+    --surface-panel: var(--content-area);
+    --surface-card: var(--card);
+    --surface-muted: var(--muted);
+    --surface-elevated: var(--popover);
+    --surface-modal: var(--dialog);
+
+    --text-primary: var(--foreground);
+    --text-secondary: var(--muted-foreground);
+    --text-tertiary: var(--muted-foreground);
+
+    --border-subtle: var(--border);
+    --border-strong: var(--ring);
+    --focus-ring: var(--ring);
+
+    --status-running: 204 94% 45%;
+    --status-running-bg: 204 94% 45% / 0.12;
+    --status-running-fg: 204 88% 32%;
+    --status-running-border: 204 94% 45% / 0.28;
+    --status-waiting: 38 92% 50%;
+    --status-waiting-bg: 38 92% 50% / 0.14;
+    --status-waiting-fg: 32 95% 30%;
+    --status-waiting-border: 38 92% 50% / 0.32;
+    --status-success: 151 68% 38%;
+    --status-success-bg: 151 68% 38% / 0.12;
+    --status-success-fg: 152 70% 28%;
+    --status-success-border: 151 68% 38% / 0.28;
+    --status-danger: var(--destructive);
+    --status-danger-bg: var(--destructive) / 0.12;
+    --status-danger-fg: var(--destructive);
+    --status-danger-border: var(--destructive) / 0.30;
+    --status-neutral: var(--muted-foreground);
+    --status-neutral-bg: var(--muted);
+    --status-neutral-fg: var(--muted-foreground);
+    --status-neutral-border: var(--border);
+
+    --radius-control: 8px;
+    --radius-card: 8px;
+    --radius-panel: 16px;
+
+    --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 0 rgb(0 0 0 / 0.06);
+    --shadow-panel: 0 16px 40px -28px rgb(15 23 42 / 0.36);
+    --shadow-modal: 0 24px 60px -28px rgb(15 23 42 / 0.42), 0 8px 24px -18px rgb(15 23 42 / 0.30);
+
+    --motion-fast: 100ms;
+    --motion-normal: 160ms;
+    --motion-slow: 220ms;
+    --motion-exit: 120ms;
+  }
+
+  .dark,
+  .theme-ocean-dark,
+  .theme-forest-dark,
+  .theme-slate-dark {
+    --status-running: 199 89% 64%;
+    --status-running-bg: 199 89% 64% / 0.16;
+    --status-running-fg: 199 92% 78%;
+    --status-running-border: 199 89% 64% / 0.32;
+    --status-waiting: 43 96% 56%;
+    --status-waiting-bg: 43 96% 56% / 0.16;
+    --status-waiting-fg: 43 96% 76%;
+    --status-waiting-border: 43 96% 56% / 0.34;
+    --status-success: 152 69% 47%;
+    --status-success-bg: 152 69% 47% / 0.15;
+    --status-success-fg: 152 76% 72%;
+    --status-success-border: 152 69% 47% / 0.30;
+    --status-danger-bg: var(--destructive) / 0.16;
+    --status-danger-fg: 0 82% 76%;
+    --status-danger-border: var(--destructive) / 0.34;
+    --status-neutral-bg: var(--muted);
+    --status-neutral-fg: var(--muted-foreground);
+    --status-neutral-border: var(--border);
+
+    --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.18), 0 1px 3px 0 rgb(0 0 0 / 0.22);
+    --shadow-panel: 0 18px 48px -30px rgb(0 0 0 / 0.70);
+    --shadow-modal: 0 0 40px 8px rgb(255 255 255 / 0.06), 0 25px 50px -12px rgb(0 0 0 / 0.50);
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
@@ -534,22 +615,29 @@
 
 /* 细腻卡片阴影 */
 .shadow-minimal {
-  box-shadow:
-    0 1px 2px 0 rgb(0 0 0 / 0.03),
-    0 1px 3px 0 rgb(0 0 0 / 0.06);
+  box-shadow: var(--shadow-card);
 }
 
 /* 设置卡片样式：只有默认深色主题用透明，其他都用卡片背景 */
 .settings-card {
-  background: hsl(var(--card));
-  box-shadow:
-    0 1px 2px 0 rgb(0 0 0 / 0.03),
-    0 1px 3px 0 rgb(0 0 0 / 0.06);
+  background: hsl(var(--surface-card));
+  box-shadow: var(--shadow-card);
 }
 .dark:not([class*="theme-"]) .settings-card {
   background: transparent;
   box-shadow: none;
-  border: 1px solid hsl(var(--border) / 0.3);
+  border: 1px solid hsl(var(--border-subtle) / 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 /* 隐藏滚动条但保留滚动功能 */

@@ -63,7 +63,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ### 2.1 当前开发状态快照
 
-更新时间：2026-05-16 UI-0 完成后
+更新时间：2026-05-16 UI-1 完成后
 
 当前文档基线提交：
 
@@ -81,10 +81,10 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - [x] 已按阶段提交文档成果，commit 为 `7bef500c984803525e9c7fac67d2c959271d2a1c`。
 - [x] 完成 UI-0 before 审计记录：`improve/ui/2026-05-16-client-ui-before-audit.md`。
 - [x] 建立 `improve/ui/screenshots/` 截图基线，覆盖 Pipeline / Agent / Settings 的 light 与 dark 状态。
+- [x] 完成 UI-1 Token 与 primitive 收敛：新增语义 token alias、Tailwind 映射、Card / Chip primitive，统一 Button / Badge / Dialog / Tooltip / Input / Select / 菜单 / Settings primitives 的基础视觉语言。
 
 未完成：
 
-- [ ] UI-1 Token 与 primitive 收敛尚未开始。
 - [ ] UI-2 AppShell / Sidebar / Tab 尚未开始。
 - [ ] UI-3 Pipeline 工作台尚未开始。
 - [ ] UI-4 Agent 阅读与交互尚未开始。
@@ -96,14 +96,14 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 - 当前工作区存在未提交临时文件：`improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`。本轮确认它对应仍在运行的 vim 进程，不是可以随手删除的残留；不要纳入提交。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
-- 下一阶段可以从 UI-1 Token 与 primitive 收敛开始；不得跳过 UI-1 直接改页面结构。
+- 下一阶段可以从 UI-2 AppShell / Sidebar / Tab 开始；不得跳过 UI-2 直接进入 Pipeline / Agent 页面结构大改。
 
 ### 2.2 阶段进度表
 
 | 阶段 | 名称 | 状态 | 主要范围 | 完成证据 |
 | --- | --- | --- | --- | --- |
 | UI-0 | 基线审计与截图准备 | [x] | before 审计、截图目录、验收矩阵 | `2026-05-16-client-ui-before-audit.md` + 6 张 baseline 截图 |
-| UI-1 | Token 与 primitive 收敛 | [ ] | CSS token、Button、Card、Badge、Dialog、Tooltip | typecheck + primitive 截图 |
+| UI-1 | Token 与 primitive 收敛 | [x] | CSS token、Button、Card、Badge、Dialog、Tooltip | typecheck + renderer build + 3 张 primitive 截图 |
 | UI-2 | AppShell / Sidebar / Tab | [ ] | 三栏骨架、导航密度、多标签状态、右侧面板 | light / dark / 特殊主题截图 |
 | UI-3 | Pipeline 工作台 | [ ] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | Pipeline 状态截图 + 键盘路径 |
 | UI-4 | Agent 阅读与交互 | [ ] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | Agent 状态截图 + 后台权限路径 |
@@ -185,37 +185,37 @@ git diff --check
 
 ### 4.4 Token 任务
 
-- [ ] 对照视觉规范 `4.15 Design Token 契约`，列出现有 token 与缺失 token。
-- [ ] 增加或映射 surface token：app、panel、card、muted、elevated、modal。
-- [ ] 增加或映射 text token：primary、secondary、tertiary。
-- [ ] 增加或映射 border token：subtle、strong。
-- [ ] 增加或映射 focus ring token。
-- [ ] 增加或映射 status token 三件套：running / waiting / success / danger / neutral 的 bg、fg、border。
-- [ ] 增加或映射 radius token：control、card、panel。
-- [ ] 增加或映射 shadow token：card、panel、modal。
-- [ ] 增加或映射 motion token：fast、normal、slow。
-- [ ] 为 light、dark、ocean、forest、slate 等主题补 fallback。
-- [ ] 清理第一批裸 hex 或一次性颜色，迁移到 semantic token。
+- [x] 对照视觉规范 `4.15 Design Token 契约`，列出现有 token 与缺失 token。
+- [x] 增加或映射 surface token：app、panel、card、muted、elevated、modal。
+- [x] 增加或映射 text token：primary、secondary、tertiary。
+- [x] 增加或映射 border token：subtle、strong。
+- [x] 增加或映射 focus ring token。
+- [x] 增加或映射 status token 三件套：running / waiting / success / danger / neutral 的 bg、fg、border。
+- [x] 增加或映射 radius token：control、card、panel。
+- [x] 增加或映射 shadow token：card、panel、modal。
+- [x] 增加或映射 motion token：fast、normal、slow。
+- [x] 为 light、dark、ocean、forest、slate 等主题补 fallback。
+- [x] 清理第一批裸 hex 或一次性颜色，迁移到 semantic token。
 
 ### 4.5 Primitive 任务
 
-- [ ] Button：统一 height、radius、focus-visible、disabled、loading 视觉。
-- [ ] Icon Button：统一 36px / 32px 尺寸，补 tooltip / `aria-label` 调用要求。
-- [ ] Card：统一 8px radius、padding、border / shadow 策略。
-- [ ] Badge：统一 soft background、icon + text、tabular numbers。
-- [ ] Dialog / AlertDialog：统一 16px radius、overlay、focus trap、motion。
-- [ ] Popover / Tooltip：统一 z-index、delay、字号、键盘触发。
-- [ ] Input / Textarea：统一 label、helper text、error、focus。
-- [ ] Notice / Banner：抽取或约定 running / waiting / failed / success 视觉。
-- [ ] Path / File / Model chip：建立可复用 class 或组件模式。
+- [x] Button：统一 height、radius、focus-visible、disabled、loading 视觉。
+- [x] Icon Button：统一 36px / 32px 尺寸，补 tooltip / `aria-label` 调用要求。
+- [x] Card：统一 8px radius、padding、border / shadow 策略。
+- [x] Badge：统一 soft background、icon + text、tabular numbers。
+- [x] Dialog / AlertDialog：统一 16px radius、overlay、focus trap、motion。
+- [x] Popover / Tooltip：统一 z-index、delay、字号、键盘触发。
+- [x] Input / Textarea：统一 label、helper text、error、focus。
+- [x] Notice / Banner：抽取或约定 running / waiting / failed / success 视觉。
+- [x] Path / File / Model chip：建立可复用 class 或组件模式。
 
 ### 4.6 验收标准
 
-- [ ] 基础组件不再各自定义 radius / shadow / focus。
-- [ ] icon-only 按钮有明确 tooltip 和可访问名称策略。
-- [ ] 浅色、深色和至少一个特殊主题下 token 视觉不崩。
-- [ ] 没有新增裸 hex；如有，Review 中说明 token 化理由。
-- [ ] 不改变业务行为。
+- [x] 基础组件不再各自定义 radius / shadow / focus。
+- [x] icon-only 按钮有明确 tooltip 和可访问名称策略。
+- [x] 浅色、深色和至少一个特殊主题下 token 视觉不崩。
+- [x] 没有新增裸 hex；如有，Review 中说明 token 化理由。
+- [x] 不改变业务行为。
 
 ### 4.7 验证
 
@@ -232,14 +232,14 @@ git diff --check
 
 ### 4.8 阶段 Review
 
-- 状态：
-- 完成日期：
-- 涉及文件：
-- token 新增 / 映射：
-- 裸色值清理：
-- 验证结果：
-- 截图路径：
-- 残留风险：
+- 状态：已完成，本阶段产物纳入 UI-1 单独提交。
+- 完成日期：2026-05-16。
+- 涉及文件：`globals.css`、`tailwind.config.js`、`components/ui/*` 基础 primitive、`components/settings/primitives/*`、`apps/electron/package.json`、`bun.lock`、primitive 截图。
+- token 新增 / 映射：新增 surface / text / border / focus / status / radius / shadow / motion alias，并在 Tailwind 中暴露 `surface-*`、`text-*`、`status-*`、`rounded-card/control/panel`、`shadow-card/panel/modal`、`duration-fast/normal/slow/exit`。
+- 裸色值清理：本阶段触达 primitive 已迁移到 semantic token；`globals.css` 中既有主题色、shell gradient、代码块和特殊主题覆盖仍保留，作为后续主题治理范围。
+- 验证结果：`bun run --filter='@rv-insights/electron' typecheck` 通过；`bun run --filter='@rv-insights/electron' build:renderer` 通过，仅保留既有 chunk size warning；`bun install --frozen-lockfile --dry-run` 通过；`git diff --check` 通过。
+- 截图路径：`improve/ui/screenshots/primitives-light-default-desktop.png`、`improve/ui/screenshots/primitives-dark-default-desktop.png`、`improve/ui/screenshots/primitives-ocean-status-desktop.png`。
+- 残留风险：页面级 Pipeline / Agent / AppShell 仍有大量局部 class 和状态色，需要 UI-2 到 UI-4 按阶段迁移；本阶段未重排页面结构、未新增 IPC / public API / shared type。
 
 ## 5. 阶段 UI-2：AppShell / Sidebar / Tab
 

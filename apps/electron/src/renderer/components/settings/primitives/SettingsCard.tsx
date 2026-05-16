@@ -7,6 +7,7 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { CARD_CLASS, DIVIDER_CLASS } from './SettingsUIConstants'
 
@@ -27,7 +28,7 @@ export function SettingsCard({
   const childArray = React.Children.toArray(children).filter(Boolean)
 
   return (
-    <div className={cn(CARD_CLASS, className)}>
+    <Card className={cn(CARD_CLASS, className)}>
       {divided
         ? childArray.map((child, index) => (
             <React.Fragment key={index}>
@@ -38,6 +39,6 @@ export function SettingsCard({
             </React.Fragment>
           ))
         : children}
-    </div>
+    </Card>
   )
 }

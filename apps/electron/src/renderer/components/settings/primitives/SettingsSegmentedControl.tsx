@@ -46,7 +46,7 @@ export function SettingsSegmentedControl({
           <div className={cn(DESCRIPTION_CLASS, 'mt-0.5')}>{description}</div>
         )}
       </div>
-      <div className="inline-flex rounded-lg bg-muted p-1 gap-0.5">
+      <div className="inline-flex gap-0.5 rounded-control bg-surface-muted p-1">
         {options.map((option) => (
           <button
             key={option.value}
@@ -54,11 +54,11 @@ export function SettingsSegmentedControl({
             disabled={disabled}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-              'disabled:cursor-not-allowed disabled:opacity-50',
+              'rounded-control px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50',
               value === option.value
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-surface-card text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
             )}
           >
             {option.label}

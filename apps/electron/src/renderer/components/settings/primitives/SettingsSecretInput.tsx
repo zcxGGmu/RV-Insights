@@ -6,6 +6,7 @@
 
 import * as React from 'react'
 import { Eye, EyeOff } from 'lucide-react'
+import { IconButton } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LABEL_CLASS, DESCRIPTION_CLASS } from './SettingsUIConstants'
 import { cn } from '@/lib/utils'
@@ -56,14 +57,16 @@ export function SettingsSecretInput({
           disabled={disabled}
           className="pr-10"
         />
-        <button
+        <IconButton
           type="button"
           onClick={() => setVisible(!visible)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
-          tabIndex={-1}
+          className="absolute right-1 top-1/2 -translate-y-1/2"
+          label={visible ? '隐藏密钥' : '显示密钥'}
+          size="icon-sm"
+          disabled={disabled}
         >
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
+        </IconButton>
       </div>
     </div>
   )
