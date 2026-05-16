@@ -416,47 +416,47 @@
 /* ===== 特殊主题：模式切换器选中状态 ===== */
 /* 晴空碧海：蓝色背景滑块 + 白色文字 */
 .theme-ocean-light .mode-slider {
-  background: hsl(205 50% 50%) !important;  /* #408abf 主色 */
+  background: hsl(var(--primary)) !important;
   box-shadow: 0 2px 4px rgba(64, 138, 191, 0.3);
 }
 .theme-ocean-light .mode-btn-selected {
-  color: #ffffff !important;
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 /* 苍穹暮色：深蓝背景滑块 + 白色文字 */
 .theme-ocean-dark .mode-slider {
-  background: #084672 !important;  /* 深蓝主色 */
+  background: hsl(var(--primary)) !important;
   box-shadow: 0 2px 4px rgba(8, 70, 114, 0.4);
 }
 .theme-ocean-dark .mode-btn-selected {
-  color: #ffffff !important;
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 /* 森息晨光主题 */
 .theme-forest-light .mode-slider {
-  background: hsl(150 35% 38%) !important;  /* #3f8361 主色 */
+  background: hsl(var(--primary)) !important;
   box-shadow: 0 2px 4px rgba(63, 131, 97, 0.3);
 }
 .theme-forest-light .mode-btn-selected {
-  color: #ffffff !important;
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 /* 森息夜语主题 */
 .theme-forest-dark .mode-slider {
-  background: hsl(151 55% 21%) !important;  /* #185337 主色 */
+  background: hsl(var(--primary)) !important;
   box-shadow: 0 2px 4px rgba(24, 83, 55, 0.3);
 }
 .theme-forest-dark .mode-btn-selected {
-  color: #ffffff !important;
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 /* 云朵舞者主题 */
 .theme-slate-light .mode-slider {
-  background: hsl(18 20% 67%) !important;   /* #bda59b RGB(189,165,155) */
+  background: hsl(var(--primary)) !important;
   box-shadow: 0 2px 4px rgba(189, 165, 155, 0.4);
 }
 .theme-slate-light .mode-btn-selected {
-  color: #ffffff !important;
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 /* ===== 碧海主题：会话/工作区选中状态 ===== */
@@ -508,11 +508,11 @@
 /* ===== 莫兰迪主题：模式切换器选中状态 ===== */
 /* 莫兰迪夜：淡杏粉滑块 + 深色文字 */
 .theme-slate-dark .mode-slider {
-  background: hsl(15 25% 68%) !important;   /* #c9a89e 淡杏粉主色 */
+  background: hsl(var(--primary)) !important;
   box-shadow: 0 2px 4px rgba(201, 168, 158, 0.3);
 }
 .theme-slate-dark .mode-btn-selected {
-  color: hsl(270 8% 12%) !important;        /* 深色文字 */
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 /* ===== 莫兰迪主题：会话/工作区选中状态 ===== */
@@ -541,7 +541,7 @@
 /* ===== TabBar 背景 ===== */
 /* 默认背景 */
 .tabbar-bg {
-  background-color: hsl(var(--muted) / 0.5);
+  background-color: hsl(var(--surface-muted) / 0.50);
 }
 
 /* 苍穹暮色：底部浅色阴影勾勒轮廓 */

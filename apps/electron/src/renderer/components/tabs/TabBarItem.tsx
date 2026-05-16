@@ -9,12 +9,13 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useAtomValue } from 'jotai'
-import { MessageSquare, Bot, X } from 'lucide-react'
+import { MessageSquare, Bot, X, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TabType, TabMinimapItem } from '@/atoms/tab-atoms'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import { tabMinimapCacheAtom } from '@/atoms/tab-atoms'
 import { TabPreviewPanel } from './TabPreviewPanel'
+import { getTabStatusVisuals } from './tab-status-visuals'
 
 export interface TabBarItemProps {
   id: string
@@ -57,12 +58,12 @@ export function TabBarItem({
   onPanelHoverEnter,
   onPanelHoverLeave,
 }: TabBarItemProps): React.ReactElement {
-  const buttonRef = React.useRef<HTMLButtonElement>(null)
+  const tabRef = React.useRef<HTMLDivElement>(null)
   const [isNarrow, setIsNarrow] = React.useState(false)
   const minimapCache = useAtomValue(tabMinimapCacheAtom)
 
   React.useEffect(() => {
-    const el = buttonRef.current
+    const el = tabRef.current
     if (!el) return
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0]
@@ -84,20 +85,16 @@ export function TabBarItem({
     onClose()
   }
 
-  const Icon = type === 'chat' ? MessageSquare : Bot
-  const indicatorColor = isStreaming !== 'idle'
-    ? isStreaming === 'completed'
-      ? 'bg-green-500'
-      : isStreaming === 'blocked'
-        ? 'bg-orange-500'
-        : type === 'chat'
-          ? 'bg-emerald-500'
-          : 'bg-blue-500'
-    : undefined
-  const indicatorPulse = isStreaming === 'running' || isStreaming === 'blocked'
+  const stopClosePointer = (event: React.PointerEvent | React.MouseEvent): void => {
+    event.stopPropagation()
+  }
+
+  const Icon = type === 'chat' ? MessageSquare : type === 'pipeline' ? GitBranch : Bot
+  const statusVisuals = getTabStatusVisuals(isStreaming, type)
   const previewItems = minimapCache.get(id) ?? []
   // 当前 active Tab 不显示预览面板
   const showPreview = isHovered && !isActive
+  const tabLabel = `${type === 'pipeline' ? 'Pipeline' : type === 'agent' ? 'Agent' : 'Chat'} 标签：${title || '未命名标签'}${statusVisuals.label ? `，${statusVisuals.label}` : ''}`
 
   return (
     <div
@@ -105,65 +102,72 @@ export function TabBarItem({
       onMouseEnter={onHoverEnter}
       onMouseLeave={onHoverLeave}
     >
-      <button
-        ref={buttonRef}
-        type="button"
+      <div
+        ref={tabRef}
         className={cn(
-          'group relative flex items-center gap-1.5 px-3 h-[34px] w-full',
-          'rounded-t-lg text-xs transition-colors select-none cursor-pointer',
+          'group relative flex items-center gap-1.5 h-[34px] w-full rounded-t-lg text-xs',
+          'transition-[background-color,border-color,color,box-shadow] duration-fast select-none',
           'border-t border-l border-r border-transparent',
           isActive
-            ? 'bg-content-area text-foreground border-border/50'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+            ? 'bg-surface-panel text-text-primary border-border-subtle/60 shadow-[0_-1px_0_hsl(var(--surface-panel))_inset]'
+            : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted/70',
         )}
-        onClick={onActivate}
+        title={statusVisuals.tooltip ?? title}
         onMouseDown={handleMouseDown}
         onPointerDown={onDragStart}
       >
-        {/* 类型图标 */}
-        <Icon className={cn('shrink-0', isNarrow ? 'size-3.5' : 'size-3')} />
+        <button
+          type="button"
+          className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-tl-lg px-3 pr-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-0"
+          aria-label={tabLabel}
+          onClick={onActivate}
+        >
+          {/* 类型图标 */}
+          <Icon className={cn('shrink-0', isNarrow ? 'size-3.5' : 'size-3')} />
 
-        {/* 标题（窄状态下隐藏，用 spacer 撑开让关闭按钮靠右） */}
-        {isNarrow ? (
-          <span className="flex-1" />
-        ) : (
-          <span className="flex-1 min-w-0 truncate text-left">{title}</span>
-        )}
+          {/* 标题（窄状态下隐藏，用 spacer 撑开让关闭按钮靠右） */}
+          {isNarrow ? (
+            <span className="flex-1" />
+          ) : (
+            <span className="flex-1 min-w-0 truncate text-left">{title}</span>
+          )}
+        </button>
 
         {/* 关闭按钮 */}
-        <span
-          role="button"
-          tabIndex={-1}
+        <button
+          type="button"
+          aria-label={`关闭标签：${title || '未命名标签'}`}
+          title={`关闭标签：${title || '未命名标签'}`}
           className={cn(
-            'size-4 rounded-sm flex items-center justify-center shrink-0',
-            'opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 transition-opacity',
+            'size-5 rounded-control flex items-center justify-center shrink-0',
+            'opacity-0 group-hover:opacity-100 hover:bg-surface-muted hover:text-text-primary transition-[opacity,background-color,color] duration-fast',
+            'focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
             isActive && 'opacity-60',
           )}
+          onMouseDown={stopClosePointer}
+          onPointerDown={stopClosePointer}
           onClick={handleCloseClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') handleCloseClick(e as unknown as React.MouseEvent)
-          }}
         >
           <X className="size-2.5" />
-        </span>
+        </button>
 
         {/* 底部状态横线条 */}
-        {indicatorColor && (
+        {statusVisuals.lineClassName && (
           <span
             className={cn(
               'absolute left-2 right-2 bottom-0 h-[2px] rounded-full pointer-events-none',
-              indicatorColor,
-              indicatorPulse && 'animate-pulse',
+              statusVisuals.lineClassName,
+              statusVisuals.pulsing && 'animate-pulse',
             )}
             aria-hidden="true"
           />
         )}
-      </button>
+      </div>
 
       {/* 悬浮预览面板（Portal 渲染到 body） */}
       {showPreview && (
         <TabPreviewDropdown
-          buttonRef={buttonRef}
+          buttonRef={tabRef}
           title={title}
           items={previewItems}
           isLeaving={isLeaving}
@@ -184,7 +188,7 @@ function TabPreviewDropdown({
   onMouseEnter,
   onMouseLeave,
 }: {
-  buttonRef: React.RefObject<HTMLButtonElement | null>
+  buttonRef: React.RefObject<HTMLDivElement | null>
   title: string
   items: TabMinimapItem[]
   isLeaving: boolean

@@ -93,10 +93,10 @@ function SidebarItem({ icon, label, active, suffix, onClick }: SidebarItemProps)
     <button
       onClick={onClick}
       className={cn(
-        'w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-[13px] transition-colors duration-100 titlebar-no-drag',
+        'w-full flex items-center justify-between px-3 py-2 rounded-control text-[13px] transition-colors duration-fast titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
-          ? 'bg-primary/10 text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-          : 'text-foreground/60 hover:bg-primary/5 hover:text-foreground'
+          ? 'bg-primary/10 text-text-primary shadow-card'
+          : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
       )}
     >
       <div className="flex items-center gap-3">
@@ -809,7 +809,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   if (sidebarCollapsed) {
     return (
       <div
-        className="h-full flex flex-col items-center bg-background rounded-2xl shadow-xl transition-[width] duration-300"
+        className="h-full flex flex-col items-center bg-surface-panel rounded-panel border border-border-subtle/45 shadow-panel transition-[width] duration-normal"
         style={{ width: 48, flexShrink: 0 }}
       >
         {/* 顶部留空，避开 macOS 红绿灯 */}
@@ -821,7 +821,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-2 rounded-[10px] text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground transition-colors titlebar-no-drag"
+                className="p-2 rounded-control text-text-secondary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label="展开侧边栏"
               >
                 <PanelLeftOpen size={18} />
               </button>
@@ -836,7 +837,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-                className="p-2 rounded-[10px] text-foreground/70 bg-primary/5 hover:bg-primary/10 transition-colors titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))]"
+                className="p-2 rounded-control text-text-primary bg-primary/5 hover:bg-primary/10 transition-colors titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label={mode === 'agent' ? '新建 Agent 会话' : '新建对话'}
               >
                 <Plus size={16} />
               </button>
@@ -856,11 +858,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="relative p-1 rounded-[10px] transition-colors titlebar-no-drag hover:bg-foreground/5"
+                className="relative p-1 rounded-control transition-colors titlebar-no-drag hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label="打开设置"
               >
                 <UserAvatar avatar={userProfile.avatar} size={28} />
                 {(hasUpdate || hasEnvironmentIssues) && (
-                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500" />
+                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-status-danger" />
                 )}
               </button>
             </TooltipTrigger>
@@ -878,7 +881,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   // ===== 展开状态：完整侧边栏 =====
   return (
     <div
-      className="h-full flex flex-col bg-background rounded-2xl shadow-xl transition-[width] duration-300"
+      className="h-full flex flex-col bg-surface-panel rounded-panel border border-border-subtle/45 shadow-panel transition-[width] duration-normal"
       style={{ width: width ?? 280, minWidth: 180, flexShrink: 1 }}
     >
       {/* 顶部留空，避开 macOS 红绿灯 */}
@@ -892,7 +895,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="mt-2 size-[36px] flex-shrink-0 flex items-center justify-center rounded-[10px] bg-muted text-foreground/40 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors titlebar-no-drag"
+                className="mt-2 size-9 flex-shrink-0 flex items-center justify-center rounded-control bg-surface-muted text-text-tertiary hover:bg-surface-muted/80 hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label="收起侧边栏"
               >
                 <PanelLeftClose size={14} />
               </button>
@@ -913,7 +917,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[10px] text-[13px] font-medium text-foreground/70 bg-primary/5 hover:bg-primary/10 transition-colors duration-100 titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))]"
+          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-control text-[13px] font-medium text-text-primary bg-primary/5 hover:bg-primary/10 transition-colors duration-fast titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          aria-label={mode === 'agent' ? '新建 Agent 会话' : '新建对话'}
         >
           <Plus size={14} />
           <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
@@ -922,7 +927,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           <TooltipTrigger asChild>
             <button
               onClick={() => setSearchDialogOpen(true)}
-              className="flex-shrink-0 size-[36px] flex items-center justify-center rounded-[10px] text-foreground/40 bg-primary/5 hover:bg-primary/10 hover:text-foreground/60 transition-colors duration-100 titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))]"
+              className="flex-shrink-0 size-9 flex items-center justify-center rounded-control text-text-tertiary bg-primary/5 hover:bg-primary/10 hover:text-text-primary transition-colors duration-fast titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={mode === 'agent' ? '搜索 Agent 会话' : '搜索对话'}
             >
               <Search size={14} />
             </button>
@@ -990,19 +996,20 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                     <button
                       onClick={() => setAgentSubTab('working')}
                       className={cn(
-                        'px-2.5 py-0.5 rounded-md text-[12px] font-medium transition-colors titlebar-no-drag inline-flex items-center',
+                        'px-2.5 py-0.5 rounded-control text-[12px] font-medium transition-colors titlebar-no-drag inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                         agentSubTab === 'working'
-                          ? 'bg-foreground/[0.08] text-foreground/80'
-                          : 'text-foreground/40 hover:text-foreground/60 hover:bg-foreground/[0.04]'
+                          ? 'bg-surface-muted text-text-primary'
+                          : 'text-text-tertiary hover:text-text-primary hover:bg-surface-muted'
                       )}
+                      aria-pressed={agentSubTab === 'working'}
                     >
                       工作中
                       {hasWorkingSessions && (
                         <span className={cn(
                           'ml-1.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px]',
                           agentSubTab === 'working'
-                            ? 'bg-foreground/10 text-foreground/60'
-                            : 'bg-foreground/10 text-foreground/50'
+                            ? 'bg-status-waiting-bg text-status-waiting-fg'
+                            : 'bg-status-neutral-bg text-status-neutral-fg'
                         )}>
                           {workingGroups.todo.length + workingGroups.running.length + workingGroups.done.length}
                         </span>
@@ -1011,19 +1018,20 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                     <button
                       onClick={() => setAgentSubTab('pinned')}
                       className={cn(
-                        'px-2.5 py-0.5 rounded-md text-[12px] font-medium transition-colors titlebar-no-drag inline-flex items-center',
+                        'px-2.5 py-0.5 rounded-control text-[12px] font-medium transition-colors titlebar-no-drag inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                         agentSubTab === 'pinned'
-                          ? 'bg-foreground/[0.08] text-foreground/80'
-                          : 'text-foreground/40 hover:text-foreground/60 hover:bg-foreground/[0.04]'
+                          ? 'bg-surface-muted text-text-primary'
+                          : 'text-text-tertiary hover:text-text-primary hover:bg-surface-muted'
                       )}
+                      aria-pressed={agentSubTab === 'pinned'}
                     >
                       置顶
                       {pinnedAgentSessions.length > 0 && (
                         <span className={cn(
                           'ml-1.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px]',
                           agentSubTab === 'pinned'
-                            ? 'bg-foreground/10 text-foreground/60'
-                            : 'bg-foreground/10 text-foreground/50'
+                            ? 'bg-status-neutral-bg text-status-neutral-fg'
+                            : 'bg-status-neutral-bg text-status-neutral-fg'
                         )}>
                           {pinnedAgentSessions.length}
                         </span>
@@ -1037,10 +1045,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                   {agentSubTab === 'working' && (
                     <div className="pt-0.5 pb-0.5">
                       {hasWorkingSessions ? (() => {
+                        const getTodoAccent = (sessionId: string): SessionLeftAccent =>
+                          agentIndicatorMap.get(sessionId) === 'failed' ? 'danger' : 'waiting'
                         const workingItems: Array<{ session: AgentSessionMeta; accent: SessionLeftAccent; keyPrefix: string }> = [
-                          ...workingGroups.todo.map((s) => ({ session: s, accent: 'orange' as const, keyPrefix: 'working-todo' })),
-                          ...workingGroups.running.map((s) => ({ session: s, accent: 'blue' as const, keyPrefix: 'working-running' })),
-                          ...workingGroups.done.map((s) => ({ session: s, accent: 'green' as const, keyPrefix: 'working-done' })),
+                          ...workingGroups.todo.map((s) => ({ session: s, accent: getTodoAccent(s.id), keyPrefix: 'working-todo' })),
+                          ...workingGroups.running.map((s) => ({ session: s, accent: 'running' as const, keyPrefix: 'working-running' })),
+                          ...workingGroups.done.map((s) => ({ session: s, accent: 'success' as const, keyPrefix: 'working-done' })),
                         ]
                         return (
                           <div className="flex flex-col gap-0.5">
@@ -1241,7 +1251,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             {mode === 'chat' && archivedConversationCount > 0 && (
               <button
                 onClick={() => setViewMode('archived')}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/40 hover:bg-foreground/[0.04] hover:text-foreground/60 transition-colors titlebar-no-drag"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 <Archive size={13} className="text-foreground/30" />
                 <span>已归档 ({archivedConversationCount})</span>
@@ -1250,7 +1260,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             {mode === 'agent' && archivedAgentSessionCount > 0 && (
               <button
                 onClick={() => setViewMode('archived')}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/40 hover:bg-foreground/[0.04] hover:text-foreground/60 transition-colors titlebar-no-drag"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 <Archive size={13} className="text-foreground/30" />
                 <span>已归档 ({archivedAgentSessionCount})</span>
@@ -1260,7 +1270,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
         ) : (
           <button
             onClick={() => setViewMode('active')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/60 bg-foreground/[0.04] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors titlebar-no-drag"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-secondary bg-surface-muted hover:bg-surface-muted/80 hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <ArrowLeft size={13} className="text-foreground/50" />
             <span>返回活跃{mode === 'agent' ? '会话' : '对话'}</span>
@@ -1275,7 +1285,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={() => { setSettingsTab('agent'); setSettingsOpen(true) }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-[12px] text-foreground/50 hover:bg-foreground/[0.04] hover:text-foreground/70 transition-colors titlebar-no-drag"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-control text-[12px] text-text-secondary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label="配置 MCP 与 Skills"
               >
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   <span className="flex items-center gap-1">
@@ -1301,14 +1312,14 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       <div className="px-3 pb-3">
         <button
           onClick={() => setSettingsOpen(true)}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] transition-colors titlebar-no-drag text-foreground/70 hover:bg-foreground/[0.04] hover:text-foreground"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-control transition-colors titlebar-no-drag text-text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <UserAvatar avatar={userProfile.avatar} size={28} />
           <span className="flex-1 text-sm truncate text-left">{userProfile.userName}</span>
           <div className="relative flex-shrink-0 text-foreground/40">
             <Settings size={16} />
             {(hasUpdate || hasEnvironmentIssues) && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-status-danger" />
             )}
           </div>
         </button>
@@ -1394,6 +1405,15 @@ function ConversationItem({
     }
   }
 
+  const handleRowKeyDown = (event: React.KeyboardEvent): void => {
+    if (editing) return
+    if (event.currentTarget !== event.target) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onSelect()
+    }
+  }
+
   const isPinned = !!conversation.pinned
 
   return (
@@ -1401,6 +1421,7 @@ function ConversationItem({
       role="button"
       tabIndex={0}
       onClick={onSelect}
+      onKeyDown={handleRowKeyDown}
       onDoubleClick={(e) => {
         e.stopPropagation()
         startEdit()
@@ -1408,16 +1429,16 @@ function ConversationItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'relative w-full flex items-center gap-2 px-3 py-[7px] rounded-[10px] transition-colors duration-100 titlebar-no-drag text-left',
+        'relative w-full min-h-10 flex items-center gap-2 px-3 py-[7px] rounded-control transition-[background-color,color,box-shadow] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
-          ? 'session-item-selected bg-primary/10 shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-          : 'hover:bg-primary/5'
+          ? 'session-item-selected bg-primary/10 shadow-card'
+          : 'hover:bg-surface-muted'
       )}
     >
       {/* 流式状态左侧竖线条（与 Agent 保持一致） */}
       {streaming && (
         <span
-          className="absolute left-1 top-1.5 bottom-1.5 w-[2px] rounded-full bg-emerald-500 animate-pulse pointer-events-none"
+          className="absolute left-1 top-1.5 bottom-1.5 w-[2px] rounded-full bg-status-success animate-pulse pointer-events-none"
           aria-hidden="true"
         />
       )}
@@ -1449,7 +1470,7 @@ function ConversationItem({
 
       {/* 操作按钮组（hover 时可见） */}
       <div className={cn(
-        'flex items-center gap-0.5 flex-shrink-0 transition-all duration-100 overflow-hidden',
+        'flex items-center gap-0.5 flex-shrink-0 transition-all duration-fast overflow-hidden',
         hovered && !editing ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
       )}>
         <Tooltip>
@@ -1459,7 +1480,8 @@ function ConversationItem({
                 e.stopPropagation()
                 onTogglePin(conversation.id)
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={isPinned ? `取消置顶对话：${conversation.title}` : `置顶对话：${conversation.title}`}
             >
               {isPinned ? <PinOff size={13} /> : <Pin size={13} />}
             </button>
@@ -1473,7 +1495,8 @@ function ConversationItem({
                 e.stopPropagation()
                 startEdit()
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={`重命名对话：${conversation.title}`}
             >
               <Pencil size={13} />
             </button>
@@ -1487,7 +1510,8 @@ function ConversationItem({
                 e.stopPropagation()
                 onToggleArchive(conversation.id)
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={conversation.archived ? `取消归档对话：${conversation.title}` : `归档对话：${conversation.title}`}
             >
               {conversation.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
             </button>
@@ -1501,7 +1525,8 @@ function ConversationItem({
                 e.stopPropagation()
                 onRequestDelete()
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-status-danger-bg hover:text-status-danger-fg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={`删除对话：${conversation.title}`}
             >
               <Trash2 size={13} />
             </button>
@@ -1516,11 +1541,12 @@ function ConversationItem({
 // ===== Agent 会话列表项 =====
 
 /** 会话行左侧状态色块的颜色 — 与 SessionIndicatorStatus 呼应 */
-type SessionLeftAccent = 'orange' | 'blue' | 'green'
+type SessionLeftAccent = 'waiting' | 'running' | 'success' | 'danger'
 const SESSION_LEFT_ACCENT_CLASS: Record<SessionLeftAccent, string> = {
-  orange: 'bg-orange-500',
-  blue: 'bg-blue-500',
-  green: 'bg-green-500',
+  waiting: 'bg-status-waiting',
+  running: 'bg-status-running',
+  success: 'bg-status-success',
+  danger: 'bg-status-danger',
 }
 
 interface AgentSessionItemProps {
@@ -1601,11 +1627,21 @@ function AgentSessionItem({
     }
   }
 
+  const handleRowKeyDown = (event: React.KeyboardEvent): void => {
+    if (editing) return
+    if (event.currentTarget !== event.target) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onSelect()
+    }
+  }
+
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onSelect}
+      onKeyDown={handleRowKeyDown}
       onDoubleClick={(e) => {
         e.stopPropagation()
         startEdit()
@@ -1613,10 +1649,10 @@ function AgentSessionItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'relative w-full flex items-center gap-2 px-3 py-[7px] rounded-[10px] transition-colors duration-100 titlebar-no-drag text-left',
+        'relative w-full min-h-10 flex items-center gap-2 px-3 py-[7px] rounded-control transition-[background-color,color,box-shadow] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
-          ? 'session-item-selected bg-primary/10 shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-          : 'hover:bg-primary/5'
+          ? 'session-item-selected bg-primary/10 shadow-card'
+          : 'hover:bg-surface-muted'
       )}
     >
       {leftAccent && (
@@ -1659,7 +1695,7 @@ function AgentSessionItem({
 
       {/* 操作按钮组（hover 时可见） */}
       <div className={cn(
-        'flex items-center gap-0.5 flex-shrink-0 transition-all duration-100 overflow-hidden',
+        'flex items-center gap-0.5 flex-shrink-0 transition-all duration-fast overflow-hidden',
         hovered && !editing ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
       )}>
         <Tooltip>
@@ -1669,7 +1705,8 @@ function AgentSessionItem({
                 e.stopPropagation()
                 onTogglePin(session.id)
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={session.pinned ? `取消置顶会话：${session.title}` : `置顶会话：${session.title}`}
             >
               {session.pinned ? <PinOff size={13} /> : <Pin size={13} />}
             </button>
@@ -1687,13 +1724,20 @@ function AgentSessionItem({
               }}
               disabled={indicatorStatus === 'running'}
               className={cn(
-                'p-1 rounded-md transition-colors',
+                'p-1 rounded-control transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 indicatorStatus === 'running'
                   ? 'text-primary/40 cursor-not-allowed'
                   : (isInWorkingSection || session.manualWorking)
-                    ? 'text-primary hover:bg-foreground/[0.08]'
-                    : 'text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60'
+                    ? 'text-primary hover:bg-surface-muted'
+                    : 'text-text-tertiary hover:bg-surface-muted hover:text-text-primary'
               )}
+              aria-label={
+                indicatorStatus === 'running'
+                  ? `运行中无法移出工作中：${session.title}`
+                  : (isInWorkingSection || session.manualWorking)
+                    ? `取消工作中：${session.title}`
+                    : `标记为工作中：${session.title}`
+              }
             >
               <Hammer size={13} className={(isInWorkingSection || session.manualWorking) ? 'fill-current' : ''} />
             </button>
@@ -1704,7 +1748,7 @@ function AgentSessionItem({
               : (isInWorkingSection || session.manualWorking) ? '取消工作中' : '标记为工作中'}
           </TooltipContent>
         </Tooltip>
-        {(indicatorStatus === 'idle' || indicatorStatus === 'completed') && (
+        {(indicatorStatus !== 'running' && indicatorStatus !== 'blocked' && indicatorStatus !== 'failed') && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -1712,7 +1756,8 @@ function AgentSessionItem({
                   e.stopPropagation()
                   onRequestMove()
                 }}
-                className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+                className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label={`迁移会话到其他工作区：${session.title}`}
               >
                 <ArrowRightLeft size={13} />
               </button>
@@ -1727,7 +1772,8 @@ function AgentSessionItem({
                 e.stopPropagation()
                 startEdit()
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={`重命名会话：${session.title}`}
             >
               <Pencil size={13} />
             </button>
@@ -1741,7 +1787,8 @@ function AgentSessionItem({
                 e.stopPropagation()
                 onToggleArchive(session.id)
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={session.archived ? `取消归档会话：${session.title}` : `归档会话：${session.title}`}
             >
               {session.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
             </button>
@@ -1755,7 +1802,8 @@ function AgentSessionItem({
                 e.stopPropagation()
                 onRequestDelete()
               }}
-              className="p-1 rounded-md text-foreground/30 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="p-1 rounded-control text-text-tertiary hover:bg-status-danger-bg hover:text-status-danger-fg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              aria-label={`删除会话：${session.title}`}
             >
               <Trash2 size={13} />
             </button>

@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'bun:test'
-import type { PipelineStreamPayload } from '@rv-insights/shared'
+import { createStore } from 'jotai'
+import type { PipelineStateSnapshot, PipelineStreamPayload } from '@rv-insights/shared'
 import {
   applyPipelineStreamState,
   applyPipelineLiveOutput,
   applyPipelineStreamErrorState,
   getPipelineLiveOutput,
   hasPipelineLiveOutputNode,
+  pipelineSessionIndicatorMapAtom,
+  pipelineSessionStateMapAtom,
   type PipelineLiveOutputState,
 } from './pipeline-atoms'
 
@@ -231,6 +234,54 @@ describe('applyPipelineStreamState', () => {
       status: 'node_failed',
       pendingGate: null,
       updatedAt: 3,
+    })
+  })
+})
+
+describe('pipelineSessionIndicatorMapAtom', () => {
+  test('等待人工、失败和完成状态映射到侧边栏 indicator', () => {
+    const store = createStore()
+    const stateMap = new Map<string, PipelineStateSnapshot>([
+      ['running', {
+        sessionId: 'running',
+        currentNode: 'developer',
+        status: 'running',
+        reviewIteration: 0,
+        pendingGate: null,
+        updatedAt: 1,
+      }],
+      ['waiting', {
+        sessionId: 'waiting',
+        currentNode: 'reviewer',
+        status: 'waiting_human',
+        reviewIteration: 0,
+        pendingGate: null,
+        updatedAt: 1,
+      }],
+      ['failed', {
+        sessionId: 'failed',
+        currentNode: 'tester',
+        status: 'node_failed',
+        reviewIteration: 0,
+        pendingGate: null,
+        updatedAt: 1,
+      }],
+      ['completed', {
+        sessionId: 'completed',
+        currentNode: 'committer',
+        status: 'completed',
+        reviewIteration: 0,
+        pendingGate: null,
+        updatedAt: 1,
+      }],
+    ])
+    store.set(pipelineSessionStateMapAtom, stateMap)
+
+    expect(Object.fromEntries(store.get(pipelineSessionIndicatorMapAtom))).toEqual({
+      running: 'running',
+      waiting: 'blocked',
+      failed: 'failed',
+      completed: 'completed',
     })
   })
 })

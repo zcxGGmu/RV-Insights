@@ -120,7 +120,7 @@ export function TabBar(): React.ReactElement {
     document.addEventListener('pointerup', handleUp)
   }, [tabs])
 
-  if (tabs.length === 0) return <div className="h-[34px] titlebar-drag-region" />
+  if (tabs.length === 0) return <div className="h-9 border-b border-border-subtle/40 titlebar-drag-region" />
 
   return (
     <>
@@ -201,7 +201,7 @@ function TabBarInner({
   }, [])
 
   return (
-    <div className="flex items-end h-[34px] tabbar-bg relative">
+    <div className="flex items-end h-9 tabbar-bg relative border-b border-border-subtle/50">
       <div className="absolute inset-0 titlebar-drag-region" />
 
       <div className="relative flex items-end flex-1 min-w-0 overflow-x-clip titlebar-no-drag">

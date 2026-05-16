@@ -85,12 +85,11 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - [x] 完成 UI-0 before 审计记录：`improve/ui/2026-05-16-client-ui-before-audit.md`。
 - [x] 建立 `improve/ui/screenshots/` 截图基线，覆盖 Pipeline / Agent / Settings 的 light 与 dark 状态。
 - [x] 完成 UI-1 Token 与 primitive 收敛：新增语义 token alias、Tailwind 映射、Card / Chip primitive，统一 Button / Badge / Dialog / Tooltip / Input / Select / 菜单 / Settings primitives 的基础视觉语言。
+- [x] 完成 UI-2 AppShell / Sidebar / Tab 收敛：三栏 shell surface、Sidebar item、Tab indicator、RightSidePanel 与键盘 focus 已统一。
 
 未完成：
 
-- [ ] 真实客户端主界面视觉改造尚未开始；重启客户端后 Pipeline 主界面、左侧栏、阶段栏、任务输入区和阶段产物区不会出现明显 redesign。
-- [ ] UI-2 AppShell / Sidebar / Tab 尚未开始。
-- [ ] UI-3 Pipeline 工作台尚未开始。
+- [ ] Pipeline 主面板 UI-3 尚未开始；StageRail、Records、Gate、Composer 仍保持 UI-2 前的页面结构。
 - [ ] UI-4 Agent 阅读与交互尚未开始。
 - [ ] UI-5 Settings 管理界面尚未开始。
 - [ ] UI-6 Welcome / Chat 回退 / File Browser 尚未开始。
@@ -102,8 +101,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - 当前工作区可能存在 `.DS_Store` 修改；它不是 UI 阶段成果，不要纳入 UI 提交，除非用户明确要求处理系统文件。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
 - UI-1 只是 UI 基础层，不等同于用户可见的主界面优化；不要向用户暗示“全客户端 UI 已经有明显变化”。
-- 下一阶段必须从 UI-2 AppShell / Sidebar / Tab 开始；不得跳过 UI-2 直接进入 Pipeline / Agent 页面结构大改。
-- 用户截图中红框区域属于 UI-3 Pipeline 工作台范围；若要让该区域肉眼明显变化，需要先完成 UI-2，再进入 UI-3。
+- UI-2 只完成 shell / Sidebar / Tab / RightSidePanel；用户截图红框内 Pipeline 主面板属于 UI-3，下一阶段必须从 UI-3 Pipeline 工作台开始。
 
 ### 2.2 阶段进度表
 
@@ -111,7 +109,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | --- | --- | --- | --- | --- |
 | UI-0 | 基线审计与截图准备 | [x] | before 审计、截图目录、验收矩阵 | commit `61c263c8` + `2026-05-16-client-ui-before-audit.md` + 6 张 baseline 截图 |
 | UI-1 | Token 与 primitive 收敛 | [x] | CSS token、Button、Card、Badge、Dialog、Tooltip | commit `20a90d36` + typecheck + renderer build + 3 张 primitive 截图 |
-| UI-2 | AppShell / Sidebar / Tab | [ ] | 三栏骨架、导航密度、多标签状态、右侧面板 | light / dark / 特殊主题截图 |
+| UI-2 | AppShell / Sidebar / Tab | [x] | 三栏骨架、导航密度、多标签状态、右侧面板 | typecheck + focused tests + light / dark / forest 截图 |
 | UI-3 | Pipeline 工作台 | [ ] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | Pipeline 状态截图 + 键盘路径 |
 | UI-4 | Agent 阅读与交互 | [ ] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | Agent 状态截图 + 后台权限路径 |
 | UI-5 | Settings 管理界面 | [ ] | Settings primitives、渠道表单、Agent 配置、危险操作 | 表单错误 + danger dialog 截图 |
@@ -272,26 +270,26 @@ git diff --check
 
 ### 5.4 任务清单
 
-- [ ] 对照视觉规范 `5.1 AppShell / Sidebar / Tab` 和 `5.8 页面级 Wireframe` 做 before 审计。
-- [ ] 统一 LeftSidebar icon button 尺寸、hover、selected、focus。
-- [ ] 统一 PipelineSidebar / 会话列表 item 高度、selected、running、blocked、failed indicator。
-- [ ] ModeSwitcher 使用 primary token 或主题 token，不使用局部裸色。
-- [ ] TabBar active tab 与 MainArea 层级连贯，非 active tab 降权。
-- [ ] Tab running 使用细线或小点，不整块染色。
-- [ ] Tab blocked 使用 amber indicator + tooltip。
-- [ ] Tab failed 使用 danger indicator，并能定位对应会话或错误。
-- [ ] Tab close button 有 `aria-label`，focus-visible 时可见。
-- [ ] RightSidePanel 与 MainArea 使用同级 surface，不做嵌套装饰卡片。
-- [ ] 窄窗口下优先收起右侧面板，再压缩 session sidebar。
-- [ ] Toast / tooltip / dialog 不遮挡 gate 或 permission 主按钮。
+- [x] 对照视觉规范 `5.1 AppShell / Sidebar / Tab` 和 `5.8 页面级 Wireframe` 做 before 审计。
+- [x] 统一 LeftSidebar icon button 尺寸、hover、selected、focus。
+- [x] 统一 PipelineSidebar / 会话列表 item 高度、selected、running、blocked、failed indicator。
+- [x] ModeSwitcher 使用 primary token 或主题 token，不使用局部裸色。
+- [x] TabBar active tab 与 MainArea 层级连贯，非 active tab 降权。
+- [x] Tab running 使用细线或小点，不整块染色。
+- [x] Tab blocked 使用 amber indicator + tooltip。
+- [x] Tab failed 使用 danger indicator，并能定位对应会话或错误。
+- [x] Tab close button 有 `aria-label`，focus-visible 时可见。
+- [x] RightSidePanel 与 MainArea 使用同级 surface，不做嵌套装饰卡片。
+- [x] 窄窗口下优先收起右侧面板，再压缩 session sidebar。
+- [x] Toast / tooltip / dialog 不遮挡 gate 或 permission 主按钮。
 
 ### 5.5 验收标准
 
-- [ ] 3 秒内能辨认当前处于 Pipeline 还是 Agent。
-- [ ] 当前 session、当前 tab、后台运行状态可见。
-- [ ] 多 tab、blocked、failed 状态在 light / dark 下可读。
-- [ ] Sidebar / Tab keyboard focus 清楚可见。
-- [ ] 无明显水平滚动或文本溢出。
+- [x] 3 秒内能辨认当前处于 Pipeline 还是 Agent。
+- [x] 当前 session、当前 tab、后台运行状态可见。
+- [x] 多 tab、blocked、failed 状态在 light / dark 下可读。
+- [x] Sidebar / Tab keyboard focus 清楚可见。
+- [x] 无明显水平滚动或文本溢出。
 
 ### 5.6 验证
 
@@ -302,10 +300,10 @@ git diff --check
 
 手动路径：
 
-- [ ] 用键盘从 LeftSidebar 切换 Pipeline / Agent。
-- [ ] 打开多个 tab，关闭其中一个 tab。
-- [ ] 模拟或观察后台 running / blocked / failed indicator。
-- [ ] 缩小窗口，检查右侧面板和主内容。
+- [x] 用键盘从 LeftSidebar 切换 Pipeline / Agent。
+- [x] 打开多个 tab，关闭其中一个 tab。
+- [x] 模拟或观察后台 running / blocked / failed indicator。
+- [x] 缩小窗口，检查右侧面板和主内容。
 
 截图建议：
 
@@ -315,13 +313,14 @@ git diff --check
 
 ### 5.7 阶段 Review
 
-- 状态：
-- 完成日期：
-- 涉及文件：
-- 状态 indicator 改动：
-- 键盘路径结果：
-- 截图路径：
-- 未覆盖窗口尺寸：
+- 状态：已完成，等待本阶段独立提交。
+- 完成日期：2026-05-16。
+- 涉及文件：`AppShell.tsx`、`LeftSidebar.tsx`、`PipelineSidebar.tsx`、`MainArea.tsx`、`TabBar.tsx`、`TabBarItem.tsx`、`TabSwitcher.tsx`、`tab-status-visuals.ts`、Agent `SidePanel.tsx`、`agent-atoms.ts`、`pipeline-atoms.ts`、`working-atoms.ts`、`globals.css`、`apps/electron/package.json`、`bun.lock`。
+- 状态 indicator 改动：Pipeline waiting 映射为 blocked，node / recovery failed 映射为 failed；Agent stream error / retry failed 映射为 failed；Tab / Sidebar 统一使用 running / waiting / success / danger token 细线，blocked 和 failed 提供 tooltip / title。
+- 键盘路径结果：Tab close button 改为真实 button 且不再嵌套在 tab 激活 button 内；Conversation / Agent / Pipeline 侧栏行补 Enter / Space 激活，并限制为仅在行容器自身聚焦时触发，避免子按钮键盘事件冒泡误选中会话；icon-only 操作补 `aria-label` 与 focus-visible ring。
+- 截图路径：`improve/ui/screenshots/appshell-light-multi-tab-desktop.png`、`improve/ui/screenshots/appshell-dark-background-running-desktop.png`、`improve/ui/screenshots/appshell-forest-blocked-desktop.png`。
+- 验证：`bun run --filter='@rv-insights/electron' typecheck`、`bun test apps/electron/src/renderer/atoms/pipeline-atoms.test.ts apps/electron/src/renderer/atoms/tab-atoms.test.ts apps/electron/src/renderer/components/pipeline/pipeline-session-sidebar-model.test.ts`、`bun install --frozen-lockfile --dry-run`、`git diff --check`。
+- 未覆盖窗口尺寸：本阶段截图为 desktop 1280x720；移动 / 更窄窗口只做设计约束和人工观察，细分响应式矩阵留到 UI-7 总体验收。
 
 ## 6. 阶段 UI-3：Pipeline 工作台
 

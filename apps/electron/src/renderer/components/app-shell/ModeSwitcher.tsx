@@ -79,11 +79,11 @@ export function ModeSwitcher(): React.ReactElement {
 
   return (
     <div className="pt-2">
-      <div className="relative flex rounded-xl bg-muted p-1">
+      <div className="relative flex rounded-card bg-surface-muted p-1">
         {/* 滑动背景指示器 */}
         <div
           className={cn(
-            'mode-slider absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
+            'mode-slider absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-control bg-primary shadow-sm transition-transform duration-normal ease-out',
             mode === 'agent' ? 'translate-x-0' : 'translate-x-full'
           )}
         />
@@ -92,11 +92,12 @@ export function ModeSwitcher(): React.ReactElement {
             key={value}
             onClick={() => handleModeSwitch(value)}
             className={cn(
-              'mode-btn relative z-[1] flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1 text-sm font-medium transition-colors duration-200',
+              'mode-btn relative z-[1] flex-1 flex items-center justify-center gap-1.5 rounded-control px-3 py-1 text-sm font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               mode === value
-                ? 'mode-btn-selected text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'mode-btn-selected text-primary-foreground'
+                : 'text-text-secondary hover:text-text-primary'
             )}
+            aria-pressed={mode === value}
           >
             {icon}
             {label}

@@ -28,7 +28,7 @@ import {
   unviewedCompletedSessionIdsAtom,
   agentWorkspacesAtom,
 } from '@/atoms/agent-atoms'
-import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
+import { getTabStatusVisuals } from './tab-status-visuals'
 
 export function TabSwitcher(): React.ReactElement | null {
   const tabs = useAtomValue(tabsAtom)
@@ -232,8 +232,7 @@ export function TabSwitcher(): React.ReactElement | null {
         <div className="py-1.5">
           {displayTabs.map((tab, index) => {
             const status = indicatorMap.get(tab.id) ?? 'idle'
-            const indicatorColor = getIndicatorColor(status, tab.type)
-            const indicatorPulse = status === 'running' || status === 'blocked'
+            const statusVisuals = getTabStatusVisuals(status, tab.type)
             const wsName = tab.type === 'agent'
               ? (() => {
                   const session = agentSessions.find((s) => s.id === tab.sessionId)
@@ -252,12 +251,12 @@ export function TabSwitcher(): React.ReactElement | null {
                 )}
               >
                 {/* 左侧状态竖线条 */}
-                {indicatorColor && (
+                {statusVisuals.lineClassName && (
                   <span
                     className={cn(
                       'absolute left-1.5 top-2 bottom-2 w-[2px] rounded-full',
-                      indicatorColor,
-                      indicatorPulse && 'animate-pulse',
+                      statusVisuals.lineClassName,
+                      statusVisuals.pulsing && 'animate-pulse',
                     )}
                     aria-hidden="true"
                   />
@@ -305,22 +304,4 @@ function Kbd({ children }: { children: React.ReactNode }): React.ReactElement {
       {children}
     </kbd>
   )
-}
-
-/**
- * 状态指示点颜色（与 TabBarItem 保持一致）
- * - completed → 绿色（已完成未查看）
- * - blocked → 橙色脉动（Agent 等待用户输入）
- * - running + chat → emerald 脉动
- * - running + agent → 蓝色脉动
- * - idle → 无
- */
-function getIndicatorColor(
-  status: SessionIndicatorStatus,
-  type: TabItem['type'],
-): string | undefined {
-  if (status === 'idle') return undefined
-  if (status === 'completed') return 'bg-green-500'
-  if (status === 'blocked') return 'bg-orange-500'
-  return type === 'chat' ? 'bg-emerald-500' : 'bg-blue-500'
 }

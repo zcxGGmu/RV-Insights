@@ -38,7 +38,7 @@ export function MainArea(): React.ReactElement {
     <>
       <Panel
         variant="grow"
-        className="bg-content-area rounded-2xl shadow-xl"
+        className="bg-surface-panel rounded-panel shadow-panel border border-border-subtle/45"
       >
         <TabBar />
         {tabs.length === 0 ? (

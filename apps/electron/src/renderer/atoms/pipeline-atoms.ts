@@ -64,8 +64,10 @@ export const pipelineSessionIndicatorMapAtom = atom<Map<string, SessionIndicator
   for (const [sessionId, state] of states.entries()) {
     if (state.status === 'running') {
       map.set(sessionId, 'running')
-    } else if (state.status === 'waiting_human' || state.status === 'node_failed') {
+    } else if (state.status === 'waiting_human') {
       map.set(sessionId, 'blocked')
+    } else if (state.status === 'node_failed' || state.status === 'recovery_failed') {
+      map.set(sessionId, 'failed')
     } else if (state.status === 'completed') {
       map.set(sessionId, 'completed')
     } else {

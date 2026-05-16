@@ -24,7 +24,7 @@ export interface WorkingSessionGroups {
 
 /**
  * 派生 atom：计算 Working 区域的三组会话（跨工作区，不按当前工作区过滤）
- * - todo: blocked（orange，等待用户决策）
+ * - todo: blocked / failed（waiting / danger，等待用户决策或错误处理）
  * - running: running（blue，Agent 执行中）
  * - done: 完成且 Tab 仍打开（green / idle），包含手动标记为工作中的会话
  *
@@ -47,11 +47,11 @@ export const workingSessionGroupsAtom = atom<WorkingSessionGroups>((get) => {
   const done: AgentSessionMeta[] = []
   const includedIds = new Set<string>()
 
-  // 从 indicatorMap 提取 blocked + running
+  // 从 indicatorMap 提取 blocked / failed + running
   for (const [id, status] of indicatorMap) {
     const session = sessionMap.get(id)
     if (!session || draftIds.has(id)) continue
-    if (status === 'blocked') { todo.push(session); includedIds.add(id) }
+    if (status === 'blocked' || status === 'failed') { todo.push(session); includedIds.add(id) }
     else if (status === 'running') { running.push(session); includedIds.add(id) }
   }
 
@@ -69,7 +69,7 @@ export const workingSessionGroupsAtom = atom<WorkingSessionGroups>((get) => {
   for (const session of sessions) {
     if (!session.manualWorking || draftIds.has(session.id) || includedIds.has(session.id)) continue
     const status = indicatorMap.get(session.id)
-    if (status === 'blocked') { todo.push(session); includedIds.add(session.id) }
+    if (status === 'blocked' || status === 'failed') { todo.push(session); includedIds.add(session.id) }
     else if (status === 'running') { running.push(session); includedIds.add(session.id) }
     else { done.push(session); includedIds.add(session.id) }
   }
