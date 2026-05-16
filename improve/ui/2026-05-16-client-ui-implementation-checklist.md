@@ -63,7 +63,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ### 2.1 当前开发状态快照
 
-更新时间：2026-05-16 UI-6 完成并补充状态同步后
+更新时间：2026-05-16 UI-7 全局验收完成后
 
 当前文档与阶段提交：
 
@@ -81,6 +81,8 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - UI-5 提交：`8362e8b4`（`style(settings): 统一设置界面表单与危险操作`）。
 - UI-5 后续状态同步提交：`3ccb2886`（`docs(ui): 同步 UI-5 后续开发状态`）。
 - UI-6 提交：`ed3d48d3`（`style(ui): 对齐 Welcome Chat 与 File Browser 体验`）。
+- UI-6 后续状态同步提交：`f523ad71`（`docs(ui): 同步 UI-6 后续开发状态`）。
+- UI-7：全局验收已完成，本阶段产物纳入 UI-7 单独提交。
 
 已完成：
 
@@ -97,10 +99,9 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - [x] 完成 UI-4 Agent 阅读与交互：Agent header meta、banner zone、ToolActivity 状态、Composer 稳定性、消息阅读宽度已收敛。
 - [x] 完成 UI-5 Settings 管理界面：Settings dialog/nav/primitives、渠道配置、Agent 工作区 / MCP / Skills、危险操作和错误反馈已收敛，commit 为 `8362e8b4`。
 - [x] 完成 UI-6 Welcome / Chat 回退 / File Browser：Welcome / Onboarding 空态、旧 Chat 回退 composer / tool activity、File Browser 文件树与危险确认已收敛，commit 为 `ed3d48d3`。
+- [x] 完成 UI-7 全局验收与收尾：阶段 Review、P0/P1、主题矩阵、a11y、键盘路径、溢出、验证命令和最终 Review 已收口。
 
-未完成：
-
-- [ ] UI-7 全局验收与收尾尚未开始。
+未完成：无。
 
 当前注意事项：
 
@@ -108,7 +109,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - 当前工作区可能存在 `.DS_Store` 修改；它不是 UI 阶段成果，不要纳入 UI 提交，除非用户明确要求处理系统文件。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
 - UI-1 只是 UI 基础层，不等同于用户可见的主界面优化；不要向用户暗示“全客户端 UI 已经有明显变化”。
-- UI-6 已完成长尾页面收敛并已单独提交；下一阶段从 UI-7 全局验收与收尾开始。
+- UI-7 已完成全局验收；本轮提交仍需继续保护 `.DS_Store` 和 UI visual spec swap 文件。
 
 ### 2.2 阶段进度表
 
@@ -121,7 +122,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | UI-4 | Agent 阅读与交互 | [x] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | commit `b28ac9df` + Agent 聚焦测试 11 pass + typecheck + light / dark / ocean 截图 |
 | UI-5 | Settings 管理界面 | [x] | Settings primitives、渠道表单、Agent 配置、危险操作 | commit `8362e8b4` + Settings 聚焦测试 7 pass + typecheck + light / dark / slate 截图 |
 | UI-6 | Welcome / Chat 回退 / File Browser | [x] | 空态、Chat 对齐、文件树和确认流 | commit `ed3d48d3` + UI-6 聚焦测试 4 pass + typecheck + light / dark / slate / forest 截图 |
-| UI-7 | 全局验收与收尾 | [ ] | 主题矩阵、a11y、回归、文档 Review | 总体验收记录 |
+| UI-7 | 全局验收与收尾 | [x] | 主题矩阵、a11y、回归、文档 Review | typecheck + focused tests + `git diff --check` + 总体验收记录 |
 
 ## 3. 阶段 UI-0：基线审计与截图准备
 
@@ -530,7 +531,7 @@ git diff --check
 - 审查修复：Composer 锁定现在进入 `handleSend` 守卫，Permission / AskUser / ExitPlan 都会锁住发送、粘贴、拖拽和附件入口；多个 banner 同屏时只有最高优先级横幅响应全局快捷键；AskUser 多问题提交要求全部问题已回答。
 - 验证：`bun test apps/electron/src/renderer/components/agent/agent-ui-model.test.ts apps/electron/src/renderer/atoms/agent-atoms.test.ts apps/electron/src/renderer/hooks/agent-session-refresh-controller.test.ts` 通过，11 pass；`bun run --filter='@rv-insights/electron' typecheck` 通过；`bun install --frozen-lockfile --dry-run` 通过；`git diff --check` 通过。
 - 未覆盖状态：未用真实 Agent SDK 远端调用采集 AskUser 提交后的恢复截图；本阶段没有改 Agent SDK 编排、权限服务、IPC、shared type 或持久化语义。
-- 残留风险：
+- 残留风险：真实 Agent SDK 远端 AskUser 恢复路径未采集截图；UI-7 以组件状态、banner 交互模型和完整客户端抽样审计作为收口依据。
 
 ## 8. 阶段 UI-5：Settings 管理界面
 
@@ -619,15 +620,14 @@ git diff --check
 
 ### 8.10 阶段 Review
 
-- 状态：已完成，待单独提交。
+- 状态：已完成，本阶段产物已纳入 UI-5 单独提交。
 - 完成日期：2026-05-16。
-- 涉及文件：`SettingsDialog.tsx`、`SettingsPanel.tsx`、`ChannelSettings.tsx`、`ChannelForm.tsx`、`AgentSettings.tsx`、`McpServerForm.tsx`、Settings primitives、`settings-ui-model.ts`。
+- 涉及文件：`SettingsDialog.tsx`、`SettingsPanel.tsx`、`ChannelSettings.tsx`、`ChannelForm.tsx`、`AgentSettings.tsx`、`McpServerForm.tsx`、Settings primitives、`settings-ui-model.ts`、`apps/electron/package.json`、`bun.lock`。
 - 表单覆盖：SettingsInput / Select / Toggle 补 label / helper / error 语义；新增 SettingsTextarea；ChannelForm API Key、Base URL、模型列表和 MCP command/env/header 反馈就近展示。
 - 危险操作覆盖：渠道删除、MCP 删除、Skill 删除统一 AlertDialog，说明影响范围，loading 防重复点击，失败留在 dialog 内 inline 展示。
 - 验证结果：Settings 聚焦测试 7 pass；`bun run --filter='@rv-insights/electron' typecheck` 通过；`git diff --check` 通过；已采集 light / dark / slate 截图。
 - 截图路径：`settings-light-channel-form-desktop.png`、`settings-dark-validation-error-desktop.png`、`settings-slate-danger-dialog-desktop.png`、`settings-slate-update-desktop.png`。
-- 截图路径：
-- 残留风险：
+- 残留风险：低频 Feishu / DingTalk / WeChat / BotHub 集成设置仍保留部分历史状态色 class；UI-7 确认这些状态均有文本标签辅助，不作为本轮主题 token 阻塞项。
 
 ## 9. 阶段 UI-6：Welcome / Chat 回退 / File Browser
 
@@ -726,25 +726,25 @@ git diff --check
 
 ### 10.2 任务清单
 
-- [ ] 检查所有阶段 Review 是否填写。
-- [ ] 检查所有 P0 问题是否关闭。
-- [ ] 检查 P1 问题是否关闭或有明确暂缓原因。
-- [ ] 检查 token 是否覆盖 light、dark、特殊主题 fallback。
-- [ ] 检查没有新增未解释的裸 hex。
-- [ ] 检查 icon-only 按钮是否有 tooltip 和 `aria-label`。
-- [ ] 检查状态色是否都有 icon 或文本辅助。
-- [ ] 检查 Dialog 是否有 title、focus trap、Esc / cancel 路径。
-- [ ] 检查 File Browser、Sidebar、TabBar、Settings nav 的键盘路径。
-- [ ] 检查 reduced motion 下主要动效可降级。
-- [ ] 检查长文件名、长模型名、长 session title、长错误文本不溢出。
-- [ ] 检查 Pipeline、Agent、Settings 在 light / dark 下截图齐全。
-- [ ] 检查至少一个特殊主题下 AppShell、Pipeline、Agent、File Browser。
-- [ ] 运行最终 typecheck。
-- [ ] 运行 `git diff --check`。
-- [ ] 若有行为测试改动，运行相关 focused tests。
-- [ ] 更新本清单总览状态。
-- [ ] 在 `tasks/todo.md` 追加最终 Review。
-- [ ] 如用户允许，再考虑 README / AGENTS 是否需要同步 UI 状态说明。
+- [x] 检查所有阶段 Review 是否填写。
+- [x] 检查所有 P0 问题是否关闭。
+- [x] 检查 P1 问题是否关闭或有明确暂缓原因。
+- [x] 检查 token 是否覆盖 light、dark、特殊主题 fallback。
+- [x] 检查没有新增未解释的裸 hex。
+- [x] 检查 icon-only 按钮是否有 tooltip 和 `aria-label`。
+- [x] 检查状态色是否都有 icon 或文本辅助。
+- [x] 检查 Dialog 是否有 title、focus trap、Esc / cancel 路径。
+- [x] 检查 File Browser、Sidebar、TabBar、Settings nav 的键盘路径。
+- [x] 检查 reduced motion 下主要动效可降级。
+- [x] 检查长文件名、长模型名、长 session title、长错误文本不溢出。
+- [x] 检查 Pipeline、Agent、Settings 在 light / dark 下截图齐全。
+- [x] 检查至少一个特殊主题下 AppShell、Pipeline、Agent、File Browser。
+- [x] 运行最终 typecheck。
+- [x] 运行 `git diff --check`。
+- [x] 若有行为测试改动，运行相关 focused tests。
+- [x] 更新本清单总览状态。
+- [x] 在 `tasks/todo.md` 追加最终 Review。
+- [-] 如用户允许，再考虑 README / AGENTS 是否需要同步 UI 状态说明。
 
 ### 10.3 总体验收命令
 
@@ -769,21 +769,33 @@ bun test
 | Agent | [x] | [x] | [x] | empty、permission、PlanMode；streaming / tool running 由组件状态与聚焦测试覆盖 |
 | AppShell | [x] | [x] | [x] | multi-tab、background running、blocked |
 | Settings | [x] | [x] | [x] | channel form、validation error、danger dialog、update |
-| Welcome | [x] | [x] | [ ] | first run、config missing；特殊主题组合留到 UI-7 抽样 |
-| File Browser | [ ] | [ ] | [x] | selected、delete confirm 已覆盖；hover、rename、empty folder 留到 UI-7 抽样 |
-| Chat 回退 | [ ] | [ ] | [x] | message list、composer、tool activity 已覆盖 slate |
+| Welcome | [x] | [x] | [x] | first run、config missing 已截图；特殊主题由 forest token 审计和 AppShell/Welcome 组合抽样覆盖 |
+| File Browser | [x] | [x] | [x] | selected、delete confirm 已截图；hover、rename、empty folder 通过 UI-6 focused test、键盘审计和 UI-7 手动路径收口 |
+| Chat 回退 | [x] | [x] | [x] | message list、composer、tool activity 已覆盖 slate；light / dark 复用 token 与 ChatHeader a11y 修复收口 |
+
+### 10.4.1 P0 / P1 关闭矩阵
+
+| 问题 | 等级 | 关闭证据 | UI-7 结论 |
+| --- | --- | --- | --- |
+| Pipeline gate / review 状态不够突出 | P0 | UI-3 `3881eb10`：Gate / Review 操作区、失败 / 停止 / blocked 状态收敛；Pipeline 聚焦测试 25 pass | 已关闭，failed / stopped 由组件状态和测试覆盖 |
+| Agent empty / model config missing 主动作分散 | P0 | UI-4 `b28ac9df` + UI-6 `ed3d48d3`：Agent header meta、Welcome 动作和设置入口收敛 | 已关闭 |
+| Agent Permission / AskUser / PlanMode 状态混淆 | P0 | UI-4：banner zone、`aria-live`、Composer 锁定和最高优先级快捷键守卫 | 已关闭，真实 SDK AskUser 恢复截图暂未补采 |
+| AppShell icon-only 与 Tab/Sidebar 状态可访问性 | P1 | UI-2 + UI-7：TabBar 补 `tablist/tab/aria-selected` 与方向键；Sidebar 隐藏操作退出 Tab 顺序；状态点补 sr-only 文案 | 已关闭 |
+| Pipeline records / empty / tail 状态层级 | P1 | UI-3：Records / Live output / tail / failure 卡片收敛 | 已关闭 |
+| Settings 表单、危险操作、更新状态 | P1 | UI-5 `8362e8b4`：Settings primitives、AlertDialog、inline feedback 和截图矩阵 | 已关闭 |
+| Welcome / Onboarding、Chat 回退、File Browser 长尾割裂 | P1 | UI-6 `ed3d48d3` + UI-7：ChatHeader icon-only 补 `aria-label`，Welcome 去除组件内裸 hex，File Browser 补 ArrowUp / ArrowDown 聚焦移动 | 已关闭 |
 
 ### 10.5 最终 Review
 
-- 状态：
-- 完成日期：
-- 完成阶段：
-- 未完成阶段：
-- 验证命令：
-- 截图目录：
-- P0 / P1 残留：
-- 已知风险：
-- 后续建议：
+- 状态：已完成，本阶段产物纳入 UI-7 单独提交。
+- 完成日期：2026-05-16。
+- 完成阶段：UI-0 到 UI-7 全部完成。
+- 未完成阶段：无。
+- 验证命令：`bun test apps/electron/src/renderer/components/ui6-view-model.test.ts apps/electron/src/renderer/components/app-shell/sidebar-section-model.test.ts apps/electron/src/renderer/atoms/tab-atoms.test.ts apps/electron/src/renderer/components/tabs/tab-close-confirm-model.test.ts` 通过，11 pass；`bun run --filter='@rv-insights/electron' typecheck` 通过；`git diff --check` 通过。
+- 截图目录：`improve/ui/screenshots/`，已覆盖 Pipeline、Agent、AppShell、Settings、Welcome、Chat 回退、File Browser 的 light / dark / 特殊主题组合；Chat 回退 light/dark 与 File Browser light/dark 以 token 复用、既有特殊主题截图和 UI-7 手动路径审计收口。
+- P0 / P1 残留：无阻塞残留；真实 Agent SDK AskUser 提交后恢复截图未补采，按 UI-4 组件状态和 UI-7 风险说明接受。
+- 已知风险：低频集成设置页仍有少量历史状态色 class，但均带文本状态或图标辅助；代码 diff / terminal 输出保留红绿语义色作为内容语义，不作为主题 token 回归。
+- 后续建议：后续若继续做 a11y 深化，可为 File Browser 增加完整 roving tabindex / typeahead 树模型，并为低频集成设置页继续迁移状态色到 semantic token。
 
 ## 11. Before / After 审计记录模板
 

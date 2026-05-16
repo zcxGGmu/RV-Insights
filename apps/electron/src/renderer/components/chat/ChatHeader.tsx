@@ -82,6 +82,8 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
             onMouseDown={(e) => e.preventDefault()}
             onClick={saveTitle}
             className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="保存标题"
+            title="保存标题"
           >
             <Check className="size-3.5" />
           </button>
@@ -90,6 +92,8 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setEditing(false)}
             className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="取消编辑标题"
+            title="取消编辑标题"
           >
             <X className="size-3.5" />
           </button>
@@ -125,6 +129,7 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
                 const updated = await window.electronAPI.togglePinConversation(conversation.id)
                 setConversations((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
               }}
+              aria-label={conversation.pinned ? '取消置顶对话' : '置顶对话'}
             >
               <Pin className="size-3.5" />
             </Button>
@@ -139,6 +144,7 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
               size="icon"
               className={cn('h-7 w-7', parallelMode && 'bg-accent text-accent-foreground')}
               onClick={() => setParallelMode(!parallelMode)}
+              aria-label={parallelMode ? '关闭并排模式' : '打开并排模式'}
             >
               <Columns2 className="size-3.5" />
             </Button>

@@ -574,6 +574,17 @@ function FileTreeItem({
       e.preventDefault()
       onSelect(entry, e)
       if (entry.isDirectory) void toggleDir()
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      const currentRow = rowRef.current
+      if (!currentRow) return
+      const tree = currentRow.closest('[role="tree"]')
+      const items = Array.from(tree?.querySelectorAll<HTMLElement>('[role="treeitem"][tabindex="0"]') ?? [])
+      const currentIndex = items.indexOf(currentRow)
+      if (currentIndex === -1) return
+      const offset = e.key === 'ArrowDown' ? 1 : -1
+      const next = items[currentIndex + offset]
+      next?.focus()
     } else if (e.key === 'ArrowRight' && entry.isDirectory && !expanded) {
       e.preventDefault()
       void toggleDir()

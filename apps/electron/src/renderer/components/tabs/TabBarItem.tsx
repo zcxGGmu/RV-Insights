@@ -28,6 +28,7 @@ export interface TabBarItemProps {
   /** 预览面板是否正在退出动画 */
   isLeaving: boolean
   onActivate: () => void
+  onKeyDown: (event: React.KeyboardEvent) => void
   onClose: () => void
   onMiddleClick: () => void
   onDragStart: (e: React.PointerEvent) => void
@@ -50,6 +51,7 @@ export function TabBarItem({
   isHovered,
   isLeaving,
   onActivate,
+  onKeyDown,
   onClose,
   onMiddleClick,
   onDragStart,
@@ -117,10 +119,15 @@ export function TabBarItem({
         onPointerDown={onDragStart}
       >
         <button
+          id={`tab-trigger-${id}`}
           type="button"
+          role="tab"
+          aria-selected={isActive}
           className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-tl-lg px-3 pr-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-0"
           aria-label={tabLabel}
+          tabIndex={isActive ? 0 : -1}
           onClick={onActivate}
+          onKeyDown={onKeyDown}
         >
           {/* 类型图标 */}
           <Icon className={cn('shrink-0', isNarrow ? 'size-3.5' : 'size-3')} />

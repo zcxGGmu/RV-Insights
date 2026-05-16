@@ -13,7 +13,6 @@ import { ArrowRight, Bot, GitBranch, Lightbulb, MessageSquare, Settings } from '
 import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
-import { themeStyleAtom } from '@/atoms/theme'
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
 import { getWelcomeActions } from '@/components/ui6-view-model'
@@ -36,7 +35,6 @@ const MODE_CONFIG: Record<AppMode, { icon: React.ReactNode; label: string }> = {
 export function WelcomeEmptyState(): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const [mode, setMode] = useAtom(appModeAtom)
-  const themeStyle = useAtomValue(themeStyleAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setSettingsTab = useSetAtom(settingsTabAtom)
 
@@ -47,8 +45,6 @@ export function WelcomeEmptyState(): React.ReactElement {
   const greeting = getGreeting(hour)
   const displayName = userProfile.userName || '用户'
 
-  // 森息晨光主题下选中按钮使用主色
-  const selectedColor = themeStyle === 'forest-light' ? '#3f8361' : undefined
   const actions = React.useMemo(() => getWelcomeActions(), [])
 
   /** 切换模式：仅切换模式，不创建新会话 */
@@ -134,7 +130,6 @@ export function WelcomeEmptyState(): React.ReactElement {
               key={m}
               type="button"
               onClick={() => handleModeSwitch(m)}
-              style={isSelected && selectedColor ? { color: selectedColor } : undefined}
               className={cn(
                 'relative z-[1] flex items-center gap-1.5 rounded-lg px-5 py-1.5 text-[13px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 isSelected

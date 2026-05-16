@@ -863,7 +863,10 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
               >
                 <UserAvatar avatar={userProfile.avatar} size={28} />
                 {(hasUpdate || hasEnvironmentIssues) && (
-                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-status-danger" />
+                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-status-danger" aria-hidden="true" />
+                )}
+                {(hasUpdate || hasEnvironmentIssues) && (
+                  <span className="sr-only">有更新或环境问题需要处理</span>
                 )}
               </button>
             </TooltipTrigger>
@@ -1319,7 +1322,10 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           <div className="relative flex-shrink-0 text-foreground/40">
             <Settings size={16} />
             {(hasUpdate || hasEnvironmentIssues) && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-status-danger" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-status-danger" aria-hidden="true" />
+            )}
+            {(hasUpdate || hasEnvironmentIssues) && (
+              <span className="sr-only">有更新或环境问题需要处理</span>
             )}
           </div>
         </button>
@@ -1415,11 +1421,14 @@ function ConversationItem({
   }
 
   const isPinned = !!conversation.pinned
+  const actionsVisible = hovered && !editing
+  const rowStatusLabel = streaming ? '，正在生成回复' : ''
 
   return (
     <div
       role="button"
       tabIndex={0}
+      aria-label={`对话：${conversation.title}${rowStatusLabel}`}
       onClick={onSelect}
       onKeyDown={handleRowKeyDown}
       onDoubleClick={(e) => {
@@ -1442,6 +1451,7 @@ function ConversationItem({
           aria-hidden="true"
         />
       )}
+      {streaming && <span className="sr-only">正在生成回复</span>}
       <div className="flex-1 min-w-0">
         {editing ? (
           <input
@@ -1471,7 +1481,7 @@ function ConversationItem({
       {/* 操作按钮组（hover 时可见） */}
       <div className={cn(
         'flex items-center gap-0.5 flex-shrink-0 transition-all duration-fast overflow-hidden',
-        hovered && !editing ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
+        actionsVisible ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
       )}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -1482,6 +1492,7 @@ function ConversationItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={isPinned ? `取消置顶对话：${conversation.title}` : `置顶对话：${conversation.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               {isPinned ? <PinOff size={13} /> : <Pin size={13} />}
             </button>
@@ -1497,6 +1508,7 @@ function ConversationItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={`重命名对话：${conversation.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               <Pencil size={13} />
             </button>
@@ -1512,6 +1524,7 @@ function ConversationItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={conversation.archived ? `取消归档对话：${conversation.title}` : `归档对话：${conversation.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               {conversation.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
             </button>
@@ -1527,6 +1540,7 @@ function ConversationItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-status-danger-bg hover:text-status-danger-fg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={`删除对话：${conversation.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               <Trash2 size={13} />
             </button>
@@ -1547,6 +1561,12 @@ const SESSION_LEFT_ACCENT_CLASS: Record<SessionLeftAccent, string> = {
   running: 'bg-status-running',
   success: 'bg-status-success',
   danger: 'bg-status-danger',
+}
+const SESSION_LEFT_ACCENT_LABEL: Record<SessionLeftAccent, string> = {
+  waiting: '等待处理',
+  running: '运行中',
+  success: '已完成',
+  danger: '需要处理',
 }
 
 interface AgentSessionItemProps {
@@ -1636,10 +1656,15 @@ function AgentSessionItem({
     }
   }
 
+  const actionsVisible = hovered && !editing
+  const leftAccentLabel = leftAccent ? SESSION_LEFT_ACCENT_LABEL[leftAccent] : null
+  const rowStatusLabel = leftAccentLabel ? `，${leftAccentLabel}` : ''
+
   return (
     <div
       role="button"
       tabIndex={0}
+      aria-label={`Agent 会话：${session.title}${rowStatusLabel}`}
       onClick={onSelect}
       onKeyDown={handleRowKeyDown}
       onDoubleClick={(e) => {
@@ -1663,6 +1688,7 @@ function AgentSessionItem({
           )}
         />
       )}
+      {leftAccentLabel && <span className="sr-only">{leftAccentLabel}</span>}
       <div className="flex-1 min-w-0">
         {editing ? (
           <input
@@ -1696,7 +1722,7 @@ function AgentSessionItem({
       {/* 操作按钮组（hover 时可见） */}
       <div className={cn(
         'flex items-center gap-0.5 flex-shrink-0 transition-all duration-fast overflow-hidden',
-        hovered && !editing ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
+        actionsVisible ? 'opacity-100' : 'opacity-0 w-0 pointer-events-none'
       )}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -1707,6 +1733,7 @@ function AgentSessionItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={session.pinned ? `取消置顶会话：${session.title}` : `置顶会话：${session.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               {session.pinned ? <PinOff size={13} /> : <Pin size={13} />}
             </button>
@@ -1738,6 +1765,7 @@ function AgentSessionItem({
                     ? `取消工作中：${session.title}`
                     : `标记为工作中：${session.title}`
               }
+              tabIndex={actionsVisible ? 0 : -1}
             >
               <Hammer size={13} className={(isInWorkingSection || session.manualWorking) ? 'fill-current' : ''} />
             </button>
@@ -1758,6 +1786,7 @@ function AgentSessionItem({
                 }}
                 className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label={`迁移会话到其他工作区：${session.title}`}
+                tabIndex={actionsVisible ? 0 : -1}
               >
                 <ArrowRightLeft size={13} />
               </button>
@@ -1774,6 +1803,7 @@ function AgentSessionItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={`重命名会话：${session.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               <Pencil size={13} />
             </button>
@@ -1789,6 +1819,7 @@ function AgentSessionItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={session.archived ? `取消归档会话：${session.title}` : `归档会话：${session.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               {session.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
             </button>
@@ -1804,6 +1835,7 @@ function AgentSessionItem({
               }}
               className="p-1 rounded-control text-text-tertiary hover:bg-status-danger-bg hover:text-status-danger-fg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={`删除会话：${session.title}`}
+              tabIndex={actionsVisible ? 0 : -1}
             >
               <Trash2 size={13} />
             </button>

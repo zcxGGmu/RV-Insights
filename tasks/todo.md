@@ -1,5 +1,29 @@
 # Pipeline 完善分析任务
 
+## 2026-05-16 UI-7 全局验收与收尾计划
+
+- [x] 执行 `git status --short`，确认当前仅有 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp` 需要保护，不纳入 UI-7 提交。
+- [x] 复习 `AGENTS.md`、`tasks/lessons.md`、`tasks/todo.md`、UI visual spec 与 implementation checklist 的 UI-7 范围。
+- [x] 检查 UI-0 到 UI-6 的阶段 Review 是否完整，确认 P0 / P1 问题已关闭或有明确暂缓原因。
+- [x] 做全局静态审计：主题 token fallback、裸 hex、状态色辅助表达、reduced motion、Dialog title / cancel / focus、icon-only `aria-label` / tooltip。
+- [x] 做跨页面键盘与溢出审计：File Browser、Sidebar、TabBar、Settings nav；长文件名、长模型名、长 session title、长错误文本和长路径。
+- [x] 对照截图矩阵确认 light / dark / 至少一个特殊主题覆盖 AppShell、Pipeline、Agent、Settings、Welcome、Chat 回退、File Browser；必要时补采或记录已有截图覆盖。
+- [x] 如发现回归，只做最小修复，不重复 UI-2 到 UI-6 的阶段实现，不新增 public API / IPC / shared type，不修改 README / AGENTS。
+- [x] 运行最终验证：`bun run --filter='@rv-insights/electron' typecheck`、相关 focused tests 或手动路径验证、`git diff --check`。
+- [x] 更新 `improve/ui/2026-05-16-client-ui-implementation-checklist.md` 的总览、UI-7 任务、截图矩阵与最终 Review。
+- [x] 在本节追加 UI-7 Review，单独提交 UI-7，提交时继续排除 `.DS_Store` 与 swap 文件。
+
+## 2026-05-16 UI-7 全局验收与收尾 Review
+
+- UI-7 已完成全局验收：UI-0 到 UI-6 阶段 Review 已补齐，P0 / P1 关闭矩阵已写入 implementation checklist。
+- 最小修复范围：ChatHeader 编辑确认 / 取消、置顶、并排模式补 `aria-label`；WelcomeEmptyState 移除组件内 `forest-light` 裸 hex 分支，回到 token；TabBar 补 `tablist` / `tab` / `aria-selected` 与 ArrowLeft / ArrowRight / Home / End 切换；LeftSidebar 隐藏行内操作退出 Tab 顺序，运行 / 等待 / 成功 / 失败状态补 sr-only 文案；File Browser 补 ArrowUp / ArrowDown 在 treeitem 间移动。
+- `@rv-insights/electron` 版本 `0.0.63 -> 0.0.64`，`bun.lock` workspace metadata 已同步。
+- 截图矩阵已收口：Pipeline、Agent、AppShell、Settings、Welcome、Chat 回退、File Browser 已有 light / dark / 特殊主题组合覆盖；Chat 回退 light/dark 与 File Browser light/dark 以 token 复用、既有特殊主题截图、focused tests 和手动路径审计接受。
+- 验证通过：`bun test apps/electron/src/renderer/components/ui6-view-model.test.ts apps/electron/src/renderer/components/app-shell/sidebar-section-model.test.ts apps/electron/src/renderer/atoms/tab-atoms.test.ts apps/electron/src/renderer/components/tabs/tab-close-confirm-model.test.ts` 11 pass；`bun run --filter='@rv-insights/electron' typecheck`；`git diff --check`。
+- 未修改 README / AGENTS，不新增 public API / IPC / shared type，不改变业务状态、存储结构或 Agent / Pipeline 执行语义。
+- 已知风险：File Browser 仍不是完整 roving tabindex / typeahead 树模型，但 UI-7 已补上下方向键聚焦移动；低频集成设置页仍有历史状态色 class，因均带文本状态或图标辅助，本轮不作为阻塞项。
+- 提交时继续排除 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`。
+
 ## 2026-05-16 UI-6 后进度文档同步计划
 
 - [x] 检查 `git status --short`，确认当前只剩 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 UI visual spec swap 文件需要保护。

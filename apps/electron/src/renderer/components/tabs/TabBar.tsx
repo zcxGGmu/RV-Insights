@@ -200,11 +200,40 @@ function TabBarInner({
     setIsLeaving(false)
   }, [])
 
+  const handleTabKeyDown = React.useCallback((tabId: string, event: React.KeyboardEvent) => {
+    const currentIndex = tabs.findIndex((tab) => tab.id === tabId)
+    if (currentIndex === -1) return
+
+    const activateByIndex = (nextIndex: number): void => {
+      event.preventDefault()
+      const nextTab = tabs[nextIndex]
+      if (!nextTab) return
+      onActivate(nextTab.id)
+      requestAnimationFrame(() => {
+        document.getElementById(`tab-trigger-${nextTab.id}`)?.focus()
+      })
+    }
+
+    if (event.key === 'ArrowRight') {
+      activateByIndex((currentIndex + 1) % tabs.length)
+    } else if (event.key === 'ArrowLeft') {
+      activateByIndex((currentIndex - 1 + tabs.length) % tabs.length)
+    } else if (event.key === 'Home') {
+      activateByIndex(0)
+    } else if (event.key === 'End') {
+      activateByIndex(tabs.length - 1)
+    }
+  }, [onActivate, tabs])
+
   return (
     <div className="flex items-end h-9 tabbar-bg relative border-b border-border-subtle/50">
       <div className="absolute inset-0 titlebar-drag-region" />
 
-      <div className="relative flex items-end flex-1 min-w-0 overflow-x-clip titlebar-no-drag">
+      <div
+        className="relative flex items-end flex-1 min-w-0 overflow-x-clip titlebar-no-drag"
+        role="tablist"
+        aria-label="打开的标签页"
+      >
         {tabs.map((tab) => (
           <TabBarItem
             key={tab.id}
@@ -216,6 +245,7 @@ function TabBarInner({
             isHovered={hoveredTabId === tab.id}
             isLeaving={hoveredTabId === tab.id && isLeaving}
             onActivate={() => onActivate(tab.id)}
+            onKeyDown={(event) => handleTabKeyDown(tab.id, event)}
             onClose={() => onClose(tab.id)}
             onMiddleClick={() => onClose(tab.id)}
             onDragStart={(e) => onDragStart(tab.id, e)}
