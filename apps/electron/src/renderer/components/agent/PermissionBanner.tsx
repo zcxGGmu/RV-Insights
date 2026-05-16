@@ -13,6 +13,8 @@ import { useAtom, useSetAtom } from 'jotai'
 import { Shield, ShieldAlert, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { allPendingPermissionRequestsAtom, agentStreamingStatesAtom, finalizeStreamingActivities } from '@/atoms/agent-atoms'
+import { cn } from '@/lib/utils'
+import { getBannerToneForPermission } from './agent-ui-model'
 import type { DangerLevel } from '@rv-insights/shared'
 
 /** 危险等级对应的图标颜色 */
@@ -34,9 +36,10 @@ function formatToolName(toolName: string): string {
 /** PermissionBanner 属性接口 */
 interface PermissionBannerProps {
   sessionId: string
+  active?: boolean
 }
 
-export function PermissionBanner({ sessionId }: PermissionBannerProps): React.ReactElement | null {
+export function PermissionBanner({ sessionId, active = true }: PermissionBannerProps): React.ReactElement | null {
   const [allRequests, setAllRequests] = useAtom(allPendingPermissionRequestsAtom)
   const setStreamingStates = useSetAtom(agentStreamingStatesAtom)
   const requests = allRequests.get(sessionId) ?? []
@@ -47,7 +50,7 @@ export function PermissionBanner({ sessionId }: PermissionBannerProps): React.Re
 
   // Enter 键快捷允许
   React.useEffect(() => {
-    if (!request) return
+    if (!request || !active) return
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (
         e.target instanceof HTMLInputElement ||
@@ -61,7 +64,7 @@ export function PermissionBanner({ sessionId }: PermissionBannerProps): React.Re
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [request?.requestId])
+  }, [request?.requestId, active])
 
   /** 关闭权限请求 & 终止 Agent */
   const handleDismiss = (): void => {
@@ -89,6 +92,7 @@ export function PermissionBanner({ sessionId }: PermissionBannerProps): React.Re
   const iconColor = DANGER_ICON_STYLES[request.dangerLevel]
   const isDangerous = request.dangerLevel === 'dangerous'
   const IconComponent = isDangerous ? ShieldAlert : Shield
+  const tone = getBannerToneForPermission(request.dangerLevel)
 
   /** 响应权限请求 */
   const respond = async (behavior: 'allow' | 'deny', alwaysAllow = false): Promise<void> => {
@@ -121,30 +125,41 @@ export function PermissionBanner({ sessionId }: PermissionBannerProps): React.Re
 
   return (
     <div
-      className="mx-4 mb-3 rounded-xl bg-card shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
+      className={cn(
+        'mb-2 overflow-hidden rounded-card border shadow-card animate-in slide-in-from-top-1 duration-200',
+        tone === 'danger'
+          ? 'border-status-danger-border bg-status-danger-bg text-status-danger-fg'
+          : 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg',
+      )}
+      role="status"
+      aria-live="polite"
     >
       {/* 头部 */}
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-3 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
           <IconComponent className={`size-4 ${iconColor}`} />
-          <span className="text-sm font-medium">
-            {isDangerous ? '危险操作需要确认' : '需要确认'}
+          <span className="truncate text-sm font-medium">
+            {isDangerous ? '危险操作需要确认' : '需要允许工具操作'}
           </span>
           {requests.length > 1 && (
-            <span className="text-xs text-muted-foreground">
+            <span className="shrink-0 text-xs text-current/60">
               (+{requests.length - 1})
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground font-mono">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span
+            className="min-w-0 truncate rounded-full bg-background/35 px-2 py-0.5 font-mono text-xs text-current/70"
+            title={request.sdkDisplayName ?? formatToolName(request.toolName)}
+          >
             {request.sdkDisplayName ?? formatToolName(request.toolName)}
           </span>
           <button
             type="button"
-            className="size-5 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="size-6 flex shrink-0 items-center justify-center rounded-control text-current/50 transition-colors hover:bg-background/45 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             onClick={handleDismiss}
             title="关闭并终止 Agent"
+            aria-label="关闭权限请求并终止 Agent"
           >
             <X className="size-3.5" />
           </button>
@@ -155,31 +170,31 @@ export function PermissionBanner({ sessionId }: PermissionBannerProps): React.Re
       <div className="px-3 pb-2 space-y-1.5">
         {/* SDK 可读标题（优先展示，描述操作意图） */}
         {request.sdkTitle && (
-          <p className="text-xs text-foreground">{request.sdkTitle}</p>
+          <p className="text-xs text-current">{request.sdkTitle}</p>
         )}
         {/* SDK 详细描述（与标题不同时才展示） */}
         {request.sdkDescription && request.sdkDescription !== request.sdkTitle && (
-          <p className="text-xs text-muted-foreground">{request.sdkDescription}</p>
+          <p className="text-xs text-current/70">{request.sdkDescription}</p>
         )}
         {/* Bash 命令：始终展示代码块 */}
         {request.command ? (
-          <pre className="text-xs font-mono bg-background/50 rounded px-2 py-1.5 overflow-x-auto whitespace-pre-wrap break-all max-h-[120px] overflow-y-auto">
+          <pre className="text-xs font-mono bg-background/60 rounded-control px-2 py-1.5 overflow-x-auto whitespace-pre-wrap break-all max-h-[120px] overflow-y-auto">
             {request.command}
           </pre>
         ) : !request.sdkTitle && Object.keys(request.toolInput).length > 0 ? (
-          <pre className="text-xs font-mono bg-background/50 rounded px-2 py-1.5 overflow-x-auto whitespace-pre-wrap break-all max-h-[120px] overflow-y-auto">
+          <pre className="text-xs font-mono bg-background/60 rounded-control px-2 py-1.5 overflow-x-auto whitespace-pre-wrap break-all max-h-[120px] overflow-y-auto">
             {JSON.stringify(request.toolInput, null, 2)}
           </pre>
         ) : !request.sdkTitle ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-current/70">
             {request.description}
           </p>
         ) : null}
       </div>
 
       {/* 操作按钮 */}
-      <div className="flex items-center justify-end gap-1.5 px-3 pb-2.5">
-        <span className="text-[10px] text-muted-foreground/40 mr-auto">
+      <div className="flex flex-wrap items-center justify-end gap-1.5 px-3 pb-2.5">
+        <span className="mr-auto text-[10px] text-current/50">
           Enter 允许
         </span>
         <Button

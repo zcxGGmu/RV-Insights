@@ -121,7 +121,7 @@ export function MessageContent({
   return (
     <div
       className={cn(
-        'flex max-w-full min-w-0 flex-col gap-2 overflow-hidden pl-[46px]',
+        'flex max-w-full min-w-0 flex-col gap-2 overflow-visible pl-[46px]',
         'group-[.is-user]:text-foreground group-[.is-user]:items-start',
         'group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground',
         className
@@ -509,6 +509,7 @@ export const MessageResponse = React.memo(
         className={cn(
           'prose dark:prose-invert max-w-none text-[15px]',
           'prose-p:my-1.5 prose-p:leading-[1.6] prose-li:leading-[1.6] prose-pre:my-0 prose-headings:my-2',
+          'prose-table:block prose-table:max-w-full prose-table:overflow-x-auto',
           '[&_.code-block-wrapper+.code-block-wrapper]:mt-4',
           '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
           className

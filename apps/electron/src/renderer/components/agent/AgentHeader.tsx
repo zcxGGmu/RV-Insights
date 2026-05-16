@@ -10,17 +10,40 @@ import { useAtomValue, useSetAtom } from 'jotai'
 import { Pencil, Check, X, PanelRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { agentSessionsAtom, agentSidePanelOpenMapAtom, workspaceFilesVersionAtom } from '@/atoms/agent-atoms'
+import {
+  agentSessionsAtom,
+  agentSidePanelOpenMapAtom,
+  agentWorkspacesAtom,
+  workspaceFilesVersionAtom,
+} from '@/atoms/agent-atoms'
+import { channelsAtom } from '@/atoms/chat-atoms'
+import { cn } from '@/lib/utils'
+import { resolveModelDisplayName } from '@/lib/model-logo'
+import { buildAgentHeaderMeta } from './agent-ui-model'
 
 /** AgentHeader 属性接口 */
 interface AgentHeaderProps {
   sessionId: string
+  channelId?: string | null
+  modelId?: string | null
+  permissionMode?: string | null
+  streaming?: boolean
+  planMode?: boolean
 }
 
-export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement | null {
+export function AgentHeader({
+  sessionId,
+  channelId,
+  modelId,
+  permissionMode,
+  streaming = false,
+  planMode = false,
+}: AgentHeaderProps): React.ReactElement | null {
   const sessions = useAtomValue(agentSessionsAtom)
   const session = sessions.find((s) => s.id === sessionId) ?? null
   const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const workspaces = useAtomValue(agentWorkspacesAtom)
+  const channels = useAtomValue(channelsAtom)
   const [editing, setEditing] = React.useState(false)
   const [editTitle, setEditTitle] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -31,6 +54,23 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
   const filesVersion = useAtomValue(workspaceFilesVersionAtom)
   const isPanelOpen = sidePanelOpenMap.get(sessionId) ?? true
   const hasFileChanges = filesVersion > 0
+  const workspaceName = React.useMemo(() => {
+    if (!session?.workspaceId) return null
+    const workspace = workspaces.find((w) => w.id === session.workspaceId)
+    return workspace?.name || workspace?.slug || session.workspaceId
+  }, [session?.workspaceId, workspaces])
+  const modelName = React.useMemo(() => {
+    if (modelId) return resolveModelDisplayName(modelId, channels)
+    if (channelId) return channels.find((c) => c.id === channelId)?.name ?? null
+    return null
+  }, [channelId, channels, modelId])
+  const metaItems = React.useMemo(() => buildAgentHeaderMeta({
+    workspaceName,
+    modelName,
+    permissionMode,
+    streaming,
+    planMode,
+  }), [modelName, permissionMode, planMode, streaming, workspaceName])
 
   const togglePanel = React.useCallback(() => {
     setSidePanelOpenMap((prev) => {
@@ -79,50 +119,88 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
   }
 
   return (
-    <div className="relative z-[51] flex items-center gap-2 px-4 h-[48px] titlebar-drag-region">
+    <div className="relative z-[51] flex min-h-[52px] items-center gap-3 border-b border-border/45 bg-surface-panel/75 px-4 py-2 titlebar-drag-region">
       {editing ? (
         <div className="flex items-center gap-1.5 flex-1 min-w-0 titlebar-no-drag">
+          <label htmlFor={`agent-title-${session.id}`} className="sr-only">编辑 Agent 会话标题</label>
           <input
+            id={`agent-title-${session.id}`}
             ref={inputRef}
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={saveTitle}
-            className="flex-1 bg-transparent text-sm font-medium border-b border-primary/50 outline-none px-0 py-0.5 min-w-0"
+            className="flex-1 bg-transparent text-sm font-medium border-b border-primary/50 outline-none px-0 py-0.5 min-w-0 focus-visible:ring-0"
             maxLength={100}
           />
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={saveTitle}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Check className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setEditing(false)}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="size-3.5" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={saveTitle}
+                className="inline-flex size-7 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label="保存标题"
+              >
+                <Check className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">保存标题</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setEditing(false)}
+                className="inline-flex size-7 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                aria-label="取消编辑标题"
+              >
+                <X className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">取消编辑</TooltipContent>
+          </Tooltip>
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <span className="truncate text-sm font-medium text-foreground">
-              {session.title}
-            </span>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={startEdit}
-              className="titlebar-no-drag p-1 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="编辑标题"
-            >
-              <Pencil className="size-3.5" />
-            </button>
+          <div className="flex flex-1 min-w-0 flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="truncate text-sm font-semibold text-foreground">
+                {session.title}
+              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={startEdit}
+                    className="titlebar-no-drag inline-flex size-7 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    aria-label="编辑标题"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">编辑标题</TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {metaItems.map((item) => (
+                <span
+                  key={item.key}
+                  className={cn(
+                    'inline-flex max-w-[220px] items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] leading-4',
+                    item.tone === 'running' && 'border-status-running-border bg-status-running-bg text-status-running-fg',
+                    item.tone === 'waiting' && 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg',
+                    item.tone === 'neutral' && 'border-border-subtle bg-surface-muted text-text-secondary',
+                  )}
+                  title={`${item.label}: ${item.value}`}
+                >
+                  <span className="text-current/65">{item.label}</span>
+                  <span className="min-w-0 truncate font-medium">{item.value}</span>
+                </span>
+              ))}
+            </div>
           </div>
           {/* 文件面板打开按钮（仅面板关闭时显示） */}
           {!isPanelOpen && (
@@ -134,6 +212,7 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
                   size="icon"
                   className="relative titlebar-no-drag h-7 w-7 flex-shrink-0"
                   onClick={togglePanel}
+                  aria-label="打开文件面板"
                 >
                   <PanelRight className="size-3.5" />
                   {hasFileChanges && (

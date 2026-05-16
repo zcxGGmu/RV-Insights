@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import { getToolIcon, formatElapsed } from './tool-utils'
 import { getToolPhrase } from './tool-phrase'
 import { ToolResultRenderer } from './tool-result-renderers'
+import { getToolActivityTone } from './agent-ui-model'
 import {
   type ToolActivity,
   type ActivityGroup,
@@ -48,11 +49,19 @@ const SIZE = {
 
 function StatusIcon({ status, toolName }: { status: ActivityStatus; toolName?: string }): React.ReactElement {
   const key = `${status}-${toolName}`
+  const tone = getToolActivityTone(status)
+  const iconClass = {
+    running: 'text-status-running-fg',
+    waiting: 'text-status-waiting-fg',
+    success: 'text-status-success-fg',
+    danger: 'text-status-danger-fg',
+    neutral: 'text-muted-foreground/50',
+  }[tone]
 
   if (status === 'running' || status === 'backgrounded') {
     return (
       <span key={key} className={cn(SIZE.icon, 'flex items-center justify-center animate-in fade-in zoom-in-75 duration-200')}>
-        <Loader2 className={cn(SIZE.spinner, 'animate-spin', status === 'backgrounded' ? 'text-primary' : 'text-blue-500')} />
+        <Loader2 className={cn(SIZE.spinner, 'animate-spin', iconClass)} />
       </span>
     )
   }
@@ -60,7 +69,7 @@ function StatusIcon({ status, toolName }: { status: ActivityStatus; toolName?: s
   if (status === 'error') {
     return (
       <span key={key} className={cn(SIZE.icon, 'flex items-center justify-center animate-in fade-in zoom-in-75 duration-200')}>
-        <XCircle className={cn(SIZE.icon, 'text-destructive')} />
+        <XCircle className={cn(SIZE.icon, iconClass)} />
       </span>
     )
   }
@@ -76,7 +85,7 @@ function StatusIcon({ status, toolName }: { status: ActivityStatus; toolName?: s
     }
     return (
       <span key={key} className={cn(SIZE.icon, 'flex items-center justify-center animate-in fade-in zoom-in-75 duration-200')}>
-        <CheckCircle2 className={cn(SIZE.icon, 'text-green-500')} />
+        <CheckCircle2 className={cn(SIZE.icon, iconClass)} />
       </span>
     )
   }
@@ -113,8 +122,8 @@ function renderLabelWithDiff(label: string, toolName: string): React.ReactNode {
 
 function ErrorBadge(): React.ReactElement {
   return (
-    <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] bg-destructive/5 text-destructive font-medium leading-none shadow-sm">
-      Error
+    <span className="shrink-0 px-1.5 py-0.5 rounded-control text-[10px] bg-status-danger-bg text-status-danger-fg font-medium leading-none shadow-sm">
+      失败
     </span>
   )
 }
@@ -195,8 +204,10 @@ export function ActivityRow({ activity, index = 0, animate = false, onOpenDetail
       {canExpand ? (
         <button
           type="button"
-          className="group/expand shrink-0 flex items-center gap-1.5 cursor-pointer min-w-0 flex-1"
+          className="group/expand shrink-0 flex items-center gap-1.5 cursor-pointer min-w-0 flex-1 rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           onClick={(e) => { e.stopPropagation(); onOpenDetails(activity) }}
+          aria-expanded={false}
+          aria-label={`查看工具详情：${displayLabel}`}
         >
           <StatusIcon status={status} toolName={activity.toolName} />
           <span className="truncate text-foreground/80 group-hover/expand:text-foreground transition-colors duration-150 flex-1">{renderLabelWithDiff(displayLabel, activity.toolName)}</span>
@@ -271,10 +282,12 @@ function ActivityGroupRow({ group, index = 0, animate = false, onOpenDetails, de
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className={cn(
-          'w-full flex items-center gap-1.5 pl-1 text-left text-[12px] rounded-md hover:text-foreground transition-colors cursor-pointer',
+          className={cn(
+          'w-full flex items-center gap-1.5 pl-1 text-left text-[12px] rounded-control hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           SIZE.row,
         )}
+        aria-expanded={expanded}
+        aria-label={`${expanded ? '收起' : '展开'}工具组：${displayLabel}`}
       >
         <ChevronRight
           className={cn(
@@ -392,13 +405,14 @@ function ActivityDetails({ activity, onClose }: { activity: ToolActivity; onClos
   }
 
   return (
-    <div className="mt-1 rounded-md border border-border/40 bg-muted/20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
+    <div className="mt-1 rounded-card border border-border-subtle bg-surface-muted/45 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30">
         <span className="text-[11px] font-medium text-foreground/50">{getToolPhrase(activity.toolName, activity.input).label}</span>
         <button
           type="button"
           onClick={handleCopy}
-          className="text-[11px] text-foreground/40 hover:text-foreground transition-colors"
+          className="rounded-control px-1.5 py-0.5 text-[11px] text-foreground/50 hover:bg-surface-muted hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          aria-label="复制工具结果"
         >
           {copied ? '已复制' : '复制'}
         </button>

@@ -32,9 +32,10 @@ function safeUrlTransform(url: string): string {
 /** AskUserBanner 属性接口 */
 interface AskUserBannerProps {
   sessionId: string
+  active?: boolean
 }
 
-export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactElement | null {
+export function AskUserBanner({ sessionId, active = true }: AskUserBannerProps): React.ReactElement | null {
   const [allRequests, setAllRequests] = useAtom(allPendingAskUserRequestsAtom)
   const setStreamingStates = useSetAtom(agentStreamingStatesAtom)
   const requests = allRequests.get(sessionId) ?? []
@@ -92,7 +93,7 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
 
   // 键盘导航：只在 requestId 变化时重建 handler，内部通过 ref 读取最新值
   React.useEffect(() => {
-    if (!request || questions.length === 0) return
+    if (!request || !active || questions.length === 0) return
 
     const handleKeyDown = (e: KeyboardEvent): void => {
       const curTab = activeTabRef.current
@@ -137,7 +138,7 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [request?.requestId])
+  }, [request?.requestId, active])
 
   /** 关闭问题 & 终止 Agent */
   const handleDismiss = (): void => {
@@ -188,8 +189,13 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
     })
   }
 
+  const hasValidAnswers = questions.every((_, idx) => {
+    const a = getAnswer(idx)
+    return a.selected.length > 0 || (a.showCustom && a.customText.trim().length > 0)
+  })
+
   const handleSubmit = async (): Promise<void> => {
-    if (submitting) return
+    if (submitting || !hasValidAnswers) return
     setSubmitting(true)
     try {
       const answersRecord: Record<string, string> = {}
@@ -222,11 +228,6 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
 
   submitRef.current = handleSubmit
 
-  const hasValidAnswers = questions.some((_, idx) => {
-    const a = getAnswer(idx)
-    return a.selected.length > 0 || (a.showCustom && a.customText.trim().length > 0)
-  })
-
   const currentQuestion = questions[activeTab]
   if (!currentQuestion) return null
 
@@ -235,20 +236,25 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
   }
 
   return (
-    <div className="mx-4 mb-3 rounded-xl bg-card shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
+    <div
+      className="mb-2 overflow-hidden rounded-card border border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg shadow-card animate-in slide-in-from-top-1 duration-200"
+      role="status"
+      aria-live="polite"
+    >
       {/* 头部 + Tab 栏 */}
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-foreground">RV-Insights Agent 需要你的输入</span>
+          <span className="text-sm font-medium text-current">RV-Insights Agent 需要你的输入</span>
           <div className="flex items-center gap-1.5">
             {requests.length > 1 && (
-              <span className="text-xs text-muted-foreground">(+{requests.length - 1})</span>
+              <span className="text-xs text-current/60">(+{requests.length - 1})</span>
             )}
             <button
               type="button"
-              className="size-5 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-colors"
+              className="size-6 flex items-center justify-center rounded-control text-current/50 hover:text-current hover:bg-background/45 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               onClick={handleDismiss}
               title="关闭并终止 Agent"
+              aria-label="关闭问答请求并终止 Agent"
             >
               <X className="size-3.5" />
             </button>
@@ -257,7 +263,7 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
 
         {/* Tab 栏（多问题时显示） */}
         {questions.length > 1 && (
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {questions.map((q, idx) => {
               const isActive = idx === activeTab
               const hasAnswer = getAnswer(idx).selected.length > 0
@@ -267,12 +273,12 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
                   key={idx}
                   type="button"
                   className={`
-                    px-2.5 py-1 rounded-lg text-xs font-medium transition-all outline-none
+                    max-w-full px-2.5 py-1 rounded-control text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-focus
                     ${isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : hasAnswer
-                        ? 'bg-primary/15 text-primary'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                        ? 'bg-background/45 text-current'
+                        : 'bg-background/35 text-current/70 hover:bg-background/55 hover:text-current'
                     }
                   `}
                   onClick={() => setActiveTab(idx)}
@@ -316,7 +322,7 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
 
       {/* 底部 */}
       <div className="flex items-center justify-end gap-1.5 px-4 pb-3">
-        <span className="text-[10px] text-muted-foreground/40 mr-auto">
+        <span className="text-[10px] text-current/50 mr-auto">
           ↑↓ 选择 · Enter {isLastTab ? '确认' : '下一个'}
         </span>
         {isLastTab && (
@@ -369,11 +375,11 @@ function QuestionCard({
       {/* 问题标签 + 文本（分行显示） */}
       <div className="space-y-1">
         {showBadge && (
-          <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-primary text-primary-foreground shadow-sm">
+          <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-control text-xs font-medium bg-primary text-primary-foreground shadow-sm">
             {`${questionIndex + 1}-${question.multiSelect ? '多选' : '单选'}${question.header ? `：${question.header}` : ''}`}
           </span>
         )}
-        <p className="text-sm text-foreground">{question.question}</p>
+        <p className="text-sm text-current">{question.question}</p>
       </div>
 
       {/* 竖向选项 */}
@@ -386,10 +392,10 @@ function QuestionCard({
               key={option.label}
               type="button"
               className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all outline-none text-left
+                flex items-start gap-2 px-3 py-2 rounded-control text-xs transition-all outline-none text-left focus-visible:ring-2 focus-visible:ring-focus
                 ${isSelected
                   ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-muted/50 text-foreground/80 hover:bg-muted'
+                  : 'bg-background/40 text-current/80 hover:bg-background/60'
                 }
                 ${isFocused ? 'ring-2 ring-primary/50 ring-offset-1 ring-offset-card' : ''}
               `}
@@ -398,9 +404,9 @@ function QuestionCard({
               <span className={`text-[10px] shrink-0 ${isSelected ? 'text-primary-foreground/60' : 'text-muted-foreground/50'}`}>
                 {idx + 1}
               </span>
-              <span className="font-medium">{option.label}</span>
+              <span className="min-w-0 font-medium break-words">{option.label}</span>
               {option.description && (
-                <span className={`text-[11px] ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                <span className={`min-w-0 text-[11px] break-words ${isSelected ? 'text-primary-foreground/70' : 'text-current/65'}`}>
                   {option.description}
                 </span>
               )}
@@ -412,10 +418,10 @@ function QuestionCard({
         <button
           type="button"
           className={`
-            flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all outline-none text-left
+            flex items-center gap-2 px-3 py-2 rounded-control text-xs transition-all outline-none text-left focus-visible:ring-2 focus-visible:ring-focus
             ${answer.showCustom
               ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'bg-muted/50 text-foreground/80 hover:bg-muted'
+              : 'bg-background/40 text-current/80 hover:bg-background/60'
             }
             ${focusedIndex === optionCount ? 'ring-2 ring-primary/50 ring-offset-1 ring-offset-card' : ''}
           `}
@@ -432,7 +438,7 @@ function QuestionCard({
       {answer.showCustom && (
         <input
           type="text"
-          className="w-full px-3 py-2 rounded-lg text-xs bg-muted/40 focus:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/40 transition-colors"
+          className="w-full px-3 py-2 rounded-control text-xs bg-background/45 focus:bg-background/65 focus:outline-none focus:ring-2 focus:ring-focus placeholder:text-current/40 transition-colors"
           placeholder="输入自定义答案..."
           value={answer.customText}
           onChange={(e) => onCustomTextChange(e.target.value)}
@@ -449,7 +455,7 @@ function QuestionCard({
 
       {/* 选项 Preview（聚焦或选中时展示） */}
       {previewContent && (
-        <div className="mt-2 rounded-lg bg-muted/40 p-3 text-xs prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-headings:my-0.5 prose-li:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+        <div className="mt-2 rounded-card bg-background/45 p-3 text-xs prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-headings:my-0.5 prose-li:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
           <Markdown remarkPlugins={PREVIEW_REMARK_PLUGINS} urlTransform={safeUrlTransform}>
             {previewContent}
           </Markdown>

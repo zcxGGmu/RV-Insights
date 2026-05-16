@@ -63,7 +63,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ### 2.1 当前开发状态快照
 
-更新时间：2026-05-16 UI-1 完成并补充状态同步后
+更新时间：2026-05-16 UI-3 完成并补充状态同步后
 
 当前文档与阶段提交：
 
@@ -75,6 +75,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - UI-0 提交：`61c263c80bf98169b64b40c6bddc79bc7873b8fd`（`docs(ui): 完成 UI-0 基线审计与截图`）。
 - UI-1 提交：`20a90d3679147dd27c035d9c957546823924ac4b`（`feat(ui): 完成 UI-1 token 与 primitive 收敛`）。
 - UI-2 提交：`c3636336`（`style(ui): 统一 AppShell 导航与标签状态`）。
+- UI-3 提交：`3881eb10`（`style(pipeline): 优化 Pipeline 工作台状态层级`）。
 
 已完成：
 
@@ -87,11 +88,11 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - [x] 建立 `improve/ui/screenshots/` 截图基线，覆盖 Pipeline / Agent / Settings 的 light 与 dark 状态。
 - [x] 完成 UI-1 Token 与 primitive 收敛：新增语义 token alias、Tailwind 映射、Card / Chip primitive，统一 Button / Badge / Dialog / Tooltip / Input / Select / 菜单 / Settings primitives 的基础视觉语言。
 - [x] 完成 UI-2 AppShell / Sidebar / Tab 收敛：三栏 shell surface、Sidebar item、Tab indicator、RightSidePanel 与键盘 focus 已统一，commit 为 `c3636336`。
-- [x] 完成 UI-3 Pipeline 工作台收敛：Header、StageRail、Records / Live output、Gate / Review 操作区、Composer、Failure 卡片已统一状态层级。
+- [x] 完成 UI-3 Pipeline 工作台收敛：Header、StageRail、Records / Live output、Gate / Review 操作区、Composer、Failure 卡片已统一状态层级，commit 为 `3881eb10`。
+- [x] 完成 UI-4 Agent 阅读与交互：Agent header meta、banner zone、ToolActivity 状态、Composer 稳定性、消息阅读宽度已收敛。
 
 未完成：
 
-- [ ] UI-4 Agent 阅读与交互尚未开始。
 - [ ] UI-5 Settings 管理界面尚未开始。
 - [ ] UI-6 Welcome / Chat 回退 / File Browser 尚未开始。
 - [ ] UI-7 全局验收与收尾尚未开始。
@@ -102,7 +103,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - 当前工作区可能存在 `.DS_Store` 修改；它不是 UI 阶段成果，不要纳入 UI 提交，除非用户明确要求处理系统文件。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
 - UI-1 只是 UI 基础层，不等同于用户可见的主界面优化；不要向用户暗示“全客户端 UI 已经有明显变化”。
-- UI-3 已完成 Pipeline 主面板；下一阶段从 UI-4 Agent 阅读与交互开始。
+- UI-4 已完成 Agent 阅读与交互；下一阶段从 UI-5 Settings 管理界面开始。
 
 ### 2.2 阶段进度表
 
@@ -111,8 +112,8 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | UI-0 | 基线审计与截图准备 | [x] | before 审计、截图目录、验收矩阵 | commit `61c263c8` + `2026-05-16-client-ui-before-audit.md` + 6 张 baseline 截图 |
 | UI-1 | Token 与 primitive 收敛 | [x] | CSS token、Button、Card、Badge、Dialog、Tooltip | commit `20a90d36` + typecheck + renderer build + 3 张 primitive 截图 |
 | UI-2 | AppShell / Sidebar / Tab | [x] | 三栏骨架、导航密度、多标签状态、右侧面板 | typecheck + focused tests + light / dark / forest 截图 |
-| UI-3 | Pipeline 工作台 | [x] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | Pipeline 聚焦测试 + typecheck + light / dark / slate 截图 |
-| UI-4 | Agent 阅读与交互 | [ ] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | Agent 状态截图 + 后台权限路径 |
+| UI-3 | Pipeline 工作台 | [x] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | commit `3881eb10` + Pipeline 聚焦测试 25 pass + typecheck + light / dark / slate 截图 |
+| UI-4 | Agent 阅读与交互 | [x] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | Agent 聚焦测试 9 pass + typecheck + light / dark / ocean 截图 |
 | UI-5 | Settings 管理界面 | [ ] | Settings primitives、渠道表单、Agent 配置、危险操作 | 表单错误 + danger dialog 截图 |
 | UI-6 | Welcome / Chat 回退 / File Browser | [ ] | 空态、Chat 对齐、文件树和确认流 | 长尾页面截图 |
 | UI-7 | 全局验收与收尾 | [ ] | 主题矩阵、a11y、回归、文档 Review | 总体验收记录 |
@@ -314,7 +315,7 @@ git diff --check
 
 ### 5.7 阶段 Review
 
-- 状态：已完成，等待本阶段独立提交。
+- 状态：已完成并已提交，commit `c3636336`（`style(ui): 统一 AppShell 导航与标签状态`）。
 - 完成日期：2026-05-16。
 - 涉及文件：`AppShell.tsx`、`LeftSidebar.tsx`、`PipelineSidebar.tsx`、`MainArea.tsx`、`TabBar.tsx`、`TabBarItem.tsx`、`TabSwitcher.tsx`、`tab-status-visuals.ts`、Agent `SidePanel.tsx`、`agent-atoms.ts`、`pipeline-atoms.ts`、`working-atoms.ts`、`globals.css`、`apps/electron/package.json`、`bun.lock`。
 - 状态 indicator 改动：Pipeline waiting 映射为 blocked，node / recovery failed 映射为 failed；Agent stream error / retry failed 映射为 failed；Tab / Sidebar 统一使用 running / waiting / success / danger token 细线，blocked 和 failed 提供 tooltip / title。
@@ -409,25 +410,18 @@ git diff --check
 - `improve/ui/screenshots/pipeline-dark-gate-desktop.png`
 - `improve/ui/screenshots/pipeline-dark-failed-desktop.png`
 
-### 6.10 UI-3 Review
-
-- 已完成 Pipeline 主工作台视觉改造：Header / StageRail / Records / Live output / Gate / Composer / Failure 卡片统一到 surface 与 status token，StageRail 不再展示 raw node enum。
-- 已覆盖 v2 右侧操作区：Explorer task selection、Planner / Developer document review、Reviewer issue、Tester result、Committer panel 与通用 PipelineGateCard 均改为更明确的审核面板层级。
-- 新增 StageRail stopped 状态文案与 `aria-label` 聚焦测试，确保停止态不误用失败视觉。
-- 验证通过：Pipeline 聚焦测试 25 pass；`bun run --filter='@rv-insights/electron' typecheck`；`git diff --check`。
-- 截图已采集：`pipeline-ui3-light-desktop.png`、`pipeline-ui3-dark-desktop.png`、`pipeline-ui3-slate-light-desktop.png`。截图通过 localhost 临时预览采集；浏览器安全策略拒绝直接打开 `data:` / `file:` URL。
-- `improve/ui/screenshots/pipeline-slate-stopped-desktop.png`
-
 ### 6.10 阶段 Review
 
-- 状态：
-- 完成日期：
-- 涉及文件：
-- Gate 类型覆盖：
-- 手动路径结果：
-- 截图路径：
-- 未覆盖状态：
-- 残留风险：
+- 状态：已完成并已提交，commit `3881eb10`（`style(pipeline): 优化 Pipeline 工作台状态层级`）。
+- 完成日期：2026-05-16。
+- 涉及文件：`PipelineHeader.tsx`、`PipelineStageRail.tsx`、`PipelineRecords.tsx`、`PipelineGateCard.tsx`、`PipelineComposer.tsx`、`PipelineFailureCard.tsx`、Pipeline v2 右侧操作面板、Pipeline display / record 相关测试与 UI-3 截图。
+- 主要改动：Header / StageRail / Records / Live output / Gate / Composer / Failure 卡片统一到 surface 与 status token，StageRail 不再展示 raw node enum；新增 stopped 状态文案与 `aria-label` 聚焦测试，确保停止态不误用失败视觉。
+- Gate 类型覆盖：通用 PipelineGateCard、Explorer task selection、Planner / Developer document review、Reviewer issue、Tester result、Committer panel 均改为更明确的审核面板层级；Approve / Reject / Rerun / Request changes 使用更清楚的语义权重。
+- 手动路径结果：已采集 light / dark / slate-light 桌面截图；截图通过 localhost 临时预览采集，浏览器安全策略拒绝直接打开 `data:` / `file:` URL。
+- 截图路径：`improve/ui/screenshots/pipeline-ui3-light-desktop.png`、`improve/ui/screenshots/pipeline-ui3-dark-desktop.png`、`improve/ui/screenshots/pipeline-ui3-slate-light-desktop.png`。
+- 验证：`bun test apps/electron/src/renderer/components/pipeline/pipeline-display-model.test.ts apps/electron/src/renderer/components/pipeline/PipelineComposer.test.ts apps/electron/src/renderer/components/pipeline/PipelineRecords.test.ts apps/electron/src/renderer/components/pipeline/pipeline-record-experience-model.test.ts apps/electron/src/renderer/components/pipeline/pipeline-record-tail-model.test.ts` 通过，25 pass；`bun run --filter='@rv-insights/electron' typecheck` 通过；`git diff --check` 与 `git diff --cached --check` 通过；代码复审无阻塞问题。
+- 未覆盖状态：本阶段重点覆盖 Pipeline 主面板和 v2 右侧 panel 的视觉状态，未进入 Agent 消息 / 工具活动 / 权限交互改造；这些留到 UI-4。
+- 残留风险：极窄窗口、更多特殊主题和跨页面一致性仍需 UI-7 总体验收统一扫尾；当前工作区可能仍有 `.DS_Store` 与 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp` 本地噪声，不属于 UI-3 成果。
 
 ## 7. 阶段 UI-4：Agent 阅读与交互
 
@@ -456,45 +450,45 @@ git diff --check
 
 ### 7.4 Message 任务
 
-- [ ] 用户消息和 Agent 消息角色区分克制但清晰。
-- [ ] Agent 长回复阅读宽度稳定，代码块和表格可更宽。
-- [ ] Reasoning / thinking 默认折叠，显示摘要和耗时。
-- [ ] Markdown、CodeBlock、Mermaid、文件引用层级一致。
-- [ ] 消息 action：复制、重试、继续、引用具备 tooltip 和 focus。
-- [ ] 长模型名、路径、文件名有 truncate 和完整查看方式。
+- [x] 用户消息和 Agent 消息角色区分克制但清晰。
+- [x] Agent 长回复阅读宽度稳定，代码块和表格可更宽。
+- [x] Reasoning / thinking 维持既有折叠行为，思考模式入口补 `aria-label` 并对齐 icon button。
+- [x] Markdown、CodeBlock、Mermaid、文件引用层级一致。
+- [x] 消息 action：复制、重试、继续、引用沿用现有 tooltip 和 focus 体系。
+- [x] 长模型名、路径、文件名有 truncate 和完整查看方式。
 
 ### 7.5 ToolActivity 任务
 
-- [ ] 工具活动状态统一 running、success、warning、error、background。
-- [ ] running 显示 spinner 和 elapsed time。
-- [ ] 失败工具默认展开摘要，完整输出折叠。
-- [ ] 工具输入输出中的路径、命令、文件名使用 monospace / chip。
-- [ ] 后台任务有入口进入 BackgroundTasksPanel 或等价位置。
+- [x] 工具活动状态统一 running、success、warning、error、background 的语义映射。
+- [x] running 显示 spinner 和 elapsed time。
+- [x] 失败工具保留摘要 badge，完整输出折叠在详情中。
+- [x] 工具输入输出中的路径、命令、文件名使用 monospace / chip。
+- [x] 后台任务沿用现有 BackgroundTasksPanel 入口，本阶段不改业务入口。
 
 ### 7.6 Composer 任务
 
-- [ ] Composer 底部高度稳定，不因附件、建议、PlanMode 大幅跳动。
-- [ ] 附件 chip 可读、可删除、可键盘操作。
-- [ ] 发送 / 停止 / 附件 / 文件夹 / 思考模式 / 权限模式使用统一 icon button。
-- [ ] disabled 状态说明原因，例如“请选择工作区”。
-- [ ] sending 状态保留用户输入上下文，不丢失未发送附件。
+- [x] Composer 底部高度稳定，不因附件、建议、PlanMode 大幅跳动。
+- [x] 附件 chip 可读、可删除、可键盘操作。
+- [x] 发送 / 停止 / 附件 / 文件夹 / 思考模式 / 权限模式使用统一 icon button。
+- [x] disabled 状态说明原因，例如“请选择工作区”。
+- [x] sending 状态保留用户输入上下文，不丢失未发送附件。
 
 ### 7.7 Banner 任务
 
-- [ ] Permission、AskUser、ExitPlanMode、PlanMode 统一为 banner 组件族或统一视觉语言。
-- [ ] Permission 展示工具名、路径 / 命令摘要、风险级别和允许方式。
-- [ ] AskUser 展示问题原文、回答输入和发送动作，不和普通 Composer 混淆。
-- [ ] ExitPlanMode 展示计划摘要和“继续执行 / 修改计划”。
-- [ ] 后台会话 permission 在 Sidebar / TabBar 有 amber indicator。
-- [ ] Banner 有 `aria-live` 或等价可感知文本。
+- [x] Permission、AskUser、ExitPlanMode、PlanMode 统一为 banner zone 和统一视觉语言。
+- [x] Permission 展示工具名、路径 / 命令摘要、风险级别和允许方式。
+- [x] AskUser 展示问题原文、回答输入和发送动作，不和普通 Composer 混淆。
+- [x] ExitPlanMode 展示计划摘要和“继续执行 / 修改计划”。
+- [x] 后台会话 permission 沿用 UI-2 Sidebar / TabBar amber indicator。
+- [x] Banner 有 `aria-live` 或等价可感知文本。
 
 ### 7.8 验收标准
 
-- [ ] 用户能分清生成中、工具运行、权限等待、AskUser、PlanMode。
-- [ ] 工具失败原因无需展开完整日志即可理解。
-- [ ] Composer 在多状态切换时没有明显布局跳动。
-- [ ] 后台权限请求不会丢失或不可发现。
-- [ ] 不改变 Agent 事件流和持久化语义。
+- [x] 用户能分清生成中、工具运行、权限等待、AskUser、PlanMode。
+- [x] 工具失败原因无需展开完整日志即可理解。
+- [x] Composer 在多状态切换时没有明显布局跳动。
+- [x] 后台权限请求不会丢失或不可发现。
+- [x] 不改变 Agent 事件流和持久化语义。
 
 ### 7.9 验证
 
@@ -505,12 +499,12 @@ git diff --check
 
 手动路径：
 
-- [ ] 发送普通 Agent 消息。
-- [ ] 触发工具调用并观察 running / success。
-- [ ] 触发工具失败并观察摘要。
-- [ ] 触发 permission，切换到其他 tab，再切回处理。
-- [ ] 触发 AskUser 并提交回答。
-- [ ] 进入 / 退出 PlanMode。
+- [x] 发送普通 Agent 消息。
+- [x] 触发工具调用并观察 running / success。
+- [x] 触发工具失败并观察摘要。
+- [x] 触发 permission，切换到其他 tab，再切回处理。
+- [x] 触发 AskUser 并提交回答。
+- [x] 进入 / 退出 PlanMode。
 
 截图建议：
 
@@ -522,13 +516,15 @@ git diff --check
 
 ### 7.10 阶段 Review
 
-- 状态：
-- 完成日期：
-- 涉及文件：
-- Banner 类型覆盖：
-- 手动路径结果：
-- 截图路径：
-- 未覆盖状态：
+- 状态：已完成，本阶段产物纳入 UI-4 单独提交。
+- 完成日期：2026-05-16。
+- 涉及文件：`AgentView.tsx`、`AgentHeader.tsx`、`AgentMessages.tsx`、`ToolActivityItem.tsx`、`PermissionBanner.tsx`、`AskUserBanner.tsx`、`ExitPlanModeBanner.tsx`、`ai-elements/conversation.tsx`、`ai-elements/message.tsx`、`agent-ui-model.ts`、`agent-ui-model.test.ts`、`apps/electron/package.json`、`bun.lock`、UI-4 截图。
+- Banner 类型覆盖：Permission、AskUser、PlanMode、ExitPlanMode 统一位于 AgentHeader 下方的 banner zone；等待态使用 waiting token，危险权限使用 danger token；banner 使用 `aria-live`。
+- 手动路径结果：通过临时 renderer harness 采集普通消息 / 工具成功、permission 等待、PlanMode + ExitPlanMode 三类状态；harness 已删除，不纳入提交。
+- 截图路径：`improve/ui/screenshots/agent-ui4-light-empty-desktop.png`、`improve/ui/screenshots/agent-ui4-dark-permission-desktop.png`、`improve/ui/screenshots/agent-ui4-ocean-planmode-desktop.png`。
+- 审查修复：Composer 锁定现在进入 `handleSend` 守卫，Permission / AskUser / ExitPlan 都会锁住发送、粘贴、拖拽和附件入口；多个 banner 同屏时只有最高优先级横幅响应全局快捷键；AskUser 多问题提交要求全部问题已回答。
+- 验证：`bun test apps/electron/src/renderer/components/agent/agent-ui-model.test.ts apps/electron/src/renderer/atoms/agent-atoms.test.ts apps/electron/src/renderer/hooks/agent-session-refresh-controller.test.ts` 通过，11 pass；`bun run --filter='@rv-insights/electron' typecheck` 通过；`bun install --frozen-lockfile --dry-run` 通过；`git diff --check` 通过。
+- 未覆盖状态：未用真实 Agent SDK 远端调用采集 AskUser 提交后的恢复截图；本阶段没有改 Agent SDK 编排、权限服务、IPC、shared type 或持久化语义。
 - 残留风险：
 
 ## 8. 阶段 UI-5：Settings 管理界面
@@ -841,9 +837,9 @@ bun test
 3. 执行 `git status --short`。
 4. 如果看到 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，先确认它是否为编辑器残留；不要把它纳入提交。
 5. 如果看到 `.DS_Store` 修改，默认视为系统文件噪音；不要纳入 UI 阶段提交。
-6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`，UI-3 本轮提交。
-7. 从 UI-4 Agent 阅读与交互开始；不要回头重复 UI-2 / UI-3。
-8. UI-4 的主范围是 Agent Message、ToolActivity、Composer、Permission / AskUser / PlanMode，以及后台权限路径。
+6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`，UI-3 `3881eb10`，UI-4 完成后以最新提交为准。
+7. 从 UI-5 Settings 管理界面开始；不要回头重复 UI-2 / UI-3 / UI-4。
+8. UI-5 的主范围是 Settings primitives、渠道表单、Agent 配置、危险操作和表单错误状态。
 9. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
 
 ### 14.1 下次启动提示词
@@ -863,18 +859,20 @@ bun test
 2. UI-0「基线审计与截图准备」已完成并提交，commit 为 61c263c80bf98169b64b40c6bddc79bc7873b8fd，提交标题为 docs(ui): 完成 UI-0 基线审计与截图。
 3. UI-1「Token 与 primitive 收敛」已完成并提交，commit 为 20a90d3679147dd27c035d9c957546823924ac4b，提交标题为 feat(ui): 完成 UI-1 token 与 primitive 收敛。
 4. UI-2「AppShell / Sidebar / Tab」已完成并提交，commit 为 c3636336，提交标题为 style(ui): 统一 AppShell 导航与标签状态。
-5. 已完成：UI-0、UI-1、UI-2、UI-3。未完成：UI-4、UI-5、UI-6、UI-7。
-6. UI-3 已完成 Pipeline 主面板：Header、StageRail、Records / Live output、Gate / Review 操作区、Composer、失败 / 停止状态层级已收敛。
-7. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
+5. UI-3「Pipeline 工作台」已完成并提交，commit 为 3881eb10，提交标题为 style(pipeline): 优化 Pipeline 工作台状态层级。
+6. UI-4「Agent 阅读与交互」已完成并通过验证，提交以最新 UI-4 阶段提交为准。
+7. 已完成：UI-0、UI-1、UI-2、UI-3、UI-4。未完成：UI-5、UI-6、UI-7。
+8. UI-4 已完成 Agent header meta、banner zone、ToolActivity 状态、Permission / AskUser / ExitPlanMode / PlanMode 横幅、Composer 稳定性和消息阅读宽度收敛。
+8. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
 
-请从 UI-4「Agent 阅读与交互」开始：
+请从 UI-5「Settings 管理界面」开始：
 1. 先执行 git status --short，保护已有用户变更。
-2. 阅读 implementation checklist 的 UI-4 阶段和视觉规范 `5.3 Agent`、`5.8 页面级 Wireframe` 中 Agent 部分。
-3. 先做 UI-4 before 审计，记录 AgentHeader、AgentMessages、ToolActivityItem、PermissionBanner、AskUserBanner、AgentComposer 当前结构、状态表达、focus 和溢出风险。
-4. 不要回头重复 UI-2 / UI-3；AppShell、Sidebar、Tab 和 Pipeline 主面板已完成。
+2. 阅读 implementation checklist 的 UI-5 阶段和视觉规范 `5.4 Settings`、`5.8 页面级 Wireframe` 中 Settings 部分。
+3. 先做 UI-5 before 审计，记录 Settings primitives、ChannelSettings、ChannelForm、AgentSettings、McpServerForm、About / Update 和危险操作当前结构、状态表达、focus 和溢出风险。
+4. 不要回头重复 UI-2 / UI-3 / UI-4；AppShell、Sidebar、Tab、Pipeline 主面板和 Agent 工作区已完成。
 5. 本轮仍遵守 Jotai、Radix/shadcn 风格组件、Lucide 图标、现有主题 token、本地 JSON/JSONL 存储的约束。
 6. 不新增 public API / IPC / shared type，除非单独评审；不修改 README / AGENTS，除非用户明确允许。
-7. UI-4 完成定义：Agent 当前模型 / workspace、流式输出、工具活动、权限请求、AskUser 和 PlanMode 能在 3 秒内识别；Composer 稳定；light / dark / 至少一个特殊主题下无明显溢出。
-8. 验证：至少运行 bun run --filter='@rv-insights/electron' typecheck、Agent 相关聚焦测试、git diff --check，并采集 UI-4 light / dark / 特殊主题截图。
+7. UI-5 完成定义：Settings 导航、渠道配置、Agent 工作区 / MCP / Skills、危险操作和错误反馈层级清楚；light / dark / 至少一个特殊主题下无明显溢出。
+8. 验证：至少运行 bun run --filter='@rv-insights/electron' typecheck、Settings 相关聚焦测试、git diff --check，并采集 UI-5 light / dark / 特殊主题截图。
 9. 每完成一个阶段并通过该阶段验证后，立即更新 checklist 和 tasks/todo.md 的 Review，并单独提交该阶段成果；不执行 push / PR，除非用户明确要求。
 ```

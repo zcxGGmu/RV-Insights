@@ -73,6 +73,7 @@ import {
   agentSessionPathMapAtom,
   allPendingAskUserRequestsAtom,
   allPendingExitPlanRequestsAtom,
+  allPendingPermissionRequestsAtom,
   finalizeStreamingActivities,
   sessionStreamingStateFamily,
   sessionLiveMessagesFamily,
@@ -96,6 +97,7 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import type { AgentSendInput, AgentMessage, AgentPendingFile, ModelOption, SDKMessage } from '@rv-insights/shared'
 import { fileToBase64 } from '@/lib/file-utils'
+import { buildAgentComposerState, getActiveAgentBanner, hasPendingAgentInteraction } from './agent-ui-model'
 
 // ===== 思考模式 Hover Popover =====
 
@@ -133,8 +135,9 @@ function AgentThinkingPopover({ agentThinking, onToggle }: AgentThinkingPopoverP
           type="button"
           variant="ghost"
           size="icon"
+          aria-label="切换思考模式"
           className={cn(
-            'size-[36px] rounded-full',
+            'size-[36px] rounded-control',
             isEnabled ? 'text-green-500' : 'text-foreground/60 hover:text-foreground'
           )}
           onClick={onToggle}
@@ -790,12 +793,29 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     return { channelId: agentChannelId, modelId: agentModelId }
   }, [agentChannelId, agentModelId])
 
+  const allPermissionRequests = useAtomValue(allPendingPermissionRequestsAtom)
+  const allAskUserRequests = useAtomValue(allPendingAskUserRequestsAtom)
+  const allExitPlanRequests = useAtomValue(allPendingExitPlanRequestsAtom)
+  const pendingPermissionCount = allPermissionRequests.get(sessionId)?.length ?? 0
+  const pendingAskUserCount = allAskUserRequests.get(sessionId)?.length ?? 0
+  const pendingExitPlanCount = allExitPlanRequests.get(sessionId)?.length ?? 0
+  const hasBannerOverlay = hasPendingAgentInteraction({
+    pendingPermissionCount,
+    pendingAskUserCount,
+    pendingExitPlanCount,
+  })
+  const activeBanner = getActiveAgentBanner({
+    pendingPermissionCount,
+    pendingAskUserCount,
+    pendingExitPlanCount,
+  })
+
   /** 发送消息 */
   const handleSend = React.useCallback(async (): Promise<void> => {
     const text = inputContent.trim()
     // 如果输入为空但有建议，使用建议内容
     const effectiveText = text || suggestion || ''
-    if ((!effectiveText && pendingFiles.length === 0) || !agentChannelId || !hasAvailableModel) return
+    if (hasBannerOverlay || (!effectiveText && pendingFiles.length === 0) || !agentChannelId || !hasAvailableModel) return
 
     // 上一条消息仍在处理中，直接追加发送
     if (streaming) {
@@ -1030,7 +1050,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         return map
       })
     })
-  }, [inputContent, pendingFiles, attachedDirs, sessionId, agentChannelId, agentModelId, currentWorkspaceId, workspaces, streaming, suggestion, hasAvailableModel, store, setStreamingStates, setPendingFiles, setAgentStreamErrors, setPromptSuggestions, setInputContent, setLiveMessagesMap])
+  }, [inputContent, pendingFiles, attachedDirs, sessionId, agentChannelId, agentModelId, currentWorkspaceId, workspaces, streaming, suggestion, hasAvailableModel, hasBannerOverlay, store, setStreamingStates, setPendingFiles, setAgentStreamErrors, setPromptSuggestions, setInputContent, setLiveMessagesMap])
 
   /** 停止生成 */
   const handleStop = React.useCallback((): void => {
@@ -1303,14 +1323,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     return () => window.removeEventListener('rv-insights:focus-input', handler)
   }, [])
 
-  const allAskUserRequests = useAtomValue(allPendingAskUserRequestsAtom)
-  const allExitPlanRequests = useAtomValue(allPendingExitPlanRequestsAtom)
-  const hasBannerOverlay =
-    (allAskUserRequests.get(sessionId)?.length ?? 0) > 0 ||
-    (allExitPlanRequests.get(sessionId)?.length ?? 0) > 0
-
   const hasTextInput = inputContent.trim().length > 0
-  const canSend = (hasTextInput || pendingFiles.length > 0 || !!suggestion) && agentChannelId !== null && hasAvailableModel && (!streaming || hasTextInput)
+  const canSend = !hasBannerOverlay && (hasTextInput || pendingFiles.length > 0 || !!suggestion) && agentChannelId !== null && hasAvailableModel && (!streaming || hasTextInput)
 
   return (
     <>
@@ -1318,7 +1332,30 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       {/* 主内容区域 */}
       <div className="flex flex-col h-full flex-1 min-w-0 max-w-[min(72rem,100%)] mx-auto">
         {/* Agent Header */}
-        <AgentHeader sessionId={sessionId} />
+        <AgentHeader
+          sessionId={sessionId}
+          channelId={stableChannelId}
+          modelId={agentModelId || undefined}
+          permissionMode={permissionMode}
+          streaming={streaming}
+          planMode={isPlanMode}
+        />
+
+        {/* 交互横幅区 */}
+        <div className="shrink-0 px-3 pt-3 md:px-5" aria-live="polite">
+          <PermissionBanner sessionId={sessionId} active={activeBanner === 'permission'} />
+          <AskUserBanner sessionId={sessionId} active={activeBanner === 'ask-user'} />
+          {isPlanMode && (
+            <div className="mb-2 flex items-start gap-2 rounded-card border border-status-waiting-border bg-status-waiting-bg px-3 py-2.5 text-status-waiting-fg shadow-card animate-in fade-in slide-in-from-top-1 duration-200">
+              <MapIcon className="mt-0.5 size-4 shrink-0" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium">Agent 正在规划中</div>
+                <div className="text-xs text-current/70">完成后会在这里请求你的审批，输入区保持可见但暂不可发送。</div>
+              </div>
+            </div>
+          )}
+          <ExitPlanModeBanner sessionId={sessionId} active={activeBanner === 'exit-plan'} />
+        </div>
 
         {/* 消息区域 */}
         <AgentMessages
@@ -1340,52 +1377,45 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           onCompact={handleCompact}
         />
 
-        {/* 权限请求横幅 */}
-        <PermissionBanner sessionId={sessionId} />
-
-        {/* AskUserQuestion 交互式问答横幅 */}
-        <AskUserBanner sessionId={sessionId} />
-
-        {/* Plan 模式指示条 */}
-        {isPlanMode && (
-          <div className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 text-primary text-sm animate-in fade-in slide-in-from-bottom-1 duration-200">
-            <MapIcon className="size-4 animate-pulse" />
-            <span className="font-medium">Agent 正在规划中...</span>
-            <span className="text-xs text-muted-foreground">完成后将请求你的审批</span>
-          </div>
-        )}
-
-        {/* ExitPlanMode 计划审批横幅 */}
-        <ExitPlanModeBanner sessionId={sessionId} />
-
-        {/* 输入区域 — 交互横幅显示时隐藏，由横幅替代 */}
-        {!hasBannerOverlay && (
+        {/* 输入区域 */}
         <div className="px-2.5 pb-2.5 md:px-[18px] md:pb-[18px]" data-input-mode="agent">
           <div
             className={cn(
-              'rounded-[17px] border-[0.5px] border-border bg-background/70 backdrop-blur-sm transition-all duration-200',
+              'rounded-panel border border-border-subtle bg-surface-panel/85 shadow-panel backdrop-blur-sm transition-all duration-200',
               (isPlanMode || isPermissionPlanMode) && !isDragOver && 'plan-mode-border',
-              isDragOver && 'border-[2px] border-dashed border-[#2ecc71] bg-[#2ecc71]/[0.03]'
+              isDragOver && 'border-2 border-dashed border-status-success-border bg-status-success-bg'
             )}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            onDragOver={hasBannerOverlay ? undefined : handleDragOver}
+            onDragLeave={hasBannerOverlay ? undefined : handleDragLeave}
+            onDrop={hasBannerOverlay ? undefined : handleDrop}
           >
             {(isPlanMode || isPermissionPlanMode) && !isDragOver && <PlanModeDashedBorder />}
             {/* 无 Agent 渠道或无可用模型提示 */}
-            {(!agentChannelId || !hasAvailableModel) && (
-              <div className="flex items-center gap-2 px-4 py-2 text-sm text-amber-600 dark:text-amber-400">
+            {(() => {
+              const composerState = buildAgentComposerState({
+                hasChannel: !!agentChannelId,
+                hasAvailableModel,
+                interactionLocked: hasBannerOverlay,
+                streaming,
+                hasTextInput,
+              })
+              if (!composerState.notice) return null
+              return (
+              <div className="flex flex-wrap items-center gap-2 border-b border-border-subtle px-4 py-2 text-sm text-status-waiting-fg">
                 <Settings size={14} />
-                <span>{!agentChannelId ? '请在设置中选择 Agent 供应商' : '暂无可用模型，请在设置中启用 Agent 渠道并配置模型'}</span>
-                <button
-                  type="button"
-                  className="text-xs underline underline-offset-2 hover:text-foreground transition-colors"
-                  onClick={() => setSettingsOpen(true)}
-                >
-                  前往设置
-                </button>
+                <span className="min-w-0 flex-1">{composerState.notice}</span>
+                {(!agentChannelId || !hasAvailableModel) && (
+                  <button
+                    type="button"
+                    className="text-xs underline underline-offset-2 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    前往设置
+                  </button>
+                )}
               </div>
-            )}
+              )
+            })()}
 
             {/* 附件预览区域 */}
             {pendingFiles.length > 0 && (
@@ -1405,15 +1435,21 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             {/* Agent 建议提示 */}
             {suggestion && !streaming && (
               <div className="px-3 pt-2.5 pb-1.5">
-                <button
-                  type="button"
-                  className="group flex items-start gap-2 w-full rounded-lg border border-dashed border-primary/30 bg-primary/[0.03] px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/[0.06]"
-                  onClick={handleSend}
-                >
-                  <Sparkles className="size-4 shrink-0 mt-0.5 text-primary/60 group-hover:text-primary/80" />
-                  <span className="flex-1 min-w-0 text-foreground/80 group-hover:text-foreground line-clamp-3">{suggestion}</span>
-                  <X
-                    className="size-3.5 shrink-0 mt-0.5 text-muted-foreground/40 hover:text-foreground transition-colors"
+                <div className="group flex items-start gap-2 w-full rounded-card border border-dashed border-primary/30 bg-primary/[0.03] px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/[0.06]">
+	                  <button
+	                    type="button"
+	                    className="flex min-w-0 flex-1 items-start gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+	                    onClick={handleSend}
+	                    disabled={hasBannerOverlay}
+	                    aria-label={hasBannerOverlay ? '请先处理上方交互请求' : '发送建议消息'}
+	                  >
+                    <Sparkles className="size-4 shrink-0 mt-0.5 text-primary/60 group-hover:text-primary/80" />
+                    <span className="flex-1 min-w-0 text-foreground/80 group-hover:text-foreground line-clamp-3">{suggestion}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="关闭建议"
+                    className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground/50 transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     onClick={(e) => {
                       e.stopPropagation()
                       setPromptSuggestions((prev) => {
@@ -1423,8 +1459,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                         return map
                       })
                     }}
-                  />
-                </button>
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1432,7 +1470,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               value={inputContent}
               onChange={setInputContent}
               onSubmit={handleSend}
-              onPasteFiles={handlePasteFiles}
+              onPasteFiles={hasBannerOverlay ? undefined : handlePasteFiles}
               placeholder={
                 agentChannelId && hasAvailableModel
                   ? sendWithCmdEnter
@@ -1442,7 +1480,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                     ? '请先在设置中选择 Agent 供应商'
                     : '暂无可用模型，请先在设置中启用渠道'
               }
-              disabled={!agentChannelId || !hasAvailableModel}
+              disabled={!agentChannelId || !hasAvailableModel || hasBannerOverlay}
               autoFocusTrigger={sessionId}
               collapsible
               workspacePath={sessionPath}
@@ -1454,8 +1492,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             />
 
             {/* Footer 工具栏 */}
-            <div className="flex items-center justify-between px-2 py-1 h-[48px] gap-4">
-              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div className="flex min-h-[48px] flex-wrap items-center justify-between gap-2 px-2 py-1">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                 <ModelSelector
                   filterChannelIds={agentChannelIds}
                   externalSelectedModel={externalSelectedModel}
@@ -1479,8 +1517,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-[36px] rounded-full text-foreground/60 hover:text-foreground"
-                      onClick={handleOpenFileDialog}
+	                      className="size-[36px] rounded-control text-foreground/60 hover:text-foreground"
+	                      onClick={handleOpenFileDialog}
+	                      disabled={hasBannerOverlay}
+	                      aria-label="添加附件"
                     >
                       <Paperclip className="size-5" />
                     </Button>
@@ -1495,8 +1535,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-[36px] rounded-full text-foreground/60 hover:text-foreground"
-                      onClick={handleAttachFolder}
+	                      className="size-[36px] rounded-control text-foreground/60 hover:text-foreground"
+	                      onClick={handleAttachFolder}
+	                      disabled={hasBannerOverlay}
+	                      aria-label="附加文件夹"
                     >
                       <FolderPlus className="size-5" />
                     </Button>
@@ -1526,8 +1568,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="size-[36px] rounded-full text-destructive hover:!text-[hsl(0,75%,55%)] hover:!bg-[var(--stop-hover-bg)]"
+                        className="size-[36px] rounded-control text-destructive hover:!text-[hsl(0,75%,55%)] hover:!bg-[var(--stop-hover-bg)]"
                         onClick={handleStop}
+                        aria-label="停止 Agent"
                       >
                         <Square className="size-[16px]" fill="currentColor" strokeWidth={0} />
                       </Button>
@@ -1542,13 +1585,14 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      'size-[36px] rounded-full',
+                      'size-[36px] rounded-control',
                       canSend
                         ? 'text-primary hover:bg-primary/10'
                         : 'text-foreground/30 cursor-not-allowed'
                     )}
                     onClick={handleSend}
                     disabled={!canSend}
+                    aria-label={streaming ? '追加发送给 Agent' : '发送给 Agent'}
                   >
                     <CornerDownLeft className="size-[22px]" />
                   </Button>
@@ -1557,7 +1601,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             </div>
           </div>
         </div>
-        )}
       </div>
     </AgentSessionProvider>
 
