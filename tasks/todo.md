@@ -1206,3 +1206,26 @@ Phase 8 禁止事项：
 - 已将 checklist 的“当前启动提示”和“下次启动提示词”改为 UI-3 版本：下次应先做 UI-3 before 审计，再改 PipelineHeader、PipelineStageRail、PipelineRecords、PipelineGateCard、PipelineComposer。
 - 已明确下次开发边界：AppShell / Sidebar / Tab 已完成；不要回头重复 UI-2；Pipeline 主面板才是下一步直观可见的 UI 改造重点。
 - 当前仍需保护 `.DS_Store` 与 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入 UI 阶段提交。
+
+## 2026-05-16 Pipeline 记录区创意 UI 优化计划
+
+- [x] 复习 `tasks/lessons.md`，确认本轮必须让 Pipeline 主内容区产生真实可见变化。
+- [x] 执行 `git status --short`，确认并保护现有 `.DS_Store` 与 `improve/` 临时文件。
+- [x] 重构 `PipelineComposer` 运行态为任务指令条，保留停止运行操作，长任务可换行不溢出。
+- [x] 重构 `PipelineRecords` 控制区为任务档案 / 运行轨迹工作台，优化统计胶囊、搜索台、工具栏与阶段筛选。
+- [x] 优化阶段产物 / 运行日志 tabs 与空状态视觉，保持 Radix/shadcn 交互语义。
+- [x] 在 `globals.css` 增加少量 Pipeline 专用视觉 class，并加入 reduced motion 降级。
+- [x] 运行 typecheck、相关 Pipeline 组件测试、`git diff --check`，按结果修正。
+- [x] 启动本地应用并尝试 Browser / Electron 截图检查；Electron 正常启动，裸 Vite 浏览器因缺少 preload 只能显示空白，系统 `screencapture` 当前无法创建截图。
+- [x] 追加本轮 Review，说明验证结果与残留风险。
+
+## 2026-05-16 Pipeline 记录区创意 UI 优化 Review
+
+- 已完成红框区域可见 UI 改造：`当前任务` 从普通卡片改为运行指令条，增加状态徽章、任务正文容器、扫描光带和停止运行危险操作。
+- 已完成 `产物与运行日志` 控制区改造：标题升级为“任务档案 / 运行轨迹”，记录数、显示数、搜索命中改为信息胶囊，搜索台和工具栏整合在同一操作 deck。
+- 已完成阶段筛选和 tabs 改造：阶段筛选改为带编号的 segmented rail；`阶段产物 / 运行日志` 变为带 Lucide 图标的嵌入式二级导航；空状态升级为带档案图标、说明文案和网格纹理的状态面板。
+- 已新增 Pipeline 专用 CSS class，并为扫描线 / beacon 动画加入 `prefers-reduced-motion` 降级；未新增依赖，未改 IPC / shared type / Jotai / 持久化逻辑。
+- 验证通过：`bun run typecheck`、`bun test apps/electron/src/renderer/components/pipeline/PipelineComposer.test.ts apps/electron/src/renderer/components/pipeline/PipelineRecords.test.ts`、`git diff --check`。
+- 运行验证：`bun run dev` 可启动 Vite 与 Electron，Electron 主进程日志显示 IPC、runtime、tray、watcher 正常启动；Browser 打开 `http://localhost:5173/` 时因没有 Electron preload/API 只能看到空白 renderer，不能作为真实 UI 判断。
+- 截图限制：尝试激活 Electron 后使用 macOS `screencapture` 失败，错误为 `could not create image from display`，因此本轮没有留下宽屏 / 窄屏截图证据。
+- 已停止本轮启动的开发进程；仍需保护既有无关变更：`.DS_Store`、`improve/.DS_Store`、`improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`、`improve/ui/.DS_Store`。

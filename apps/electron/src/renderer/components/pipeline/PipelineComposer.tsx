@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { PipelineSessionStatus } from '@rv-insights/shared'
-import { Play, Rocket, Square, SquareTerminal } from 'lucide-react'
+import { Activity, Play, Rocket, Square, SquareTerminal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type PipelineComposerNoticeTone = 'neutral' | 'danger'
@@ -133,26 +133,37 @@ export function PipelineComposer({
 
   if (disabled) {
     return (
-      <section className="pipeline-glow-card rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-3 shadow-card">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-text-tertiary">
-              <SquareTerminal size={14} className="text-status-running-fg" aria-hidden="true" />
-              当前任务
+      <section className="pipeline-command-strip pipeline-glow-card rounded-panel border border-status-running-border/80 bg-surface-card px-4 py-4 shadow-panel">
+        <div className="pipeline-command-strip__scan" aria-hidden="true" />
+        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 flex-1 gap-3">
+            <div className="pipeline-command-beacon mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-card border border-status-running-border bg-status-running-bg text-status-running-fg shadow-[0_0_28px_hsl(var(--status-running)/0.20)]">
+              <SquareTerminal size={20} aria-hidden="true" />
             </div>
-            <div className="mt-2 max-h-24 overflow-hidden break-words rounded-card border border-border-subtle/60 bg-background/60 px-3 py-2 text-sm leading-6 text-text-primary shadow-inner [overflow-wrap:anywhere]">
-              {viewModel.currentTaskLabel}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-status-running-border/70 bg-status-running-bg/80 px-2.5 py-1 text-xs font-semibold text-status-running-fg">
+                  <Activity size={13} className="pipeline-command-dot" aria-hidden="true" />
+                  当前任务
+                </span>
+                <span className="rounded-full border border-border-subtle/60 bg-background/55 px-2.5 py-1 text-xs font-medium text-text-secondary">
+                  Agent Workbench
+                </span>
+              </div>
+              <div className="mt-3 max-h-28 overflow-auto break-words rounded-card border border-border-subtle/60 bg-background/72 px-4 py-3 text-base font-semibold leading-7 text-text-primary shadow-inner [overflow-wrap:anywhere]">
+                {viewModel.currentTaskLabel}
+              </div>
+              {viewModel.notice ? (
+                <PipelineComposerNoticeLine notice={viewModel.notice} />
+              ) : null}
             </div>
-            {viewModel.notice ? (
-              <PipelineComposerNoticeLine notice={viewModel.notice} />
-            ) : null}
           </div>
           <Button
             type="button"
             disabled={viewModel.stopButtonDisabled}
             onClick={() => void handleStop()}
             variant="outline"
-            className="flex-shrink-0 border-status-danger-border bg-status-danger-bg text-status-danger-fg hover:bg-status-danger-bg"
+            className="min-h-11 flex-shrink-0 border-status-danger-border bg-status-danger-bg px-4 text-status-danger-fg shadow-[0_0_22px_hsl(var(--status-danger)/0.14)] hover:bg-status-danger-bg"
           >
             <Square size={15} />
             {viewModel.stopButtonLabel}

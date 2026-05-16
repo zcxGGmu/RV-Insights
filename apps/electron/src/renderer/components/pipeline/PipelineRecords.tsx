@@ -7,16 +7,20 @@ import type {
   PipelineStageArtifactRecord,
 } from '@rv-insights/shared'
 import {
+  Archive,
+  Boxes,
   Check,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
   CircleCheck,
   Clipboard,
+  FileSearch,
   FolderOpen,
   GitCompareArrows,
   Loader2,
   Search,
+  SquareTerminal,
 } from 'lucide-react'
 import { MessageResponse } from '@/components/ai-elements/message'
 import { Button } from '@/components/ui/button'
@@ -103,6 +107,14 @@ const STAGE_FILTERS: Array<{ value: PipelineRecordStageFilter; label: string }> 
     label: getPipelineNodeLabel(node),
   })),
 ]
+
+const STAGE_FILTER_INDEX: Partial<Record<PipelineRecordStageFilter, string>> = STAGE_FILTERS.reduce(
+  (accumulator, item, index) => ({
+    ...accumulator,
+    [item.value]: String(index).padStart(2, '0'),
+  }),
+  {},
+)
 
 export interface PipelineLiveOutputViewModel {
   title: string
@@ -576,9 +588,20 @@ function EmptyRecordState({
   tab: PipelineRecordTab
 }): React.ReactElement {
   const defaultText = tab === 'artifacts' ? '暂无阶段产物' : '暂无运行日志'
+  const title = hasQuery ? '没有匹配记录' : defaultText
+  const description = hasQuery
+    ? '调整搜索词或切换阶段筛选后再查看。'
+    : tab === 'artifacts'
+      ? 'Pipeline 完成阶段输出后，结构化产物会在这里归档。'
+      : '节点运行事件和系统记录会在这里沉淀为可追溯轨迹。'
+
   return (
-    <div className="rounded-card border border-dashed border-border-subtle bg-surface-card px-4 py-8 text-center text-sm text-text-secondary">
-      {hasQuery ? '没有匹配记录' : defaultText}
+    <div className="pipeline-empty-state rounded-panel border border-dashed border-border-subtle bg-surface-card px-4 py-10 text-center shadow-inner">
+      <div className="mx-auto flex size-12 items-center justify-center rounded-card border border-border-subtle bg-background/70 text-status-running-fg shadow-sm">
+        <Archive size={22} aria-hidden="true" />
+      </div>
+      <div className="mt-4 text-sm font-semibold text-text-primary">{title}</div>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-secondary">{description}</p>
     </div>
   )
 }
@@ -860,29 +883,43 @@ export function PipelineRecords({
         <LiveOutputPanel node={liveNode} output={liveOutput ?? ''} />
       ) : null}
 
-      <div className="pipeline-glow-card flex flex-col gap-3 rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-3 shadow-card">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-semibold tracking-[0.18em] text-text-tertiary">阶段记录</div>
-            <h2 className="mt-1 text-lg font-semibold text-text-primary">产物与运行日志</h2>
+      <div className="pipeline-records-console pipeline-glow-card flex flex-col gap-4 rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-4 shadow-panel">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-card border border-status-running-border/70 bg-status-running-bg text-status-running-fg shadow-[0_0_24px_hsl(var(--status-running)/0.18)]">
+              <Boxes size={21} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold tracking-[0.18em] text-text-tertiary">任务档案 / 运行轨迹</div>
+              <h2 className="mt-1 text-xl font-semibold text-text-primary">产物与运行日志</h2>
+              <p className="mt-1 text-sm leading-6 text-text-secondary">
+                聚合阶段产物、审核反馈和节点事件，形成可检索的 Pipeline 运行档案。
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
-            <span className="tabular-nums">{records.length} 条记录</span>
-            <span className="hidden h-1 w-1 rounded-full bg-text-tertiary/40 sm:block" />
-            <span className="tabular-nums">当前显示 {currentVisibleCount}/{currentTotalCount}</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="pipeline-metric-pill tabular-nums">
+              <span className="text-text-tertiary">记录</span>
+              <span className="font-semibold text-text-primary">{records.length}</span>
+            </span>
+            <span className="pipeline-metric-pill tabular-nums">
+              <span className="text-text-tertiary">显示</span>
+              <span className="font-semibold text-text-primary">{currentVisibleCount}/{currentTotalCount}</span>
+            </span>
             {searchResult.total > 0 ? (
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
-                命中 {searchResult.total}
+              <span className="pipeline-metric-pill border-status-running-border bg-status-running-bg text-status-running-fg tabular-nums">
+                <span>命中</span>
+                <span className="font-semibold">{searchResult.total}</span>
               </span>
             ) : null}
           </div>
         </div>
 
-        <div className="grid gap-2 xl:grid-cols-[minmax(220px,1fr)_auto]">
+        <div className="pipeline-search-deck grid gap-3 rounded-panel border border-border-subtle/60 bg-background/45 p-3 shadow-inner xl:grid-cols-[minmax(260px,1fr)_auto]">
           <div className="relative">
             <Search
-              size={15}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+              size={17}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-status-running-fg"
             />
             <Input
               type="search"
@@ -890,7 +927,7 @@ export function PipelineRecords({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索阶段产物、审核反馈或运行日志"
-              className="border-border-subtle/70 bg-background/70 pl-9 shadow-inner"
+              className="h-11 border-border-subtle/70 bg-surface-card/80 pl-10 text-sm shadow-sm focus-visible:ring-focus"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -905,6 +942,7 @@ export function PipelineRecords({
               }}
               disabled={searchMatches.length === 0}
               aria-label="跳转到上一个搜索结果"
+              className="bg-surface-card/80"
             >
               <ChevronLeft size={15} />
               上一个
@@ -920,6 +958,7 @@ export function PipelineRecords({
               }}
               disabled={searchMatches.length === 0}
               aria-label="跳转到下一个搜索结果"
+              className="bg-surface-card/80"
             >
               下一个
               <ChevronRight size={15} />
@@ -936,6 +975,7 @@ export function PipelineRecords({
                   }}
                   disabled={!hasPreviousSearchPage}
                   aria-label="加载上一页搜索结果"
+                  className="bg-surface-card/80"
                 >
                   上页结果
                 </Button>
@@ -949,6 +989,7 @@ export function PipelineRecords({
                   }}
                   disabled={!searchResult.hasMore}
                   aria-label="加载下一页搜索结果"
+                  className="bg-surface-card/80"
                 >
                   下页结果
                 </Button>
@@ -959,6 +1000,7 @@ export function PipelineRecords({
               variant="secondary"
               size="sm"
               onClick={handleCopyReport}
+              className="bg-status-running text-white shadow-[0_0_18px_hsl(var(--status-running)/0.18)] hover:bg-status-running/90"
             >
               {copyStatus === 'copied' ? <Check size={15} /> : <Clipboard size={15} />}
               {copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败' : '复制报告'}
@@ -966,21 +1008,23 @@ export function PipelineRecords({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="group" aria-label="按阶段筛选记录">
+        <div className="pipeline-stage-segmented flex flex-wrap gap-1 rounded-panel border border-border-subtle/60 bg-background/35 p-1.5" role="group" aria-label="按阶段筛选记录">
           {STAGE_FILTERS.map((item) => (
-            <Button
+            <button
               key={item.value}
               type="button"
-              variant={stageFilter === item.value ? 'secondary' : 'ghost'}
-              size="sm"
               aria-pressed={stageFilter === item.value}
               onClick={() => setStageFilter(item.value)}
-              className={stageFilter === item.value
-                ? 'border border-status-running-border bg-status-running-bg text-status-running-fg shadow-[0_0_18px_hsl(var(--status-running)/0.16)] hover:bg-status-running-bg'
-                : 'border border-transparent'}
+              className={cn(
+                'inline-flex min-h-9 items-center gap-2 rounded-control border px-3 py-1.5 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+                stageFilter === item.value
+                  ? 'border-status-running-border bg-status-running-bg text-status-running-fg shadow-[0_0_18px_hsl(var(--status-running)/0.16)]'
+                  : 'border-transparent text-text-secondary hover:bg-surface-muted hover:text-text-primary',
+              )}
             >
+              <span className="font-mono text-[10px] opacity-70">{STAGE_FILTER_INDEX[item.value]}</span>
               {item.label}
-            </Button>
+            </button>
           ))}
         </div>
 
@@ -1007,10 +1051,16 @@ export function PipelineRecords({
         ) : null}
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="artifacts">阶段产物</TabsTrigger>
-          <TabsTrigger value="logs">运行日志</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="pipeline-records-tabs rounded-panel border border-border-subtle/70 bg-surface-card p-3 shadow-card">
+        <TabsList className="h-auto rounded-card bg-background/55 p-1 shadow-inner">
+          <TabsTrigger value="artifacts" className="gap-2 px-4 py-2 data-[state=active]:bg-status-running-bg data-[state=active]:text-status-running-fg">
+            <FileSearch size={15} aria-hidden="true" />
+            阶段产物
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="gap-2 px-4 py-2 data-[state=active]:bg-status-running-bg data-[state=active]:text-status-running-fg">
+            <SquareTerminal size={15} aria-hidden="true" />
+            运行日志
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="artifacts" className="mt-3 space-y-4">
