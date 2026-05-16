@@ -629,6 +629,198 @@
   border: 1px solid hsl(var(--border-subtle) / 0.3);
 }
 
+/* ===== Pipeline 视觉增强 ===== */
+.pipeline-workbench-bg {
+  position: relative;
+  isolation: isolate;
+}
+
+.pipeline-workbench-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 20%, hsl(var(--status-running) / 0.08), transparent 24%),
+    radial-gradient(circle at 80% 0%, hsl(var(--status-success) / 0.06), transparent 22%),
+    linear-gradient(to bottom, hsl(var(--background) / 0.06), transparent 18%);
+  opacity: 0.9;
+}
+
+.pipeline-workbench-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(hsl(var(--foreground) / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--foreground) / 0.04) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 92%, transparent 100%);
+  opacity: 0.55;
+}
+
+.pipeline-glow-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.pipeline-glow-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, hsl(var(--status-running) / 0.06), transparent 42%);
+  opacity: 0.55;
+}
+
+.pipeline-scanline {
+  background: linear-gradient(90deg, transparent, hsl(var(--status-running) / 0.72), transparent);
+  box-shadow: 0 0 24px hsl(var(--status-running) / 0.32);
+  animation: pipeline-scan 3.6s linear infinite;
+}
+
+.pipeline-scan-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.pipeline-scan-panel::after {
+  content: '';
+  position: absolute;
+  inset: -35% 0 auto 0;
+  height: 52%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, hsl(var(--status-running) / 0.12), transparent);
+  transform: translateY(-130%);
+  animation: pipeline-sweep 5.4s ease-in-out infinite;
+}
+
+.pipeline-stage-active {
+  box-shadow:
+    0 0 0 1px hsl(var(--status-running) / 0.22),
+    0 0 24px hsl(var(--status-running) / 0.22),
+    inset 0 0 0 1px hsl(var(--status-running) / 0.08);
+}
+
+.pipeline-energy-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.pipeline-energy-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.26), transparent);
+  animation: pipeline-energy-flow 2.8s linear infinite;
+}
+
+.pipeline-status-pulse {
+  position: relative;
+}
+
+.pipeline-status-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 1px solid hsl(var(--status-running) / 0.12);
+  animation: pipeline-status-ring 2.4s ease-out infinite;
+}
+
+.pipeline-record-card {
+  transform: translateZ(0);
+}
+
+.pipeline-record-highlight {
+  animation: pipeline-record-breathe 1.9s ease-in-out infinite;
+}
+
+.pipeline-new-button {
+  position: relative;
+}
+
+.pipeline-new-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid hsl(var(--status-running) / 0.1);
+  pointer-events: none;
+}
+
+@keyframes pipeline-scan {
+  0% {
+    transform: translateX(-12%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateX(112%);
+    opacity: 0;
+  }
+}
+
+@keyframes pipeline-sweep {
+  0%,
+  42% {
+    transform: translateY(-130%);
+    opacity: 0;
+  }
+  52% {
+    opacity: 0.65;
+  }
+  62% {
+    opacity: 0.32;
+  }
+  100% {
+    transform: translateY(220%);
+    opacity: 0;
+  }
+}
+
+@keyframes pipeline-energy-flow {
+  0% {
+    transform: translateX(-35%);
+  }
+  100% {
+    transform: translateX(35%);
+  }
+}
+
+@keyframes pipeline-status-ring {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+}
+
+@keyframes pipeline-record-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px hsl(var(--status-running) / 0.08), 0 0 0 hsl(var(--status-running) / 0);
+  }
+  50% {
+    box-shadow: 0 0 0 1px hsl(var(--status-running) / 0.16), 0 0 16px hsl(var(--status-running) / 0.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -637,6 +829,14 @@
     transition-duration: 1ms !important;
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .pipeline-scanline,
+  .pipeline-scan-panel::after,
+  .pipeline-energy-line::after,
+  .pipeline-status-pulse::after,
+  .pipeline-record-highlight {
+    animation: none !important;
   }
 }
 

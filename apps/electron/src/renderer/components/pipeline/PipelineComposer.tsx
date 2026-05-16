@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { PipelineSessionStatus } from '@rv-insights/shared'
-import { Play, Square } from 'lucide-react'
+import { Play, Rocket, Square, SquareTerminal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type PipelineComposerNoticeTone = 'neutral' | 'danger'
@@ -133,11 +133,14 @@ export function PipelineComposer({
 
   if (disabled) {
     return (
-      <section className="rounded-panel border border-border-subtle bg-surface-card px-4 py-3 shadow-card">
+      <section className="pipeline-glow-card rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-3 shadow-card">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xs font-semibold tracking-[0.16em] text-text-tertiary">当前任务</div>
-            <div className="mt-1 max-h-20 overflow-hidden break-words text-sm leading-6 text-text-primary [overflow-wrap:anywhere]">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-text-tertiary">
+              <SquareTerminal size={14} className="text-status-running-fg" aria-hidden="true" />
+              当前任务
+            </div>
+            <div className="mt-2 max-h-24 overflow-hidden break-words rounded-card border border-border-subtle/60 bg-background/60 px-3 py-2 text-sm leading-6 text-text-primary shadow-inner [overflow-wrap:anywhere]">
               {viewModel.currentTaskLabel}
             </div>
             {viewModel.notice ? (
@@ -149,7 +152,7 @@ export function PipelineComposer({
             disabled={viewModel.stopButtonDisabled}
             onClick={() => void handleStop()}
             variant="outline"
-            className="flex-shrink-0"
+            className="flex-shrink-0 border-status-danger-border bg-status-danger-bg text-status-danger-fg hover:bg-status-danger-bg"
           >
             <Square size={15} />
             {viewModel.stopButtonLabel}
@@ -160,15 +163,18 @@ export function PipelineComposer({
   }
 
   return (
-    <section className="rounded-panel border border-border-subtle bg-surface-card px-4 py-4 shadow-card">
+    <section className="pipeline-glow-card rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-semibold tracking-[0.16em] text-text-tertiary">操作区</div>
+          <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-text-tertiary">
+            <Rocket size={14} className="text-status-running-fg" aria-hidden="true" />
+            发射台
+          </div>
           <label htmlFor="pipeline-task-input" className="mt-1 block text-sm font-semibold text-text-primary">
             Pipeline 任务
           </label>
         </div>
-        <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-text-secondary">
+        <span className="rounded-full border border-border-subtle/60 bg-surface-muted/70 px-2.5 py-1 text-xs font-medium text-text-secondary">
           等待输入
         </span>
       </div>
@@ -180,7 +186,7 @@ export function PipelineComposer({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="输入要交给 RV Pipeline 的任务"
-        className="mt-3 min-h-32 w-full resize-y rounded-card border border-border-subtle bg-background px-3 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-primary focus:ring-2 focus:ring-focus"
+        className="mt-3 min-h-36 w-full resize-y rounded-card border border-border-subtle/70 bg-background/70 px-3 py-3 text-sm leading-6 text-text-primary shadow-inner outline-none transition-[border-color,box-shadow,background-color] duration-normal placeholder:text-text-tertiary focus:border-status-running-border focus:bg-background/85 focus:ring-2 focus:ring-focus"
       />
       <div className="mt-3 flex gap-2">
         <Button
@@ -189,6 +195,7 @@ export function PipelineComposer({
           onClick={() => void handleSubmit()}
           loading={submitting}
           loadingLabel="正在启动 Pipeline"
+          className="min-h-10 bg-status-running text-white shadow-[0_0_24px_hsl(var(--status-running)/0.28)] hover:bg-status-running/90"
         >
           <Play size={15} />
           启动 Pipeline

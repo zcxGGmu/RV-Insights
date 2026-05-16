@@ -617,8 +617,8 @@ export function PipelineView({
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-surface-panel">
-      <div className="flex-1 overflow-auto bg-surface-muted/40 p-4">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4">
+      <div className="pipeline-workbench-bg flex-1 overflow-auto bg-surface-muted/40 p-4">
+        <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-4">
           <PipelineHeader session={session} state={state} />
           <PipelineStageRail
             state={state}

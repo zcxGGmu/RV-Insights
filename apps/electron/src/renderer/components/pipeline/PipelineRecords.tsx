@@ -22,6 +22,7 @@ import { MessageResponse } from '@/components/ai-elements/message'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import {
   getPipelineNodeLabel,
   PIPELINE_NODE_ORDER,
@@ -84,6 +85,14 @@ const TONE_CLASS_MAP = {
 const REVIEW_TONE_CLASS_MAP = {
   success: 'border-status-success-border bg-status-success-bg text-text-primary',
   warning: 'border-status-waiting-border bg-status-waiting-bg text-text-primary',
+} as const
+
+const RECORD_ACCENT_CLASS = {
+  neutral: 'bg-status-neutral',
+  success: 'bg-status-success',
+  warning: 'bg-status-waiting',
+  danger: 'bg-status-danger',
+  accent: 'bg-status-running',
 } as const
 
 const STAGE_FILTERS: Array<{ value: PipelineRecordStageFilter; label: string }> = [
@@ -278,13 +287,19 @@ const RecordCard = React.memo(function RecordCard({
     <article
       id={`pipeline-record-${record.id}`}
       ref={registerElement}
-      className={`rounded-card border px-4 py-3 shadow-card transition-shadow ${toneClass} ${
-        highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
-      }`}
+      className={cn(
+        'pipeline-record-card relative overflow-hidden rounded-card border px-4 py-3 pl-5 shadow-card transition-[box-shadow,transform,border-color] duration-normal hover:-translate-y-0.5 hover:shadow-panel',
+        toneClass,
+        highlighted ? 'pipeline-record-highlight ring-2 ring-primary ring-offset-2 ring-offset-background' : '',
+      )}
     >
+      <span
+        className={cn('absolute left-0 top-0 h-full w-1', RECORD_ACCENT_CLASS[viewModel.tone])}
+        aria-hidden="true"
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="rounded-full bg-background/75 px-2.5 py-1 text-[11px] font-semibold text-text-primary shadow-sm">
+          <span className="rounded-full border border-border-subtle/60 bg-background/75 px-2.5 py-1 text-[11px] font-semibold text-text-primary shadow-sm backdrop-blur">
             {viewModel.badge}
           </span>
           <span className="text-xs font-medium text-text-tertiary">
@@ -381,7 +396,7 @@ function RecordGroupSection({
 }): React.ReactElement {
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-3 rounded-card bg-surface-muted/60 px-3 py-2">
+      <div className="flex items-center justify-between gap-3 rounded-card border border-border-subtle/50 bg-surface-muted/55 px-3 py-2">
         <h3 className="text-sm font-semibold text-text-primary">{group.title}</h3>
         <span className="rounded-full bg-surface-card px-2 py-0.5 text-xs tabular-nums text-text-secondary">
           {group.records.length}
@@ -415,19 +430,19 @@ function LiveOutputPanel({
   return (
     <section
       aria-live="polite"
-      className="rounded-panel border border-status-running-border bg-status-running-bg px-4 py-3 text-text-primary shadow-card"
+      className="pipeline-live-panel pipeline-scan-panel rounded-panel border border-status-running-border bg-status-running-bg px-4 py-3 text-text-primary shadow-panel"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-xs font-semibold tracking-[0.18em] text-status-running-fg">实时输出</div>
           <h3 className="mt-1 text-sm font-semibold text-text-primary">{viewModel.title}</h3>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-status-running-border bg-background/70 px-3 py-1 text-xs font-medium text-status-running-fg">
+        <div className="pipeline-status-pulse flex items-center gap-2 rounded-full border border-status-running-border bg-background/70 px-3 py-1 text-xs font-medium text-status-running-fg">
           <Loader2 size={13} className="animate-spin" />
           运行中
         </div>
       </div>
-      <div className="mt-3 rounded-card bg-background/80 px-3 py-3">
+      <div className="mt-3 rounded-card border border-border-subtle/50 bg-background/80 px-3 py-3 font-mono shadow-inner">
         {viewModel.hasOutput ? (
           <MessageResponse className="text-sm">
             {viewModel.body}
@@ -845,7 +860,7 @@ export function PipelineRecords({
         <LiveOutputPanel node={liveNode} output={liveOutput ?? ''} />
       ) : null}
 
-      <div className="flex flex-col gap-3 rounded-panel border border-border-subtle bg-surface-card px-4 py-3 shadow-card">
+      <div className="pipeline-glow-card flex flex-col gap-3 rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-3 shadow-card">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-xs font-semibold tracking-[0.18em] text-text-tertiary">阶段记录</div>
@@ -875,7 +890,7 @@ export function PipelineRecords({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索阶段产物、审核反馈或运行日志"
-              className="pl-9"
+              className="border-border-subtle/70 bg-background/70 pl-9 shadow-inner"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -960,7 +975,9 @@ export function PipelineRecords({
               size="sm"
               aria-pressed={stageFilter === item.value}
               onClick={() => setStageFilter(item.value)}
-              className={stageFilter === item.value ? 'bg-primary/10 text-primary hover:bg-primary/15' : ''}
+              className={stageFilter === item.value
+                ? 'border border-status-running-border bg-status-running-bg text-status-running-fg shadow-[0_0_18px_hsl(var(--status-running)/0.16)] hover:bg-status-running-bg'
+                : 'border border-transparent'}
             >
               {item.label}
             </Button>

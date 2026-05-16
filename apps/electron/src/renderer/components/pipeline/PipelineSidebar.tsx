@@ -65,6 +65,13 @@ const SESSION_LEFT_ACCENT_CLASS: Record<SessionLeftAccent, string> = {
   danger: 'bg-status-danger',
 }
 
+const SESSION_DOT_CLASS: Record<SessionLeftAccent, string> = {
+  running: 'bg-status-running shadow-[0_0_12px_hsl(var(--status-running)/0.75)] pipeline-status-pulse',
+  waiting: 'bg-status-waiting shadow-[0_0_12px_hsl(var(--status-waiting)/0.65)]',
+  success: 'bg-status-success shadow-[0_0_12px_hsl(var(--status-success)/0.65)]',
+  danger: 'bg-status-danger shadow-[0_0_12px_hsl(var(--status-danger)/0.65)]',
+}
+
 const SUMMARY_SIGNAL_CLASS: Record<PipelineSidebarSessionTone, string> = {
   neutral: 'bg-status-neutral-bg text-status-neutral-fg',
   running: 'bg-status-running-bg text-status-running-fg',
@@ -192,12 +199,15 @@ function PipelineSessionItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'relative w-full min-h-10 flex items-center gap-2 px-3 py-[7px] rounded-control transition-[background-color,color,box-shadow] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        'relative w-full min-h-10 flex items-center gap-2 overflow-hidden px-3 py-[7px] rounded-control transition-[background-color,color,box-shadow,transform] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
-          ? 'pipeline-session-selected bg-primary/10 shadow-card'
-          : 'hover:bg-surface-muted',
+          ? 'pipeline-session-selected border border-status-running-border bg-status-running-bg shadow-[0_0_22px_hsl(var(--status-running)/0.16)]'
+          : 'border border-transparent hover:bg-surface-muted',
       )}
     >
+      {active ? (
+        <span className="pipeline-scanline pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" />
+      ) : null}
       {leftAccent ? (
         <span
           className={cn(
@@ -228,6 +238,9 @@ function PipelineSessionItem({
               )}
             >
               {showPinIcon ? <Pin size={11} className="flex-shrink-0 text-primary/60" /> : null}
+              {leftAccent ? (
+                <span className={cn('size-1.5 flex-shrink-0 rounded-full', SESSION_DOT_CLASS[leftAccent])} aria-hidden="true" />
+              ) : null}
               <span className="truncate">{session.title}</span>
             </div>
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-foreground/45">
@@ -493,7 +506,7 @@ export function PipelineSidebar(): React.ReactElement {
             <TooltipTrigger asChild>
               <button
                 onClick={() => void handleCreate()}
-                className="p-2 rounded-control text-text-primary bg-primary/5 hover:bg-primary/10 transition-colors titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="pipeline-new-button rounded-control border border-status-running-border bg-status-running-bg p-2 text-status-running-fg shadow-[0_0_18px_hsl(var(--status-running)/0.16)] transition-[background-color,box-shadow] titlebar-no-drag hover:bg-status-running-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label="新建贡献 Pipeline v2"
               >
                 <Plus size={16} />
@@ -560,7 +573,7 @@ export function PipelineSidebar(): React.ReactElement {
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={() => void handleCreate()}
-          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-control text-[13px] font-medium text-text-primary bg-primary/5 hover:bg-primary/10 transition-colors duration-fast titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="pipeline-new-button flex min-h-11 flex-1 items-center gap-2 rounded-control border border-status-running-border bg-status-running-bg px-3 py-2 text-[13px] font-semibold text-status-running-fg shadow-[0_0_20px_hsl(var(--status-running)/0.14)] transition-[background-color,border-color,box-shadow,transform] duration-normal titlebar-no-drag hover:-translate-y-0.5 hover:bg-status-running-bg hover:shadow-[0_0_26px_hsl(var(--status-running)/0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           aria-label="新建贡献 Pipeline v2"
         >
           <Plus size={14} />

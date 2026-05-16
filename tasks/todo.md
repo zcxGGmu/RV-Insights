@@ -1,5 +1,42 @@
 # Pipeline 完善分析任务
 
+## 2026-05-16 Pipeline Header 大标题移除计划
+
+- [x] 移除 PipelineHeader 中展示会话标题的大号 H1，保留顶部 RV Pipeline 与当前节点、状态摘要。
+- [x] 同步收紧 Header 内部间距，避免删除标题后出现明显空洞。
+- [x] 更新 `tasks/lessons.md` 记录用户对 Pipeline Header 信息密度的纠正。
+- [x] 运行聚焦测试或类型检查，并重新截图确认红框区域不再保留。
+- [x] 在本节追加 Review。
+
+## 2026-05-16 Pipeline Header 大标题移除 Review
+
+- 已移除 `PipelineHeader` 中的大号会话标题 H1；Header 现在只保留 `RV Pipeline`、当前节点、状态摘要、轮次和右侧状态卡，用户标红区域不再占位。
+- 已更新 `tasks/lessons.md`，记录 Pipeline Header 不再重复以超大标题展示会话名的偏好。
+- 验证通过：`bun test apps/electron/src/renderer/components/pipeline apps/electron/src/renderer/atoms/pipeline-atoms.test.ts` 84 pass；`bun run --filter='@rv-insights/electron' typecheck`。
+- 已重新采集截图：`/tmp/rv-insights-shots/pipeline-header-stage.png`，确认红框内容已删除。
+
+## 2026-05-16 Pipeline Neon Control Deck UI 优化计划
+
+- [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。
+- [x] 改造 Pipeline 主内容背景、Header、StageRail、Records、Composer，让运行状态和阶段进度有明显科技感与动态反馈。
+- [x] 适度增强 PipelineSidebar 的新建入口、当前会话选中态和运行中状态点。
+- [x] 增加 scoped Pipeline CSS utilities / keyframes，并确保 reduced-motion 下动画降级。
+- [x] 递增 `@rv-insights/electron` patch 版本并同步锁文件。
+- [x] 运行 Pipeline 聚焦测试、pipeline atoms 测试、typecheck 与 `git diff --check`。
+- [x] 启动客户端做 Pipeline 模式视觉验证，检查桌面与窄宽布局、长文本、搜索、运行/等待/失败/停止状态。
+- [x] 在本节追加 Review，说明改动、验证和残余风险。
+
+## 2026-05-16 Pipeline Neon Control Deck UI 优化 Review
+
+- 已完成 Pipeline 可见层改造：主工作区增加网格 / 微光背景；Header 改为任务指挥舱；StageRail 增加能量线、当前阶段 glow 和状态 icon；Records 增加控制台式搜索 / filter、实时输出扫描光、记录左侧状态轨和 hover lift；Composer 改为任务发射台；PipelineSidebar 增强新建入口、选中态和运行状态点。
+- CSS 新增均使用 `pipeline-*` scoped class；动画使用 transform / opacity / background-position，并在 `prefers-reduced-motion: reduce` 下禁用循环扫描、能量线、状态脉冲和高亮呼吸。
+- Code review 后已修复：不再对已含 alpha 的 `status-*-bg` / `status-*-border` token 叠加 Tailwind opacity modifier；Pipeline 背景伪元素加 `z-index: 0`，内容容器加 `z-10`；新增装饰性 Lucide 图标补 `aria-hidden`。
+- `@rv-insights/electron` 版本 `0.0.64 -> 0.0.65`，`bun.lock` workspace metadata 已同步。
+- 验证通过：`bun test apps/electron/src/renderer/components/pipeline apps/electron/src/renderer/atoms/pipeline-atoms.test.ts` 84 pass；`bun run --filter='@rv-insights/electron' typecheck`；`bun run --filter='@rv-insights/electron' build:renderer`；`git diff --check`。
+- Vite 渲染端已在 `http://127.0.0.1:5174/` 启动并返回 200；直接浏览器打开会因缺少 Electron preload 的 `window.electronAPI` 报错，这是现有 Electron 架构限制，不是本次 UI 改动引入。真实 Pipeline 视觉仍需通过 Electron 桌面壳查看。
+- 未修改 README / AGENTS，不新增依赖，不新增 public API / IPC / shared type，不改 Pipeline 状态机、主进程服务或持久化格式。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。
+
 ## 2026-05-16 UI 全阶段完成后状态同步计划
 
 - [x] 检查 `git status --short`，确认当前仅有 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp` 需要继续保护。
