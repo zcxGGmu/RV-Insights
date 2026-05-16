@@ -1,5 +1,61 @@
 # Pipeline 完善分析任务
 
+## 2026-05-16 UI 全阶段完成后状态同步计划
+
+- [x] 检查 `git status --short`，确认当前仅有 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp` 需要继续保护。
+- [x] 更新 `improve/ui/2026-05-16-client-ui-implementation-checklist.md` 当前开发状态，明确 UI-0 到 UI-7 全部完成，UI-7 commit 为 `33b8ccec`。
+- [x] 更新 checklist 的当前启动提示和下次启动提示词，避免下次误从 UI-7 重复开始。
+- [x] 在本地任务记录中追加下次启动提示词，说明后续应从新的 UI 专项或用户新需求开始。
+- [x] 保持 README / AGENTS 不变，只更新 UI 进度跟踪文档和本地任务记录。
+
+## 2026-05-16 UI 全阶段完成后状态同步 Review
+
+- 当前 UI 阶段状态：UI-0、UI-1、UI-2、UI-3、UI-4、UI-5、UI-6、UI-7 全部完成；未完成阶段：无。
+- 最新 UI 阶段提交：`33b8ccec`，`test(ui): 完成客户端 UI 视觉验收收口`。
+- UI-7 已完成并验证：4 个聚焦测试文件 11 pass、`bun run --filter='@rv-insights/electron' typecheck`、`git diff --check`。
+- 后续继续开发时不要重复 UI-0 到 UI-7；应先定义新的 UI 专项或接收新的用户需求，再写入 `tasks/todo.md` 计划并 check-in。
+- 可选后续专项：真实 Electron 截图复核、File Browser 完整 roving tabindex / typeahead、低频集成设置页 token 化、窄窗口矩阵、新产品功能 UI。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 与 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。
+
+## 下次启动提示词（UI 全阶段完成后）
+
+```text
+你正在 RV-Insights 仓库继续开发。请先阅读并遵守：
+- AGENTS.md
+- tasks/lessons.md
+- tasks/todo.md
+- improve/ui/2026-05-16-client-ui-visual-spec.md
+- improve/ui/2026-05-16-client-ui-implementation-checklist.md
+
+当前 UI 优化进度：
+1. UI 文档基线已完成并提交：7bef500c，docs(ui): 新增客户端 UI 视觉规范与迭代清单。
+2. UI-0「基线审计与截图准备」已完成并提交：61c263c8，docs(ui): 完成 UI-0 基线审计与截图。
+3. UI-1「Token 与 primitive 收敛」已完成并提交：20a90d36，feat(ui): 完成 UI-1 token 与 primitive 收敛。
+4. UI-2「AppShell / Sidebar / Tab」已完成并提交：c3636336，style(ui): 统一 AppShell 导航与标签状态。
+5. UI-3「Pipeline 工作台」已完成并提交：3881eb10，style(pipeline): 优化 Pipeline 工作台状态层级。
+6. UI-4「Agent 阅读与交互」已完成并提交：b28ac9df，style(agent): 优化 Agent 消息工具与交互状态。
+7. UI 截图索引已补充并提交：1d78bf66，docs(ui): 补充 UI 截图索引说明。
+8. UI-5「Settings 管理界面」已完成并提交：8362e8b4，style(settings): 统一设置界面表单与危险操作。
+9. UI-5 后续开发状态已同步并提交：3ccb2886，docs(ui): 同步 UI-5 后续开发状态。
+10. UI-6「Welcome / Chat 回退 / File Browser」已完成并提交：ed3d48d3，style(ui): 对齐 Welcome Chat 与 File Browser 体验。
+11. UI-6 后续开发状态已同步并提交：f523ad71，docs(ui): 同步 UI-6 后续开发状态。
+12. UI-7「全局验收与收尾」已完成并提交：33b8ccec，test(ui): 完成客户端 UI 视觉验收收口。
+13. 已完成：UI-0、UI-1、UI-2、UI-3、UI-4、UI-5、UI-6、UI-7。未完成：无。
+14. UI-7 验收内容：阶段 Review、P0/P1 关闭矩阵、主题矩阵、icon-only 可访问性、状态色辅助表达、键盘路径、长文本 / 长路径溢出和截图矩阵已收口。
+15. UI-7 验证通过：bun test apps/electron/src/renderer/components/ui6-view-model.test.ts apps/electron/src/renderer/components/app-shell/sidebar-section-model.test.ts apps/electron/src/renderer/atoms/tab-atoms.test.ts apps/electron/src/renderer/components/tabs/tab-close-confirm-model.test.ts；bun run --filter='@rv-insights/electron' typecheck；git diff --check。
+16. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
+
+请从当前完成状态继续：
+1. 先执行 git status --short，保护已有用户变更。
+2. 阅读 implementation checklist 的当前状态快照、UI-7 最终 Review、P0/P1 关闭矩阵，以及 tasks/todo.md 的 UI 全阶段完成后状态同步 Review。
+3. 不要回头重复 UI-0 到 UI-7 的阶段实现；这些阶段已经完成并提交。
+4. 如果用户要求继续 UI 优化，先在 tasks/todo.md 写新的专项计划并 check-in，再开始实现。可选后续专项包括：真实 Electron 截图复核、File Browser 完整 roving tabindex / typeahead、低频集成设置页 token 化、窄窗口矩阵、或新的产品功能 UI。
+5. 继续遵守 Jotai、Radix/shadcn 风格组件、Lucide 图标、现有主题 token、本地 JSON/JSONL 存储的约束。
+6. 不新增 public API / IPC / shared type，除非单独评审；不修改 README / AGENTS，除非用户明确允许。
+7. 新专项完成后运行 bun run --filter='@rv-insights/electron' typecheck、相关 focused tests 或手动路径验证、git diff --check；按需要补充截图或在 Review 中说明覆盖依据。
+8. 新专项完成后更新 checklist 或新增对应 improve/ui 跟踪文档，并在 tasks/todo.md 追加 Review；单独提交，不执行 push / PR，除非用户明确要求。
+```
+
 ## 2026-05-16 UI-7 全局验收与收尾计划
 
 - [x] 执行 `git status --short`，确认当前仅有 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp` 需要保护，不纳入 UI-7 提交。
