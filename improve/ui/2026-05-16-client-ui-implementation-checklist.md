@@ -63,14 +63,17 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 ### 2.1 当前开发状态快照
 
-更新时间：2026-05-16 UI-1 完成后
+更新时间：2026-05-16 UI-1 完成并补充状态同步后
 
-当前文档基线提交：
+当前文档与阶段提交：
 
 - Commit：`7bef500c984803525e9c7fac67d2c959271d2a1c`
 - 提交标题：`docs(ui): 新增客户端 UI 视觉规范与迭代清单`
 - 分支：`base/pipeline-v0-ui-enhancement`
 - 范围：纯文档基线，未改运行时代码、README、AGENTS、public API、IPC 或 shared type。
+- 进度同步提交：`da4d682f45dad606992603df32f9420e30ebfe23`（`docs(ui): 同步客户端 UI 开发进度状态`）。
+- UI-0 提交：`61c263c80bf98169b64b40c6bddc79bc7873b8fd`（`docs(ui): 完成 UI-0 基线审计与截图`）。
+- UI-1 提交：`20a90d3679147dd27c035d9c957546823924ac4b`（`feat(ui): 完成 UI-1 token 与 primitive 收敛`）。
 
 已完成：
 
@@ -85,6 +88,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 
 未完成：
 
+- [ ] 真实客户端主界面视觉改造尚未开始；重启客户端后 Pipeline 主界面、左侧栏、阶段栏、任务输入区和阶段产物区不会出现明显 redesign。
 - [ ] UI-2 AppShell / Sidebar / Tab 尚未开始。
 - [ ] UI-3 Pipeline 工作台尚未开始。
 - [ ] UI-4 Agent 阅读与交互尚未开始。
@@ -95,15 +99,18 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 当前注意事项：
 
 - 当前工作区存在未提交临时文件：`improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`。本轮确认它对应仍在运行的 vim 进程，不是可以随手删除的残留；不要纳入提交。
+- 当前工作区可能存在 `.DS_Store` 修改；它不是 UI 阶段成果，不要纳入 UI 提交，除非用户明确要求处理系统文件。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
-- 下一阶段可以从 UI-2 AppShell / Sidebar / Tab 开始；不得跳过 UI-2 直接进入 Pipeline / Agent 页面结构大改。
+- UI-1 只是 UI 基础层，不等同于用户可见的主界面优化；不要向用户暗示“全客户端 UI 已经有明显变化”。
+- 下一阶段必须从 UI-2 AppShell / Sidebar / Tab 开始；不得跳过 UI-2 直接进入 Pipeline / Agent 页面结构大改。
+- 用户截图中红框区域属于 UI-3 Pipeline 工作台范围；若要让该区域肉眼明显变化，需要先完成 UI-2，再进入 UI-3。
 
 ### 2.2 阶段进度表
 
 | 阶段 | 名称 | 状态 | 主要范围 | 完成证据 |
 | --- | --- | --- | --- | --- |
-| UI-0 | 基线审计与截图准备 | [x] | before 审计、截图目录、验收矩阵 | `2026-05-16-client-ui-before-audit.md` + 6 张 baseline 截图 |
-| UI-1 | Token 与 primitive 收敛 | [x] | CSS token、Button、Card、Badge、Dialog、Tooltip | typecheck + renderer build + 3 张 primitive 截图 |
+| UI-0 | 基线审计与截图准备 | [x] | before 审计、截图目录、验收矩阵 | commit `61c263c8` + `2026-05-16-client-ui-before-audit.md` + 6 张 baseline 截图 |
+| UI-1 | Token 与 primitive 收敛 | [x] | CSS token、Button、Card、Badge、Dialog、Tooltip | commit `20a90d36` + typecheck + renderer build + 3 张 primitive 截图 |
 | UI-2 | AppShell / Sidebar / Tab | [ ] | 三栏骨架、导航密度、多标签状态、右侧面板 | light / dark / 特殊主题截图 |
 | UI-3 | Pipeline 工作台 | [ ] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | Pipeline 状态截图 + 键盘路径 |
 | UI-4 | Agent 阅读与交互 | [ ] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | Agent 状态截图 + 后台权限路径 |
@@ -818,16 +825,17 @@ bun test
 
 ## 14. 当前启动提示
 
-后续从 UI 实现开始时建议按此顺序启动：
+后续从当前 UI 进度继续时建议按此顺序启动：
 
 1. 阅读 `tasks/lessons.md`。
 2. 阅读本清单和 `2026-05-16-client-ui-visual-spec.md`。
 3. 执行 `git status --short`。
 4. 如果看到 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，先确认它是否为编辑器残留；不要把它纳入提交。
-5. 确认当前文档基线 commit `7bef500c984803525e9c7fac67d2c959271d2a1c` 已存在。
-6. 从 UI-0 开始建立 before 审计和截图。
-7. UI-0 完成后再进入 UI-1，不跳过 token / primitive 收敛。
-8. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
+5. 如果看到 `.DS_Store` 修改，默认视为系统文件噪音；不要纳入 UI 阶段提交。
+6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`。
+7. 从 UI-2 AppShell / Sidebar / Tab 开始；先做 UI-2 before 审计，再实现，不跳到 UI-3。
+8. UI-2 完成后再进入 UI-3 Pipeline 工作台；用户截图红框区域主要属于 UI-3 范围。
+9. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
 
 ### 14.1 下次启动提示词
 
@@ -843,23 +851,20 @@ bun test
 
 当前进度：
 1. UI 文档基线已完成并提交，commit 为 7bef500c984803525e9c7fac67d2c959271d2a1c，提交标题为 docs(ui): 新增客户端 UI 视觉规范与迭代清单。
-2. 已完成内容包括视觉规范、Design Token 契约、量化默认值、页面 wireframe、组件默认值、before / after 审计模板、截图基线命名、MVP 优先级、实现拆单建议，以及 UI-0 到 UI-7 的迭代开发跟踪清单。
-3. 真实 UI 实现尚未开始：UI-0、UI-1、UI-2、UI-3、UI-4、UI-5、UI-6、UI-7 当前都未完成。
-4. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp；它不是正式文档，不要纳入提交，先确认是否为编辑器残留。
+2. UI-0「基线审计与截图准备」已完成并提交，commit 为 61c263c80bf98169b64b40c6bddc79bc7873b8fd，提交标题为 docs(ui): 完成 UI-0 基线审计与截图。
+3. UI-1「Token 与 primitive 收敛」已完成并提交，commit 为 20a90d3679147dd27c035d9c957546823924ac4b，提交标题为 feat(ui): 完成 UI-1 token 与 primitive 收敛。
+4. 已完成：UI-0、UI-1。未完成：UI-2、UI-3、UI-4、UI-5、UI-6、UI-7。
+5. 重要澄清：UI-1 只完成 token、Tailwind 映射和基础 primitive 收敛，不是用户可见主界面 redesign；重启客户端后 Pipeline 主界面、左侧栏、阶段栏、任务输入区和阶段产物区基本不会明显变化。
+6. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
 
-请从 UI-0「基线审计与截图准备」开始：
+请从 UI-2「AppShell / Sidebar / Tab」开始：
 1. 先执行 git status --short，保护已有用户变更。
-2. 阅读 implementation checklist 的 UI-0 阶段，建立 before 审计记录和截图基线。
-3. 不要跳过 UI-0 直接进入 UI-1；后续 token / primitive 收敛必须基于 before 审计。
-4. 本轮仍遵守 Jotai、Radix/shadcn 风格组件、Lucide 图标、现有主题 token、本地 JSON/JSONL 存储的约束。
-5. 不新增 public API / IPC / shared type，除非单独评审；不修改 README / AGENTS，除非用户明确允许。
-6. 每完成一个阶段并通过该阶段验证后，立即更新 checklist 和 tasks/todo.md 的 Review，并单独提交该阶段成果；重启 Codex 会话后也要主动延续这个纪律。
-7. 不执行 push / PR，除非用户明确要求。
-
-UI-0 的完成定义：
-- 每个主区域至少有一条 before 审计记录。
-- Pipeline、Agent、Settings 至少各有 light 和 dark 截图。
-- 所有 P0 / P1 问题都有涉及组件和验收方式。
-- 没有改动运行时代码。
-- 通过 git diff --check。
+2. 阅读 implementation checklist 的 UI-2 阶段和视觉规范 `5.1 AppShell / Sidebar / Tab`、`5.8 页面级 Wireframe`。
+3. 先做 UI-2 before 审计，再实现 AppShell、LeftSidebar、PipelineSidebar、TabBar / TabBarItem、MainArea、RightSidePanel 的视觉和状态收敛。
+4. 不要跳过 UI-2 直接进入 UI-3；用户截图红框内 Pipeline 主面板属于 UI-3，需在 UI-2 完成后再改。
+5. 本轮仍遵守 Jotai、Radix/shadcn 风格组件、Lucide 图标、现有主题 token、本地 JSON/JSONL 存储的约束。
+6. 不新增 public API / IPC / shared type，除非单独评审；不修改 README / AGENTS，除非用户明确允许。
+7. UI-2 完成定义：当前模式、当前 session、当前 tab、后台 running / blocked / failed 状态可见；Sidebar / Tab keyboard focus 清楚；light / dark / 至少一个特殊主题下无明显溢出。
+8. 验证：至少运行 bun run --filter='@rv-insights/electron' typecheck、git diff --check，并采集 UI-2 light / dark / 特殊主题截图。
+9. 每完成一个阶段并通过该阶段验证后，立即更新 checklist 和 tasks/todo.md 的 Review，并单独提交该阶段成果；不执行 push / PR，除非用户明确要求。
 ```
