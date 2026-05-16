@@ -1330,7 +1330,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     <>
     <AgentSessionProvider sessionId={sessionId}>
       {/* 主内容区域 */}
-      <div className="flex flex-col h-full flex-1 min-w-0 max-w-[min(72rem,100%)] mx-auto">
+      <div className="agent-cockpit-shell flex h-full flex-1 min-w-0 flex-col">
         {/* Agent Header */}
         <AgentHeader
           sessionId={sessionId}
@@ -1378,10 +1378,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         />
 
         {/* 输入区域 */}
-        <div className="px-2.5 pb-2.5 md:px-[18px] md:pb-[18px]" data-input-mode="agent">
+        <div className="px-3 pb-3 md:px-5 md:pb-5" data-input-mode="agent">
           <div
             className={cn(
-              'rounded-panel border border-border-subtle bg-surface-panel/85 shadow-panel backdrop-blur-sm transition-all duration-200',
+              'agent-command-deck rounded-panel border border-border-subtle/70 transition-all duration-200',
               (isPlanMode || isPermissionPlanMode) && !isDragOver && 'plan-mode-border',
               isDragOver && 'border-2 border-dashed border-status-success-border bg-status-success-bg'
             )}
@@ -1401,7 +1401,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               })
               if (!composerState.notice) return null
               return (
-              <div className="flex flex-wrap items-center gap-2 border-b border-border-subtle px-4 py-2 text-sm text-status-waiting-fg">
+              <div className="agent-command-deck__status relative z-10 flex flex-wrap items-center gap-2 px-4 py-2 text-sm text-status-waiting-fg">
                 <Settings size={14} />
                 <span className="min-w-0 flex-1">{composerState.notice}</span>
                 {(!agentChannelId || !hasAvailableModel) && (
@@ -1419,7 +1419,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
             {/* 附件预览区域 */}
             {pendingFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 px-3 pt-2.5 pb-1.5">
+              <div className="relative z-10 flex flex-wrap gap-2 px-3 pt-2.5 pb-1.5">
                 {pendingFiles.map((file) => (
                   <AttachmentPreviewItem
                     key={file.id}
@@ -1434,8 +1434,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
             {/* Agent 建议提示 */}
             {suggestion && !streaming && (
-              <div className="px-3 pt-2.5 pb-1.5">
-                <div className="group flex items-start gap-2 w-full rounded-card border border-dashed border-primary/30 bg-primary/[0.03] px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/[0.06]">
+              <div className="relative z-10 px-3 pt-2.5 pb-1.5">
+                <div className="group flex items-start gap-2 w-full rounded-card border border-status-running-border/55 bg-status-running-bg/55 px-3 py-2.5 text-left text-sm shadow-card transition-colors hover:border-status-running-border">
 	                  <button
 	                    type="button"
 	                    className="flex min-w-0 flex-1 items-start gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
@@ -1466,6 +1466,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               </div>
             )}
 
+            <div className="relative z-10">
             <RichTextInput
               value={inputContent}
               onChange={setInputContent}
@@ -1490,9 +1491,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               onHtmlChange={setInputHtmlContent}
               sendWithCmdEnter={sendWithCmdEnter}
             />
+            </div>
 
             {/* Footer 工具栏 */}
-            <div className="flex min-h-[48px] flex-wrap items-center justify-between gap-2 px-2 py-1">
+            <div className="relative z-10 flex min-h-[52px] flex-wrap items-center justify-between gap-2 border-t border-border-subtle/45 bg-background/20 px-2.5 py-1.5">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                 <ModelSelector
                   filterChannelIds={agentChannelIds}

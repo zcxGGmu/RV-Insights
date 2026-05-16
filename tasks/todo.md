@@ -1249,3 +1249,27 @@ Phase 8 禁止事项：
 - 运行验证：`bun run dev` 可启动 Vite 与 Electron，Electron 主进程日志显示 IPC、runtime、tray、watcher 正常启动；Browser 打开 `http://localhost:5173/` 时因没有 Electron preload/API 只能看到空白 renderer，不能作为真实 UI 判断。
 - 截图限制：尝试激活 Electron 后使用 macOS `screencapture` 失败，错误为 `could not create image from display`，因此本轮没有留下宽屏 / 窄屏截图证据。
 - 已停止本轮启动的开发进程；仍需保护既有无关变更：`.DS_Store`、`improve/.DS_Store`、`improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`、`improve/ui/.DS_Store`。
+
+## 2026-05-16 Agent / Pipeline Cockpit 创意 UI 刷新计划
+
+- [x] 使用 `ui-ux-pro-max` 复核可访问性、状态清晰、语义 token、克制动效规则。
+- [x] 执行 `git status --short`，确认并保护既有 `.DS_Store` 与 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`。
+- [x] 增加 cockpit 风格语义 CSS：mission strip、message card、reasoning chamber、tool rail、composer deck、resource well，并包含 reduced-motion 降级。
+- [x] 优化 AgentHeader 为紧凑 mission strip，显示标题、工作区、模型、权限、运行 / 计划状态和文件面板入口。
+- [x] 优化 AgentMessages：用户消息、助手输出、运行指示、重试提示和旧格式 fallback 使用更清晰的阅读骨架。
+- [x] 优化 ToolActivityItem：工具活动行、分组、详情面板采用状态轨和可扫描元信息。
+- [x] 优化 AgentView Composer：输入区变为 command deck，状态 notice、建议、附件和工具栏稳定不跳动。
+- [x] 优化 SidePanel 文件资源区：会话 / 工作区文件区、drop zone 外层、附加目录和文件行更像资源面板。
+- [x] 运行 `bun run --filter='@rv-insights/electron' typecheck`、相关聚焦测试和 `git diff --check`。
+- [x] 启动 Electron 做 light / dark / 特殊主题抽样检查；若截图受限，在 Review 中说明。
+- [x] 追加本轮 Review，记录验证结果与残留风险。
+
+## 2026-05-16 Agent / Pipeline Cockpit 创意 UI 刷新 Review
+
+- 已完成 Agent 三栏工作台的 cockpit 视觉刷新：主画布增加克制网格微光，Header 升级为 mission strip，消息区、Reasoning Chamber、工具活动、Composer command deck、右侧资源面板和左侧 Agent 入口统一到同一层级语言。
+- 改动保持视觉层范围：未改 IPC、Agent SDK / Pipeline 逻辑、Jotai state shape、持久化结构、shared package API、README 或 AGENTS；未新增依赖。
+- 新增 CSS 均为 Agent scoped utility，使用现有 semantic token / CSS variable；状态表达同时包含图标、文案或结构轨道，不只依赖颜色，并包含 `prefers-reduced-motion` 降级。
+- `@rv-insights/electron` 版本 `0.0.66 -> 0.0.67`，`bun.lock` workspace metadata 已同步。
+- 验证通过：`bun install --frozen-lockfile --dry-run`、`bun run --filter='@rv-insights/electron' typecheck`、`bun test apps/electron/src/renderer/components/agent/agent-ui-model.test.ts` 7 pass / 21 expect、`git diff --check`。
+- 运行验证：`bun run dev` 可启动 Vite、main/preload 构建、Electron、IPC、runtime、tray 和 watcher；日志未出现 renderer 编译失败。macOS `screencapture` 当前失败，错误为 `could not create image from display`，因此本轮无法留下 light / dark / 特殊主题截图证据。
+- 已停止本轮启动的 Vite / Electron 开发进程；仍需保护既有无关文件：`.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。

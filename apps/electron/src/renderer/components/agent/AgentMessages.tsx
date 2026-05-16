@@ -300,7 +300,7 @@ function RetryingNotice({ retrying }: { retrying: NonNullable<AgentStreamState['
   }, [retrying.failed, retrying.history])
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20 p-3 mb-3">
+    <div className="agent-tool-rail rounded-card p-3 mb-3">
       {/* 头部：简洁状态 */}
       <button
         type="button"
@@ -308,11 +308,11 @@ function RetryingNotice({ retrying }: { retrying: NonNullable<AgentStreamState['
         onClick={() => setExpanded(!expanded)}
       >
         {retrying.failed ? (
-          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <AlertTriangle className="size-4 text-status-waiting-fg shrink-0" />
         ) : (
-          <RotateCw className="size-4 animate-spin text-amber-600 dark:text-amber-400 shrink-0" />
+          <RotateCw className="size-4 animate-spin text-status-waiting-fg shrink-0" />
         )}
-        <span className="text-sm text-amber-900 dark:text-amber-100 flex-1">
+        <span className="text-sm text-status-waiting-fg flex-1">
           {retrying.failed
             ? `重试失败 (${retrying.currentAttempt}/${retrying.maxAttempts})`
             : countdown > 0
@@ -321,16 +321,16 @@ function RetryingNotice({ retrying }: { retrying: NonNullable<AgentStreamState['
           {retrying.history.length > 0 && ` · ${retrying.history[retrying.history.length - 1]?.reason}`}
         </span>
         {expanded ? (
-          <ChevronDown className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <ChevronDown className="size-4 text-status-waiting-fg shrink-0" />
         ) : (
-          <ChevronRight className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <ChevronRight className="size-4 text-status-waiting-fg shrink-0" />
         )}
       </button>
 
       {/* 展开内容：重试历史 */}
       {expanded && retrying.history.length > 0 && (
-        <div className="mt-3 space-y-3 border-t border-amber-200 dark:border-amber-800 pt-3">
-          <div className="text-xs font-medium text-amber-900 dark:text-amber-100">
+        <div className="mt-3 space-y-3 border-t border-status-waiting-border/60 pt-3">
+          <div className="text-xs font-medium text-status-waiting-fg">
             尝试历史：
           </div>
           {retrying.history.map((attempt, index) => (
@@ -342,7 +342,7 @@ function RetryingNotice({ retrying }: { retrying: NonNullable<AgentStreamState['
             />
           ))}
           {!retrying.failed && (
-            <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 pl-6">
+            <div className="flex items-center gap-2 text-xs text-status-waiting-fg/80 pl-6">
               {countdown > 0 ? (
                 <>
                   <RotateCw className="size-3 animate-spin" />
@@ -473,7 +473,7 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
     const { files: attachedFiles, text: messageText } = parseAttachedFiles(message.content)
 
     return (
-      <Message from="user">
+      <Message from="user" className="agent-message-card" data-role="user">
         <div className="flex items-start gap-2.5 mb-2.5">
           <UserAvatar avatar={userProfile.avatar} size={35} />
           <div className="flex flex-col justify-between h-[35px]">
@@ -481,7 +481,7 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
             <span className="text-[10px] text-foreground/[0.38] leading-none">{formatMessageTime(message.createdAt)}</span>
           </div>
         </div>
-        <MessageContent>
+        <MessageContent className="gap-2.5">
           {attachedFiles.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {attachedFiles.map((file) => (
@@ -507,13 +507,13 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
     const toolActivities = extractToolActivities(message.events)
 
     return (
-      <Message from="assistant">
+      <Message from="assistant" className="agent-message-card" data-role="assistant">
         <MessageHeader
           model={message.model ? resolveModelDisplayName(message.model, channels) : undefined}
           time={formatMessageTime(message.createdAt)}
           logo={<AssistantLogo model={message.model} />}
         />
-        <MessageContent>
+        <MessageContent className="gap-3">
           {toolActivities.length > 0 && (
             <div className="mb-3">
               <ToolActivityList activities={toolActivities} />
@@ -549,7 +549,7 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
     //
     // 保留时间：观察几个版本，确认没有会话走 useSDKRenderer = false 分支后再删。
     return (
-      <Message from="assistant">
+      <Message from="assistant" className="agent-message-card border-status-danger-border/70 bg-status-danger-bg/70" data-role="assistant">
         <MessageHeader
           model={undefined}
           time={formatMessageTime(message.createdAt)}
@@ -559,7 +559,7 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
             </div>
           }
         />
-        <MessageContent>
+        <MessageContent className="gap-3">
           <div className="text-destructive">
             <MessageResponse>{message.content}</MessageResponse>
           </div>
@@ -627,7 +627,7 @@ export function DurationBadge({ durationMs, usage }: { durationMs: number; usage
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="text-[15px] tabular-nums font-light cursor-default">
+        <span className="inline-flex h-7 items-center rounded-full border border-border-subtle bg-background/35 px-2.5 text-[12px] tabular-nums text-text-secondary cursor-default">
           {formatDuration(durationMs)}
         </span>
       </TooltipTrigger>
@@ -658,9 +658,9 @@ function AgentRunningIndicator({ startedAt }: { startedAt?: number }): React.Rea
   }
 
   return (
-    <div className="flex items-center gap-2 min-h-[28px]">
-      <Spinner size="sm" className="text-primary/75" />
-      <span className="text-[13px] font-light text-muted-foreground/75 tabular-nums">Agent Running {formatTime(elapsed)}</span>
+    <div className="agent-tool-rail inline-flex min-h-[32px] items-center gap-2 rounded-full px-3">
+      <Spinner size="sm" className="text-status-running-fg" />
+      <span className="text-[12px] font-medium text-status-running-fg tabular-nums">Agent 同步中 {formatTime(elapsed)}</span>
     </div>
   )
 }
@@ -865,9 +865,9 @@ export function AgentMessages({ sessionId, sessionModelId, messages, messagesLoa
 
   return (
     <BasePathsProvider basePaths={attachedDirs}>
-    <Conversation resize={ready && !transitioning ? 'smooth' : 'instant'} className={ready ? 'opacity-100 transition-opacity duration-200' : 'opacity-0'}>
+    <Conversation resize={ready && !transitioning ? 'smooth' : 'instant'} className={cn('agent-conversation-canvas', ready ? 'opacity-100 transition-opacity duration-200' : 'opacity-0')}>
       <ScrollPositionManager id={sessionId} ready={ready} />
-      <ConversationContent>
+      <ConversationContent className="relative z-10 gap-3 py-6">
         {!hasContent && !streaming ? (
           <EmptyState />
         ) : (
@@ -917,7 +917,7 @@ export function AgentMessages({ sessionId, sessionModelId, messages, messagesLoa
             {/* 不使用 mt：ConversationContent 的 gap-1(4px) 已提供间距，
                 匹配内部 MessageActions 的 gap-0.5(2px)+mt-0.5(2px)=4px 间距 */}
             {hasLiveAssistantContent && !suppressAgentRunning && (
-              <div className="pl-[56px] min-h-[28px]">
+              <div className="pl-[56px] min-h-[32px]">
                 {retrying && <RetryingNotice retrying={retrying} />}
                 {streaming && <AgentRunningIndicator startedAt={startedAt} />}
               </div>
@@ -926,13 +926,13 @@ export function AgentMessages({ sessionId, sessionModelId, messages, messagesLoa
             {/* 无实时助手内容时：显示完整气泡（含头像/名称/时间） */}
             {/* 注意：工具活动已通过 SDK 渲染路径（liveGroups）展示，此处不再使用 ToolActivityList */}
             {!hasLiveAssistantContent && !suppressAgentRunning && (streaming || smoothContent || retrying) && (
-              <Message from="assistant">
+              <Message from="assistant" className="agent-message-card" data-role="assistant">
                 <MessageHeader
                   model={agentStreamingModel}
                   time={formatMessageTime(Date.now())}
                   logo={<AssistantLogo model={agentStreamingModel} />}
                 />
-                <MessageContent>
+                <MessageContent className="gap-3">
                   {retrying && <RetryingNotice retrying={retrying} />}
                   {smoothContent ? (
                     <>

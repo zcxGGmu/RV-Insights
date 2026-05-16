@@ -73,7 +73,7 @@ function CompactBoundaryDivider(): React.ReactElement {
   return (
     <div className="flex items-center gap-3 my-4 px-1">
       <div className="flex-1 h-px bg-border/40" />
-      <span className="shrink-0 text-[11px] text-muted-foreground/60 px-2 py-0.5 rounded-full border border-border/30 bg-muted/20">
+      <span className="agent-meta-chip shrink-0 text-[11px] text-muted-foreground/70 px-2.5 py-1 rounded-full border border-border/40">
         上下文已压缩
       </span>
       <div className="flex-1 h-px bg-border/40" />
@@ -87,7 +87,7 @@ export function CompactingIndicator(): React.ReactElement {
   return (
     <div className="flex items-center gap-3 my-4 px-1">
       <div className="flex-1 h-px bg-border/40" />
-      <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70 px-2 py-0.5 rounded-full border border-border/30 bg-muted/20">
+      <span className="agent-meta-chip shrink-0 inline-flex items-center gap-1.5 text-[11px] text-status-running-fg px-2.5 py-1 rounded-full border border-status-running-border">
         <Loader2 className="size-3 animate-spin" />
         正在压缩...
       </span>
@@ -529,13 +529,13 @@ export function AssistantTurnRenderer({ turn, allMessages, basePath, onFork, onR
   }, [topLevelBlocks, turn.turnMessages, allMessages])
 
   return (
-    <Message from="assistant">
+    <Message from="assistant" className="agent-message-card" data-role="assistant">
       <MessageHeader
         model={turn.model ? resolveModelDisplayName(turn.model, channels) : undefined}
         time={turn.createdAt ? formatMessageTime(turn.createdAt) : undefined}
         logo={<AssistantLogo model={turn.model} />}
       />
-      <MessageContent>
+      <MessageContent className="gap-3">
         <div className={cn('space-y-2')}>
           {topLevelBlocks.map((block, i) => {
               // Task 工具块：聚合为卡片（同 ToolActivityList 路径的逻辑，此处用索引定位）
@@ -648,7 +648,7 @@ export function SDKMessageRenderer({
     )
 
     return (
-      <Message from="assistant">
+      <Message from="assistant" className="agent-message-card" data-role="assistant">
         {showHeader && (
           <MessageHeader
             model={model ? resolveModelDisplayName(model, channels) : undefined}
@@ -656,7 +656,7 @@ export function SDKMessageRenderer({
             logo={<AssistantLogo model={model} />}
           />
         )}
-        <MessageContent>
+        <MessageContent className="gap-3">
           <div className={cn('space-y-2')}>
             {blocks.map((block, i) => (
               <ContentBlock
@@ -792,7 +792,7 @@ function AttachedFileChip({ file }: { file: AttachedFileRef }): React.ReactEleme
   const Icon = isImg ? FileImage : FileText
 
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1 text-[12px] text-muted-foreground">
+    <div className="inline-flex items-center gap-1.5 rounded-control border border-border-subtle bg-background/35 px-2.5 py-1 text-[12px] text-muted-foreground">
       <Icon className="size-3.5 shrink-0" />
       <span className="truncate max-w-[200px]">{file.filename}</span>
     </div>
@@ -810,7 +810,7 @@ function UserInputMessage({ message }: { message: SDKUserMessage }): React.React
   const meta = extractMeta(message as unknown as SDKMessage)
 
   return (
-    <Message from="user">
+    <Message from="user" className="agent-message-card" data-role="user">
       <div className="flex items-start gap-2.5 mb-2.5">
         <UserAvatar avatar={userProfile.avatar} size={35} />
         <div className="flex flex-col justify-between h-[35px]">
@@ -820,7 +820,7 @@ function UserInputMessage({ message }: { message: SDKUserMessage }): React.React
           )}
         </div>
       </div>
-      <MessageContent>
+      <MessageContent className="gap-2.5">
         {/* 图片缩略图 */}
         {imageFiles.length > 0 && (
           <div className="flex flex-wrap gap-2.5 mb-2">
@@ -936,7 +936,7 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
   const hasActions = hasStructuredActions || hasLegacyActions
 
   return (
-    <Message from="assistant">
+    <Message from="assistant" className="agent-message-card border-status-danger-border/70 bg-status-danger-bg/70" data-role="assistant">
       <MessageHeader
         model={undefined}
         time={meta.createdAt ? formatMessageTime(meta.createdAt) : undefined}
@@ -946,7 +946,7 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
           </div>
         }
       />
-      <MessageContent>
+      <MessageContent className="gap-3">
         {errorTitle && (
           <div className="text-sm font-medium text-destructive mb-1">{errorTitle}</div>
         )}

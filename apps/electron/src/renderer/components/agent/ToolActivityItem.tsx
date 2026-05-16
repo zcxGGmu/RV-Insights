@@ -110,7 +110,7 @@ function renderLabelWithDiff(label: string, toolName: string): React.ReactNode {
     <>
       {text}{' '}
       {tokens.map((tok, i) => (
-        <span key={i} className={tok.startsWith('+') ? 'text-green-500' : 'text-red-500'}>
+        <span key={i} className={tok.startsWith('+') ? 'text-status-success-fg' : 'text-status-danger-fg'}>
           {tok}{i < tokens.length - 1 ? ' ' : ''}
         </span>
       ))}
@@ -160,8 +160,8 @@ function TodoList({ items }: { items: TodoItem[] }): React.ReactElement {
           )}
         >
           {todo.status === 'pending' && <Circle className={cn(SIZE.icon, 'text-muted-foreground/50')} />}
-          {todo.status === 'in_progress' && <Loader2 className={cn(SIZE.spinner, 'animate-spin text-blue-500')} />}
-          {todo.status === 'completed' && <CheckCircle2 className={cn(SIZE.icon, 'text-green-500')} />}
+          {todo.status === 'in_progress' && <Loader2 className={cn(SIZE.spinner, 'animate-spin text-status-running-fg')} />}
+          {todo.status === 'completed' && <CheckCircle2 className={cn(SIZE.icon, 'text-status-success-fg')} />}
           <span className={cn('truncate flex-1', todo.status === 'completed' && 'line-through')}>
             {todo.status === 'in_progress' && todo.activeForm ? todo.activeForm : todo.content}
           </span>
@@ -195,7 +195,7 @@ export function ActivityRow({ activity, index = 0, animate = false, onOpenDetail
   return (
     <div
       className={cn(
-        'group/row flex items-center gap-1.5 text-[12px] rounded-md',
+        'group/row agent-tool-rail flex items-center gap-2 rounded-control px-2 text-[12px]',
         SIZE.row,
         animate && 'animate-in fade-in slide-in-from-left-2 duration-200 fill-mode-both',
       )}
@@ -283,7 +283,7 @@ function ActivityGroupRow({ group, index = 0, animate = false, onOpenDetails, de
         type="button"
         onClick={() => setExpanded(!expanded)}
           className={cn(
-          'w-full flex items-center gap-1.5 pl-1 text-left text-[12px] rounded-control hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+          'agent-tool-rail w-full flex items-center gap-2 px-2 text-left text-[12px] rounded-control hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           SIZE.row,
         )}
         aria-expanded={expanded}
@@ -299,7 +299,7 @@ function ActivityGroupRow({ group, index = 0, animate = false, onOpenDetails, de
         <StatusIcon status={derivedStatus} toolName={parent.toolName} />
 
         {subagentType && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-medium leading-none">
+          <span className="shrink-0 px-1.5 py-0.5 rounded-control border border-status-running-border bg-status-running-bg text-status-running-fg text-[9px] font-medium leading-none">
             {subagentType}
           </span>
         )}
@@ -322,7 +322,7 @@ function ActivityGroupRow({ group, index = 0, animate = false, onOpenDetails, de
       {expanded && children.length > 0 && (
         <div
           className={cn(
-            'pl-6 pr-1 space-y-0 border-l-2 border-muted ml-[7px]',
+            'pl-6 pr-1 space-y-1 border-l-2 border-status-running-border/45 ml-[7px]',
             'animate-in fade-in slide-in-from-top-1 duration-150',
           )}
         >
@@ -405,9 +405,9 @@ function ActivityDetails({ activity, onClose }: { activity: ToolActivity; onClos
   }
 
   return (
-    <div className="mt-1 rounded-card border border-border-subtle bg-surface-muted/45 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
+    <div className="agent-tool-rail mt-1 rounded-card overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30">
-        <span className="text-[11px] font-medium text-foreground/50">{getToolPhrase(activity.toolName, activity.input).label}</span>
+        <span className="text-[11px] font-medium text-text-secondary">{getToolPhrase(activity.toolName, activity.input).label}</span>
         <button
           type="button"
           onClick={handleCopy}
@@ -449,7 +449,7 @@ function IntermediateRow({ text, index, animate }: { text: string; index: number
   return (
     <div
       className={cn(
-        'flex items-center gap-2 text-[13px] text-foreground/50',
+        'agent-tool-rail flex items-center gap-2 rounded-control px-2 text-[13px] text-foreground/60',
         SIZE.row,
         animate && 'animate-in fade-in slide-in-from-left-2 duration-200 fill-mode-both',
       )}
@@ -527,11 +527,11 @@ export function ToolActivityList({ activities, animate = false }: ToolActivityLi
   const isCollapsed = !animate && needsCollapse && !expanded
 
   return (
-    <div className="w-full">
+    <div className="agent-tool-rail w-full rounded-card px-3 py-2">
       <div
         ref={listRef}
         className={cn(
-          'space-y-0',
+          'space-y-1',
           animate && needsCollapse && 'overflow-y-auto',
           isCollapsed && 'overflow-hidden',
         )}
@@ -597,7 +597,7 @@ export function ToolActivityList({ activities, animate = false }: ToolActivityLi
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="mt-1 text-[11px] text-muted-foreground/60 hover:text-foreground/80 transition-colors"
+          className="mt-2 rounded-control px-2 py-1 text-[11px] text-muted-foreground/70 transition-colors hover:bg-surface-muted hover:text-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {expanded ? '收起工具活动' : `展开全部 ${visibleRows} 项工具活动`}
         </button>

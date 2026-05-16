@@ -809,7 +809,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   if (sidebarCollapsed) {
     return (
       <div
-        className="h-full flex flex-col items-center bg-surface-panel rounded-panel border border-border-subtle/45 shadow-panel transition-[width] duration-normal"
+        className="agent-resource-panel h-full flex flex-col items-center rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
         style={{ width: 48, flexShrink: 0 }}
       >
         {/* 顶部留空，避开 macOS 红绿灯 */}
@@ -884,7 +884,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   // ===== 展开状态：完整侧边栏 =====
   return (
     <div
-      className="h-full flex flex-col bg-surface-panel rounded-panel border border-border-subtle/45 shadow-panel transition-[width] duration-normal"
+      className="agent-resource-panel h-full flex flex-col rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
       style={{ width: width ?? 280, minWidth: 180, flexShrink: 1 }}
     >
       {/* 顶部留空，避开 macOS 红绿灯 */}
@@ -920,7 +920,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-control text-[13px] font-medium text-text-primary bg-primary/5 hover:bg-primary/10 transition-colors duration-fast titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="agent-resource-well flex-1 flex items-center gap-2 px-3 py-2 rounded-control text-[13px] font-medium text-text-primary hover:border-status-running-border transition-colors duration-fast titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           aria-label={mode === 'agent' ? '新建 Agent 会话' : '新建对话'}
         >
           <Plus size={14} />
@@ -930,7 +930,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           <TooltipTrigger asChild>
             <button
               onClick={() => setSearchDialogOpen(true)}
-              className="flex-shrink-0 size-9 flex items-center justify-center rounded-control text-text-tertiary bg-primary/5 hover:bg-primary/10 hover:text-text-primary transition-colors duration-fast titlebar-no-drag border border-dashed border-[hsl(var(--dashed-border))] hover:border-[hsl(var(--dashed-border-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="agent-resource-well flex-shrink-0 size-9 flex items-center justify-center rounded-control text-text-tertiary hover:border-status-running-border hover:text-text-primary transition-colors duration-fast titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               aria-label={mode === 'agent' ? '搜索 Agent 会话' : '搜索对话'}
             >
               <Search size={14} />

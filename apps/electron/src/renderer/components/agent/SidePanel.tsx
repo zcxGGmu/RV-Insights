@@ -254,7 +254,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
   return (
     <div
       className={cn(
-        'relative h-full flex-shrink-0 overflow-hidden titlebar-drag-region bg-surface-panel rounded-panel border border-border-subtle/45 shadow-panel',
+        'agent-resource-panel relative h-full flex-shrink-0 overflow-hidden titlebar-drag-region rounded-panel border border-border-subtle/55',
         shouldAnimate && 'transition-[width] duration-normal ease-out',
         isOpen ? 'w-[320px]' : 'w-0',
       )}
@@ -273,9 +273,9 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                   {/* ===== 会话文件区（仅当 sessionPath 存在时显示） ===== */}
                   {sessionPath && (
                     <>
-                      <div className="flex items-center gap-1 pl-3 pr-2 h-[32px] flex-shrink-0">
-                        <FolderOpen className="size-3 text-muted-foreground" />
-                        <span className="text-[11px] font-medium text-muted-foreground">会话文件</span>
+                      <div className="mx-2 mt-2 flex h-[36px] flex-shrink-0 items-center gap-1 rounded-card border border-border-subtle/45 bg-background/25 pl-3 pr-2">
+                        <FolderOpen className="size-3.5 text-status-running-fg" />
+                        <span className="text-[11px] font-semibold text-text-secondary">会话文件</span>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Info className="size-3 text-muted-foreground/50 cursor-help" />
@@ -338,7 +338,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                         </Tooltip>
                       </div>
                       {/* 会话文件内容区（独立滚动） */}
-                      <div className="flex-1 min-h-0 overflow-y-auto">
+                      <div className="agent-resource-section mx-2 mt-2 flex-1 min-h-0 overflow-y-auto rounded-card">
                         {/* 附加目录列表（可展开目录树） */}
                         {attachedDirs.length > 0 && (
                           <AttachedDirsSection
@@ -356,17 +356,19 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                           <FileBrowser rootPath={sessionPath} hideToolbar embedded hideEmpty={attachedDirs.length > 0} onAddToChat={handleAddToChat} />
                         </>
                         {/* 会话文件拖拽上传区域 */}
-                        <FileDropZone
-                          workspaceSlug={workspaceSlug}
-                          sessionId={sessionId}
-                          target="session"
-                          onFilesUploaded={handleFilesUploaded}
-                          onAttachFolder={handleAttachFolder}
-                          onFoldersDropped={handleSessionFoldersDropped}
-                        />
+                          <div className="agent-resource-well mx-2 mb-2 rounded-card">
+                          <FileDropZone
+                            workspaceSlug={workspaceSlug}
+                            sessionId={sessionId}
+                            target="session"
+                            onFilesUploaded={handleFilesUploaded}
+                            onAttachFolder={handleAttachFolder}
+                            onFoldersDropped={handleSessionFoldersDropped}
+                          />
+                          </div>
                       </div>
                       {/* ===== 分隔线 ===== */}
-                      <div className="mx-3 my-3 border-t border-muted-foreground/20" />
+                      <div className="mx-3 my-3 border-t border-border-subtle/45" />
                     </>
                   )}
 
@@ -394,9 +396,9 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
 
                   {/* ===== 工作区文件区 ===== */}
                   <div className="flex-1 min-h-0 flex flex-col mx-2 mb-2">
-                    <div className="flex items-center gap-1 px-2 h-[32px] flex-shrink-0">
-                      <FolderHeart className="size-3 text-muted-foreground" />
-                      <span className="text-[11px] font-medium text-muted-foreground">工作区文件</span>
+                    <div className="flex items-center gap-1 px-2 h-[36px] flex-shrink-0 rounded-card border border-border-subtle/45 bg-background/25">
+                      <FolderHeart className="size-3.5 text-status-success-fg" />
+                      <span className="text-[11px] font-semibold text-text-secondary">工作区文件</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="size-3 text-muted-foreground/50 cursor-help" />
@@ -426,7 +428,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                       )}
                     </div>
                     {/* 工作区文件内容区（独立滚动） */}
-                    <div className="flex-1 min-h-0 overflow-y-auto pb-1">
+                    <div className="agent-resource-section mt-2 flex-1 min-h-0 overflow-y-auto rounded-card pb-1">
                       {/* 工作区级附加目录 */}
                       {wsAttachedDirs.length > 0 && (
                         <AttachedDirsSection
@@ -446,6 +448,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                         </>
                       )}
                       {/* 工作区文件拖拽上传区域 */}
+                      <div className="agent-resource-well mx-2 mb-2 rounded-card">
                       <FileDropZone
                         workspaceSlug={workspaceSlug}
                         target="workspace"
@@ -453,6 +456,7 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
                         onAttachFolder={handleAttachWorkspaceFolder}
                         onFoldersDropped={handleWorkspaceFoldersDropped}
                       />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -520,7 +524,7 @@ function AttachedDirsSection({ attachedDirs, onDetach, refreshVersion, onAddToCh
 
   return (
     <div className="pt-2.5 pb-1 flex-shrink-0">
-      <div className="text-[11px] font-medium text-muted-foreground mb-1 px-3">附加目录（Agent 可以读取并操作此外部文件夹）</div>
+      <div className="text-[11px] font-semibold text-text-secondary mb-1 px-3">附加目录（Agent 可以读取并操作此外部文件夹）</div>
       {attachedDirs.map((dir) => (
         <AttachedDirTree
           key={dir}
@@ -581,7 +585,7 @@ function AttachedDirTree({ dirPath, onDetach, selectedPaths, onSelect, refreshVe
   return (
     <div>
       <div
-        className="flex items-center gap-1 py-1 pl-2 pr-2 text-sm cursor-pointer hover:bg-accent/50 group mx-2 rounded-lg"
+        className="agent-file-row flex items-center gap-1 py-1 pl-2 pr-2 text-sm cursor-pointer hover:bg-status-running/10 group mx-2 rounded-control"
         onClick={toggleExpand}
       >
         <ChevronRight
@@ -733,9 +737,10 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
     <>
       <div
         className={cn(
-          'flex items-center gap-1 py-1 pr-2 text-sm cursor-pointer group mx-2 rounded-lg',
-          isSelected ? 'bg-accent' : 'hover:bg-accent/50',
+          'agent-file-row flex items-center gap-1 py-1 pr-2 text-sm cursor-pointer group mx-2 rounded-control',
+          isSelected ? 'text-text-primary' : 'hover:bg-status-running/10',
         )}
+        data-selected={isSelected ? 'true' : 'false'}
         style={{ paddingLeft }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}

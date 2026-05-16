@@ -478,20 +478,16 @@ function ThinkingBlock({ block, dimmed = false }: ThinkingBlockProps): React.Rea
     <div className="relative mb-3">
       <div className="flex items-center gap-1.5 mb-1.5">
         <Brain className={cn('size-3.5', dimmed ? 'text-muted-foreground/70' : 'text-muted-foreground')} />
-        <span className={cn('text-[14px] uppercase tracking-wider', dimmed ? 'text-muted-foreground/70' : 'text-muted-foreground')}>
-          Thinking
+        <span className={cn('text-[11px] font-semibold uppercase', dimmed ? 'text-muted-foreground/70' : 'text-status-waiting-fg')}>
+          Reasoning Chamber
         </span>
       </div>
       <div
         className={cn(
-          'relative rounded-lg px-3.5 py-2.5',
-          dimmed ? 'bg-muted/30' : 'bg-muted/50',
+          'agent-reasoning-chamber relative rounded-card px-3.5 py-2.5',
+          dimmed && 'opacity-80',
           shouldCollapse && !isExpanded && 'pb-7',
         )}
-        style={{
-          border: 'none',
-          backgroundImage: `url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' ry='8' stroke='${dimmed ? 'rgba(128,128,128,0.3)' : 'rgba(128,128,128,0.5)'}' stroke-width='1.5' stroke-dasharray='8%2c 6' stroke-dashoffset='0' stroke-linecap='round'/%3e%3c/svg%3e")`,
-        }}
       >
         <div
           ref={contentRef}
@@ -510,7 +506,7 @@ function ThinkingBlock({ block, dimmed = false }: ThinkingBlockProps): React.Rea
             className={cn(
               'flex items-center gap-1 text-xs text-foreground/40 hover:text-foreground/70 transition-colors mt-1',
               !isExpanded &&
-                'absolute bottom-0 left-0 right-0 px-3.5 pb-2 pt-4 rounded-b-lg bg-gradient-to-t from-muted/80 to-transparent'
+                'absolute bottom-0 left-0 right-0 px-3.5 pb-2 pt-4 rounded-b-lg bg-gradient-to-t from-surface-card/90 to-transparent'
             )}
           >
             {isExpanded ? (
