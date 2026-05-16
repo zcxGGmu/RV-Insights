@@ -76,6 +76,8 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - UI-1 提交：`20a90d3679147dd27c035d9c957546823924ac4b`（`feat(ui): 完成 UI-1 token 与 primitive 收敛`）。
 - UI-2 提交：`c3636336`（`style(ui): 统一 AppShell 导航与标签状态`）。
 - UI-3 提交：`3881eb10`（`style(pipeline): 优化 Pipeline 工作台状态层级`）。
+- UI-4 提交：`b28ac9df`（`style(agent): 优化 Agent 消息工具与交互状态`）。
+- 截图索引提交：`1d78bf66`（`docs(ui): 补充 UI 截图索引说明`）。
 
 已完成：
 
@@ -103,7 +105,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 - 当前工作区可能存在 `.DS_Store` 修改；它不是 UI 阶段成果，不要纳入 UI 提交，除非用户明确要求处理系统文件。
 - `tasks/` 被 `.gitignore` 忽略，其中的 lessons / todo 为本地工作记录，不属于已提交文档基线。
 - UI-1 只是 UI 基础层，不等同于用户可见的主界面优化；不要向用户暗示“全客户端 UI 已经有明显变化”。
-- UI-4 已完成 Agent 阅读与交互；下一阶段从 UI-5 Settings 管理界面开始。
+- UI-4 已完成 Agent 阅读与交互并已单独提交；下一阶段从 UI-5 Settings 管理界面开始。
 
 ### 2.2 阶段进度表
 
@@ -113,7 +115,7 @@ Markdown checkbox 不原生支持 `[~]` / `[!]`，如工具不识别，可在任
 | UI-1 | Token 与 primitive 收敛 | [x] | CSS token、Button、Card、Badge、Dialog、Tooltip | commit `20a90d36` + typecheck + renderer build + 3 张 primitive 截图 |
 | UI-2 | AppShell / Sidebar / Tab | [x] | 三栏骨架、导航密度、多标签状态、右侧面板 | typecheck + focused tests + light / dark / forest 截图 |
 | UI-3 | Pipeline 工作台 | [x] | StageRail、Records、Gate、失败 / 停止 / blocked 状态 | commit `3881eb10` + Pipeline 聚焦测试 25 pass + typecheck + light / dark / slate 截图 |
-| UI-4 | Agent 阅读与交互 | [x] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | Agent 聚焦测试 9 pass + typecheck + light / dark / ocean 截图 |
+| UI-4 | Agent 阅读与交互 | [x] | Message、ToolActivity、Composer、Permission / AskUser / PlanMode | commit `b28ac9df` + Agent 聚焦测试 11 pass + typecheck + light / dark / ocean 截图 |
 | UI-5 | Settings 管理界面 | [ ] | Settings primitives、渠道表单、Agent 配置、危险操作 | 表单错误 + danger dialog 截图 |
 | UI-6 | Welcome / Chat 回退 / File Browser | [ ] | 空态、Chat 对齐、文件树和确认流 | 长尾页面截图 |
 | UI-7 | 全局验收与收尾 | [ ] | 主题矩阵、a11y、回归、文档 Review | 总体验收记录 |
@@ -837,7 +839,7 @@ bun test
 3. 执行 `git status --short`。
 4. 如果看到 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，先确认它是否为编辑器残留；不要把它纳入提交。
 5. 如果看到 `.DS_Store` 修改，默认视为系统文件噪音；不要纳入 UI 阶段提交。
-6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`，UI-3 `3881eb10`，UI-4 完成后以最新提交为准。
+6. 确认当前阶段提交已存在：UI-0 `61c263c8`，UI-1 `20a90d36`，UI-2 `c3636336`，UI-3 `3881eb10`，UI-4 `b28ac9df`。
 7. 从 UI-5 Settings 管理界面开始；不要回头重复 UI-2 / UI-3 / UI-4。
 8. UI-5 的主范围是 Settings primitives、渠道表单、Agent 配置、危险操作和表单错误状态。
 9. 每阶段完成后更新本清单、追加 Review、运行验证并单独提交。
@@ -860,10 +862,11 @@ bun test
 3. UI-1「Token 与 primitive 收敛」已完成并提交，commit 为 20a90d3679147dd27c035d9c957546823924ac4b，提交标题为 feat(ui): 完成 UI-1 token 与 primitive 收敛。
 4. UI-2「AppShell / Sidebar / Tab」已完成并提交，commit 为 c3636336，提交标题为 style(ui): 统一 AppShell 导航与标签状态。
 5. UI-3「Pipeline 工作台」已完成并提交，commit 为 3881eb10，提交标题为 style(pipeline): 优化 Pipeline 工作台状态层级。
-6. UI-4「Agent 阅读与交互」已完成并通过验证，提交以最新 UI-4 阶段提交为准。
+6. UI-4「Agent 阅读与交互」已完成并通过验证，commit 为 b28ac9df，提交标题为 style(agent): 优化 Agent 消息工具与交互状态。
 7. 已完成：UI-0、UI-1、UI-2、UI-3、UI-4。未完成：UI-5、UI-6、UI-7。
 8. UI-4 已完成 Agent header meta、banner zone、ToolActivity 状态、Permission / AskUser / ExitPlanMode / PlanMode 横幅、Composer 稳定性和消息阅读宽度收敛。
-8. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
+9. UI 截图索引已补充并提交，commit 为 1d78bf66，路径为 improve/ui/screenshots/README.md。
+10. 当前工作区可能存在未提交临时文件 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，以及 .DS_Store 修改；它们不是 UI 阶段成果，不要纳入提交，先确认来源并保护用户变更。
 
 请从 UI-5「Settings 管理界面」开始：
 1. 先执行 git status --short，保护已有用户变更。
