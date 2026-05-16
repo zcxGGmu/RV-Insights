@@ -1,5 +1,59 @@
 # Pipeline 完善分析任务
 
+## 2026-05-16 UI-6 后进度文档同步计划
+
+- [x] 检查 `git status --short`，确认当前只剩 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 UI visual spec swap 文件需要保护。
+- [x] 更新 UI implementation checklist 的最新状态快照，明确 UI-6 commit `ed3d48d3` 已完成并提交。
+- [x] 更新阶段进度表、截图矩阵和当前启动提示，明确 UI-0 到 UI-6 已完成，UI-7 未完成。
+- [x] 将下次启动提示词改为 UI-7「全局验收与收尾」，避免下次重复 UI-6。
+- [x] 保持 README / AGENTS 不变，只更新 UI 进度跟踪文档和本地任务记录。
+
+## 2026-05-16 UI-6 后进度文档同步 Review
+
+- 已同步 `improve/ui/2026-05-16-client-ui-implementation-checklist.md`：UI-6 commit 为 `ed3d48d3`，提交标题为 `style(ui): 对齐 Welcome Chat 与 File Browser 体验`。
+- 当前完成阶段：UI-0、UI-1、UI-2、UI-3、UI-4、UI-5、UI-6；未完成阶段：UI-7。
+- UI-6 已完成 Welcome / Onboarding 空态、Chat 回退 message list / composer / tool activity、File Browser selected / hover / rename / delete confirm / empty folder 的视觉层级、focus、路径溢出和危险确认收敛。
+- UI-6 验证记录：UI-6 聚焦测试 4 pass、`bun run --filter='@rv-insights/electron' typecheck`、`bun install --frozen-lockfile --dry-run`、`git diff --check`。
+- UI-6 截图记录：`welcome-light-first-run-desktop.png`、`welcome-dark-config-missing-desktop.png`、`chat-slate-message-list-desktop.png`、`chat-slate-tool-activity-desktop.png`、`file-browser-forest-selected-desktop.png`、`file-browser-forest-delete-confirm-desktop.png`。
+- 下次启动应从 UI-7「全局验收与收尾」开始，先做全局验收计划，再检查主题矩阵、键盘路径、icon-only 可访问性、状态色辅助表达、长文本 / 长路径溢出、截图矩阵和最终 Review。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 与 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入阶段提交。
+
+## 下次启动提示词（UI-7）
+
+```text
+你正在 RV-Insights 仓库继续推进全客户端 UI 优化。
+
+请先阅读并遵守：
+- AGENTS.md
+- tasks/lessons.md
+- tasks/todo.md
+- improve/ui/2026-05-16-client-ui-visual-spec.md
+- improve/ui/2026-05-16-client-ui-implementation-checklist.md
+
+当前进度：
+1. UI 文档基线已完成并提交：7bef500c，docs(ui): 新增客户端 UI 视觉规范与迭代清单。
+2. UI-0 已完成并提交：61c263c8，docs(ui): 完成 UI-0 基线审计与截图。
+3. UI-1 已完成并提交：20a90d36，feat(ui): 完成 UI-1 token 与 primitive 收敛。
+4. UI-2 已完成并提交：c3636336，style(ui): 统一 AppShell 导航与标签状态。
+5. UI-3 已完成并提交：3881eb10，style(pipeline): 优化 Pipeline 工作台状态层级。
+6. UI-4 已完成并提交：b28ac9df，style(agent): 优化 Agent 消息工具与交互状态。
+7. UI 截图索引已提交：1d78bf66，docs(ui): 补充 UI 截图索引说明。
+8. UI-5 已完成并提交：8362e8b4，style(settings): 统一设置界面表单与危险操作。
+9. UI-5 后续开发状态已同步并提交：3ccb2886，docs(ui): 同步 UI-5 后续开发状态。
+10. UI-6 已完成并提交：ed3d48d3，style(ui): 对齐 Welcome Chat 与 File Browser 体验。
+11. 已完成：UI-0、UI-1、UI-2、UI-3、UI-4、UI-5、UI-6。未完成：UI-7。
+12. 当前工作区可能存在 .DS_Store 修改和 improve/ui/.2026-05-16-client-ui-visual-spec.md.swp，不要纳入提交。
+
+请从 UI-7「全局验收与收尾」开始：
+1. 先执行 git status --short，保护已有用户变更。
+2. 阅读 checklist 的 UI-7 阶段和视觉规范中主题、可访问性、页面级 Wireframe、截图矩阵相关部分。
+3. 先在 tasks/todo.md 写 UI-7 计划并 check-in，再做全局验收审计。
+4. 不要回头重复 UI-2 / UI-3 / UI-4 / UI-5 / UI-6 的阶段实现；除非验收发现具体回归，只做最小修复。
+5. 不新增 public API / IPC / shared type；不修改 README / AGENTS，除非用户明确允许。
+6. UI-7 完成定义：所有阶段 Review 已填写；light / dark / 至少一个特殊主题下 AppShell、Pipeline、Agent、Settings、Welcome、Chat 回退、File Browser 层级清楚；icon-only 按钮有 aria-label / tooltip；状态色有文本或图标辅助；File Browser、Sidebar、TabBar、Settings nav 键盘路径可用；长标题、长模型名、长路径、长错误文本无明显溢出。
+7. 完成 UI-7 后运行 typecheck、相关 focused tests 或手动路径验证、git diff --check，按需要补充截图，更新 checklist 和 tasks/todo.md Review，并单独提交。
+```
+
 ## 2026-05-16 UI-6 Welcome / Chat 回退 / File Browser 计划
 
 - [x] 检查 `git status --short`，确认只保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 UI visual spec swap 文件。
