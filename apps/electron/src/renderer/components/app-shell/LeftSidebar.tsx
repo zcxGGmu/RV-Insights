@@ -893,12 +893,13 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   // ===== 展开状态：完整侧边栏 =====
   return (
     <div
-      className="agent-resource-panel agent-cockpit-sidebar h-full flex flex-col rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
+      className="agent-resource-panel agent-cockpit-sidebar agent-cockpit-sidebar--command h-full flex flex-col rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
       style={{ width: width ?? 280, minWidth: 260, flexShrink: 1 }}
     >
       <div className="pt-[30px] px-3">
         <ModeSwitcher />
-        <div className="agent-sidebar-top-shell mt-2 rounded-panel border border-border-subtle/55 bg-background/28 px-3 py-3 shadow-sm backdrop-blur-md">
+        <div className="agent-sidebar-top-shell agent-sidebar-top-shell--hud mt-2 rounded-panel border border-border-subtle/55 bg-background/28 px-3 py-3 shadow-sm backdrop-blur-md">
+          <div className="agent-sidebar-pulsebar" aria-hidden="true" />
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-status-running-fg">Command Desk</div>
@@ -1285,7 +1286,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
 
       {/* 底部：归档 / 能力 / 用户 dock */}
       <div className="px-3 pb-2">
-        <div className="agent-bottom-dock rounded-panel border border-border-subtle/55 bg-background/28 p-2 shadow-sm backdrop-blur-md">
+        <div className="agent-bottom-dock agent-bottom-dock--neon rounded-panel border border-border-subtle/55 bg-background/28 p-2 shadow-sm backdrop-blur-md">
           <div className="flex items-center justify-between gap-2 px-1 pb-1.5">
             <div className="min-w-0">
               <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-status-running-fg">Dock Bay</div>

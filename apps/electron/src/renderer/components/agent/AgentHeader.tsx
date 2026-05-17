@@ -7,7 +7,7 @@
 
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { Pencil, Check, X, PanelRight, Bot, Cpu, Folder, Radio, ShieldCheck, Waypoints } from 'lucide-react'
+import { Pencil, Check, X, PanelRight, Bot, Cpu, Folder, Radio, ShieldCheck, Waypoints, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -121,8 +121,11 @@ export function AgentHeader({
   }
 
   return (
-    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[116px] items-center gap-4 overflow-hidden rounded-panel border border-border-subtle/65 bg-surface-card/85 px-4 py-3 shadow-card backdrop-blur titlebar-drag-region md:mx-5 md:min-h-[124px] md:px-5">
+    <div className="agent-mission-strip agent-mission-strip--command agent-mission-strip--compact relative z-[51] mx-3 mt-3 flex min-h-[76px] items-center gap-3 overflow-hidden rounded-panel border border-border-subtle/65 bg-surface-card/85 px-3 py-2.5 shadow-card backdrop-blur titlebar-drag-region md:mx-5 md:min-h-[82px] md:px-4">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--status-running)/0.10),transparent_32%),radial-gradient(circle_at_bottom_right,hsl(var(--status-waiting)/0.06),transparent_28%)]" aria-hidden="true" />
+      <div className="agent-mission-scanline" aria-hidden="true" />
+      <div className="agent-mission-corner agent-mission-corner--tl" aria-hidden="true" />
+      <div className="agent-mission-corner agent-mission-corner--br" aria-hidden="true" />
       {editing ? (
         <div className="relative z-10 flex flex-1 min-w-0 items-center gap-1.5 titlebar-no-drag">
           <label htmlFor={`agent-title-${session.id}`} className="sr-only">编辑 Agent 会话标题</label>
@@ -167,21 +170,22 @@ export function AgentHeader({
         </div>
       ) : (
         <>
-          <div className="relative z-10 flex size-16 shrink-0 items-center justify-center rounded-panel border border-border-subtle/70 bg-background/55 shadow-inner agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
-            <div className="absolute inset-2 rounded-full border border-current/20 opacity-70" aria-hidden="true" />
+          <div className="relative z-10 hidden size-11 shrink-0 items-center justify-center rounded-control border border-border-subtle/70 bg-background/55 shadow-inner agent-status-orb sm:flex" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
+            <div className="agent-status-orb__ring" aria-hidden="true" />
+            <div className="absolute inset-1.5 rounded-full border border-current/20 opacity-70" aria-hidden="true" />
             {streaming ? (
-              <Radio className="size-5 text-status-running-fg" />
+              <Radio className="size-4 text-status-running-fg" />
             ) : planMode ? (
-              <Waypoints className="size-5 text-status-waiting-fg" />
+              <Waypoints className="size-4 text-status-waiting-fg" />
             ) : (
-              <Bot className="size-5 text-text-secondary" />
+              <Bot className="size-4 text-text-secondary" />
             )}
           </div>
-          <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-2.5">
-            <div className="flex items-start gap-2 min-w-0">
-              <div className="min-w-0">
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="min-w-0 flex-1">
                 <div className="agent-kicker text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Agent Mission</div>
-                <h1 className="truncate text-[18px] font-semibold leading-6 text-text-primary md:text-[20px]">
+                <h1 className="truncate text-[16px] font-semibold leading-5 text-text-primary md:text-[17px]">
                   {session.title}
                 </h1>
               </div>
@@ -200,10 +204,10 @@ export function AgentHeader({
               <TooltipContent side="bottom">编辑标题</TooltipContent>
             </Tooltip>
             </div>
-            <div className="agent-mission-metrics flex min-w-0 flex-wrap items-center gap-1.5">
+            <div className="agent-mission-metrics flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span
                 className={cn(
-                  'agent-meta-chip agent-meta-chip--state inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] leading-4',
+                  'agent-meta-chip agent-meta-chip--state inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] leading-4',
                   missionStateTone === 'running' && 'border-status-running-border text-status-running-fg',
                   missionStateTone === 'waiting' && 'border-status-waiting-border text-status-waiting-fg',
                   missionStateTone === 'neutral' && 'border-border-subtle text-text-secondary',
@@ -216,7 +220,10 @@ export function AgentHeader({
                 <span
                   key={item.key}
                   className={cn(
-                    'agent-meta-chip inline-flex max-w-[220px] items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] leading-4',
+                    'agent-meta-chip inline-flex h-7 min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] leading-4 whitespace-nowrap',
+                    item.key === 'workspace' && 'max-w-[150px] 2xl:max-w-[190px]',
+                    item.key === 'model' && 'max-w-[180px] 2xl:max-w-[220px]',
+                    item.key === 'permission' && 'max-w-[112px] 2xl:max-w-[150px]',
                     item.tone === 'running' && 'border-status-running-border bg-status-running-bg text-status-running-fg',
                     item.tone === 'waiting' && 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg',
                     item.tone === 'neutral' && 'border-border-subtle text-text-secondary',
@@ -226,19 +233,17 @@ export function AgentHeader({
                   {item.key === 'workspace' && <Folder className="size-3.5 shrink-0" />}
                   {item.key === 'model' && <Cpu className="size-3.5 shrink-0" />}
                   {item.key === 'permission' && <ShieldCheck className="size-3.5 shrink-0" />}
-                  <span className="text-current/65">{item.label}</span>
+                  <span className="hidden shrink-0 text-current/65 2xl:inline">{item.label}</span>
                   <span className="min-w-0 truncate font-medium">{item.value}</span>
                 </span>
               ))}
-            </div>
-            <div className="agent-header-hud flex min-w-0 flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-text-tertiary">
-              <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/60 bg-background/40 px-2.5 py-1">
+              <span className="agent-header-hud inline-flex shrink-0 items-center gap-1 rounded-full border border-border-subtle/60 bg-background/40 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
                 <span className={cn('size-1.5 rounded-full', streaming ? 'bg-status-running shadow-[0_0_14px_hsl(var(--status-running)/0.6)]' : 'bg-status-neutral')} />
                 {streaming ? 'Live Lane' : planMode ? 'Planning Lane' : 'Idle Lane'}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/60 bg-background/40 px-2.5 py-1">
-                <span className="size-1.5 rounded-full bg-status-success shadow-[0_0_14px_hsl(var(--status-success)/0.55)]" />
-                容器化消息流
+              <span className="agent-hud-signal hidden shrink-0 items-center gap-1 rounded-full border border-border-subtle/60 bg-background/40 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-text-tertiary xl:inline-flex">
+                <Activity className="size-3" />
+                Telemetry
               </span>
             </div>
           </div>

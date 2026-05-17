@@ -255,7 +255,7 @@ export function SidePanel({ sessionId, sessionPath, width = 320 }: SidePanelProp
   return (
     <div
       className={cn(
-        'agent-resource-panel agent-file-cockpit relative h-full flex-shrink-0 overflow-hidden titlebar-drag-region rounded-panel border border-border-subtle/55',
+        'agent-resource-panel agent-file-cockpit agent-file-cockpit--vault relative h-full flex-shrink-0 overflow-hidden titlebar-drag-region rounded-panel border border-border-subtle/55',
         shouldAnimate && 'transition-[width] duration-normal ease-out',
       )}
       style={{ width: isOpen ? width : 0 }}
@@ -272,7 +272,7 @@ export function SidePanel({ sessionId, sessionPath, width = 320 }: SidePanelProp
           {/* 文件浏览内容 */}
           {workspaceSlug ? (
             <div className="flex-1 min-h-0 flex flex-col">
-              <div className="agent-resource-panel__mast mx-2 mt-2 mb-1 flex items-center justify-between rounded-card border border-border-subtle/45 bg-background/30 px-3 py-2">
+              <div className="agent-resource-panel__mast agent-resource-panel__mast--scanner mx-2 mt-2 mb-1 flex items-center justify-between rounded-card border border-border-subtle/45 bg-background/30 px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-status-running-fg">Resource Bay</div>
                   <div className="truncate text-[11px] text-text-tertiary">文件、目录与工作区附件统一收纳</div>

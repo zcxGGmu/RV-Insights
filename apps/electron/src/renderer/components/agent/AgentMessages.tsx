@@ -865,9 +865,9 @@ export function AgentMessages({ sessionId, sessionModelId, messages, messagesLoa
 
   return (
     <BasePathsProvider basePaths={attachedDirs}>
-    <Conversation resize={ready && !transitioning ? 'smooth' : 'instant'} className={cn('agent-conversation-canvas h-full', ready ? 'opacity-100 transition-opacity duration-200' : 'opacity-0')}>
+    <Conversation resize={ready && !transitioning ? 'smooth' : 'instant'} className={cn('agent-conversation-canvas agent-logstream-canvas h-full', ready ? 'opacity-100 transition-opacity duration-200' : 'opacity-0')}>
       <ScrollPositionManager id={sessionId} ready={ready} />
-      <ConversationContent className="agent-message-stack relative z-10 gap-5 px-3 py-7 md:px-5">
+      <ConversationContent className="agent-message-stack agent-logstream-stack relative z-10 gap-5 px-3 py-7 md:px-5">
         {!hasContent && !streaming ? (
           <EmptyState />
         ) : (

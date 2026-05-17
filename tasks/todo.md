@@ -1,5 +1,41 @@
 # Agent Cockpit UI 创意升级任务
 
+## 2026-05-17 Agent Mission Header 压缩计划
+
+- [x] 复盘用户截图反馈：红框 Mission Header 信息密度过高，压缩了更重要的消息流与 Command Deck。
+- [x] 使用 `ui-ux-pro-max` 的内容优先级与信息层级原则，保留状态可见但降低顶部占位。
+- [x] 将 AgentHeader 从大 HUD 面板收敛为紧凑任务状态条，移除右侧 Signal 大卡片。
+- [x] 同步收缩 Header 相关角标、扫描线、状态光效与 orb 尺寸，避免视觉壳继续按大面板占位。
+- [x] 运行 Electron typecheck、聚焦 Agent UI 测试与 `git diff --check`。
+- [x] 在本节追加 Review，记录实现范围、验证结果和残余风险。
+
+## 2026-05-17 Agent Mission Header 压缩 Review
+
+- 已将 AgentHeader 的首屏占位从大 HUD 面板压缩为紧凑任务状态条：`min-h` 从约 124/136px 降到 76/82px，并移除右侧 `Signal` telemetry 大卡片。
+- 标题、编辑入口、状态、工作区、模型、权限和文件面板入口仍保留；次要 HUD 信息合并为更小的 lane / telemetry 胶囊，避免挤压消息流。
+- 同步收缩 `agent-mission-strip--compact` 的角标、扫描线、orb ring 和阴影强度，让科技感保留在边线与状态反馈上，而不是靠垂直高度堆叠。
+- 根据截图二次修正：元信息 chip 强制单行，中文 label 只在 2xl 宽屏显示，常规宽度下保留图标和值，避免“工作区 / 模型 / 权限”逐字换行。
+- 本轮未改 IPC、Jotai 状态、Agent 执行逻辑、持久化结构、README 或 AGENTS。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`；`bun test apps/electron/src/renderer/components/agent/agent-ui-model.test.ts apps/electron/src/renderer/components/ui6-view-model.test.ts`；`git diff --check`。
+- 残余风险：当前没有重新启动 Electron 桌面壳做截图复核，最终视觉比例仍建议在实际窗口确认一眼。
+
+## 2026-05-17 Agent Cockpit 科技感重塑落地计划
+
+- [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。
+- [x] 强化 Agent 全局背景、三栏面板、Mission Header、消息日志、Command Deck 与 Resource Bay 的截图级可见变化。
+- [x] 保留 `Agent | Pipeline` 顶部切换器、Jotai 状态、IPC 行为、文件面板和输入区原有交互。
+- [x] 集中新增 scoped `agent-*` 视觉样式，使用多色科技 palette，并确保 reduced-motion 降级。
+- [x] 运行 typecheck、聚焦测试、renderer 构建和 diff 检查。
+- [x] 在本节追加 Review，记录改动范围、验证结果和残余风险。
+
+## 2026-05-17 Agent Cockpit 科技感重塑落地 Review
+
+- 已按计划做截图级可见增强：Agent 背景新增多色雷达 / vignette 层，Mission Header 新增扫描线、HUD 角标、旋转状态环和 telemetry 模块，消息区新增日志时间线，Command Deck 新增能量 beam，左右面板新增 neon cockpit 壳和资源舱扫描效果。
+- `Agent | Pipeline` 顶部切换器仍保留在展开态左侧栏顶部；本次没有改 IPC、Jotai atom、Agent 执行逻辑、文件读写逻辑、README 或 AGENTS。
+- 新增样式集中在 scoped `agent-*` class，使用 cyan / emerald / amber / violet 多色科技 palette；新加循环动效已纳入 `prefers-reduced-motion` 降级。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`；`bun test apps/electron/src/renderer/components/pipeline/PipelineComposer.test.ts apps/electron/src/renderer/components/pipeline/PipelineRecords.test.ts apps/electron/src/renderer/components/agent/agent-ui-model.test.ts apps/electron/src/renderer/components/ui6-view-model.test.ts`，16 pass；`bun run --filter='@rv-insights/electron' build:renderer`；`git diff --check`。
+- `build:renderer` 仍有既有的大 chunk warning，本次构建成功；当前环境未打开 Electron 桌面壳做人工截图，残余风险主要是实际窗口里的主观观感与极窄宽度下的视觉密度。
+
 ## 2026-05-17 Agent|Pipeline 玻璃感优化计划
 
 - [x] 复核用户截图中顶部模式切换器的视觉问题：比例偏厚、边框和背景发闷、当前态层级不够明确。
