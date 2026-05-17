@@ -1346,7 +1346,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           <PermissionBanner sessionId={sessionId} active={activeBanner === 'permission'} />
           <AskUserBanner sessionId={sessionId} active={activeBanner === 'ask-user'} />
           {isPlanMode && (
-            <div className="mb-2 flex items-start gap-2 rounded-card border border-status-waiting-border bg-status-waiting-bg px-3 py-2.5 text-status-waiting-fg shadow-card animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="agent-tool-rail mb-2 flex items-start gap-2 rounded-card border border-status-waiting-border bg-status-waiting-bg px-3 py-2.5 text-status-waiting-fg shadow-card animate-in fade-in slide-in-from-top-1 duration-200">
               <MapIcon className="mt-0.5 size-4 shrink-0" />
               <div className="min-w-0">
                 <div className="text-sm font-medium">Agent 正在规划中</div>
@@ -1495,7 +1495,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
             {/* Footer 工具栏 */}
             <div className="agent-command-footer relative z-10 flex min-h-[56px] flex-wrap items-center justify-between gap-2 border-t border-border-subtle/45 px-2.5 py-1.5">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              <div className="agent-command-footer__cluster flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                 <ModelSelector
                   filterChannelIds={agentChannelIds}
                   externalSelectedModel={externalSelectedModel}
@@ -1562,7 +1562,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                 {/* <FeishuNotifyToggle sessionId={sessionId} /> */}
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="agent-command-footer__actions flex items-center gap-1.5">
                 {streaming && !hasTextInput ? (
                   <Tooltip>
                     <TooltipTrigger asChild>

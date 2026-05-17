@@ -988,6 +988,15 @@
   isolation: isolate;
 }
 
+.agent-shell-bg {
+  background:
+    radial-gradient(circle at 18% 0%, hsl(var(--status-running) / 0.12), transparent 24%),
+    radial-gradient(circle at 82% 14%, hsl(var(--status-success) / 0.08), transparent 22%),
+    radial-gradient(circle at 50% 100%, hsl(var(--status-waiting) / 0.06), transparent 28%),
+    linear-gradient(180deg, hsl(var(--surface-app) / 0.99), hsl(var(--surface-panel) / 0.93));
+  background-attachment: fixed;
+}
+
 .agent-cockpit-shell::before {
   content: '';
   position: absolute;
@@ -995,11 +1004,13 @@
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 22% 10%, hsl(var(--status-running) / 0.18), transparent 28%),
-    radial-gradient(circle at 88% 18%, hsl(var(--status-success) / 0.12), transparent 24%),
-    linear-gradient(180deg, hsl(var(--status-running) / 0.08), transparent 22%),
-    linear-gradient(90deg, hsl(var(--status-running) / 0.07), transparent 30%, transparent 72%, hsl(var(--status-success) / 0.06));
-  opacity: 0.96;
+    radial-gradient(circle at 18% 4%, hsl(var(--status-running) / 0.22), transparent 22%),
+    radial-gradient(circle at 86% 16%, hsl(var(--status-success) / 0.18), transparent 20%),
+    radial-gradient(circle at 50% 0%, hsl(var(--status-waiting) / 0.11), transparent 26%),
+    linear-gradient(180deg, hsl(var(--status-running) / 0.11), transparent 18%),
+    linear-gradient(90deg, hsl(var(--status-running) / 0.08), transparent 24%, transparent 76%, hsl(var(--status-success) / 0.08)),
+    repeating-linear-gradient(180deg, transparent 0 21px, hsl(var(--foreground) / 0.012) 21px 22px);
+  opacity: 1;
 }
 
 .agent-cockpit-shell::after {
@@ -1030,13 +1041,14 @@
 .agent-mission-strip {
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 10%, hsl(var(--status-running) / 0.18), transparent 30%),
-    linear-gradient(135deg, hsl(var(--surface-card) / 0.92), hsl(var(--surface-muted) / 0.36)),
-    hsl(var(--surface-panel) / 0.86);
+    radial-gradient(circle at 18% 10%, hsl(var(--status-running) / 0.24), transparent 28%),
+    radial-gradient(circle at 82% 18%, hsl(var(--status-success) / 0.16), transparent 24%),
+    linear-gradient(135deg, hsl(var(--surface-card) / 0.98), hsl(var(--surface-muted) / 0.42)),
+    hsl(var(--surface-panel) / 0.9);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.07),
-    0 22px 64px -42px hsl(var(--status-running) / 0.56),
-    0 0 0 1px hsl(var(--status-running) / 0.05);
+    inset 0 1px 0 hsl(var(--foreground) / 0.08),
+    0 26px 72px -44px hsl(var(--status-running) / 0.62),
+    0 0 0 1px hsl(var(--status-running) / 0.08);
 }
 
 .agent-mission-strip::before {
@@ -1061,8 +1073,8 @@
   bottom: 0;
   height: 1px;
   pointer-events: none;
-  background: linear-gradient(90deg, hsl(var(--status-running) / 0.68), hsl(var(--status-success) / 0.42), transparent);
-  box-shadow: 0 0 18px hsl(var(--status-running) / 0.22);
+  background: linear-gradient(90deg, hsl(var(--status-running) / 0.82), hsl(var(--status-success) / 0.52), transparent);
+  box-shadow: 0 0 22px hsl(var(--status-running) / 0.32);
 }
 
 .agent-status-orb {
@@ -1113,49 +1125,60 @@
 }
 
 .agent-message-card {
-  border: 1px solid hsl(var(--border-subtle) / 0.56);
+  border: 1px solid hsl(var(--border-subtle) / 0.62);
   background:
-    linear-gradient(135deg, hsl(var(--surface-card) / 0.84), hsl(var(--surface-muted) / 0.22)),
-    hsl(var(--surface-card) / 0.78);
+    linear-gradient(135deg, hsl(var(--surface-card) / 0.98), hsl(var(--surface-muted) / 0.28)),
+    hsl(var(--surface-card) / 0.86);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.045),
-    0 16px 42px -34px hsl(var(--foreground) / 0.42),
-    0 0 0 1px hsl(var(--status-running) / 0.025);
-  backdrop-filter: blur(14px);
+    inset 0 1px 0 hsl(var(--foreground) / 0.055),
+    0 18px 46px -34px hsl(var(--foreground) / 0.48),
+    0 0 0 1px hsl(var(--status-running) / 0.04);
+  backdrop-filter: blur(16px) saturate(1.12);
   transition: transform var(--motion-normal), border-color var(--motion-normal), box-shadow var(--motion-normal);
 }
 
 .agent-message-card:hover {
-  border-color: hsl(var(--status-running) / 0.22);
+  border-color: hsl(var(--status-running) / 0.34);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.06),
-    0 20px 52px -36px hsl(var(--status-running) / 0.36);
-  transform: translateY(-1px);
+    inset 0 1px 0 hsl(var(--foreground) / 0.08),
+    0 24px 62px -38px hsl(var(--status-running) / 0.44);
+  transform: translateY(-2px);
 }
 
 .agent-message-card::before {
   content: '';
   position: absolute;
   inset: 0.7rem auto 0.7rem 0;
-  width: 3px;
+  width: 4px;
   border-radius: 999px;
   pointer-events: none;
   background: linear-gradient(to bottom, hsl(var(--status-running) / 0.72), hsl(var(--status-success) / 0.38));
-  box-shadow: 0 0 16px hsl(var(--status-running) / 0.18);
+  box-shadow: 0 0 20px hsl(var(--status-running) / 0.24);
 }
 
-.agent-message-card[data-role='user'] {
+.agent-message-card--user {
   background:
-    linear-gradient(135deg, hsl(var(--status-running) / 0.10), hsl(var(--surface-card) / 0.78)),
-    hsl(var(--surface-card) / 0.76);
+    linear-gradient(135deg, hsl(var(--status-running) / 0.18), hsl(var(--surface-card) / 0.84)),
+    hsl(var(--surface-card) / 0.78);
 }
 
-.agent-message-card[data-role='user']::before {
+.agent-message-card--user::before {
   background: linear-gradient(to bottom, hsl(var(--status-running) / 0.78), hsl(var(--status-waiting) / 0.42));
 }
 
-.agent-message-card[data-role='assistant']::before {
+.agent-message-card--assistant::before {
   background: linear-gradient(to bottom, hsl(var(--status-success) / 0.64), hsl(var(--status-running) / 0.36));
+}
+
+.agent-message-card--danger::before {
+  background: linear-gradient(to bottom, hsl(var(--destructive) / 0.8), hsl(var(--status-waiting) / 0.35));
+}
+
+.agent-message-card--danger {
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.055),
+    0 18px 46px -34px hsl(var(--destructive) / 0.42),
+    0 0 0 1px hsl(var(--destructive) / 0.18);
 }
 
 .agent-reasoning-chamber {
@@ -1181,13 +1204,13 @@
 }
 
 .agent-tool-rail {
-  border: 1px solid hsl(var(--border-subtle) / 0.58);
+  border: 1px solid hsl(var(--border-subtle) / 0.66);
   background:
-    linear-gradient(135deg, hsl(var(--status-running) / 0.055), transparent 48%),
-    hsl(var(--background) / 0.38);
+    linear-gradient(135deg, hsl(var(--status-running) / 0.12), transparent 42%),
+    hsl(var(--background) / 0.48);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.04),
-    0 10px 24px -22px hsl(var(--foreground) / 0.35);
+    inset 0 1px 0 hsl(var(--foreground) / 0.06),
+    0 12px 28px -22px hsl(var(--foreground) / 0.4);
 }
 
 .agent-tool-rail::before {
@@ -1203,13 +1226,13 @@
 .agent-command-deck {
   overflow: hidden;
   background:
-    radial-gradient(circle at 10% 0%, hsl(var(--status-running) / 0.14), transparent 28%),
-    radial-gradient(circle at 90% 120%, hsl(var(--status-success) / 0.12), transparent 28%),
-    linear-gradient(135deg, hsl(var(--surface-card) / 0.9), hsl(var(--surface-muted) / 0.34)),
-    hsl(var(--surface-panel) / 0.9);
+    radial-gradient(circle at 10% 0%, hsl(var(--status-running) / 0.22), transparent 24%),
+    radial-gradient(circle at 90% 120%, hsl(var(--status-success) / 0.16), transparent 26%),
+    linear-gradient(135deg, hsl(var(--surface-card) / 0.98), hsl(var(--surface-muted) / 0.42)),
+    hsl(var(--surface-panel) / 0.94);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.07),
-    0 24px 70px -48px hsl(var(--status-running) / 0.5);
+    inset 0 1px 0 hsl(var(--foreground) / 0.08),
+    0 28px 78px -48px hsl(var(--status-running) / 0.58);
 }
 
 .agent-command-deck::before {
@@ -1218,9 +1241,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(115deg, transparent 0%, hsl(var(--status-running) / 0.07) 42%, transparent 66%),
-    radial-gradient(circle at 12% 0%, hsl(var(--status-running) / 0.12), transparent 28%);
-  opacity: 0.78;
+    linear-gradient(115deg, transparent 0%, hsl(var(--status-running) / 0.12) 42%, transparent 66%),
+    radial-gradient(circle at 12% 0%, hsl(var(--status-running) / 0.16), transparent 24%);
+  opacity: 0.9;
 }
 
 .agent-command-deck__status {
@@ -1234,20 +1257,39 @@
 
 .agent-command-footer {
   background:
-    linear-gradient(90deg, hsl(var(--background) / 0.38), hsl(var(--status-running) / 0.035), hsl(var(--background) / 0.32));
+    linear-gradient(90deg, hsl(var(--background) / 0.42), hsl(var(--status-running) / 0.045), hsl(var(--background) / 0.34));
   box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.04);
+}
+
+.agent-command-footer__cluster,
+.agent-command-footer__actions {
+  align-items: center;
+}
+
+.agent-mission-metrics {
+  position: relative;
+}
+
+.agent-mission-metrics::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 -0.45rem;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, hsl(var(--status-running) / 0.24), transparent);
+  opacity: 0.56;
 }
 
 .agent-resource-panel {
   overflow: hidden;
   background:
-    radial-gradient(circle at 20% 0%, hsl(var(--status-running) / 0.13), transparent 30%),
-    radial-gradient(circle at 86% 100%, hsl(var(--status-success) / 0.08), transparent 28%),
-    linear-gradient(145deg, hsl(var(--surface-card) / 0.86), hsl(var(--surface-muted) / 0.30)),
-    hsl(var(--surface-panel) / 0.86);
+    radial-gradient(circle at 20% 0%, hsl(var(--status-running) / 0.18), transparent 28%),
+    radial-gradient(circle at 86% 100%, hsl(var(--status-success) / 0.12), transparent 24%),
+    linear-gradient(145deg, hsl(var(--surface-card) / 0.94), hsl(var(--surface-muted) / 0.34)),
+    hsl(var(--surface-panel) / 0.9);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.06),
-    0 26px 72px -46px hsl(var(--status-running) / 0.48);
+    inset 0 1px 0 hsl(var(--foreground) / 0.08),
+    0 28px 76px -48px hsl(var(--status-running) / 0.54);
 }
 
 .agent-cockpit-sidebar::before,

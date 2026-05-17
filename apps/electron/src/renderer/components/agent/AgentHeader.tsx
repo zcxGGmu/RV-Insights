@@ -121,7 +121,7 @@ export function AgentHeader({
   }
 
   return (
-    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[92px] items-center gap-3 rounded-panel border border-border-subtle/65 px-4 py-3 titlebar-drag-region md:mx-5 md:px-5">
+    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[96px] items-center gap-3 rounded-panel border border-border-subtle/65 px-4 py-3 titlebar-drag-region md:mx-5 md:min-h-[104px] md:px-5">
       {editing ? (
         <div className="relative z-10 flex items-center gap-1.5 flex-1 min-w-0 titlebar-no-drag">
           <label htmlFor={`agent-title-${session.id}`} className="sr-only">编辑 Agent 会话标题</label>
@@ -166,7 +166,7 @@ export function AgentHeader({
         </div>
       ) : (
         <>
-          <div className="relative z-10 flex size-12 shrink-0 items-center justify-center rounded-card border border-border-subtle bg-background/40 agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
+          <div className="relative z-10 flex size-14 shrink-0 items-center justify-center rounded-card border border-border-subtle bg-background/40 agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
             {streaming ? (
               <Radio className="size-5 text-status-running-fg" />
             ) : planMode ? (
@@ -176,10 +176,10 @@ export function AgentHeader({
             )}
           </div>
           <div className="relative z-10 flex flex-1 min-w-0 flex-col gap-2">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-start gap-2 min-w-0">
               <div className="min-w-0">
-                <div className="agent-kicker text-[10px] font-semibold uppercase tracking-normal text-text-tertiary">Agent Mission</div>
-                <h1 className="truncate text-[17px] font-semibold leading-6 text-text-primary">
+                <div className="agent-kicker text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Agent Mission</div>
+                <h1 className="truncate text-[18px] font-semibold leading-6 text-text-primary md:text-[20px]">
                   {session.title}
                 </h1>
               </div>
@@ -198,32 +198,32 @@ export function AgentHeader({
                 <TooltipContent side="bottom">编辑标题</TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <div className="agent-mission-metrics flex min-w-0 flex-wrap items-center gap-1.5">
               <span
                 className={cn(
-                  'agent-meta-chip inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] leading-4',
+                  'agent-meta-chip inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] leading-4',
                   missionStateTone === 'running' && 'border-status-running-border text-status-running-fg',
                   missionStateTone === 'waiting' && 'border-status-waiting-border text-status-waiting-fg',
                   missionStateTone === 'neutral' && 'border-border-subtle text-text-secondary',
                 )}
               >
-                <Radio className={cn('size-3', streaming && 'animate-pulse')} />
+                <Radio className={cn('size-3.5', streaming && 'animate-pulse')} />
                 <span className="font-medium">{missionState}</span>
               </span>
               {metaItems.map((item) => (
                 <span
                   key={item.key}
                   className={cn(
-                    'agent-meta-chip inline-flex max-w-[220px] items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] leading-4',
+                    'agent-meta-chip inline-flex max-w-[220px] items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] leading-4',
                     item.tone === 'running' && 'border-status-running-border bg-status-running-bg text-status-running-fg',
                     item.tone === 'waiting' && 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg',
                     item.tone === 'neutral' && 'border-border-subtle text-text-secondary',
                   )}
                   title={`${item.label}: ${item.value}`}
                 >
-                  {item.key === 'workspace' && <Folder className="size-3 shrink-0" />}
-                  {item.key === 'model' && <Cpu className="size-3 shrink-0" />}
-                  {item.key === 'permission' && <ShieldCheck className="size-3 shrink-0" />}
+                  {item.key === 'workspace' && <Folder className="size-3.5 shrink-0" />}
+                  {item.key === 'model' && <Cpu className="size-3.5 shrink-0" />}
+                  {item.key === 'permission' && <ShieldCheck className="size-3.5 shrink-0" />}
                   <span className="text-current/65">{item.label}</span>
                   <span className="min-w-0 truncate font-medium">{item.value}</span>
                 </span>

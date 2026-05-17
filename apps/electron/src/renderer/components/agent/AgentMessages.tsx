@@ -258,7 +258,7 @@ function AttachedFileChip({ file }: { file: AttachedFileRef }): React.ReactEleme
   const Icon = isImg ? FileImage : FileText
 
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1 text-[12px] text-muted-foreground">
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle/55 bg-background/35 px-2.5 py-1 text-[12px] text-muted-foreground backdrop-blur-sm">
       <Icon className="size-3.5 shrink-0" />
       <span className="truncate max-w-[200px]">{file.filename}</span>
     </div>
@@ -473,7 +473,7 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
     const { files: attachedFiles, text: messageText } = parseAttachedFiles(message.content)
 
     return (
-      <Message from="user" className="agent-message-card" data-role="user">
+      <Message from="user" className="agent-message-card agent-message-card--user" data-role="user">
         <div className="flex items-start gap-2.5 mb-2.5">
           <UserAvatar avatar={userProfile.avatar} size={35} />
           <div className="flex flex-col justify-between h-[35px]">
@@ -507,7 +507,7 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
     const toolActivities = extractToolActivities(message.events)
 
     return (
-      <Message from="assistant" className="agent-message-card" data-role="assistant">
+      <Message from="assistant" className="agent-message-card agent-message-card--assistant" data-role="assistant">
         <MessageHeader
           model={message.model ? resolveModelDisplayName(message.model, channels) : undefined}
           time={formatMessageTime(message.createdAt)}
@@ -549,7 +549,7 @@ function AgentMessageItem({ message, sessionPath, attachedDirs, onRetry, onRetry
     //
     // 保留时间：观察几个版本，确认没有会话走 useSDKRenderer = false 分支后再删。
     return (
-      <Message from="assistant" className="agent-message-card border-status-danger-border/70 bg-status-danger-bg/70" data-role="assistant">
+      <Message from="assistant" className="agent-message-card agent-message-card--danger border-status-danger-border/70 bg-status-danger-bg/70" data-role="assistant">
         <MessageHeader
           model={undefined}
           time={formatMessageTime(message.createdAt)}
@@ -627,7 +627,7 @@ export function DurationBadge({ durationMs, usage }: { durationMs: number; usage
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="inline-flex h-7 items-center rounded-full border border-border-subtle bg-background/35 px-2.5 text-[12px] tabular-nums text-text-secondary cursor-default">
+        <span className="inline-flex h-7 items-center rounded-full border border-border-subtle/55 bg-background/35 px-2.5 text-[12px] tabular-nums text-text-secondary cursor-default backdrop-blur-sm">
           {formatDuration(durationMs)}
         </span>
       </TooltipTrigger>

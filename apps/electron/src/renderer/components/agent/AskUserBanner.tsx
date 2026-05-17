@@ -237,7 +237,7 @@ export function AskUserBanner({ sessionId, active = true }: AskUserBannerProps):
 
   return (
     <div
-      className="mb-2 overflow-hidden rounded-card border border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg shadow-card animate-in slide-in-from-top-1 duration-200"
+      className="agent-tool-rail mb-2 overflow-hidden rounded-card border border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg shadow-card animate-in slide-in-from-top-1 duration-200"
       role="status"
       aria-live="polite"
     >

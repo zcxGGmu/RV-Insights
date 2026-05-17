@@ -1,3 +1,31 @@
+# Agent Cockpit UI 创意升级任务
+
+## 2026-05-17 Agent Cockpit 可见度补强
+
+- [x] 复盘用户反馈：上一轮 cockpit 优化偏保守，肉眼变化不够明显。
+- [x] 使用 `ui-ux-pro-max` 的可见层级、色彩、动效与可读性原则重新校准样式强度。
+- [x] 加重 Agent 背景、Mission Header、消息卡、工具横幅、输入区和左右资源面板的光效、材质、状态边线。
+- [x] 更新 `tasks/lessons.md`，记录“创意 UI 重塑必须有截图级可见变化”的纠正。
+- [ ] 运行类型检查与 diff 检查，确认补强不影响逻辑。
+- [ ] 在本节追加 Review。
+
+## 2026-05-17 Agent Cockpit UI 科幻舱内重塑
+
+- [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。
+- [x] 为 Agent 相关布局补齐更强的 cockpit / mission console 视觉层级，统一全局背景、面板材质和状态光效。
+- [x] 重构 AgentHeader、AgentMessages、AgentView 的展示 class，让头部、消息卡、输入区形成一致叙事。
+- [x] 让权限横幅与 AskUser 横幅也进入同一视觉系统，避免在新风格里突兀。
+- [x] 运行 `bun run --filter='@rv-insights/electron' typecheck` 与 `git diff --check`，必要时做浏览器截图验证。
+- [x] 在本节追加 Review，记录实现范围、验证结果和残余风险。
+
+## 2026-05-17 Agent Cockpit UI 科幻舱内重塑 Review
+
+- 已将 Agent 相关视觉统一到 cockpit / mission console 语言：头部信息条更像任务舱控制面板，消息卡增加角色色带和更强层次，输入区和权限 / 问答横幅也进入同一材质系统。
+- 已新增 `agent-shell-bg`、强化 `agent-cockpit-shell`、`agent-message-card`、`agent-command-deck`、`agent-tool-rail` 等 scoped 样式，保留 reduced-motion 兼容，没有引入新依赖，也没有改 IPC、Jotai atoms 或持久化格式。
+- `@rv-insights/electron` 版本已从 `0.0.70` 提升到 `0.0.71`。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`；`bun run --filter='@rv-insights/electron' build:renderer`；`git diff --check`。
+- 浏览器侧真实 Electron 预览未做成自动截图，因为当前环境缺少 Playwright 依赖且该界面依赖 Electron preload；静态构建已通过，后续仍建议在桌面壳里看一次最终观感。
+
 # Agent Cockpit UI 优化任务
 
 ## 2026-05-17 三栏横向宽度拖拽计划

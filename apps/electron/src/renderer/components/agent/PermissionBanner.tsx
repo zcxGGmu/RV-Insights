@@ -126,7 +126,7 @@ export function PermissionBanner({ sessionId, active = true }: PermissionBannerP
   return (
     <div
       className={cn(
-        'mb-2 overflow-hidden rounded-card border shadow-card animate-in slide-in-from-top-1 duration-200',
+        'agent-tool-rail mb-2 overflow-hidden rounded-card border shadow-card animate-in slide-in-from-top-1 duration-200',
         tone === 'danger'
           ? 'border-status-danger-border bg-status-danger-bg text-status-danger-fg'
           : 'border-status-waiting-border bg-status-waiting-bg text-status-waiting-fg',
@@ -149,7 +149,7 @@ export function PermissionBanner({ sessionId, active = true }: PermissionBannerP
         </div>
         <div className="flex min-w-0 items-center gap-1.5">
           <span
-            className="min-w-0 truncate rounded-full bg-background/35 px-2 py-0.5 font-mono text-xs text-current/70"
+            className="min-w-0 truncate rounded-full border border-current/10 bg-background/35 px-2 py-0.5 font-mono text-xs text-current/70 backdrop-blur-sm"
             title={request.sdkDisplayName ?? formatToolName(request.toolName)}
           >
             {request.sdkDisplayName ?? formatToolName(request.toolName)}
