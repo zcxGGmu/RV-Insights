@@ -6,8 +6,16 @@
 - [x] 使用 `ui-ux-pro-max` 的可见层级、色彩、动效与可读性原则重新校准样式强度。
 - [x] 加重 Agent 背景、Mission Header、消息卡、工具横幅、输入区和左右资源面板的光效、材质、状态边线。
 - [x] 更新 `tasks/lessons.md`，记录“创意 UI 重塑必须有截图级可见变化”的纠正。
-- [ ] 运行类型检查与 diff 检查，确认补强不影响逻辑。
-- [ ] 在本节追加 Review。
+- [x] 运行类型检查、renderer 构建与 diff 检查，确认补强不影响逻辑。
+- [x] 在本节追加 Review。
+
+## 2026-05-17 Agent Cockpit 可见度补强 Review
+
+- 已把 Agent 主工作台继续往“任务舱 / mission console”方向推进：补强了 AppShell 的 Agent 背景层次、左侧 Workspace Matrix、AgentHeader 顶部舱、消息堆叠、Command Deck 与右侧 Resource Bay 的视觉分区。
+- 这次改动仍然只碰渲染层视觉与少量版本元数据，没有新增 IPC、atom、存储格式或业务逻辑；`@rv-insights/electron` 版本已从 `0.0.71` 提升到 `0.0.72`。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:renderer`、`git diff --check`、聚焦的 sidebar / agent UI model 测试。
+- `build:renderer` 仍有既有的大 chunk warning，但构建成功，没有引入新的阻断性错误。
+- 由于当前环境没有直接进入 Electron 桌面壳做截图复核，这次结论基于静态构建与代码审查；残余风险主要是纯视觉观感，需要桌面壳里再看一轮最终版式。
 
 ## 2026-05-17 Agent Cockpit UI 科幻舱内重塑
 

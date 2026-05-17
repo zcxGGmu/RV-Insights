@@ -261,8 +261,8 @@ export function SidePanel({ sessionId, sessionPath, width = 320 }: SidePanelProp
       style={{ width: isOpen ? width : 0 }}
     >
       {/* 面板内容 */}
-      <div
-        className={cn(
+        <div
+          className={cn(
           'h-full flex flex-col titlebar-no-drag pt-0.5',
           shouldAnimate && 'transition-opacity duration-normal',
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
@@ -272,6 +272,16 @@ export function SidePanel({ sessionId, sessionPath, width = 320 }: SidePanelProp
           {/* 文件浏览内容 */}
           {workspaceSlug ? (
             <div className="flex-1 min-h-0 flex flex-col">
+              <div className="agent-resource-panel__mast mx-2 mt-2 mb-1 flex items-center justify-between rounded-card border border-border-subtle/45 bg-background/30 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-status-running-fg">Resource Bay</div>
+                  <div className="truncate text-[11px] text-text-tertiary">文件、目录与工作区附件统一收纳</div>
+                </div>
+                <div className="inline-flex items-center gap-1 rounded-full border border-border-subtle/55 bg-surface-card/50 px-2 py-1 text-[10px] text-text-secondary">
+                  <FolderHeart className="size-3 text-status-success-fg" />
+                  {workspaceFilesPath ? 'Workspace linked' : 'Workspace pending'}
+                </div>
+              </div>
                   {/* ===== 会话文件区（仅当 sessionPath 存在时显示） ===== */}
                   {sessionPath && (
                     <>

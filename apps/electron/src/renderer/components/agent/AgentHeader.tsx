@@ -121,7 +121,7 @@ export function AgentHeader({
   }
 
   return (
-    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[96px] items-center gap-3 rounded-panel border border-border-subtle/65 px-4 py-3 titlebar-drag-region md:mx-5 md:min-h-[104px] md:px-5">
+    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[110px] items-center gap-4 rounded-panel border border-border-subtle/65 px-4 py-3 titlebar-drag-region md:mx-5 md:min-h-[120px] md:px-5">
       {editing ? (
         <div className="relative z-10 flex items-center gap-1.5 flex-1 min-w-0 titlebar-no-drag">
           <label htmlFor={`agent-title-${session.id}`} className="sr-only">编辑 Agent 会话标题</label>
@@ -166,7 +166,8 @@ export function AgentHeader({
         </div>
       ) : (
         <>
-          <div className="relative z-10 flex size-14 shrink-0 items-center justify-center rounded-card border border-border-subtle bg-background/40 agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
+          <div className="relative z-10 flex size-16 shrink-0 items-center justify-center rounded-panel border border-border-subtle bg-background/40 agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
+            <div className="absolute inset-2 rounded-full border border-current/20 opacity-70" aria-hidden="true" />
             {streaming ? (
               <Radio className="size-5 text-status-running-fg" />
             ) : planMode ? (
@@ -175,7 +176,7 @@ export function AgentHeader({
               <Bot className="size-5 text-text-secondary" />
             )}
           </div>
-          <div className="relative z-10 flex flex-1 min-w-0 flex-col gap-2">
+          <div className="relative z-10 flex flex-1 min-w-0 flex-col gap-2.5">
             <div className="flex items-start gap-2 min-w-0">
               <div className="min-w-0">
                 <div className="agent-kicker text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Agent Mission</div>
@@ -195,13 +196,13 @@ export function AgentHeader({
                     <Pencil className="size-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">编辑标题</TooltipContent>
-              </Tooltip>
+              <TooltipContent side="bottom">编辑标题</TooltipContent>
+            </Tooltip>
             </div>
             <div className="agent-mission-metrics flex min-w-0 flex-wrap items-center gap-1.5">
               <span
                 className={cn(
-                  'agent-meta-chip inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] leading-4',
+                  'agent-meta-chip agent-meta-chip--state inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] leading-4',
                   missionStateTone === 'running' && 'border-status-running-border text-status-running-fg',
                   missionStateTone === 'waiting' && 'border-status-waiting-border text-status-waiting-fg',
                   missionStateTone === 'neutral' && 'border-border-subtle text-text-secondary',
@@ -228,6 +229,16 @@ export function AgentHeader({
                   <span className="min-w-0 truncate font-medium">{item.value}</span>
                 </span>
               ))}
+            </div>
+            <div className="agent-header-hud flex min-w-0 flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-text-tertiary">
+              <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/60 bg-background/40 px-2.5 py-1">
+                <span className={cn('size-1.5 rounded-full', streaming ? 'bg-status-running shadow-[0_0_14px_hsl(var(--status-running)/0.6)]' : 'bg-status-neutral')} />
+                {streaming ? 'Live Lane' : planMode ? 'Planning Lane' : 'Idle Lane'}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/60 bg-background/40 px-2.5 py-1">
+                <span className="size-1.5 rounded-full bg-status-success shadow-[0_0_14px_hsl(var(--status-success)/0.55)]" />
+                容器化消息流
+              </span>
             </div>
           </div>
           {/* 文件面板打开按钮（仅面板关闭时显示） */}

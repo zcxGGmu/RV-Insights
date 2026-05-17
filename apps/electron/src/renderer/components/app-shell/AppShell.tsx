@@ -202,7 +202,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
       <div
         ref={shellRef}
         data-app-mode={appMode}
-        className={`shell-bg h-screen w-screen flex overflow-hidden bg-surface-app ${appMode === 'agent' ? 'agent-shell-bg' : ''}`}
+        className={`shell-bg h-screen w-screen flex overflow-hidden bg-surface-app ${appMode === 'agent' ? 'agent-shell-bg agent-shell-stage' : ''}`}
       >
         {/* 左侧边栏：可折叠，带圆角和内边距 */}
         <div className="p-2 pr-0 relative z-[60] shrink-0">

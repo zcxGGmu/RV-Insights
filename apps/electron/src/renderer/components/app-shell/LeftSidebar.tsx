@@ -907,6 +907,22 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             <TooltipContent side="right">收起侧边栏</TooltipContent>
           </Tooltip>
         </div>
+        <div className="mx-3 mt-2 rounded-card border border-border-subtle/45 bg-background/30 px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-status-running-fg">Workspace Matrix</div>
+              <div className="truncate text-[11px] text-text-tertiary">会话、工作区与能力分布在同一视图中</div>
+            </div>
+            <div className="flex items-center gap-1 rounded-full border border-border-subtle/45 bg-surface-card/55 px-2 py-1 text-[10px] text-text-secondary">
+              <Zap size={11} className="text-status-running-fg" />
+              Live
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-text-tertiary">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/45 bg-surface-card/50 px-2 py-1">MCP {currentWorkspaceId ? 'Ready' : 'Idle'}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/45 bg-surface-card/50 px-2 py-1">Skills {capabilities?.skills.length ?? 0}</span>
+          </div>
+        </div>
       </div>
 
       {/* Agent 模式：工作区选择器 */}

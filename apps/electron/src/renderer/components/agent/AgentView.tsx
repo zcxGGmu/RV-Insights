@@ -1390,6 +1390,16 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             onDrop={hasBannerOverlay ? undefined : handleDrop}
           >
             {(isPlanMode || isPermissionPlanMode) && !isDragOver && <PlanModeDashedBorder />}
+            <div className="agent-command-deck__mast relative z-10 flex min-h-[42px] flex-wrap items-center justify-between gap-2 px-4 py-2">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-status-running-fg">Command Deck</div>
+                <div className="truncate text-xs text-text-tertiary">消息、附件、Skill 与 MCP 从这里进入 Agent 执行通道</div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+                <span className={cn('inline-flex size-1.5 rounded-full', streaming ? 'bg-status-running animate-pulse' : 'bg-status-neutral')} />
+                {streaming ? 'Transmitting' : 'Ready'}
+              </div>
+            </div>
             {/* 无 Agent 渠道或无可用模型提示 */}
             {(() => {
               const composerState = buildAgentComposerState({
@@ -1466,7 +1476,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               </div>
             )}
 
-            <div className="relative z-10">
+            <div className="relative z-10 px-3 pt-2">
             <RichTextInput
               value={inputContent}
               onChange={setInputContent}
