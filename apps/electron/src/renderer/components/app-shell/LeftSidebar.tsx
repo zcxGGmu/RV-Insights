@@ -885,7 +885,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   return (
     <div
       className="agent-resource-panel agent-cockpit-sidebar h-full flex flex-col rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
-      style={{ width: width ?? 280, minWidth: 180, flexShrink: 1 }}
+      style={{ width: width ?? 280, minWidth: 260, flexShrink: 1 }}
     >
       {/* 顶部留空，避开 macOS 红绿灯 */}
       <div className="pt-[30px]">

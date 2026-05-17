@@ -32,9 +32,10 @@ import type { FileEntry, AgentPendingFile } from '@rv-insights/shared'
 interface SidePanelProps {
   sessionId: string
   sessionPath: string | null
+  width?: number
 }
 
-export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.ReactElement {
+export function SidePanel({ sessionId, sessionPath, width = 320 }: SidePanelProps): React.ReactElement {
   // per-session 侧面板状态（默认打开）
   const sidePanelOpenMap = useAtomValue(agentSidePanelOpenMapAtom)
   const setSidePanelOpenMap = useSetAtom(agentSidePanelOpenMapAtom)
@@ -256,17 +257,18 @@ export function SidePanel({ sessionId, sessionPath }: SidePanelProps): React.Rea
       className={cn(
         'agent-resource-panel agent-file-cockpit relative h-full flex-shrink-0 overflow-hidden titlebar-drag-region rounded-panel border border-border-subtle/55',
         shouldAnimate && 'transition-[width] duration-normal ease-out',
-        isOpen ? 'w-[320px]' : 'w-0',
       )}
+      style={{ width: isOpen ? width : 0 }}
     >
       {/* 面板内容 */}
       <div
         className={cn(
-          'w-[320px] h-full flex flex-col titlebar-no-drag pt-0.5',
+          'h-full flex flex-col titlebar-no-drag pt-0.5',
           shouldAnimate && 'transition-opacity duration-normal',
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
-        >
+        style={{ width }}
+      >
           {/* 文件浏览内容 */}
           {workspaceSlug ? (
             <div className="flex-1 min-h-0 flex flex-col">

@@ -108,6 +108,10 @@ const SESSION_ORB_CLASS: Record<PipelineSidebarSessionTone, string> = {
 
 const CONTRIBUTION_PIPELINE_VERSION = 2
 
+export interface PipelineSidebarProps {
+  width?: number
+}
+
 function indicatorToAccent(indicator: SessionIndicatorStatus): SessionLeftAccent | undefined {
   switch (indicator) {
     case 'running':
@@ -367,7 +371,7 @@ function PipelineSessionItem({
   )
 }
 
-export function PipelineSidebar(): React.ReactElement {
+export function PipelineSidebar({ width }: PipelineSidebarProps): React.ReactElement {
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
   const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
   const [tabs, setTabs] = useAtom(tabsAtom)
@@ -589,7 +593,7 @@ export function PipelineSidebar(): React.ReactElement {
   return (
     <div
       className="relative h-full flex flex-col overflow-hidden rounded-panel border border-border-subtle/55 bg-surface-panel shadow-[inset_0_1px_0_hsl(var(--foreground)/0.08),0_28px_70px_-42px_hsl(var(--status-running)/0.40)] transition-[width] duration-normal"
-      style={{ width: 280, minWidth: 180, flexShrink: 1 }}
+      style={{ width: width ?? 280, minWidth: 260, flexShrink: 1 }}
     >
       <span className="pointer-events-none absolute inset-x-4 top-0 h-px bg-status-running/70" aria-hidden="true" />
       <span className="pointer-events-none absolute -left-16 top-24 size-40 rounded-full bg-status-running/10 blur-3xl" aria-hidden="true" />

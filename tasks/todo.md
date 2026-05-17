@@ -1,5 +1,28 @@
 # Agent Cockpit UI 优化任务
 
+## 2026-05-17 三栏横向宽度拖拽计划
+
+- [x] 保护现有未提交临时文件和用户改动，先确认 `git status --short`。
+- [x] 定位 AppShell 三栏宽度来源，确认 Agent / Pipeline 左栏与 Agent 右侧文件面板的显示条件。
+- [x] 新增 Jotai 持久化宽度状态，覆盖左侧栏与右侧面板，设置合理 min / max，避免拖拽压垮主内容区。
+- [x] 在两个分隔处新增横向 resize handle，支持鼠标拖拽、双击复位、键盘左右调整和基础 aria 信息。
+- [x] 调整 AppShell 布局样式，确保折叠态、右侧面板关闭态、标题栏拖拽区域和现有滚动不冲突。
+- [x] 运行 focused typecheck / tests / `git diff --check`，必要时启动客户端或构建 renderer 做布局验证。
+- [x] 在本节追加 Review，记录实现范围、验证结果和残余风险。
+
+## 2026-05-17 三栏横向宽度拖拽 Review
+
+- 已在 AppShell 两处分隔处新增横向 resize handle：左侧导航栏 / 中间内容之间常驻，右侧文件面板打开时在中间内容 / 文件面板之间显示。
+- 左侧栏宽度持久化为 `rv-insights-app-shell-left-sidebar-width`，Agent / Pipeline 共用；右侧文件面板宽度持久化为 `rv-insights-app-shell-right-panel-width`。
+- 宽度约束：左栏 220-420px，右栏 280-520px，并按视口预留主内容最小宽度，避免拖拽把主工作区压到不可用。
+- 交互支持鼠标拖拽、双击复位、Enter / Home 复位、方向键调整；handle 使用 `role="separator"` 和中文 `aria-label`。
+- 同步让 `PipelineSidebar`、`RightSidePanel`、`SidePanel` 接收外部宽度，避免外层可变但内部仍固定 320px 的空白问题。
+- `@rv-insights/electron` 版本 `0.0.68 -> 0.0.69`，`bun.lock` workspace metadata 已同步。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`；`bun run --filter='@rv-insights/electron' build:renderer`；`bun test apps/electron/src/renderer/components/app-shell/sidebar-section-model.test.ts apps/electron/src/renderer/components/pipeline/pipeline-session-sidebar-model.test.ts` 14 pass；`git diff --check`。
+- `build:renderer` 仍有既有 chunk size warning，本次构建成功，未作为三栏拖拽改造阻塞项。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。
+- 用户截图反馈左栏拖窄后顶部模式切换区会挤压 / 溢出；已追加修复：左栏最小宽度提升到 260px，`ModeSwitcher` 降低水平 padding、允许 label truncate，并同步 Agent / Pipeline 左栏 minWidth。
+
 ## 2026-05-17 Agent Cockpit UI 创意升级计划
 
 - [x] 保护当前工作区未提交的 `.DS_Store` 与 UI spec swap 文件，不纳入本次改动。

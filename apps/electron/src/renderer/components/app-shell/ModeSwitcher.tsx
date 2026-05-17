@@ -79,7 +79,7 @@ export function ModeSwitcher(): React.ReactElement {
 
   return (
     <div className="pt-2">
-      <div className="relative flex rounded-card bg-surface-muted p-1">
+      <div className="relative flex min-w-0 rounded-card bg-surface-muted p-1">
         {/* 滑动背景指示器 */}
         <div
           className={cn(
@@ -92,15 +92,15 @@ export function ModeSwitcher(): React.ReactElement {
             key={value}
             onClick={() => handleModeSwitch(value)}
             className={cn(
-              'mode-btn relative z-[1] flex-1 flex items-center justify-center gap-1.5 rounded-control px-3 py-1 text-sm font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+              'mode-btn relative z-[1] flex min-w-0 flex-1 items-center justify-center gap-1 rounded-control px-1.5 py-1 text-[13px] font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               mode === value
                 ? 'mode-btn-selected text-primary-foreground'
                 : 'text-text-secondary hover:text-text-primary'
             )}
             aria-pressed={mode === value}
           >
-            {icon}
-            {label}
+            <span className="flex-shrink-0">{icon}</span>
+            <span className="min-w-0 truncate">{label}</span>
           </button>
         ))}
       </div>

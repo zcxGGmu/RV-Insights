@@ -29,3 +29,15 @@ export const agentSidebarTopHeightAtom = atomWithStorage<number>(
   'rv-insights-agent-sidebar-top-height',
   -1,
 )
+
+/** AppShell 左侧导航栏宽度（px），Agent / Pipeline 模式共用。 */
+export const appShellLeftSidebarWidthAtom = atomWithStorage<number>(
+  'rv-insights-app-shell-left-sidebar-width',
+  280,
+)
+
+/** AppShell 右侧文件面板宽度（px）。 */
+export const appShellRightPanelWidthAtom = atomWithStorage<number>(
+  'rv-insights-app-shell-right-panel-width',
+  320,
+)

@@ -11,7 +11,11 @@ import { appModeAtom } from '@/atoms/app-mode'
 import { currentAgentSessionIdAtom, agentSessionPathMapAtom } from '@/atoms/agent-atoms'
 import { SidePanel } from '@/components/agent/SidePanel'
 
-export function RightSidePanel(): React.ReactElement | null {
+export interface RightSidePanelProps {
+  width?: number
+}
+
+export function RightSidePanel({ width }: RightSidePanelProps): React.ReactElement | null {
   const appMode = useAtomValue(appModeAtom)
   const currentSessionId = useAtomValue(currentAgentSessionIdAtom)
   const sessionPathMap = useAtomValue(agentSessionPathMapAtom)
@@ -24,6 +28,6 @@ export function RightSidePanel(): React.ReactElement | null {
   const sessionPath = sessionPathMap.get(currentSessionId) ?? null
 
   return (
-    <SidePanel sessionId={currentSessionId} sessionPath={sessionPath} />
+    <SidePanel sessionId={currentSessionId} sessionPath={sessionPath} width={width} />
   )
 }
