@@ -233,12 +233,12 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
   }, [])
 
   return (
-    <div className="px-2.5 pb-2.5 md:px-[18px] md:pb-[18px]" data-input-mode="chat">
-        {/* 卡片式输入容器 — 对标 Cherry Studio: border-radius 17px, 0.5px border */}
+    <div className="chat-composer-shell px-3 pb-3 md:px-4 md:pb-4" data-input-mode="chat">
+        {/* 卡片式输入容器 */}
         <div
           className={cn(
-            'rounded-card border border-border-subtle bg-surface-card/90 shadow-sm backdrop-blur-sm transition-[background-color,border-color,box-shadow] duration-fast',
-            'focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-focus/25',
+            'chat-composer-card rounded-panel border border-border-subtle/70 bg-surface-card/92 shadow-panel backdrop-blur-sm transition-[background-color,border-color,box-shadow,transform] duration-fast',
+            'overflow-hidden before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-status-running/0 before:via-status-running/70 before:to-status-success/0 focus-within:-translate-y-0.5 focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-focus/25',
             isDragOver && 'border-2 border-dashed border-primary bg-primary/5'
           )}
           onDragOver={handleDragOver}
@@ -247,7 +247,7 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
         >
           {/* 附件预览区域 — Cherry Studio: padding 5px 15px, flex-wrap, gap 4px */}
           {pendingAttachments.length > 0 && (
-            <div className="flex flex-wrap gap-1 px-[15px] pt-[10px] pb-[15px]">
+            <div className="flex flex-wrap gap-1.5 px-4 pt-3 pb-3">
               {pendingAttachments.map((att) => (
                 <AttachmentPreviewItem
                   key={att.id}
@@ -272,7 +272,7 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
           />
 
           {/* Footer 工具栏 — Cherry Studio: padding 5px 8px, height 40px, gap 16px */}
-          <div className="flex min-h-[48px] items-center justify-between gap-3 px-2 py-1">
+          <div className="flex min-h-[54px] items-center justify-between gap-3 border-t border-border-subtle/50 bg-background/40 px-3 py-1.5">
             {/* 左侧工具按钮 */}
             <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {/* 附件按钮 */}

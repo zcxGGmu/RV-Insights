@@ -46,6 +46,7 @@ import { useSmoothStream } from '@rv-insights/ui'
 import { ScrollPositionManager } from '@/hooks/useScrollPositionMemory'
 import { useConversationParallelMode } from '@/hooks/useConversationSettings'
 import { getModelLogo } from '@/lib/model-logo'
+import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { tabMinimapCacheAtom } from '@/atoms/tab-atoms'
 import type { ChatMessage, ChatToolActivity } from '@rv-insights/shared'
@@ -336,7 +337,13 @@ export function ChatMessages({
   const dividerSet = new Set(contextDividers)
 
   return (
-    <Conversation resize={ready && !transitioning ? 'smooth' : 'instant'} className={ready ? 'opacity-100 transition-opacity duration-200' : 'opacity-0'}>
+    <Conversation
+      resize={ready && !transitioning ? 'smooth' : 'instant'}
+      className={cn(
+        'chat-conversation-canvas h-full',
+        ready ? 'opacity-100 transition-opacity duration-200' : 'opacity-0',
+      )}
+    >
       <ScrollPositionManager id={conversationId} ready={ready} />
       {/* 滚动到顶部时自动加载更多历史 */}
       <ScrollTopLoader
@@ -344,7 +351,7 @@ export function ChatMessages({
         loading={loadingMore}
         onLoadMore={handleLoadMore}
       />
-      <ConversationContent>
+      <ConversationContent className="chat-message-stack relative z-10 gap-5 px-3 py-6 md:px-4">
         {messages.length === 0 && !streaming ? (
           <EmptyState />
         ) : (

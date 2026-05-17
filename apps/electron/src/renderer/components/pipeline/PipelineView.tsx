@@ -616,8 +616,9 @@ export function PipelineView({
   }, [setSettingsOpen, setSettingsTab])
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-surface-panel">
-      <div className="pipeline-workbench-bg flex-1 overflow-auto bg-surface-muted/40 p-4">
+    <div className="pipeline-workbench-shell relative flex h-full flex-col overflow-hidden bg-surface-panel/95">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-status-running/25 to-transparent" aria-hidden="true" />
+      <div className="pipeline-workbench-bg relative z-10 flex-1 overflow-auto bg-transparent p-4">
         <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-4">
           <PipelineHeader session={session} state={state} />
           <PipelineStageRail

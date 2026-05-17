@@ -65,23 +65,23 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
   }
 
   return (
-    <div className="relative z-[51] flex items-center gap-2 px-4 h-[48px] titlebar-drag-region">
+    <div className="chat-header-shell relative z-[51] mx-3 mt-3 flex min-h-[76px] items-center gap-3 rounded-panel border border-border-subtle/70 bg-surface-card/85 px-4 shadow-card backdrop-blur titlebar-drag-region md:mx-4 md:min-h-[84px] md:px-5">
       {editing ? (
-        <div className="flex items-center gap-1.5 flex-1 min-w-0 titlebar-no-drag">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 titlebar-no-drag">
           <input
             ref={inputRef}
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={saveTitle}
-            className="flex-1 bg-transparent text-sm font-medium border-b border-primary/50 outline-none px-0 py-0.5 min-w-0"
+            className="flex-1 min-w-0 border-b border-primary/50 bg-transparent px-0 py-0.5 text-sm font-medium outline-none"
             maxLength={100}
           />
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={saveTitle}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="rounded-control p-1.5 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
             aria-label="保存标题"
             title="保存标题"
           >
@@ -91,7 +91,7 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setEditing(false)}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="rounded-control p-1.5 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
             aria-label="取消编辑标题"
             title="取消编辑标题"
           >
@@ -99,15 +99,18 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <span className="truncate text-sm font-medium text-foreground">
-            {conversation.title}
-          </span>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Conversation Deck</div>
+            <span className="truncate text-[18px] font-semibold leading-6 text-text-primary md:text-[20px]">
+              {conversation.title}
+            </span>
+          </div>
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={startEdit}
-            className="titlebar-no-drag p-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="titlebar-no-drag rounded-control p-1.5 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
             aria-label="编辑标题"
           >
             <Pencil className="size-3.5" />
@@ -116,7 +119,7 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
       )}
 
       {/* 右侧按钮组 */}
-      <div className="flex items-center gap-1 titlebar-no-drag ml-auto">
+      <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border-subtle/60 bg-background/45 px-1.5 py-1 shadow-sm backdrop-blur titlebar-no-drag">
         <SystemPromptSelector />
         <Tooltip>
           <TooltipTrigger asChild>

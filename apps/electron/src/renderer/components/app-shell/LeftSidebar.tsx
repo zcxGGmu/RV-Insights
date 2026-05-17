@@ -344,12 +344,21 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     () => conversations.filter((c) => c.archived).length,
     [conversations]
   )
+  const activeConversationCount = React.useMemo(
+    () => conversations.filter((c) => !c.archived).length,
+    [conversations]
+  )
 
   /** 已归档 Agent 会话数量（当前工作区） */
   const archivedAgentSessionCount = React.useMemo(
     () => agentSessions.filter((s) => s.archived && (!currentWorkspaceId || s.workspaceId === currentWorkspaceId)).length,
     [agentSessions, currentWorkspaceId]
   )
+  const activeAgentSessionCount = React.useMemo(
+    () => agentSessions.filter((s) => !s.archived && (!currentWorkspaceId || s.workspaceId === currentWorkspaceId)).length,
+    [agentSessions, currentWorkspaceId]
+  )
+  const activeWorkingCount = workingGroups.todo.length + workingGroups.running.length + workingGroups.done.length
 
   // 初始加载对话列表 + 用户档案 + Agent 会话
   React.useEffect(() => {
@@ -887,40 +896,47 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       className="agent-resource-panel agent-cockpit-sidebar h-full flex flex-col rounded-panel border border-border-subtle/55 transition-[width] duration-normal"
       style={{ width: width ?? 280, minWidth: 260, flexShrink: 1 }}
     >
-      {/* 顶部留空，避开 macOS 红绿灯 */}
-      <div className="pt-[30px]">
-        {/* 模式切换器 + 折叠按钮 */}
-        <div className="flex items-start gap-1.5 px-3">
-          <div className="agent-sidebar-mode-deck flex-1 min-w-0 rounded-card p-1">
-            <ModeSwitcher />
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setSidebarCollapsed(true)}
-                className="agent-icon-launcher mt-2 size-9 flex-shrink-0 flex items-center justify-center rounded-control text-text-tertiary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                aria-label="收起侧边栏"
-              >
-                <PanelLeftClose size={14} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">收起侧边栏</TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="mx-3 mt-2 rounded-card border border-border-subtle/45 bg-background/30 px-3 py-2">
-          <div className="flex items-center justify-between gap-2">
+      <div className="pt-[30px] px-3">
+        <ModeSwitcher />
+        <div className="agent-sidebar-top-shell mt-2 rounded-panel border border-border-subtle/55 bg-background/28 px-3 py-3 shadow-sm backdrop-blur-md">
+          <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-status-running-fg">Workspace Matrix</div>
-              <div className="truncate text-[11px] text-text-tertiary">会话、工作区与能力分布在同一视图中</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-status-running-fg">Command Desk</div>
+              <div className="mt-1 truncate text-[15px] font-semibold text-text-primary">
+                {mode === 'agent' ? 'Agent Cockpit' : 'Conversation Deck'}
+              </div>
+              <div className="mt-1 truncate text-[11px] leading-4 text-text-tertiary">
+                {mode === 'agent'
+                  ? '工作区、会话与能力在同一层级中编排'
+                  : '置顶、归档与最近会话保持统一视图'}
+              </div>
             </div>
-            <div className="flex items-center gap-1 rounded-full border border-border-subtle/45 bg-surface-card/55 px-2 py-1 text-[10px] text-text-secondary">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="agent-icon-launcher mt-0.5 size-9 flex-shrink-0 flex items-center justify-center rounded-control text-text-tertiary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  aria-label="收起侧边栏"
+                >
+                  <PanelLeftClose size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">收起侧边栏</TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle/45 bg-surface-card/60 px-2.5 py-1 text-[10px] text-text-secondary">
               <Zap size={11} className="text-status-running-fg" />
               Live
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-text-tertiary">
-            <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/45 bg-surface-card/50 px-2 py-1">MCP {currentWorkspaceId ? 'Ready' : 'Idle'}</span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle/45 bg-surface-card/50 px-2 py-1">Skills {capabilities?.skills.length ?? 0}</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle/45 bg-surface-card/60 px-2.5 py-1 text-[10px] text-text-secondary">
+              <span className="h-1.5 w-1.5 rounded-full bg-status-running-fg" />
+              {mode === 'agent' ? `${activeAgentSessionCount} active` : `${activeConversationCount} active`}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle/45 bg-surface-card/60 px-2.5 py-1 text-[10px] text-text-secondary">
+              <span className="h-1.5 w-1.5 rounded-full bg-status-neutral-fg" />
+              {viewMode === 'archived' ? 'Archived view' : 'Live view'}
+            </span>
           </div>
         </div>
       </div>
@@ -978,7 +994,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       {/* Chat 模式：置顶对话区域 */}
       {mode === 'chat' && pinnedExpanded && pinnedConversations.length > 0 && (
         <div className="px-3 pt-1 pb-1">
-          <div className="flex flex-col gap-0.5 pl-1 border-l-2 border-primary/20 ml-2">
+          <div className="agent-section-stack flex flex-col gap-0.5 pl-1 ml-2">
             {pinnedConversations.map((conv) => (
               <ConversationItem
                 key={`pinned-${conv.id}`}
@@ -1012,14 +1028,14 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
               >
                 {/* Tab 切换按钮 */}
                 <div className="pt-2 px-3 flex-shrink-0">
-                  <div className="flex items-center gap-1 mb-0.5">
+                  <div className="agent-subtab-rail flex items-center gap-1 mb-0.5 rounded-card p-1">
                     <button
                       onClick={() => setAgentSubTab('working')}
                       className={cn(
                         'px-2.5 py-0.5 rounded-control text-[12px] font-medium transition-colors titlebar-no-drag inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                         agentSubTab === 'working'
-                          ? 'bg-surface-muted text-text-primary'
-                          : 'text-text-tertiary hover:text-text-primary hover:bg-surface-muted'
+                          ? 'bg-surface-card text-text-primary shadow-sm'
+                          : 'text-text-tertiary hover:text-text-primary hover:bg-surface-card/75'
                       )}
                       aria-pressed={agentSubTab === 'working'}
                     >
@@ -1028,10 +1044,10 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                         <span className={cn(
                           'ml-1.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px]',
                           agentSubTab === 'working'
-                            ? 'bg-status-waiting-bg text-status-waiting-fg'
+                            ? 'bg-status-running-bg text-status-running-fg'
                             : 'bg-status-neutral-bg text-status-neutral-fg'
                         )}>
-                          {workingGroups.todo.length + workingGroups.running.length + workingGroups.done.length}
+                          {activeWorkingCount}
                         </span>
                       )}
                     </button>
@@ -1040,8 +1056,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                       className={cn(
                         'px-2.5 py-0.5 rounded-control text-[12px] font-medium transition-colors titlebar-no-drag inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                         agentSubTab === 'pinned'
-                          ? 'bg-surface-muted text-text-primary'
-                          : 'text-text-tertiary hover:text-text-primary hover:bg-surface-muted'
+                          ? 'bg-surface-card text-text-primary shadow-sm'
+                          : 'text-text-tertiary hover:text-text-primary hover:bg-surface-card/75'
                       )}
                       aria-pressed={agentSubTab === 'pinned'}
                     >
@@ -1150,8 +1166,11 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           )}
 
           {/* 下区标题：最近会话 */}
-          <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none flex-shrink-0">
-            最近会话
+          <div className="px-3 pt-2 pb-1 flex items-center justify-between gap-2 text-[11px] font-medium text-foreground/40 select-none flex-shrink-0">
+            <span>最近会话</span>
+            <span className="rounded-full border border-border-subtle/45 bg-surface-card/50 px-2 py-0.5 text-[10px] text-text-tertiary">
+              {mode === 'agent' ? activeAgentSessionCount : activeConversationCount}
+            </span>
           </div>
 
           {/* 下区：历史会话列表 */}
@@ -1264,88 +1283,128 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
         </>
       )}
 
-      {/* 已归档入口 / 返回活跃对话 */}
-      <div className="px-3 pb-1">
-        {viewMode === 'active' ? (
-          <>
-            {mode === 'chat' && archivedConversationCount > 0 && (
-              <button
-                onClick={() => setViewMode('archived')}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              >
-                <Archive size={13} className="text-foreground/30" />
-                <span>已归档 ({archivedConversationCount})</span>
-              </button>
-            )}
-            {mode === 'agent' && archivedAgentSessionCount > 0 && (
-              <button
-                onClick={() => setViewMode('archived')}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-tertiary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              >
-                <Archive size={13} className="text-foreground/30" />
-                <span>已归档 ({archivedAgentSessionCount})</span>
-              </button>
-            )}
-          </>
-        ) : (
-          <button
-            onClick={() => setViewMode('active')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-control text-[12px] text-text-secondary bg-surface-muted hover:bg-surface-muted/80 hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          >
-            <ArrowLeft size={13} className="text-foreground/50" />
-            <span>返回活跃{mode === 'agent' ? '会话' : '对话'}</span>
-          </button>
-        )}
-      </div>
-
-      {/* Agent 模式：工作区能力指示器 */}
-      {mode === 'agent' && capabilities && (
-        <div className="px-3 pb-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => { setSettingsTab('agent'); setSettingsOpen(true) }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-control text-[12px] text-text-secondary hover:bg-surface-muted hover:text-text-primary transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                aria-label="配置 MCP 与 Skills"
-              >
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <span className="flex items-center gap-1">
-                    <Plug size={13} className="text-foreground/40" />
-                    <span className="tabular-nums">{capabilities.mcpServers.filter((s) => s.enabled).length}</span>
-                    <span className="text-foreground/30">MCP</span>
-                  </span>
-                  <span className="text-foreground/20">·</span>
-                  <span className="flex items-center gap-1">
-                    <Zap size={13} className="text-foreground/40" />
-                    <span className="tabular-nums">{capabilities.skills.length}</span>
-                    <span className="text-foreground/30">Skills</span>
-                  </span>
-                </div>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">点击配置 MCP 与 Skills</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
-
-      {/* 底部：用户资料 + 设置入口 */}
-      <div className="px-3 pb-3">
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-control transition-colors titlebar-no-drag text-text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-        >
-          <UserAvatar avatar={userProfile.avatar} size={28} />
-          <span className="flex-1 text-sm truncate text-left">{userProfile.userName}</span>
-          <div className="relative flex-shrink-0 text-foreground/40">
-            <Settings size={16} />
-            {(hasUpdate || hasEnvironmentIssues) && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-status-danger" aria-hidden="true" />
-            )}
-            {(hasUpdate || hasEnvironmentIssues) && (
-              <span className="sr-only">有更新或环境问题需要处理</span>
-            )}
+      {/* 底部：归档 / 能力 / 用户 dock */}
+      <div className="px-3 pb-2">
+        <div className="agent-bottom-dock rounded-panel border border-border-subtle/55 bg-background/28 p-2 shadow-sm backdrop-blur-md">
+          <div className="flex items-center justify-between gap-2 px-1 pb-1.5">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-status-running-fg">Dock Bay</div>
+            </div>
+            <div className="rounded-full border border-border-subtle/45 bg-surface-card/55 px-2 py-0.5 text-[10px] text-text-tertiary">
+              {viewMode === 'archived' ? 'ARCHIVE' : 'LIVE'}
+            </div>
           </div>
-        </button>
+
+          <div className="flex flex-col gap-1.5">
+            {viewMode === 'active' ? (
+              <>
+                {mode === 'chat' && archivedConversationCount > 0 && (
+                  <button
+                    onClick={() => setViewMode('archived')}
+                    className="agent-dock-link agent-dock-link--archive w-full flex items-center gap-2.5 px-2.5 py-2 rounded-control text-left transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  >
+                    <span className="agent-dock-icon agent-dock-icon--small">
+                      <Archive size={13} />
+                    </span>
+                    <span className="agent-dock-meta flex min-w-0 flex-1 items-center gap-2">
+                      <span className="text-[12px] font-medium text-text-primary">已归档</span>
+                      <span className="text-[10px] text-text-tertiary">历史对话</span>
+                    </span>
+                    <span className="agent-dock-count">{archivedConversationCount}</span>
+                  </button>
+                )}
+                {mode === 'agent' && archivedAgentSessionCount > 0 && (
+                  <button
+                    onClick={() => setViewMode('archived')}
+                    className="agent-dock-link agent-dock-link--archive w-full flex items-center gap-2.5 px-2.5 py-2 rounded-control text-left transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  >
+                    <span className="agent-dock-icon agent-dock-icon--small">
+                      <Archive size={13} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="text-[12px] font-medium text-text-primary">已归档</span>
+                      <span className="text-[10px] text-text-tertiary">历史会话</span>
+                    </span>
+                    <span className="agent-dock-count">{archivedAgentSessionCount}</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => setViewMode('active')}
+                className="agent-dock-link agent-dock-link--archive w-full flex items-center gap-2.5 px-2.5 py-2 rounded-control text-left transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              >
+                <span className="agent-dock-icon agent-dock-icon--small">
+                  <ArrowLeft size={13} />
+                </span>
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="text-[12px] font-medium text-text-primary">返回活跃{mode === 'agent' ? '会话' : '对话'}</span>
+                </span>
+              </button>
+            )}
+
+            {mode === 'agent' && capabilities && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => { setSettingsTab('agent'); setSettingsOpen(true) }}
+                    className="agent-dock-link agent-dock-link--capabilities w-full flex items-center gap-2.5 px-2.5 py-2 rounded-control text-left transition-colors titlebar-no-drag focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    aria-label="配置 MCP 与 Skills"
+                  >
+                    <span className="agent-dock-icon agent-dock-icon--accent agent-dock-icon--small">
+                      <Plug size={13} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="text-[12px] font-medium text-text-primary">能力</span>
+                      <span className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] text-text-tertiary">
+                        <span className="tabular-nums text-text-primary">{capabilities.mcpServers.filter((s) => s.enabled).length}</span>
+                        <span>MCP</span>
+                        <span className="text-foreground/20">·</span>
+                        <span className="tabular-nums text-text-primary">{capabilities.skills.length}</span>
+                        <span>Skills</span>
+                      </span>
+                    </span>
+                    <span className="agent-dock-arrow agent-dock-arrow--small shrink-0">
+                      <Zap size={12} />
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">点击配置 MCP 与 Skills</TooltipContent>
+              </Tooltip>
+            )}
+
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="agent-user-dock-button w-full flex items-center gap-2.5 px-2.5 py-2 rounded-control transition-colors titlebar-no-drag text-text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              <UserAvatar avatar={userProfile.avatar} size={26} />
+              <span className="flex min-w-0 flex-1 flex-col text-left">
+                <span className="truncate text-[12px] font-medium">{userProfile.userName}</span>
+                <span className="mt-0.5 flex items-center gap-2 text-[10px] text-text-tertiary">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-status-running-fg" />
+                    设置
+                  </span>
+                  {(hasUpdate || hasEnvironmentIssues) && (
+                    <>
+                      <span className="text-foreground/20">·</span>
+                      <span className="text-status-danger">Attention</span>
+                    </>
+                  )}
+                </span>
+              </span>
+              <div className="relative flex-shrink-0 text-foreground/40">
+                <Settings size={16} />
+                {(hasUpdate || hasEnvironmentIssues) && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-status-danger" aria-hidden="true" />
+                )}
+                {(hasUpdate || hasEnvironmentIssues) && (
+                  <span className="sr-only">有更新或环境问题需要处理</span>
+                )}
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
 
       {deleteDialog}
@@ -1455,7 +1514,7 @@ function ConversationItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'agent-session-row relative w-full min-h-11 flex items-center gap-2 px-3 py-2 rounded-control transition-[background-color,color,box-shadow,transform,border-color] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        'agent-session-row relative w-full min-h-12 flex items-center gap-2 px-3 py-2.5 rounded-control transition-[background-color,color,box-shadow,transform,border-color] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
           ? 'session-item-selected agent-session-row--active shadow-card'
           : 'agent-session-row--idle'
@@ -1482,15 +1541,33 @@ function ConversationItem({
             maxLength={100}
           />
         ) : (
-          <div className={cn(
-            'truncate text-[13px] leading-5 flex items-center gap-1.5',
-            active ? 'text-foreground' : 'text-foreground/80'
-          )}>
-            {/* 置顶标记 */}
-            {showPinIcon && (
-              <Pin size={11} className="flex-shrink-0 text-primary/60" />
-            )}
-            <span className="truncate">{conversation.title}</span>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <div className={cn(
+              'truncate text-[13px] leading-5 flex items-center gap-1.5',
+              active ? 'text-foreground' : 'text-foreground/82'
+            )}>
+              {showPinIcon && (
+                <Pin size={11} className="flex-shrink-0 text-primary/60" />
+              )}
+              <span className="truncate">{conversation.title}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] leading-4 text-text-tertiary">
+              {streaming ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-status-success-border/60 bg-status-success-bg/60 px-1.5 py-0.5 text-status-success-fg">
+                  <span className="h-1.5 w-1.5 rounded-full bg-status-success animate-pulse" />
+                  流式生成
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full border border-border-subtle/45 bg-surface-card/55 px-1.5 py-0.5">
+                  已保存
+                </span>
+              )}
+              {isPinned && (
+                <span className="inline-flex items-center rounded-full border border-border-subtle/45 bg-surface-card/55 px-1.5 py-0.5">
+                  置顶
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1691,7 +1768,7 @@ function AgentSessionItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        'agent-session-row relative w-full min-h-11 flex items-center gap-2 px-3 py-2 rounded-control transition-[background-color,color,box-shadow,transform,border-color] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        'agent-session-row relative w-full min-h-12 flex items-center gap-2 px-3 py-2.5 rounded-control transition-[background-color,color,box-shadow,transform,border-color] duration-fast titlebar-no-drag text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         active
           ? 'session-item-selected agent-session-row--active shadow-card'
           : 'agent-session-row--idle'
@@ -1719,19 +1796,39 @@ function AgentSessionItem({
             maxLength={100}
           />
         ) : (
-          <div className={cn(
-            'truncate text-[13px] leading-5 flex items-center gap-1.5',
-            active ? 'text-foreground' : 'text-foreground/80'
-          )}>
-            {showPinIcon && (
-              <Pin size={11} className="flex-shrink-0 text-primary/60" />
-            )}
-            <span className="truncate">{session.title}</span>
-            {workspaceName && (
-              <span className="flex-shrink-0 px-1.5 py-0 rounded-full bg-foreground/[0.06] text-[10px] leading-4 text-foreground/40 font-medium truncate max-w-[80px]">
-                {workspaceName}
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <div className={cn(
+              'truncate text-[13px] leading-5 flex items-center gap-1.5',
+              active ? 'text-foreground' : 'text-foreground/82'
+            )}>
+              {showPinIcon && (
+                <Pin size={11} className="flex-shrink-0 text-primary/60" />
+              )}
+              <span className="truncate">{session.title}</span>
+              {workspaceName && (
+                <span className="flex-shrink-0 max-w-[90px] truncate rounded-full border border-border-subtle/45 bg-surface-card/55 px-1.5 py-0 text-[10px] leading-4 text-text-tertiary">
+                  {workspaceName}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] leading-4 text-text-tertiary">
+              <span className="inline-flex items-center rounded-full border border-border-subtle/45 bg-surface-card/55 px-1.5 py-0.5">
+                {indicatorStatus === 'running'
+                  ? '运行中'
+                  : indicatorStatus === 'failed'
+                    ? '异常'
+                    : indicatorStatus === 'blocked'
+                      ? '阻塞'
+                      : indicatorStatus === 'completed'
+                        ? '已完成'
+                        : '待处理'}
               </span>
-            )}
+              {isInWorkingSection && (
+                <span className="inline-flex items-center rounded-full border border-status-running-border/60 bg-status-running-bg/55 px-1.5 py-0.5 text-status-running-fg">
+                  Working
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>

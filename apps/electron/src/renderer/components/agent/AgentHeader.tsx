@@ -121,9 +121,10 @@ export function AgentHeader({
   }
 
   return (
-    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[110px] items-center gap-4 rounded-panel border border-border-subtle/65 px-4 py-3 titlebar-drag-region md:mx-5 md:min-h-[120px] md:px-5">
+    <div className="agent-mission-strip relative z-[51] mx-3 mt-3 flex min-h-[116px] items-center gap-4 overflow-hidden rounded-panel border border-border-subtle/65 bg-surface-card/85 px-4 py-3 shadow-card backdrop-blur titlebar-drag-region md:mx-5 md:min-h-[124px] md:px-5">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--status-running)/0.10),transparent_32%),radial-gradient(circle_at_bottom_right,hsl(var(--status-waiting)/0.06),transparent_28%)]" aria-hidden="true" />
       {editing ? (
-        <div className="relative z-10 flex items-center gap-1.5 flex-1 min-w-0 titlebar-no-drag">
+        <div className="relative z-10 flex flex-1 min-w-0 items-center gap-1.5 titlebar-no-drag">
           <label htmlFor={`agent-title-${session.id}`} className="sr-only">编辑 Agent 会话标题</label>
           <input
             id={`agent-title-${session.id}`}
@@ -132,7 +133,7 @@ export function AgentHeader({
             onChange={(e) => setEditTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={saveTitle}
-            className="flex-1 bg-transparent text-sm font-medium border-b border-primary/50 outline-none px-0 py-0.5 min-w-0 focus-visible:ring-0"
+            className="flex-1 min-w-0 border-b border-primary/50 bg-transparent px-0 py-0.5 text-sm font-medium outline-none focus-visible:ring-0"
             maxLength={100}
           />
           <Tooltip>
@@ -166,7 +167,7 @@ export function AgentHeader({
         </div>
       ) : (
         <>
-          <div className="relative z-10 flex size-16 shrink-0 items-center justify-center rounded-panel border border-border-subtle bg-background/40 agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
+          <div className="relative z-10 flex size-16 shrink-0 items-center justify-center rounded-panel border border-border-subtle/70 bg-background/55 shadow-inner agent-status-orb" data-state={missionStateTone === 'neutral' ? 'idle' : 'active'}>
             <div className="absolute inset-2 rounded-full border border-current/20 opacity-70" aria-hidden="true" />
             {streaming ? (
               <Radio className="size-5 text-status-running-fg" />
@@ -176,7 +177,7 @@ export function AgentHeader({
               <Bot className="size-5 text-text-secondary" />
             )}
           </div>
-          <div className="relative z-10 flex flex-1 min-w-0 flex-col gap-2.5">
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-2.5">
             <div className="flex items-start gap-2 min-w-0">
               <div className="min-w-0">
                 <div className="agent-kicker text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Agent Mission</div>

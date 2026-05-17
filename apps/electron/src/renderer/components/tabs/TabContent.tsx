@@ -30,8 +30,10 @@ export function TabContent({ tabId }: TabContentProps): React.ReactElement {
 
   if (!tab) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        标签页不存在
+      <div className="flex h-full items-center justify-center px-6 text-sm text-text-tertiary">
+        <div className="rounded-panel border border-border-subtle/60 bg-surface-card/80 px-4 py-3 shadow-card">
+          标签页不存在
+        </div>
       </div>
     )
   }

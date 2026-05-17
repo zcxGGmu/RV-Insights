@@ -30,9 +30,10 @@ export function PipelineHeader({
   const viewModel = buildPipelineHeaderViewModel({ session, state })
 
   return (
-    <section className="pipeline-glow-card pipeline-shell-grid overflow-hidden rounded-panel border border-border-subtle/70 bg-surface-card text-text-primary shadow-panel">
+    <section className="pipeline-glow-card pipeline-shell-grid relative overflow-hidden rounded-panel border border-border-subtle/70 bg-surface-card/90 text-text-primary shadow-panel backdrop-blur">
       <div className="pipeline-scanline pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" />
-      <div className="relative flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--status-running)/0.08),transparent_30%),radial-gradient(circle_at_bottom_right,hsl(var(--status-success)/0.06),transparent_28%)]" aria-hidden="true" />
+      <div className="relative z-10 flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">

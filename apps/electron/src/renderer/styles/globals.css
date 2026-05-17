@@ -515,6 +515,53 @@
   color: hsl(var(--primary-foreground)) !important;
 }
 
+.mode-switcher-glass {
+  position: relative;
+}
+
+.mode-switcher-glass::before,
+.mode-switcher-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mode-switcher-glass::before {
+  background:
+    linear-gradient(135deg, hsl(var(--foreground) / 0.05), transparent 36%),
+    linear-gradient(315deg, transparent 62%, hsl(var(--status-running) / 0.12) 100%);
+  opacity: 0.9;
+}
+
+.mode-switcher-glass::after {
+  background:
+    radial-gradient(circle at 16% 0%, hsl(var(--status-running) / 0.18), transparent 26%),
+    radial-gradient(circle at 86% 100%, hsl(var(--status-success) / 0.12), transparent 22%);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+}
+
+.mode-switcher-glass .mode-btn {
+  min-height: 32px;
+}
+
+.mode-switcher-glass .mode-btn:hover {
+  transform: translateY(-1px);
+}
+
+.mode-switcher-glass .mode-btn-selected {
+  background: transparent;
+  text-shadow: 0 0 14px hsl(var(--primary-foreground) / 0.12);
+}
+
+.mode-switcher-glass .mode-slider {
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background:
+    linear-gradient(135deg, hsl(var(--status-running) / 0.92), hsl(var(--status-success) / 0.76)),
+    hsl(var(--primary));
+}
+
 /* ===== 莫兰迪主题：会话/工作区选中状态 ===== */
 /* 莫兰迪夜：淡紫灰背景 + 温暖杏粉文字 */
 .theme-slate-dark .session-item-selected.session-item-selected,
@@ -990,20 +1037,20 @@
 
 .agent-shell-bg {
   background:
-    radial-gradient(circle at 18% 0%, hsl(var(--status-running) / 0.12), transparent 24%),
-    radial-gradient(circle at 82% 14%, hsl(var(--status-success) / 0.08), transparent 22%),
-    radial-gradient(circle at 50% 100%, hsl(var(--status-waiting) / 0.06), transparent 28%),
-    linear-gradient(180deg, hsl(var(--surface-app) / 0.99), hsl(var(--surface-panel) / 0.93));
+    radial-gradient(ellipse at 16% -8%, hsl(var(--status-running) / 0.24), transparent 31%),
+    radial-gradient(ellipse at 92% 4%, hsl(var(--status-success) / 0.18), transparent 26%),
+    radial-gradient(ellipse at 68% 102%, hsl(var(--status-waiting) / 0.15), transparent 34%),
+    linear-gradient(135deg, hsl(var(--surface-app) / 0.99), hsl(var(--surface-panel) / 0.9) 42%, hsl(var(--surface-card) / 0.88));
   background-attachment: fixed;
 }
 
 .agent-shell-stage::before {
   mix-blend-mode: screen;
-  opacity: 0.88;
+  opacity: 0.95;
 }
 
 .agent-shell-stage::after {
-  opacity: 0.74;
+  opacity: 0.82;
 }
 
 .agent-cockpit-shell::before {
@@ -1013,11 +1060,11 @@
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 4%, hsl(var(--status-running) / 0.22), transparent 22%),
-    radial-gradient(circle at 86% 16%, hsl(var(--status-success) / 0.18), transparent 20%),
-    radial-gradient(circle at 50% 0%, hsl(var(--status-waiting) / 0.11), transparent 26%),
-    linear-gradient(180deg, hsl(var(--status-running) / 0.11), transparent 18%),
-    linear-gradient(90deg, hsl(var(--status-running) / 0.08), transparent 24%, transparent 76%, hsl(var(--status-success) / 0.08)),
+    radial-gradient(ellipse at 18% 4%, hsl(var(--status-running) / 0.28), transparent 25%),
+    radial-gradient(ellipse at 86% 16%, hsl(var(--status-success) / 0.22), transparent 22%),
+    radial-gradient(ellipse at 48% -4%, hsl(var(--status-waiting) / 0.15), transparent 28%),
+    linear-gradient(180deg, hsl(var(--status-running) / 0.13), transparent 19%),
+    linear-gradient(90deg, hsl(var(--status-running) / 0.1), transparent 24%, transparent 76%, hsl(var(--status-success) / 0.1)),
     repeating-linear-gradient(180deg, transparent 0 21px, hsl(var(--foreground) / 0.012) 21px 22px);
   opacity: 1;
 }
@@ -1050,13 +1097,14 @@
 .agent-mission-strip {
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 10%, hsl(var(--status-running) / 0.24), transparent 28%),
-    radial-gradient(circle at 82% 18%, hsl(var(--status-success) / 0.16), transparent 24%),
-    linear-gradient(135deg, hsl(var(--surface-card) / 0.98), hsl(var(--surface-muted) / 0.42)),
+    radial-gradient(ellipse at 16% 4%, hsl(var(--status-running) / 0.32), transparent 31%),
+    radial-gradient(ellipse at 84% 18%, hsl(var(--status-success) / 0.22), transparent 26%),
+    linear-gradient(135deg, hsl(var(--surface-card) / 0.98), hsl(var(--surface-muted) / 0.52)),
     hsl(var(--surface-panel) / 0.9);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.08),
-    0 26px 72px -44px hsl(var(--status-running) / 0.62),
+    inset 0 1px 0 hsl(var(--foreground) / 0.11),
+    inset 0 -1px 0 hsl(var(--background) / 0.22),
+    0 34px 92px -52px hsl(var(--status-running) / 0.68),
     0 0 0 1px hsl(var(--status-running) / 0.08);
 }
 
@@ -1164,7 +1212,7 @@
     hsl(var(--surface-card) / 0.86);
   box-shadow:
     inset 0 1px 0 hsl(var(--foreground) / 0.055),
-    0 18px 46px -34px hsl(var(--foreground) / 0.48),
+    0 22px 58px -38px hsl(var(--foreground) / 0.5),
     0 0 0 1px hsl(var(--status-running) / 0.04);
   backdrop-filter: blur(16px) saturate(1.12);
   transition: transform var(--motion-normal), border-color var(--motion-normal), box-shadow var(--motion-normal);
@@ -1265,7 +1313,8 @@
     hsl(var(--surface-panel) / 0.94);
   box-shadow:
     inset 0 1px 0 hsl(var(--foreground) / 0.08),
-    0 28px 78px -48px hsl(var(--status-running) / 0.58);
+    inset 0 -1px 0 hsl(var(--background) / 0.2),
+    0 34px 88px -52px hsl(var(--status-running) / 0.64);
 }
 
 .agent-command-deck::before {
@@ -1322,13 +1371,14 @@
 .agent-resource-panel {
   overflow: hidden;
   background:
-    radial-gradient(circle at 20% 0%, hsl(var(--status-running) / 0.20), transparent 28%),
-    radial-gradient(circle at 86% 100%, hsl(var(--status-success) / 0.14), transparent 24%),
-    linear-gradient(145deg, hsl(var(--surface-card) / 0.94), hsl(var(--surface-muted) / 0.34)),
+    radial-gradient(ellipse at 18% 0%, hsl(var(--status-running) / 0.26), transparent 31%),
+    radial-gradient(ellipse at 90% 100%, hsl(var(--status-success) / 0.2), transparent 26%),
+    linear-gradient(145deg, hsl(var(--surface-card) / 0.96), hsl(var(--surface-muted) / 0.42)),
     hsl(var(--surface-panel) / 0.9);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.08),
-    0 28px 76px -48px hsl(var(--status-running) / 0.54);
+    inset 0 1px 0 hsl(var(--foreground) / 0.1),
+    inset 0 -1px 0 hsl(var(--background) / 0.22),
+    0 34px 88px -54px hsl(var(--status-running) / 0.62);
 }
 
 .agent-resource-panel__mast {
@@ -1359,6 +1409,34 @@
   box-shadow:
     inset 0 1px 0 hsl(var(--foreground) / 0.05),
     0 12px 28px -24px hsl(var(--foreground) / 0.4);
+}
+
+.navigator-panel-shell {
+  background:
+    radial-gradient(circle at 18% 0%, hsl(var(--status-running) / 0.10), transparent 26%),
+    linear-gradient(180deg, hsl(var(--surface-panel) / 0.96), hsl(var(--surface-card) / 0.88));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.06),
+    0 20px 48px -34px hsl(var(--foreground) / 0.38);
+}
+
+.agent-sidebar-top-shell {
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.06),
+    0 18px 40px -30px hsl(var(--status-running) / 0.36);
+}
+
+.agent-section-stack {
+  border-left: 1px solid hsl(var(--status-running) / 0.22);
+  padding-left: 0.5rem;
+}
+
+.agent-subtab-rail {
+  background:
+    linear-gradient(135deg, hsl(var(--surface-card) / 0.52), hsl(var(--background) / 0.22));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.04),
+    0 10px 20px -18px hsl(var(--foreground) / 0.4);
 }
 
 .agent-sidebar-section-label {
@@ -1397,6 +1475,122 @@
   background: hsl(var(--status-running) / 0.1);
 }
 
+.agent-bottom-dock {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 0%, hsl(var(--status-running) / 0.12), transparent 24%),
+    radial-gradient(circle at 88% 100%, hsl(var(--status-success) / 0.09), transparent 28%),
+    linear-gradient(180deg, hsl(var(--surface-panel) / 0.72), hsl(var(--surface-card) / 0.58));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.06),
+    0 18px 36px -30px hsl(var(--foreground) / 0.42);
+}
+
+.agent-bottom-dock::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, transparent 0%, hsl(var(--foreground) / 0.02) 38%, transparent 70%);
+  opacity: 0.9;
+}
+
+.agent-dock-link {
+  position: relative;
+  border: 1px solid hsl(var(--border-subtle) / 0.52);
+  background:
+    linear-gradient(135deg, hsl(var(--surface-card) / 0.72), hsl(var(--background) / 0.28));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.05),
+    0 10px 20px -18px hsl(var(--foreground) / 0.35);
+}
+
+.agent-dock-link:hover {
+  border-color: hsl(var(--status-running) / 0.34);
+  background:
+    linear-gradient(135deg, hsl(var(--status-running) / 0.14), hsl(var(--surface-card) / 0.82));
+}
+
+.agent-dock-link--capabilities:hover {
+  border-color: hsl(var(--status-success) / 0.34);
+  background:
+    linear-gradient(135deg, hsl(var(--status-success) / 0.12), hsl(var(--surface-card) / 0.82));
+}
+
+.agent-dock-link--archive::before,
+.agent-dock-link--capabilities::before {
+  content: '';
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.08), transparent);
+  opacity: 0.8;
+}
+
+.agent-dock-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border-subtle) / 0.45);
+  background: hsl(var(--surface-card) / 0.8);
+  color: hsl(var(--text-tertiary));
+}
+
+.agent-dock-icon--small {
+  width: 24px;
+  height: 24px;
+}
+
+.agent-dock-icon--accent {
+  border-color: hsl(var(--status-running) / 0.26);
+  background: linear-gradient(135deg, hsl(var(--status-running) / 0.12), hsl(var(--status-success) / 0.08));
+  color: hsl(var(--status-running-fg));
+}
+
+.agent-dock-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--status-running) / 0.22);
+  background: hsl(var(--status-running) / 0.10);
+  color: hsl(var(--status-running-fg));
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-dock-arrow {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  color: hsl(var(--status-running-fg));
+  background: hsl(var(--status-running) / 0.08);
+}
+
+.agent-dock-arrow--small {
+  width: 18px;
+  height: 18px;
+}
+
+.agent-dock-meta {
+  min-width: 0;
+}
+
 .agent-primary-action {
   border-style: solid;
   border-color: hsl(var(--status-running) / 0.32);
@@ -1416,16 +1610,18 @@
 }
 
 .agent-session-row {
-  border: 1px solid transparent;
+  border: 1px solid hsl(var(--border-subtle) / 0.16);
+  background: linear-gradient(180deg, hsl(var(--surface-card) / 0.15), hsl(var(--surface-card) / 0.08));
 }
 
 .agent-session-row--idle {
-  background: hsl(var(--surface-card) / 0.22);
+  background: linear-gradient(180deg, hsl(var(--surface-card) / 0.18), hsl(var(--surface-card) / 0.12));
 }
 
 .agent-session-row--idle:hover {
-  border-color: hsl(var(--border-subtle) / 0.48);
-  background: hsl(var(--surface-muted) / 0.58);
+  border-color: hsl(var(--border-subtle) / 0.58);
+  background:
+    linear-gradient(180deg, hsl(var(--surface-muted) / 0.72), hsl(var(--surface-card) / 0.22));
   transform: translateY(-1px);
 }
 

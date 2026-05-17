@@ -38,8 +38,10 @@ export function MainArea(): React.ReactElement {
     <>
       <Panel
         variant="grow"
-        className="bg-surface-panel rounded-panel shadow-panel border border-border-subtle/45"
+        className="relative overflow-hidden rounded-panel border border-border-subtle/45 bg-surface-panel/95 shadow-panel"
       >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-status-running/35 to-transparent" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--status-running)/0.06),transparent_34%),radial-gradient(circle_at_bottom_right,hsl(var(--status-success)/0.05),transparent_30%)]" aria-hidden="true" />
         <TabBar />
         {tabs.length === 0 ? (
           <WelcomeView />

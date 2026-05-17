@@ -78,12 +78,12 @@ export function ModeSwitcher(): React.ReactElement {
   }, [mode, restoreSession])
 
   return (
-    <div className="pt-2">
-      <div className="relative flex min-w-0 rounded-card bg-surface-muted p-1">
+    <div className="pt-1">
+      <div className="mode-switcher-glass relative flex min-w-0 overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-white/[0.03] p-1 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)] backdrop-blur-xl">
         {/* 滑动背景指示器 */}
         <div
           className={cn(
-            'mode-slider absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-control bg-primary shadow-sm transition-transform duration-normal ease-out',
+            'mode-slider absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-[14px] shadow-[0_10px_22px_-16px_rgba(15,23,42,0.75)] transition-transform duration-normal ease-out',
             mode === 'agent' ? 'translate-x-0' : 'translate-x-full'
           )}
         />
@@ -92,15 +92,22 @@ export function ModeSwitcher(): React.ReactElement {
             key={value}
             onClick={() => handleModeSwitch(value)}
             className={cn(
-              'mode-btn relative z-[1] flex min-w-0 flex-1 items-center justify-center gap-1 rounded-control px-1.5 py-1 text-[13px] font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+              'mode-btn relative z-[1] flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[14px] px-2.5 py-1.5 text-[12px] font-medium transition-[color,transform] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               mode === value
                 ? 'mode-btn-selected text-primary-foreground'
                 : 'text-text-secondary hover:text-text-primary'
             )}
             aria-pressed={mode === value}
           >
-            <span className="flex-shrink-0">{icon}</span>
-            <span className="min-w-0 truncate">{label}</span>
+            <span
+              className={cn(
+                'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] transition-colors',
+                mode === value && 'border-white/18 bg-white/14 text-primary-foreground'
+              )}
+            >
+              {icon}
+            </span>
+            <span className="min-w-0 truncate tracking-[0.01em]">{label}</span>
           </button>
         ))}
       </div>

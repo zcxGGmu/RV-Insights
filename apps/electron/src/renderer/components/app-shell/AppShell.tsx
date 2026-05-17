@@ -202,7 +202,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
       <div
         ref={shellRef}
         data-app-mode={appMode}
-        className={`shell-bg h-screen w-screen flex overflow-hidden bg-surface-app ${appMode === 'agent' ? 'agent-shell-bg agent-shell-stage' : ''}`}
+        className={`shell-bg app-workbench h-screen w-screen flex overflow-hidden bg-surface-app ${appMode === 'agent' ? 'agent-shell-bg agent-shell-stage' : ''}`}
       >
         {/* 左侧边栏：可折叠，带圆角和内边距 */}
         <div className="p-2 pr-0 relative z-[60] shrink-0">
@@ -217,7 +217,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
         />
 
         {/* 中间容器：relative z-[60] 使其在 z-50 拖动区域之上 */}
-        <div className="flex-1 min-w-0 p-2 relative z-[60]">
+        <div className="app-workbench-main flex-1 min-w-0 p-2 relative z-[60]">
           {/* 主内容区域（TabBar + TabContent） */}
           <MainArea />
         </div>

@@ -22,9 +22,9 @@ export function NavigatorPanel({
   children,
 }: NavigatorPanelProps): React.ReactElement {
   return (
-    <Panel variant="shrink" width={width} className="bg-background border-r border-border">
+    <Panel variant="shrink" width={width} className="navigator-panel-shell">
       <PanelHeader title={title} />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto px-2 py-2">
         {children}
       </div>
     </Panel>

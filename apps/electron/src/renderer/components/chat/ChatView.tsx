@@ -555,12 +555,13 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
   }, [conversationId])
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="chat-workbench relative flex h-full overflow-hidden bg-surface-panel/95">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-status-running/25 to-transparent" aria-hidden="true" />
       {/* 主内容区域 */}
-      <div className="flex flex-col h-full flex-1 min-w-0">
+      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col">
         {/* Header 在 max-w 外，按钮可到达最右侧 */}
         <ChatHeader conversation={conversation} />
-        <div className="flex flex-col flex-1 w-full max-w-[min(72rem,100%)] mx-auto overflow-hidden min-h-0">
+        <div className="mx-auto flex min-h-0 w-full max-w-[min(76rem,100%)] flex-1 flex-col overflow-hidden px-2 pb-2 pt-1 md:px-4 md:pb-4">
           {/* 中间：消息区域 */}
           <ChatMessages
             conversationId={conversationId}
@@ -586,7 +587,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
 
           {/* 错误提示 */}
           {chatError && (
-            <div className="mx-4 mb-2 px-4 py-2.5 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+            <div className="mx-2 mb-2 flex items-center gap-2 rounded-panel border border-status-danger-border bg-status-danger-bg px-4 py-2.5 text-sm text-status-danger-fg shadow-card md:mx-0">
               <AlertCircle className="size-4 shrink-0" />
               <span className="flex-1 break-all">{chatError}</span>
               <button

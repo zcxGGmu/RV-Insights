@@ -1,5 +1,110 @@
 # Agent Cockpit UI 创意升级任务
 
+## 2026-05-17 Agent|Pipeline 玻璃感优化计划
+
+- [x] 复核用户截图中顶部模式切换器的视觉问题：比例偏厚、边框和背景发闷、当前态层级不够明确。
+- [x] 将 `ModeSwitcher` 重构为紧凑玻璃感分段控件，保留 `Agent | Pipeline` 文案和原切换逻辑。
+- [x] 运行聚焦验证并追加 Review。
+
+## 2026-05-17 Agent|Pipeline 玻璃感优化 Review
+
+- `Agent | Pipeline` 仍保留在展开态左侧栏最上方，切换逻辑未改。
+- `ModeSwitcher` 已改成紧凑玻璃感分段控件：半透明外壳、柔和光晕、滑块当前态、图标圆形承托和更小的字号/高度。
+- 新增样式集中在 `.mode-switcher-glass` 和其内部 `.mode-slider` / `.mode-btn`，没有扩散到业务组件。
+- `@rv-insights/electron` 版本已从 `0.0.77` 提升到 `0.0.78`。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:renderer`、`git diff --check`。
+
+## 2026-05-17 顶部 Agent|Pipeline 恢复计划
+
+- [x] 复核用户指出的顶部模式切换器缺失问题，确认 `ModeSwitcher` 仅是未渲染而非组件丢失。
+- [x] 将 `Agent | Pipeline` 放回展开态左侧栏最上方，并让 `Command Desk` 下移一层。
+- [x] 运行聚焦验证并追加 Review。
+
+## 2026-05-17 顶部 Agent|Pipeline 恢复 Review
+
+- 已恢复展开态左侧栏最上方的 `Agent | Pipeline` 模式切换器，保持原 `ModeSwitcher` 逻辑和视觉样式。
+- `Command Desk` 现在位于模式切换器下方，不再替代或遮挡顶部模式入口。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:renderer`、`git diff --check`。
+- `@rv-insights/electron` 版本已从 `0.0.76` 提升到 `0.0.77`。
+
+## 2026-05-17 左侧栏红框修正计划
+
+- [x] 删除顶部红框中的 `MCP / Skills` 统计卡，避免无意义占位。
+- [x] 压缩底部能力行，避免窄侧栏中图标与文字重叠。
+- [x] 运行聚焦验证并追加 Review。
+
+## 2026-05-17 左侧栏红框修正 Review
+
+- 顶部红框中的 `MCP / Skills` 统计卡已直接移除，顶部区域回到原本的命令舱主视觉，不再占据额外高度。
+- 底部 `Capabilities` 行已改成更短的中文单行表达，并把内容容器、图标和尾部箭头收紧，避免窄侧栏里文字与图标互相挤压。
+- 这次没有改归档、能力配置和用户设置的功能流，只调整侧栏的呈现与响应式占位。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:renderer`、`git diff --check`。
+- `@rv-insights/electron` 版本已从 `0.0.75` 提升到 `0.0.76`。
+
+## 2026-05-17 左侧栏底部 Dock 紧凑化计划
+
+- [x] 根据用户反馈复核底部 dock 空间占用，确认主要高度来自标题说明、两行副文本、较大 icon 和按钮 padding。
+- [x] 去除非必要副说明，将归档与能力条压成单行信息表达，缩小图标、计数胶囊、按钮 padding 和底部外边距。
+- [x] 保留归档切换、能力配置、用户设置三类入口，不改变数据流和点击目标。
+- [x] 运行聚焦验证并追加 Review。
+
+## 2026-05-17 左侧栏底部 Dock 紧凑化 Review
+
+- 已将底部 dock 从三段较高的信息卡压缩为更轻的紧凑面板：标题说明被移除，归档与能力入口改为单行排列，按钮高度、图标尺寸、计数胶囊和底部外边距都同步收紧。
+- 现在这块区域的视觉重心更集中，仍保留归档切换、MCP / Skills 配置和用户设置入口，但占据的纵向空间明显更少。
+- 变更只影响 `LeftSidebar` 底部结构和配套 scoped CSS，没有碰数据流、IPC 或设置逻辑。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:renderer`、`git diff --check`。
+- `@rv-insights/electron` 版本已从 `0.0.74` 提升到 `0.0.75`。
+
+## 2026-05-17 左侧栏底部 Dock 红框优化计划
+
+- [x] 复核截图红框对应范围：`LeftSidebar` 底部归档入口、Agent 能力摘要和用户设置入口。
+- [x] 使用 `ui-ux-pro-max` 的层级、触达面积、状态表达原则，将底部散列按钮重构为统一 Dock Bay。
+- [x] 保持现有归档切换、MCP / Skills 配置入口、用户设置入口不变，只增强视觉结构。
+- [x] 运行 Electron renderer 类型检查、构建和 diff 检查。
+- [x] 在本节追加 Review，记录改动与残余风险。
+
+## 2026-05-17 左侧栏底部 Dock 红框优化 Review
+
+- 已将红框区域收束为统一的 `Dock Bay` 面板：上方是归档 / 历史入口，中间是 Agent 工作区能力摘要，底部是用户账户条，不再像几段普通文字与按钮的简单堆叠。
+- 归档入口保留原有切换行为；Agent 模式下的 MCP / Skills 配置入口仍然直达设置页；用户设置入口仍然直达全局设置，交互逻辑未改。
+- 新增的 `agent-bottom-dock`、`agent-dock-link`、`agent-dock-icon`、`agent-dock-count` 等样式只作用于侧栏底部区域，没有扩散到其他面板。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`、`bun run --filter='@rv-insights/electron' build:renderer`、`git diff --check`。
+- `@rv-insights/electron` 版本已从 `0.0.73` 提升到 `0.0.74`。
+- 残余风险主要是 Electron 桌面壳中的最终观感和窄宽窗口下的换行表现，当前静态构建没有发现结构性问题。
+
+## 2026-05-17 侧栏视觉重构计划
+
+- [x] 审查并重构 `LeftSidebar`、`RightSidePanel`、`NavigatorPanel`、`ModeSwitcher`、`Panel`、`PanelHeader` 的视觉层次，保持现有功能不变。
+- [x] 仅补充必要的 scoped 样式，强化侧栏与面板的层级、密度、状态感和现代感。
+- [x] 运行侧栏相关构建与差异检查，确认没有引入布局或交互回退。
+- [x] 在本节追加 Review，记录改动范围、验证结果和残余风险。
+
+## 2026-05-17 侧栏视觉重构 Review
+
+- 已完成侧栏视觉重构：左侧栏从普通列表容器升级为带 `Command Desk` 顶栏、状态统计、Workspace Matrix、分层列表和底部用户 dock 的控制台式结构；折叠态也同步保留更强的入口识别。
+- `ModeSwitcher`、`Panel`、`PanelHeader`、`NavigatorPanel` 的默认层次已抬高，整体更接近现代面板壳，信息密度更高但没有新增状态管理。
+- 右侧面板没有改业务逻辑，只保留容器和视觉壳的统一；相关 scoped 样式集中在 `globals.css`，继续沿用现有 shadcn / radix / lucide 体系。
+- 验证结果：`git diff --check` 通过；`bun run --filter='@rv-insights/electron' build:renderer` 成功完成，仍只有既有的大 chunk warning。全量 `typecheck` 在当前工作区被仓库里一个非侧栏的 `ChatMessages.tsx` 缺失导入问题干扰，当前不在这次侧栏重构范围内。
+- 当前仍需保护 `.DS_Store`、`improve/.DS_Store`、`improve/ui/.DS_Store` 和 `improve/ui/.2026-05-16-client-ui-visual-spec.md.swp`，不要纳入提交。
+
+## 2026-05-17 主内容工作台视觉重构
+
+- [ ] 盘点并限定主内容相关文件范围：`agent/*`、`chat/*`、`pipeline/*`、`tabs/*` 与必要共用 `ui/*`。
+- [ ] 重构主内容区容器、标题区、消息卡、空状态、输入区与对话框的视觉层级，形成更高质感的工作台叙事。
+- [ ] 保持交互与数据流不变，只做视觉与局部布局增强，避免触碰侧边栏主逻辑。
+- [ ] 运行类型检查与必要的聚焦验证，确认改造不破坏功能。
+- [ ] 在本节追加 Review，记录改动文件、视觉要点与残余风险。
+
+## 2026-05-17 主内容工作台视觉重构 Review
+
+- 已将主内容统一成更明确的工作台叙事：`MainArea` / `TabContent` / `ChatView` / `AgentView` / `PipelineView` 都增加了更强的背景层、顶边高光和内容容器层次。
+- 已强化头部、消息区、输入区与记录区的视觉重量：`ChatHeader`、`AgentHeader`、`ChatMessages`、`AgentMessages`、`ChatInput`、`PipelineHeader`、`PipelineComposer`、`PipelineRecords` 的卡片边界、阴影、留白和信息密度都做了统一收紧。
+- 共用对话框与命令面板保持现有交互，只保留或延续更高质感的模态外观；本次没有改 IPC、Jotai 数据流、消息语义或主进程逻辑。
+- 版本号已从 `0.0.72` 提升到 `0.0.73`。
+- 验证通过：`bun run --filter='@rv-insights/electron' typecheck`；`bun run --filter='@rv-insights/electron' build:renderer`；`git diff --check`。
+- 残余风险主要是主观观感和 Electron 桌面壳里的最终层级表现，建议在实际窗口里再看一次 Chat / Agent / Pipeline 三个主面板的首屏。
+
 ## 2026-05-17 Agent Cockpit 可见度补强
 
 - [x] 复盘用户反馈：上一轮 cockpit 优化偏保守，肉眼变化不够明显。

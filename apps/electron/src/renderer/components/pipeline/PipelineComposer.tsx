@@ -75,7 +75,7 @@ function PipelineComposerNoticeLine({
     <div
       role="status"
       aria-live="polite"
-      className={`mt-3 rounded-card border px-3 py-2 text-sm leading-5 ${toneClass}`}
+      className={`mt-3 rounded-panel border px-3 py-2 text-sm leading-5 shadow-sm ${toneClass}`}
     >
       {notice.message}
     </div>
@@ -133,7 +133,8 @@ export function PipelineComposer({
 
   if (disabled) {
     return (
-      <section className="pipeline-command-strip pipeline-glow-card rounded-panel border border-status-running-border/80 bg-surface-card px-4 py-4 shadow-panel">
+      <section className="pipeline-command-strip pipeline-glow-card relative overflow-hidden rounded-panel border border-status-running-border/80 bg-surface-card/92 px-4 py-4 shadow-panel backdrop-blur">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--status-running)/0.10),transparent_28%)]" aria-hidden="true" />
         <div className="pipeline-command-strip__scan" aria-hidden="true" />
         <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 flex-1 gap-3">
@@ -174,7 +175,7 @@ export function PipelineComposer({
   }
 
   return (
-    <section className="pipeline-glow-card rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-4 shadow-card">
+    <section className="pipeline-glow-card rounded-panel border border-border-subtle/70 bg-surface-card/92 px-4 py-4 shadow-card backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-text-tertiary">
@@ -197,7 +198,7 @@ export function PipelineComposer({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="输入要交给 RV Pipeline 的任务"
-        className="mt-3 min-h-36 w-full resize-y rounded-card border border-border-subtle/70 bg-background/70 px-3 py-3 text-sm leading-6 text-text-primary shadow-inner outline-none transition-[border-color,box-shadow,background-color] duration-normal placeholder:text-text-tertiary focus:border-status-running-border focus:bg-background/85 focus:ring-2 focus:ring-focus"
+        className="mt-3 min-h-36 w-full resize-y rounded-panel border border-border-subtle/70 bg-background/70 px-3 py-3 text-sm leading-6 text-text-primary shadow-inner outline-none transition-[border-color,box-shadow,background-color] duration-normal placeholder:text-text-tertiary focus:border-status-running-border focus:bg-background/85 focus:ring-2 focus:ring-focus"
       />
       <div className="mt-3 flex gap-2">
         <Button

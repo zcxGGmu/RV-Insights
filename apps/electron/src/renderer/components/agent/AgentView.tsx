@@ -1330,7 +1330,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     <>
     <AgentSessionProvider sessionId={sessionId}>
       {/* 主内容区域 */}
-      <div className="agent-cockpit-shell flex h-full flex-1 min-w-0 flex-col">
+      <div className="agent-cockpit-shell relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-surface-panel/95">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-status-running/25 to-transparent" aria-hidden="true" />
         {/* Agent Header */}
         <AgentHeader
           sessionId={sessionId}
@@ -1342,7 +1343,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         />
 
         {/* 交互横幅区 */}
-        <div className="shrink-0 px-3 pt-3 md:px-5" aria-live="polite">
+        <div className="relative z-10 shrink-0 px-3 pt-3 md:px-5" aria-live="polite">
           <PermissionBanner sessionId={sessionId} active={activeBanner === 'permission'} />
           <AskUserBanner sessionId={sessionId} active={activeBanner === 'ask-user'} />
           {isPlanMode && (
@@ -1378,7 +1379,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         />
 
         {/* 输入区域 */}
-        <div className="agent-composer-zone px-3 pb-3 md:px-5 md:pb-5" data-input-mode="agent">
+        <div className="agent-composer-zone relative z-10 px-3 pb-3 md:px-5 md:pb-5" data-input-mode="agent">
           <div
             className={cn(
               'agent-command-deck rounded-panel border border-border-subtle/70 transition-all duration-200',

@@ -32,9 +32,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        // Base styles shared by all panels
-        'h-full flex flex-col min-w-0 overflow-hidden',
-        // Variant-specific styles
+        'h-full flex min-w-0 flex-col overflow-hidden rounded-panel border border-border-subtle/60 bg-surface-panel/88 shadow-panel backdrop-blur-xl',
         variant === 'grow' && 'flex-1',
         variant === 'shrink' && 'shrink-0',
         className

@@ -300,7 +300,7 @@ const RecordCard = React.memo(function RecordCard({
       id={`pipeline-record-${record.id}`}
       ref={registerElement}
       className={cn(
-        'pipeline-record-card relative overflow-hidden rounded-card border px-4 py-3 pl-5 shadow-card transition-[box-shadow,transform,border-color] duration-normal hover:-translate-y-0.5 hover:shadow-panel',
+        'pipeline-record-card relative overflow-hidden rounded-panel border px-4 py-3 pl-5 shadow-card transition-[box-shadow,transform,border-color] duration-normal hover:-translate-y-0.5 hover:shadow-panel',
         toneClass,
         highlighted ? 'pipeline-record-highlight ring-2 ring-primary ring-offset-2 ring-offset-background' : '',
       )}
@@ -883,7 +883,7 @@ export function PipelineRecords({
         <LiveOutputPanel node={liveNode} output={liveOutput ?? ''} />
       ) : null}
 
-      <div className="pipeline-records-console pipeline-glow-card flex flex-col gap-4 rounded-panel border border-border-subtle/70 bg-surface-card px-4 py-4 shadow-panel">
+      <div className="pipeline-records-console pipeline-glow-card flex flex-col gap-4 rounded-panel border border-border-subtle/70 bg-surface-card/92 px-4 py-4 shadow-panel backdrop-blur">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-card border border-status-running-border/70 bg-status-running-bg text-status-running-fg shadow-[0_0_24px_hsl(var(--status-running)/0.18)]">
@@ -915,7 +915,7 @@ export function PipelineRecords({
           </div>
         </div>
 
-        <div className="pipeline-search-deck grid gap-3 rounded-panel border border-border-subtle/60 bg-background/45 p-3 shadow-inner xl:grid-cols-[minmax(260px,1fr)_auto]">
+        <div className="pipeline-search-deck grid gap-3 rounded-panel border border-border-subtle/60 bg-background/50 p-3 shadow-inner xl:grid-cols-[minmax(260px,1fr)_auto]">
           <div className="relative">
             <Search
               size={17}
